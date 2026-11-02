@@ -16,6 +16,7 @@
 //   - A combination is a name and a level that fits its kind: a requirement at release and user, a use case at system, a module at unit and component (UC-026's table). A combination is uncovered
 //     when no test of that level guards the name; a test guards a module it names in its `Module:` line, as the recipe test-selection counts it.
 //   - A name is preselected when one of its combinations is uncovered; a level when a preselected name lacks it.
+//   - A name is offered only when it is accepted (UC-026 1, ITM-1423): a requirement the SPEC holds, a use case or module whose current text an approval record names.
 //   - The implementer of what a selection checks is the participant of a job of kind implement whose worksOn names a selected name.
 //   - The page holds <input class="name"> per name, <input class="level"> per level with a folded <details class="explain">, each in a row <tr> of the frame's table (ITM-1223),
 //     <tr class="participant"> per offered participant with <input
@@ -56,16 +57,26 @@ const declarations = (entries) => entries.map(([number, level, module, guards]) 
 // RULE ONE is guarded at release and user (and unit), UC-001 at system, MOD-b at unit and component; RULE TWO, UC-002 and MOD-a are not.
 const TESTS = declarations([["1", "unit", "none", "RULE ONE"], ["2", "release", "none", "RULE ONE"], ["3", "user", "none", "RULE ONE"], ["4", "system", "none", "UC-001"],
   ["5", "unit", "MOD-b", "RULE TWO"], ["6", "component", "MOD-b", "RULE TWO"]]);
-const FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "docs/use-cases/UC-001-one.md": useCase("UC-001", "RULE ONE"), "docs/use-cases/UC-002-two.md": useCase("UC-002", "RULE TWO"),
+const BARE = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "docs/use-cases/UC-001-one.md": useCase("UC-001", "RULE ONE"), "docs/use-cases/UC-002-two.md": useCase("UC-002", "RULE TWO"),
   "docs/architecture/MOD-a.md": moduleFile("MOD-a", "RULE ONE"), "docs/architecture/MOD-b.md": moduleFile("MOD-b", "RULE TWO"), "tests/a.test.mjs": TESTS,
   ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" };
+// The approval record of the reviewed file at `path` (a use case or a module) that names the blob of `body`: the file is accepted while `body` is its text.
+const KIND = { UC: "use-case", MOD: "module" };
+const approvalOf = (path, body = BARE[path]) => {
+  const id = /(UC-\d+|MOD-[a-z]+)/.exec(path)[1];
+  return { [`docs/approvals/${id}-${blobOf(body).slice(0, 12)}.md`]: writeDocument(approvalSchema, { fields: { kind: KIND[id.slice(0, id.indexOf("-"))], file: path, blob: blobOf(body) } }) };
+};
+// The product of most tests: every use case and module accepted, so that the page offers each (UC-026 1 lists the accepted ones).
+const FILES = { ...BARE, ...approvalOf("docs/use-cases/UC-001-one.md"), ...approvalOf("docs/use-cases/UC-002-two.md"), ...approvalOf("docs/architecture/MOD-a.md"),
+  ...approvalOf("docs/architecture/MOD-b.md") };
 const IMPLEMENTED = { id: "JOB-20261010-0900-abcd", kind: "implement", worksOn: ["UC-002"], participant: "writer-a", model: "model-y", route: "bridge lab-pc", run: null, retries: null,
   startedBy: "alice", start: new Date("2026-10-10T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [], params: {} };
 const withImplementer = { ...FILES, [`docs/jobs/${IMPLEMENTED.id}.md`]: startRecord(IMPLEMENTED).text };
 
-// UC-002 accepted: the record of the approval names the blob of its current text (the precondition rests-on-accepted).
-const UC_2 = "docs/use-cases/UC-002-two.md";
-const accepted = { ...FILES, [`docs/approvals/UC-002-${blobOf(FILES[UC_2]).slice(0, 12)}.md`]: writeDocument(approvalSchema, { fields: { kind: "use-case", file: UC_2, blob: blobOf(FILES[UC_2]) } }) };
+// UC-002 accepted: the record of the approval names the blob of its current text (the precondition rests-on-accepted). FILES holds that record.
+const accepted = FILES;
+// The same product with no record of UC-002: the use case is open.
+const UC_2_OPEN = Object.fromEntries(Object.entries(FILES).filter(([path]) => !path.startsWith("docs/approvals/UC-002-")));
 
 // `readOn`: the snapshot's own; without one, the branch trace-cache holds the graph of every commit, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
 // Each product's commits are its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module), so two tests never share a commit.
@@ -168,7 +179,7 @@ const useCaseLinks = (root) => find(root, (node) => (node.localName === "a" || n
 
 // TST-763001 · level: unit · module: MOD-test-pages
 // guards: UC-026; TEST GENERATION SEES THE EXISTING TESTS; EVERY STEP EXPLAINS ITSELF
-// given: a product with the requirements RULE ONE (guarded at release and user) and RULE TWO (guarded at neither), the use cases UC-001 (guarded at system) and UC-002 (not), the modules MOD-a (no test) and MOD-b (unit and component)
+// given: a product with the requirements RULE ONE (guarded at release and user) and RULE TWO (guarded at neither), the use cases UC-001 (guarded at system) and UC-002 (not), the modules MOD-a (no test) and MOD-b (unit and component), each use case and module accepted by an approval record
 // input: the route generate, drawn
 // expect: every requirement, use case and module listed with the levels that guard it; RULE TWO, UC-002 and MOD-a preselected and the others not; all five levels preselected, since each is lacking for a name; each level with a folded explanation that names chapter 13; nothing written, nothing sent
 test("generate — what can be tested with the levels that guard it, the uncovered combinations preselected, each level explained", async () => {
@@ -313,19 +324,39 @@ test("view — hands the frame the strategies the kind propose-tests uses", () =
 
 // TST-763008 · level: unit · module: MOD-test-pages
 // guards: UC-026; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
-// given: the preselection names the use case UC-002, which no record accepts
+// given: the product of the first test, but no record accepts the use case UC-002, which no test guards
 // input: the CI agent chosen, Show the run panel
-// expect: the panel names UC-002 as not accepted and offers no Run, so that nothing is sent or written
-test("generate — a selection that names an unaccepted use case is refused by the panel before anything is sent", async () => {
-  const fake = fakeProduct();
+// expect: UC-002 is neither offered nor in the preselection, which holds RULE TWO and MOD-a; the panel names no use case as not accepted and offers Run, so that no unaccepted name reaches the job; nothing is sent or written before Run
+test("generate — a use case no record accepts is not offered, so that the run panel's selection rests on accepted names only", async () => {
+  const fake = fakeProduct(UC_2_OPEN);
   const target = await show(fake);
+  assert.ok(!byClass(target, "input", "name").some((box) => box.value === "UC-002"), "UC-002 is not offered");
+  assert.deepEqual(checkedNames(target).sort(), ["MOD-a", "RULE TWO"]);
   await panelFor(target, "ci-writer");
   const panel = byClass(target, "section", "run-panel")[0];
-  assert.match(panel.textContent, /UC-002/);
-  assert.match(panel.textContent, /not accepted/);
-  assert.equal(runButtons(target).length, 0);
+  assert.doesNotMatch(panel.textContent, /UC-002/);
+  assert.doesNotMatch(panel.textContent, /not accepted/);
+  assert.equal(runButtons(target).length, 1, "Run is offered");
   assert.deepEqual(fake.writes(), []);
   assert.deepEqual(sent, []);
+});
+
+// TST-1423001 · level: unit · module: MOD-test-pages
+// guards: UC-026; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
+// given: the product of the first test, whose records accept UC-001 and MOD-b; UC-002 has no record (open), and MOD-a's only record names an earlier text of it (changed since it was accepted)
+// input: the route generate, drawn
+// expect: known positive — UC-001 and MOD-b, which a record accepts, are offered, and so are RULE ONE and RULE TWO, which the SPEC holds; UC-002 and MOD-a are not offered and not preselected; the offered names are RULE ONE, RULE TWO, MOD-b and UC-001, the preselected RULE TWO alone
+test("TST-1423001 — generate: only the accepted requirements, use cases and modules are offered", async () => {
+  const MOD_A = "docs/architecture/MOD-a.md";
+  const files = { ...Object.fromEntries(Object.entries(FILES).filter(([path]) => !/^docs\/approvals\/(UC-002|MOD-a)-/.test(path))),
+    ...approvalOf(MOD_A, moduleFile("MOD-a", "RULE TWO")) };
+  const target = await show(fakeProduct(files));
+  const offered = byClass(target, "input", "name").map((box) => box.value);
+  assert.ok(offered.includes("UC-001") && offered.includes("MOD-b"), `known positive: the accepted UC-001 and MOD-b are offered: ${offered}`);
+  assert.ok(!offered.includes("UC-002"), "UC-002, which no record accepts, is not offered");
+  assert.ok(!offered.includes("MOD-a"), "MOD-a, changed since it was accepted, is not offered");
+  assert.deepEqual(offered.sort(), ["MOD-b", "RULE ONE", "RULE TWO", "UC-001"]);
+  assert.deepEqual(checkedNames(target), ["RULE TWO"]);
 });
 
 // ================================================================== ITM-764: the proposal, its review and Write tests
@@ -499,9 +530,9 @@ test("view — hands the frame the writer the kind write-tests uses", () => {
 
 // TST-1119003 · level: unit · module: MOD-test-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026
-// given: the product of the first test, whose snapshot offers readOn, and the branch trace-cache holding the graph of its commit with one module more than the files hold (MOD-stored)
+// given: the product of the first test, whose snapshot offers readOn, and the branch trace-cache holding the graph of its commit with one requirement more than the files hold (RULE STORED) — a module only the stored graph held would have no file a record could accept, and so would not be offered
 // input: the route generate, drawn
-// expect: the page lists MOD-stored beside the modules of the files, which it could only know from the stored graph; readOn was asked for trace-cache / <commit>.json.gz, once
+// expect: the page lists RULE STORED beside the requirements of the files, which it could only know from the stored graph; readOn was asked for trace-cache / <commit>.json.gz, once
 test("generate — the graph is asked for with its commit, so that the graph stored for it is read", async () => {
   const { traceGraph, graphText } = await import("../src/trace-graph/index.mjs");
   const asked = [];
@@ -509,11 +540,11 @@ test("generate — the graph is asked for with its commit, so that the graph sto
   const fake = fakeProduct(FILES, { readOn: async (branch, path, options) => { asked.push([branch, path]); return branch === "trace-cache" && path === `${shot.commit}.json.gz` && options?.bytes ? bytes : null; } });
   const shot = await fake.host.readSnapshot();
   const graph = await traceGraph({ paths: shot.paths, read: shot.read }, { commit: shot.commit });
-  graph.nodes.set("MOD-stored", { ...graph.nodes.get("MOD-b"), id: "MOD-stored", title: "MOD-stored", path: "docs/architecture/MOD-stored.md" });
+  graph.nodes.set("RULE STORED", { ...graph.nodes.get("RULE TWO"), id: "RULE STORED" });
   bytes = await gzipped(graphText(graph));
   const target = await show(fake);
   const listed = byClass(target, "tr", "uncovered").concat(byClass(target, "tr", "covered")).map((item) => item.getAttribute("data-name")).sort();
-  assert.deepEqual(listed, ["MOD-a", "MOD-b", "MOD-stored", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);
+  assert.deepEqual(listed, ["MOD-a", "MOD-b", "RULE ONE", "RULE STORED", "RULE TWO", "UC-001", "UC-002"]);
   assert.deepEqual(asked, [["trace-cache", `${shot.commit}.json.gz`]]);
 });
 

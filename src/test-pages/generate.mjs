@@ -31,6 +31,7 @@
 // Module: MOD-test-pages
 
 import { readDocument } from "../documents/index.mjs";
+import { statuses } from "../approvals/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
@@ -88,7 +89,11 @@ async function loadProduct(host) {
   const levelOf = tests.some((node) => typeof node.level === "string")
     ? new Map(tests.map((node) => [node.id, node.level]))
     : new Map((await declarations()).map((declaration) => [declaration.id, declaration.level]));
-  const names = [...graph.nodes.values()].filter((node) => FITTING[node.kind]).sort((a, b) => a.id.localeCompare(b.id))
+  // What can be tested is what is accepted (UC-026 step 1): a requirement of the graph is one SPEC.md holds; a use case or a module is offered when
+  // MOD-approvals' statuses gives its file as accepted — the function its precondition rests-on-accepted reads, so that the page offers what the run lets through.
+  const reviewed = statuses(snapshot);
+  const accepted = (node) => node.kind === "requirement" || reviewed.get(node.path)?.status === "accepted";
+  const names = [...graph.nodes.values()].filter((node) => FITTING[node.kind] && accepted(node)).sort((a, b) => a.id.localeCompare(b.id))
     .map((node) => {
       const covered = new Set(guardingTests(graph, node.id).map((id) => levelOf.get(id)).filter(Boolean));
       return { id: node.id, kind: node.kind, covered: LEVELS.filter((level) => covered.has(level)), uncovered: FITTING[node.kind].filter((level) => !covered.has(level)) };
