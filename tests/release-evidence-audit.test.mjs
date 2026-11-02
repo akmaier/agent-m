@@ -133,7 +133,7 @@ const GATES = [{ requirement: PROCESS, gate: "Release testing", record: "docs/ga
 // Who accepted the report and when: the author and date of the commit that added the record, which the caller reads through
 // MOD-repository-hosts' readHistory of the record's path.
 const ACCEPTED = { person: "akmaier", date: "2026-10-12 08:30 UTC" };
-function audit({ product = {}, head = {}, results = resultFiles(), gates = GATES, instanceSpec = INSTANCE_SPEC, register = registerOf(), accepted = ACCEPTED } = {}) {
+function audit({ product = {}, head = {}, results = resultFiles(), gates = GATES, instanceSpec = INSTANCE_SPEC, register = registerOf(), accepted = ACCEPTED, unrecorded } = {}) {
   const files = { ...productFiles(), ...product };
   for (const [path, text] of Object.entries(files)) if (text === null) delete files[path];
   const headSide = { ...headFiles(), ...head };
@@ -146,7 +146,7 @@ function audit({ product = {}, head = {}, results = resultFiles(), gates = GATES
   const [atFiles, resultSide, headOwn] = [own(files), own(results), own(headSide)];
   const at = { ...snapshotOf(atFiles, commit), readOn: storedGraphReadOn({ paths: Object.keys(atFiles), read: async (path) => atFiles[path] ?? null, commit }) };
   return auditRows(at, snapshotOf(resultSide, "test-results"), snapshotOf(headOwn, HEAD), { tag: TAG, commit },
-    gates, instanceSpec, register, accepted);
+    gates, instanceSpec, register, accepted, unrecorded);
 }
 let audits = 0;
 const rowOf = (result, requirement) => result.rows.find((row) => row.requirement === requirement);
@@ -275,6 +275,23 @@ test("TST-1431001 auditRows — a process requirement's row names the artifacts 
   assert.deepEqual(rowOf(result, PROCESS).gates, ["docs/gates/20261010-release-testing.md"], "known positive: the record");
   assert.deepEqual(rowOf(result, PROCESS).artifacts, ["SPEC.md"]);
   assert.deepEqual(rowOf(result, R1).artifacts, []);
+});
+
+// TST-1433001 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; UC-030
+// given: the fixture, whose instance's SPEC holds the process requirement A PROCESS RULE; the caller gives no gate record for it, and gives its gate "Release testing" among the gates the workflow holds without a record
+// input: auditRows(..., gates [], ..., accepted, unrecorded [{ requirement: A PROCESS RULE, gate: "Release testing" }]); then, as known positive, auditRows with the fixture's gate record and no unrecorded gate
+// expect: known positive — with the record, the process row's gates are [docs/gates/20261010-release-testing.md] and its unrecorded gates []; without it, the process row still stands, constrains "process", has gates [], unrecorded ["Release testing"] and no test, and is counted among the requirements without a test (noTest 2); a product row's unrecorded gates are []
+// counter-proof: an auditRows that takes the process rows from `gates` alone gives no process row without the record and fails the second assertion
+test("TST-1433001 auditRows — a process requirement whose gate no record holds still has its row, which names that gate as one no record holds", async () => {
+  const recorded = await audit();
+  assert.deepEqual(rowOf(recorded, PROCESS).gates, ["docs/gates/20261010-release-testing.md"], "known positive: the recorded gate");
+  const result = await audit({ gates: [], unrecorded: [{ requirement: PROCESS, gate: "Release testing" }] });
+  const process = rowOf(result, PROCESS);
+  assert.ok(process, "the process requirement has its row");
+  assert.deepEqual([process.constrains, process.gates, process.unrecorded, process.tests], ["process", [], ["Release testing"], []]);
+  assert.equal(result.summary.noTest, 2);
+  assert.deepEqual([rowOf(recorded, PROCESS).unrecorded, rowOf(result, R1).unrecorded], [[], []]);
 });
 
 // TST-756005 · level: unit · module: MOD-release-evidence
@@ -603,6 +620,23 @@ test("TST-1431002 auditDocument — a process requirement's section names the ar
   assert.ok(process.includes("docs/gates/20261010-release-testing.md"), "known positive: the gate record");
   assert.match(process, /^- [^\n]*artifacts[^\n]*SPEC\.md/im);
   assert.deepEqual(rows.filter((row) => !row.startsWith(PROCESS) && /artifacts/i.test(row)), []);
+});
+
+// TST-1433002 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
+// given: the fixture audit, and the same audit whose process row holds no gate record and names the gate "Release testing" as one no record holds (gates [], unrecorded ["Release testing"]); the other rows name no such gate
+// input: auditDocument(audit, release) of each
+// expect: known positive — with the fixture's gate record the process section holds its "Gate record" line and no line saying no record holds a gate; without it the process section holds a line naming the gate Release testing and that no record holds it, and no "Gate record" line; no other section says no record holds a gate
+// counter-proof: a document that writes the gate records alone leaves the process section without the line and fails the match
+test("TST-1433002 auditDocument — a process requirement's section says that no record holds its gate", () => {
+  const sections = (text) => text.slice(text.indexOf("## Requirements")).split(/^### /m).slice(1);
+  const recorded = sections(document()).find((row) => row.startsWith(PROCESS));
+  assert.ok(recorded.includes("Gate record") && !/no record holds/i.test(recorded), "known positive: the recorded gate");
+  const rows = sections(document({ ...AUDIT, rows: AUDIT.rows.map((row) => (row.requirement === PROCESS ? { ...row, gates: [], unrecorded: ["Release testing"] } : row)) }));
+  const process = rows.find((row) => row.startsWith(PROCESS));
+  assert.match(process, /^- [^\n]*Release testing[^\n]*no record holds/im);
+  assert.ok(!process.includes("Gate record"), "no gate record is named");
+  assert.deepEqual(rows.filter((row) => !row.startsWith(PROCESS) && /no record holds/i.test(row)), []);
 });
 
 // TST-757104 · level: unit · module: MOD-release-evidence
