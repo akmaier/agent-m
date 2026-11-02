@@ -201,8 +201,9 @@ test("onRecordsChanged — a job waiting at a gate that is rejected ends failed,
     assert.equal(git(w.product, "log", "-1", "--format=%s", "main"), `end ${JOB}: failed`);
     assert.equal(fileAt(w, `docs/jobs/${LAB_JOB}.md`), lab, "the job of another route is left as it is");
     const after = headOf(w);
+    git(w.productDir, "pull", "-q", "--ff-only");
     const again = await run({ ...w, head: after });
-    assert.equal(again.outcome, "nothing to do");
+    assert.equal(again.outcome, "nothing to do", again.summary);
     assert.equal(headOf(w), after, "an ended job is not ended again");
   });
 });
