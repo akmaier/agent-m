@@ -591,7 +591,7 @@ test("TST-375216: UC-017 3 a CLI agent that the Bridge does not offer cannot be 
 // guards: UC-017; EVERY STEP EXPLAINS ITSELF
 // given: a real Bridge with claude, kept by this browser as laptop; the frame at #participants
 // input: the author adds a CLI agent and reads the folded explanations of the form
-// expect: known positive — the form has a folded What is this? for the type and one for capabilities and place; the step Test, which asks the author to send a request through the Bridge, carries no folded explanation of its own, and the explanation of the test (it names the Bridge's reason and that nothing is saved until the author saves untested) is in the frame's explanations and on no page
+// expect: known positive — the form has a folded What is this? for the type and one for capabilities and place; the step Test, which asks the author to send a request through the Bridge, and the explanation of the test (it names the Bridge's reason and that nothing is saved until the author saves untested) is in the frame's explanations and on no page
 test("TST-375217: UC-017 6 the step Test carries a folded explanation", async (t) => {
   const machine = computer({ claude: { loggedIn: true } });
   const bridge = await startBridge(t, machine, { name: "laptop", offered: ["claude"] });
