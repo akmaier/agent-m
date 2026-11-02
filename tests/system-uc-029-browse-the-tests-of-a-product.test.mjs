@@ -51,6 +51,7 @@ const FLOW_EVIDENCE = {
   "main-4-description": { uc: "level, guarded identifiers, precondition, input, expected result", evidence: [[SELF, "TST-774205"], [DETAIL, "TST-767001"]] },
   "main-4-schedule-writer-code": { uc: "when the schedule runs it, the participant that wrote it, its counter-proof record, and a link to its code.", evidence: [[SELF, "TST-774205"], [DETAIL, "TST-767002"], [DETAIL, "TST-767003"], [DETAIL, "TST-767004"]] },
   "main-5-history": { uc: "one mark per commit of the default branch where it ran, and one row per release tag. A flaky commit is marked as such.", evidence: [[SELF, "TST-774206"], [DETAIL, "TST-767005"]] },
+  "main-5-default-branch": { uc: "one mark per commit of the default branch where it ran", evidence: [[SELF, "TST-774214"]] },
   "main-5-rate": { uc: "A model-dependent test shows its rate per release as a line, with the number of runs behind each point.", evidence: [[SELF, "TST-774206"], [DETAIL, "TST-767006"]] },
   "main-6-compare": { uc: "The reviewer picks two releases to **compare**: tests added, removed, changed in what they guard or expect, and changed in outcome.", evidence: [[SELF, "TST-774207"], [COMPARE, "TST-769001"]] },
   "1a-incomplete": { uc: "It is listed under **Incomplete**, with what is missing; the page still works for all others.", evidence: [[SELF, "TST-774208"], [VIEW, "TST-766006"]] },
@@ -65,7 +66,6 @@ const FLOW_EVIDENCE = {
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "1a-no-identifier": { uc: "**1a. A test declares no `TST-` identifier, no level or no guarded identifier.**", finding: "UC029-F1", file: SELF, test: "TST-774209", module: "MOD-trace-pages" },
-  "main-5-default-branch": { uc: "one mark per commit of the default branch where it ran", finding: "UC029-F2", file: SELF, test: "TST-774214", module: "MOD-trace-pages" },
 };
 // The passages no code of this product carries, with the reason.
 const NOT_WALKED = {};
@@ -312,8 +312,8 @@ test("TST-774213: UC-029 5b a run whose log the server no longer keeps keeps its
 // guards: UC-029; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: the product of TST-774202; test-results holds a record of PULL, the head of a pull request, never a commit of main, in which TST-101 failed; HEAD and OLD are commits of main that ran TST-101
 // input: the reviewer opens TST-101
-// expect: known positive — the history has the marks of HEAD and OLD; it has no mark of PULL, which is not a commit of the default branch; FINDING UC029-F2 (MOD-trace-pages): the history marks every commit whose records the branch test-results holds, a pull request's head among them
-test("TST-774214: UC-029 5 the history marks the commits of the default branch alone", { todo: "FINDING UC029-F2 (MOD-trace-pages): test-detail.mjs marks every commit with a record on test-results that ran the test, so a pull request's head, which is no commit of the default branch, gets a mark of its own" }, async () => {
+// expect: known positive — the history has the marks of HEAD and OLD; it has no mark of PULL, which is not a commit of the default branch
+test("TST-774214: UC-029 5 the history marks the commits of the default branch alone", async () => {
   const page = await render(hostOf(), { row: "TST-101" });
   const marked = textsOf(page, "test-history-commit").map((mark) => mark.slice(0, 7));
   assert.ok(marked.includes(short(HEAD)) && marked.includes(short(OLD)), "known positive: the commits of main that ran it are marked");
