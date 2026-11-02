@@ -180,13 +180,13 @@ test("auditRows — a row's sources with authority, version and hashes", async (
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: the fixture; the first requirement is guarded by one unit test and two release tests; the fifth by a model-dependent test run 6 of 10; the second by a failing test; the counter-proof record exists for TST-756101 only
 // input: auditRows(...); the tests of those rows
-// expect: the first row lists TST-756101 (unit, passed, counter-proof docs/tests/counter-proofs/TST-756101.md, worse false, byImplementer false), TST-756102 (release, passed, none, worse false, byImplementer true) and TST-756103 (release, passed, none, worse false, byImplementer false); the fifth row's test has the outcome "6 of 10"; the second's is "failed"
+// expect: the first row lists TST-756101 (unit, passed, counter-proof docs/tests/counter-proofs/TST-756101.md, worse false, byImplementer false, passed true, no last rate), TST-756102 (release, passed, none, worse false, byImplementer true, passed true, no last rate) and TST-756103 (release, passed, none, worse false, byImplementer false, passed true, no last rate); the fifth row's test has the outcome "6 of 10"; the second's is "failed"
 test("auditRows — a row's tests by level with outcome or rate and counter-proof", async () => {
   const result = await audit();
   assert.deepEqual(rowOf(result, R1).tests, [
-    { id: "TST-756101", level: "unit", outcome: "passed", counterProof: "docs/tests/counter-proofs/TST-756101.md", worse: false, byImplementer: false },
-    { id: "TST-756102", level: "release", outcome: "passed", counterProof: null, worse: false, byImplementer: true },
-    { id: "TST-756103", level: "release", outcome: "passed", counterProof: null, worse: false, byImplementer: false },
+    { id: "TST-756101", level: "unit", outcome: "passed", counterProof: "docs/tests/counter-proofs/TST-756101.md", worse: false, byImplementer: false, passed: true, lastRate: null },
+    { id: "TST-756102", level: "release", outcome: "passed", counterProof: null, worse: false, byImplementer: true, passed: true, lastRate: null },
+    { id: "TST-756103", level: "release", outcome: "passed", counterProof: null, worse: false, byImplementer: false, passed: true, lastRate: null },
   ]);
   assert.deepEqual(rowOf(result, R5).tests.map((t) => [t.id, t.outcome]), [["TST-756105", "6 of 10"]]);
   assert.deepEqual(rowOf(result, R2).tests.map((t) => [t.id, t.outcome]), [["TST-756106", "failed"]]);
@@ -217,6 +217,39 @@ test("TST-1163003 auditRows keeps shared release-test implementer provenance on 
   const result = await audit({ product: { "tests/release-a.test.mjs": shared } });
   assert.deepEqual([rowOf(result, R1), rowOf(result, R2)].map((row) => row.tests.find((test) => test.id === "TST-756102").byImplementer), [true, false]);
   assert.equal(result.summary.byImplementer, 1);
+});
+
+// TST-1430001 · level: unit · module: MOD-release-evidence
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-030
+// given: the fixture, where the model-dependent TST-756105 passed 6 of 10 on the release commit against 8 of 10 at the last release; then the same with the last release's record at 5 of 10; the deterministic TST-756101 passed, TST-756106 failed and TST-756104 is flaky
+// input: auditRows(...); the tests of the fifth, first, second and fourth rows
+// expect: known positive — TST-756105's outcome stays its rate, "6 of 10", in both; first its last rate "8 of 10", worse true and passed false; then its last rate "5 of 10", worse false and passed true; TST-756101, 756102 and 756103 passed true with no last rate; TST-756106 and TST-756104 passed false with no last rate
+// counter-proof: a passed taken from the outcome alone makes the worse TST-756105 pass and fails the first deepEqual; a lastRate taken from the release commit's rate gives "6 of 10" and fails it too
+test("TST-1430001 auditRows — a model-dependent test names its rate, the last release's rate and whether it passed", async () => {
+  const pick = (test) => [test.id, test.outcome, test.lastRate, test.worse, test.passed];
+  assert.deepEqual(rowOf(await audit(), R5).tests.map(pick), [["TST-756105", "6 of 10", "8 of 10", true, false]]);
+  const better = await audit({ results: { ...resultFiles(), [`runs/${OLD}/old.md`]: run(OLD, [["TST-756105", "unit", "passed", "5 of 10"]]) } });
+  assert.deepEqual(rowOf(better, R5).tests.map(pick), [["TST-756105", "6 of 10", "5 of 10", false, true]]);
+  assert.deepEqual([R1, R2, R4].map((name) => rowOf(better, name).tests.map((test) => [test.id, test.lastRate, test.passed])),
+    [[["TST-756101", null, true], ["TST-756102", null, true], ["TST-756103", null, true]], [["TST-756106", null, false]], [["TST-756104", null, false]]]);
+});
+
+// TST-1430002 · level: unit · module: MOD-release-evidence
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture where TST-756105 passed 6 of 10 against 5 of 10 at the last release; and the fixture where it did not complete its runs on the release commit — its record "not run", 3 of 10 — against 2 of 10 at the last release
+// input: auditRows(...); summary.passing and summary.notPassed beside the rows whose tests all have passed true
+// expect: known positive — the first counts passing 2, A FIRST RULE and A FIFTH RULE, exactly the rows whose tests all passed; the not-run fixture gives TST-756105 the outcome "3 of 10", passed false and worse false, and counts passing 1 (A FIRST RULE, the one row whose tests all passed) and notPassed 2
+// counter-proof: a passed true for a model-dependent test whose run did not complete counts A FIFTH RULE among the rows whose tests all passed and fails the last deepEqual
+test("TST-1430002 auditRows — the rows the passing count counts are told from their tests' passed, and a model-dependent test that did not run has not passed", async () => {
+  const passedRows = (result) => result.rows.filter((row) => row.tests.length && row.tests.every((test) => test.passed)).map((row) => row.requirement);
+  const better = await audit({ results: { ...resultFiles(), [`runs/${OLD}/old.md`]: run(OLD, [["TST-756105", "unit", "passed", "5 of 10"]]) } });
+  assert.deepEqual([better.summary.passing, passedRows(better)], [2, [R1, R5]], "known positive");
+  const results = { ...resultFiles(), [`runs/${OLD}/old.md`]: run(OLD, [["TST-756105", "unit", "passed", "2 of 10"]]) };
+  results[`runs/${COMMIT}/a.md`] = run(COMMIT, [["TST-756101", "unit", "passed", ""], ["TST-756102", "release", "passed", ""], ["TST-756103", "release", "passed", ""],
+    ["TST-756104", "unit", "passed", ""], ["TST-756105", "unit", "not run", "3 of 10"]]);
+  const notRun = await audit({ results });
+  assert.deepEqual(rowOf(notRun, R5).tests.map((test) => [test.outcome, test.passed, test.worse]), [["3 of 10", false, false]]);
+  assert.deepEqual([notRun.summary.passing, passedRows(notRun), notRun.summary.notPassed], [1, [R1], 2]);
 });
 
 // TST-756004 · level: unit · module: MOD-release-evidence
@@ -442,6 +475,21 @@ test("auditRows — the report and its approval record are read on the default b
 test("auditRows — a source is resolved against the register it is given", async () => {
   const result = await audit({ register: registerOf([["docs/sources/SRC-vibe-coding.md", BOOK]]) });
   assert.deepEqual(rowOf(result, R1).sources.map((source) => source.id), ["SRC-vibe-coding"]);
+});
+
+// TST-1430003 · level: unit · module: MOD-release-evidence
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-030
+// given: the audit of the fixture, where TST-756105 passed 6 of 10 against 8 of 10 at the last release (worse); and the same with the last release at 5 of 10
+// input: auditDocument(auditRows(...), { tag, commit }); the lines of TST-756105 and of TST-756101
+// expect: known positive — TST-756101's line still reads "(unit): passed; counter-proof"; TST-756105's line ends "(unit): 6 of 10, against 8 of 10 at the last release, not passed; no counter-proof", and with the last release at 5 of 10 "(unit): 6 of 10, against 5 of 10 at the last release, passed; no counter-proof"
+// counter-proof: a document that writes the outcome alone loses "against 8 of 10" and fails the second assertion
+test("TST-1430003 auditDocument — a model-dependent test's line names its rate, the last release's rate and whether it passed", async () => {
+  const lineOf = (text, id) => text.split("\n").find((line) => line.includes(`\`${id}\``));
+  const worse = auditDocument(await audit(), { tag: TAG, commit: COMMIT });
+  assert.ok(lineOf(worse, "TST-756101").includes("(unit): passed; counter-proof"), lineOf(worse, "TST-756101"));
+  assert.ok(lineOf(worse, "TST-756105").endsWith("(unit): 6 of 10, against 8 of 10 at the last release, not passed; no counter-proof"), lineOf(worse, "TST-756105"));
+  const better = auditDocument(await audit({ results: { ...resultFiles(), [`runs/${OLD}/old.md`]: run(OLD, [["TST-756105", "unit", "passed", "5 of 10"]]) } }), { tag: TAG, commit: COMMIT });
+  assert.ok(lineOf(better, "TST-756105").endsWith("(unit): 6 of 10, against 5 of 10 at the last release, passed; no counter-proof"), lineOf(better, "TST-756105"));
 });
 
 // ================================================================== auditDocument (ITM-757)

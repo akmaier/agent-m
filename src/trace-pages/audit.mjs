@@ -27,13 +27,16 @@ function el(name, className, ...children) {
   return node;
 }
 
-// What the rows alone tell of the counts: a row with a test and only passed outcomes is passing; one with no test is no test; one with a failed or not
-// run outcome is not passed; one with a flaky outcome is flaky; worse and byImplementer are the flags their provider gives. A row that is not passing is a gap.
+// What the rows alone tell of the counts: a row with a test and only tests that passed (`passed`, which auditRows gives each test) is passing; one with no
+// test is no test; one with a failed or not run outcome, or a model-dependent test — its outcome a rate — that did not pass at a rate no worse than the
+// last release's, is not passed; one with a flaky outcome is flaky; worse and byImplementer are the flags their provider gives. A row that is not passing
+// is a gap.
+const RATE = /^\d+ of \d+$/;
 const outcomes = (row) => row.tests.map((test) => test.outcome);
 const COUNTED = {
-  passing: (row) => row.tests.length > 0 && outcomes(row).every((outcome) => outcome === "passed"),
+  passing: (row) => row.tests.length > 0 && row.tests.every((test) => test.passed),
   noTest: (row) => row.tests.length === 0,
-  notPassed: (row) => outcomes(row).some((outcome) => outcome === "failed" || outcome === "not run"),
+  notPassed: (row) => row.tests.some((test) => test.outcome === "failed" || test.outcome === "not run" || (RATE.test(test.outcome) && !test.passed && !test.worse)),
   flaky: (row) => outcomes(row).some((outcome) => outcome === "flaky"),
   worse: (row) => row.tests.some((test) => test.worse),
   byImplementer: (row) => row.tests.some((test) => test.byImplementer),
@@ -125,6 +128,8 @@ function rowOf(row, { release, audit, acceptance }, links) {
       const link = el("a", "audit-test", test.id);
       link.setAttribute("href", `#trace/key=tests/row=${encodeURIComponent(test.id)}`);
       return el("div", "audit-test-line", link, " ", el("span", "audit-level", test.level), " ", el("span", "audit-outcome", test.outcome),
+        ...(test.lastRate ? [" ", el("span", "audit-last-rate", `against ${test.lastRate} at the last release`)] : []),
+        ...(RATE.test(test.outcome) ? [" ", el("span", "audit-passed", test.passed ? "passed" : "not passed")] : []),
         ...(test.counterProof ? [" ", el("span", "audit-counter-proof", test.counterProof)] : []));
     })
     : [el("span", "audit-no-test", "no test")];
