@@ -59,6 +59,7 @@ const FLOW_EVIDENCE = {
   "main-3-input": { uc: "with its description and code", evidence: [[SELF, "TST-771205"], [SELECTION, "TST-752101"]] },
   "main-3-fits": { uc: "It checks that all of it fits into the participant's context.", evidence: [[SELF, "TST-771204"], [UNIT, "TST-763005"]] },
   "main-4-implementer": { uc: "it leaves out the participant recorded as implementer of the behaviour under test, and says so", evidence: [[SELF, "TST-771213"], [UNIT, "TST-763002"]] },
+  "main-4-implementer-uc": { uc: "For the *release* level it", evidence: [["tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", "TST-771309"]] },
   "main-4-run": { uc: "the author presses **Run** — one click", evidence: [[SELF, "TST-771204"], [SELF, "TST-771205"], [UNIT, "TST-763004"]] },
   "main-5-cases": { uc: "Each one carries a `TST-` identifier, its level", evidence: [[SELF, "TST-771205"], [SELF, "TST-771206"]] },
   "main-5-guards-module": { uc: "the identifiers it guards", evidence: [[SELF, "TST-771210"]] },
@@ -83,7 +84,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the page or a module does otherwise: the finding, its case, and the module that points to.
 const FLOW_FINDINGS = {
-  "main-4-implementer-uc": { uc: "For the *release* level it", finding: "UC026-F2", file: "tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", test: "TST-771309", module: "MOD-test-pages" },
   "8b-shown-again": { uc: "it is not written, and the review panel shows it again for the author to sharpen or drop.", finding: "UC026-F6", file: SELF, test: "TST-771209", module: "MOD-workflow-entries" },
 };
 // The passages no test of this product's code walks, with the reason.

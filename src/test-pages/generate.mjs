@@ -11,7 +11,8 @@
 //   - a combination is a name and a level that fits its kind (UC-026's table): a requirement is checked at `release` and `user`, a use case at `system`, a module at `unit` and `component`; a combination is
 //     uncovered when no test of that level guards the name (a test guards a module it names in its `Module:` line too, as the recipe test-selection counts it);
 //   - a name is preselected when one of its combinations is uncovered, a level when one of the preselected names has it uncovered;
-//   - the implementer of what a selection checks is the participant of a job of kind `implement` whose `worksOn` names a selected name, or an item or use case that names a selected requirement;
+//   - the implementer of what a selection checks is the participant of a job of kind `implement` whose `worksOn` names a selected name, or an item or use case that names a selected name — an
+//     item that realises a selected requirement or use case, or changes a selected module (ITM-1424);
 //   - the page asks for the person's own name, as the release panel does, since no setting holds an identity;
 //   - the run is queued on the first route routesFor offers the participant, and nothing is run in the tab;
 //   - the proposal is read from the end record's `draft` of the job queued from this page, else of the newest job of kind `propose-tests` that has one; the flags the rounds left are the findings of the last
@@ -111,11 +112,11 @@ async function loadParticipants(context, definition) {
   return { participants, instanceSnapshot: snapshot, writers: eligible(participants, { capabilities: definition.needs }).eligible };
 }
 
-// The participants of the jobs of kind `implement` that worked on what the selection checks.
+// The participants of the jobs of kind `implement` that worked on what the selection checks: a selected name, or an item or use case that names one — an item
+// by its `realises` or its `modules`.
 async function implementersOf(product, host, selected) {
   const behaviour = new Set(selected.map((each) => each.id));
   for (const each of selected) {
-    if (each.kind !== "requirement") continue;
     const traces = tracesTo(product.graph, each.id);
     for (const name of [...traces.items, ...traces.useCases]) behaviour.add(name);
   }

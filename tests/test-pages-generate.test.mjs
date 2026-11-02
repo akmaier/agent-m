@@ -17,7 +17,8 @@
 //     when no test of that level guards the name; a test guards a module it names in its `Module:` line, as the recipe test-selection counts it.
 //   - A name is preselected when one of its combinations is uncovered; a level when a preselected name lacks it.
 //   - A name is offered only when it is accepted (UC-026 1, ITM-1423): a requirement the SPEC holds, a use case or module whose current text an approval record names.
-//   - The implementer of what a selection checks is the participant of a job of kind implement whose worksOn names a selected name.
+//   - The implementer of what a selection checks is the participant of a job of kind implement whose worksOn names a selected name, or an item that realises a selected
+//     requirement or use case or changes a selected module (TST-1424001).
 //   - The page holds <input class="name"> per name, <input class="level"> per level with a folded <details class="explain">, each in a row <tr> of the frame's table (ITM-1223),
 //     <tr class="participant"> per offered participant with <input
 //     class="participant"> (a radio), <p class="left-out"> per participant left out, <p class="release-needs-another"> for 4a, <input class="person">, <button class="prepare">, and Run is the panel's own.
@@ -357,6 +358,42 @@ test("TST-1423001 — generate: only the accepted requirements, use cases and mo
   assert.ok(!offered.includes("MOD-a"), "MOD-a, changed since it was accepted, is not offered");
   assert.deepEqual(offered.sort(), ["MOD-b", "RULE ONE", "RULE TWO", "UC-001"]);
   assert.deepEqual(checkedNames(target), ["RULE TWO"]);
+});
+
+// A backlog item that realises `realises` and changes `modules`, and the record of a job of kind implement by `participant` that worked on it.
+const backlogItem = (id, realises, modules) => ({ [`docs/backlog/${id}-the-work.md`]: text("---", `id: ${id}`, "title: The work", "level: module", "realises:", ...realises.map((name) => `  - ${name}`),
+  "modules:", ...modules.map((name) => `  - ${name}`), "builds_on: []", "tests:", "  - unit", "origin:", "  - the fixture", "---", `# ${id} The work`, "", "## Outcome", "", "The work.") });
+const implementedBy = (participant, worksOn, id) => ({ [`docs/jobs/${id}.md`]: startRecord({ ...IMPLEMENTED, id, worksOn, participant }).text });
+async function chooseNames(target, names) {
+  const boxes = byClass(target, "input", "name");
+  for (const box of boxes) box.checked = names.includes(box.value);
+  boxes[0].dispatchEvent(new Event("change"));
+  await settle();
+}
+const leftOutNames = (target) => byClass(target, "p", "left-out").map((one) => /^(\S+) is left out/.exec(one.textContent)?.[1]).sort();
+
+// TST-1424001 · level: unit · module: MOD-test-pages
+// guards: RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; UC-026
+// given: the product of the first test with two backlog items — ITM-108 realises RULE TWO and changes MOD-a, implemented by writer-b; ITM-109 realises UC-001 and changes MOD-b, implemented by writer-a (each by a job of kind implement whose worksOn names the item); all five levels chosen
+// input: the selection RULE TWO (known positive); then UC-001; then MOD-b; then MOD-b with release unticked
+// expect: known positive — for RULE TWO writer-b is left out and writer-a offered; for UC-001 writer-a is left out and not offered, writer-b offered; for MOD-b writer-a is left out and not offered, writer-b offered; with release unticked nothing is left out and writer-a is offered
+test("TST-1424001 — generate: the implementer of an item that realises a selected use case or changes a selected module is left out of its release tests", async () => {
+  const files = { ...FILES, ...backlogItem("ITM-108", ["RULE TWO"], ["MOD-a"]), ...backlogItem("ITM-109", ["UC-001"], ["MOD-b"]),
+    ...implementedBy("writer-b", ["ITM-108"], "JOB-20261010-0900-ab08"), ...implementedBy("writer-a", ["ITM-109"], "JOB-20261010-0900-ab09") };
+  const target = await show(fakeProduct(files));
+  await chooseNames(target, ["RULE TWO"]);
+  assert.deepEqual(leftOutNames(target), ["writer-b"], "known positive: the implementer of an item that realises a selected requirement");
+  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-a"]);
+  await chooseNames(target, ["UC-001"]);
+  assert.deepEqual(leftOutNames(target), ["writer-a"], "UC-001: the implementer of the item that realises it");
+  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-b"]);
+  await chooseNames(target, ["MOD-b"]);
+  assert.deepEqual(leftOutNames(target), ["writer-a"], "MOD-b: the implementer of the item that changes it");
+  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-b"]);
+  setLevel(target, "release", false);
+  await settle();
+  assert.deepEqual(leftOutNames(target), [], "without release nothing is left out");
+  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-a", "writer-b"]);
 });
 
 // ================================================================== ITM-764: the proposal, its review and Write tests
