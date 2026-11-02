@@ -18,7 +18,10 @@ export function confirmDecision({ title, lines, confirm, reason = false }) {
       dialog.append(paragraph);
     }
     const reasonField = reason ? document.createElement("textarea") : null;
-    if (reasonField) dialog.append(reasonField);
+    if (reasonField) {
+      reasonField.setAttribute("aria-label", "Reason");
+      dialog.append(reasonField);
+    }
     const cancel = document.createElement("button");
     cancel.className = "btn";
     cancel.textContent = "Cancel";
