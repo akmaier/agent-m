@@ -8,7 +8,7 @@
 // Level: unit
 //
 // The route is called through its public Route.render with the key "tests" and the param row, over the Host of tests/trace-pages-harness.mjs. The product's default branch is named `trunk` by repositoryInfo; the Host
-// names the commits of that branch alone (the harness' `onDefault`) and gives no commit for any other branch name, so a page that reads "main" or no branch finds none. Each case states its expected marks in its own
+// answers containsCommit for the commits of that branch alone (the harness' `onDefault`) and for no other branch name, so a page that asks about "main" finds none. Each case states its expected marks in its own
 // text; none is read from a document. Readings the cases take, each from the sentence quoted:
 //   - UC-029 step 5, "one mark per commit of the default branch where it ran": a commit is a commit of the default branch when the history of the default branch that repositoryInfo names holds it; the marks are those
 //     of the commits of the pages of the branch `test-results` (the newest ten, then the ten after them for *Earlier runs*) that are commits of that branch, in the order of the pages;
@@ -39,16 +39,15 @@ const resultsOf = (records) => Object.fromEntries(records.map(([n, name, outcome
 
 /**
  * hostOf({ records, onDefault, failDefault }) — the product's Host: the default branch `trunk` holds the files and, for the repository's history, the commits of the runs `onDefault`; the branch test-results holds
- * `records`. Any other branch name yields no commit; with `failDefault` the history of `trunk` is unreachable.
+ * `records`. containsCommit about any other branch is false; with `failDefault` it fails as an unreachable server does.
  */
 function hostOf({ records, onDefault, failDefault = false }) {
   const base = treeHost({ trees: { trunk: FILES, "test-results": resultsOf(records) }, onDefault: onDefault.map(commitOf) });
   return { ...base,
     async repositoryInfo() { return { defaultBranch: "trunk", visibility: "public", canWrite: false, archived: false, description: "" }; },
-    async readHistory(path, options = {}) {
-      if (path === null && options.ref === "trunk" && failDefault) throw Object.assign(new Error("the default branch is unreachable"), { name: "Unreachable" });
-      const ofBranch = options.ref === "trunk" || options.ref === "test-results" || /^[0-9a-f]{40}$/.test(options.ref ?? "");
-      return ofBranch ? base.readHistory(path, options) : [];
+    async containsCommit(branch, commit) {
+      if (failDefault) throw Object.assign(new Error("the default branch is unreachable"), { name: "Unreachable" });
+      return branch === "trunk" && base.containsCommit(branch, commit);
     },
     async listTags() { return []; } };
 }
@@ -120,4 +119,20 @@ test("a default branch whose history cannot be read is named, and no commit is m
   assert.ok(problemsOf(target).includes("The history could not be read: the default branch is unreachable"), problemsOf(target).join("; "));
   assert.deepEqual(marksOf(target), []);
   assert.equal(find(target, hasClass("test-level"))[0]?.textContent, "unit", "the other parts stay");
+});
+
+// TST-1415005 · level: unit · module: MOD-trace-pages
+// guards: UC-029; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the branch test-results holds the records of the runs 12 to 1; trunk holds the commits of the runs 12 to 3; a Host that notes every containsCommit and every readHistory
+// input: the detail of TST-801 opened; Earlier runs clicked
+// expect: containsCommit asked about the branch trunk once for each of the twelve commits, none twice (ten at the opening, two after the click); no readHistory of the branch trunk, and none without a ref
+test("which commits are the default branch's is asked once for each commit, and the branch's history is not read", async () => {
+  const records = Array.from({ length: 12 }, (_, at) => [12 - at, "a", "passed"]);
+  const host = hostOf({ records, onDefault: [12, 11, 10, 9, 8, 7, 6, 5, 4, 3] });
+  const target = await render(host);
+  await click(earlierOf(target), () => earlierOf(target) === undefined);
+  const asked = host.log.contains;
+  assert.ok(asked.every(([branch]) => branch === "trunk"), "known positive: the branch asked about is the one repositoryInfo names");
+  assert.deepEqual(asked.map(([, commit]) => commit).sort(), records.map(([n]) => commitOf(n)).sort(), "each of the twelve commits once");
+  assert.deepEqual(host.log.histories.filter(([path, options]) => path === null && (options?.ref === "trunk" || options?.ref === undefined)), [], "the history of the default branch is not read");
 });

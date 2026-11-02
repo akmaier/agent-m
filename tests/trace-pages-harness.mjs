@@ -124,7 +124,7 @@ export function doc(id, title, keys = {}, body = "") {
 // storedGraph keeps a commit's graph for the page (the module), so two Hosts of one test file never share a commit.
 let hostsMade = 0;
 export function treeHost({ trees, tags = [], failing = () => false, history = [], onDefault = [], stored = () => true }) {
-  const log = { snapshots: [], narrowed: [], reads: [], manys: [], histories: [], fileAts: [], readOns: [] };
+  const log = { contains: [], snapshots: [], narrowed: [], reads: [], manys: [], histories: [], fileAts: [], readOns: [] };
   const made = ++hostsMade;
   const commitOf = (ref) => createHash("sha1").update(`tree host ${made} ${ref}`).digest("hex");
   const counts = new Map();
@@ -178,6 +178,11 @@ export function treeHost({ trees, tags = [], failing = () => false, history = []
       // For the repository (a null path) the default branch also holds the commits `onDefault` names, after those of `history`.
       if (path === null) changed.push(...onDefault.filter((commit) => !changed.some((entry) => entry.commit === commit)).map((commit) => ({ commit, date: "2026-10-01T10:00:00Z", files: {} })));
       return changed.slice(0, options.limit ?? changed.length).map(({ commit, date }) => ({ commit, parents: [], author: { account: null, name: "fixture" }, date, message: "", changes: [] }));
+    },
+    // containsCommit(branch, commit): whether the default branch holds the commit, that is `history` or `onDefault` names it; every question is noted in `log.contains` as [branch, commit].
+    async containsCommit(branch, commit) {
+      log.contains.push([branch, commit]);
+      return onDefault.includes(commit) || history.some((entry) => entry.commit === commit);
     },
     async readFileAt(path, commits) {
       log.fileAts.push([path, [...commits]]);
