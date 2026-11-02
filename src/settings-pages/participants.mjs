@@ -231,6 +231,35 @@ function agentTestChecks(type, state) {
     fix: "fix the Bridge or choose Save untested before saving this participant" })];
 }
 
+// An agent the Bridge's own listing does not offer is refused before Save (UC-017 3, "chosen from those that Bridge
+// offers"); `offered` is that listing, by Bridge name. A Bridge that has not answered is 6a's: its test decides.
+function offeredAgentChecks(type, state, offered) {
+  const agents = BRIDGE_TYPES.has(type) && state.reach !== "through" ? offered.get(state.bridge) : undefined;
+  const agent = state.agent.trim();
+  if (!agents || !agent || agents.includes(agent)) return [];
+  return [finding({ artifact: PATH, line: 1, kind: "error", rule: "THE BRIDGE FINDS THE INSTALLED AGENTS",
+    what: `Bridge ${state.bridge} does not offer the agent ${agent}`,
+    fix: agents.length ? `choose one of the agents it offers: ${agents.join(", ")}` : "choose an agent the Bridge offers" })];
+}
+
+// A price the participant list would read as none is refused before Save (NO COST IS GUESSED): the drafted row is read with
+// MOD-participant-list's participantsOf, the one reading of a price, and PRICE_HINT, the Price field's hint, is a price it reads.
+const PRICE_HINT = "2.00 / 8.00 USD per million tokens";
+function priceChecks(type, state, store) {
+  const price = state.price.trim();
+  if (!price) return [];
+  const [drafted] = participantsOf(readDocument(participantSchema(), PATH, withDraftRow(EMPTY, rowOf(type, state, store))));
+  if (drafted?.price) return [];
+  return [finding({ artifact: PATH, line: 1, kind: "error", rule: "NO COST IS GUESSED",
+    what: `the price ${price} is not read as a price, so a cost would be shown as unknown`,
+    fix: `write it as <input> / <output> <currency> per million tokens, for example ${PRICE_HINT}, or leave it empty` })];
+}
+
+// The place Agent M can tell for a CI agent (UC-017 5): the runner it runs on.
+function runnerPlace(state) {
+  return state.runner === "self-hosted" ? `self-hosted runner ${state.runnerLabel.trim()}`.trim() : "GitHub hosted runner";
+}
+
 function bridgeSettingsOf(store, name) {
   const entry = readSetting(store, `bridge:${name}`);
   if (!entry || typeof entry !== "object") throw new Error(`This browser does not keep Bridge ${name}.`);
@@ -372,6 +401,8 @@ export const route = {
     const result = el("p", "participants-result");
     let editing = null;
     let productUseTicket = 0;
+    const offered = new Map(); // the agents each Bridge's last listing offered, kept while the page is open
+    let placeInput = null;
     const productUseBase = productUseBasis(context, opened).catch(() => []);
     const state = {
       name: "", account: "", endpoint: "", endpointUrl: "", endpointKind: "openai-compatible", endpointModel: "", endpointKey: "",
@@ -401,7 +432,7 @@ export const route = {
         presetTools();
       }
       if (BRIDGE_TYPES.has(next)) state.bridge = bridgeNames(context.store)[0] ?? "";
-      if (next === "CI agent") state.place = "GitHub hosted runner";
+      if (next === "CI agent") state.place = runnerPlace(state);
       if (next === "CLI agent") state.place = "this machine";
       if (next === "sandboxed agent") state.place = "sandbox";
       Object.assign(state, values);
@@ -412,6 +443,7 @@ export const route = {
       if (!type.value) { fieldsBox.replaceChildren(); formBox.replaceChildren(); productUseBox.replaceChildren(); return; }
       const document = draftDocument(opened.text, type.value, state, context.store, editing?.name ?? null);
       const checks = (document) => [...inlineEndpointChecks(type.value, state), ...agentTestChecks(type.value, state),
+        ...offeredAgentChecks(type.value, state, offered), ...priceChecks(type.value, state, context.store),
         ...sourcePlaceWarnings(opened.sources)(document)];
       async function save(document) {
         const text = writeDocument(participantSchema(), document);
@@ -450,14 +482,27 @@ export const route = {
       buildForm();
     }
 
-    function textInput(className, key, placeholder = "") {
+    // `around` wraps the change of the state, for a field whose change moves another (the runner's label, the place).
+    function textInput(className, key, placeholder = "", around = (apply) => apply()) {
       const input = el("input", className);
       input.value = state[key];
       input.placeholder = placeholder;
       input.autocomplete = "off";
       input.spellcheck = false;
-      input.addEventListener("input", () => { state[key] = input.value; buildForm(); routePreview.textContent = routeOf(type.value, state); });
+      input.addEventListener("input", () => {
+        around(() => { state[key] = input.value; });
+        buildForm();
+        routePreview.textContent = routeOf(type.value, state);
+      });
       return input;
+    }
+
+    // A change of the runner moves the place with it while the place is still the one Agent M preset; a place the author typed stays.
+    function followRunner(apply) {
+      const preset = state.place === runnerPlace(state);
+      apply();
+      if (preset) state.place = runnerPlace(state);
+      if (placeInput) placeInput.value = state.place;
     }
 
     function selectInput(className, key, values) {
@@ -496,10 +541,12 @@ export const route = {
       if (typeName !== "person" && typeName !== "model endpoint") {
         controls.push(control("Model", textInput("participant-model", "model", "model name")));
       }
+      placeInput = null;
       if (typeName !== "person") {
+        placeInput = textInput("participant-place", "place", "where data is processed");
         controls.push(control("Context", textInput("participant-context", "context", "tokens")),
-          control("Price", textInput("participant-price", "price", "input / output USD per million tokens")),
-          control("Processing place", textInput("participant-place", "place", "where data is processed")));
+          control("Price", textInput("participant-price", "price", PRICE_HINT)),
+          control("Processing place", placeInput));
       }
       controls.push(capabilitiesBox());
       return controls;
@@ -548,12 +595,12 @@ export const route = {
     function ciControls() {
       const runner = el("select", "participant-runner", option("github-hosted"), option("self-hosted"));
       runner.value = state.runner;
-      runner.addEventListener("change", () => { state.runner = runner.value; rebuild(); });
+      runner.addEventListener("change", () => { followRunner(() => { state.runner = runner.value; }); rebuild(); });
       const explainRunner = el("p", "participant-runner-explanation", state.runner === "self-hosted"
         ? "A self-hosted runner serves private repositories only; on a public repository Agent M refuses a job that would run on it, because outside pull requests could run code on that machine."
         : "A hosted runner runs on the forge's machines and uses a secret by name; no key is stored in the participants register.");
       return [control("Runner", runner),
-        ...(state.runner === "self-hosted" ? [control("Runner label", textInput("participant-runner-label", "runnerLabel", "gpu"))] : []),
+        ...(state.runner === "self-hosted" ? [control("Runner label", textInput("participant-runner-label", "runnerLabel", "gpu", followRunner))] : []),
         control("Key secret name", textInput("participant-secret-name", "secret", "ACTIONS_SECRET_NAME")), explainRunner,
         explain("ci-agent-runner"), explain("ci-ssh-alternative"), explain("job-workflow")];
     }
@@ -568,6 +615,7 @@ export const route = {
       rebuild();
       try {
         state.agentList = await testBridge(chosenBridge());
+        offered.set(state.bridge, (state.agentList.agents ?? []).map((agent) => agent.name));
         state.agentListText = `Bridge ${state.agentList.bridge?.name ?? state.bridge} answered.`;
       } catch (error) {
         state.agentList = null;
@@ -578,8 +626,8 @@ export const route = {
 
     function addOfferedAgent(agent) {
       const computer = state.agentList?.bridge?.name ?? state.bridge;
+      // The Bridge names no model for its agents (GET /v1/agents: name, version, ready, loggedIn): the model is the author's to name (UC-017 3).
       state.agent = agent.name;
-      state.model = agent.name;
       state.place = `${computer} Bridge's computer`;
       state.agentTest = null;
       state.saveUntested = false;
@@ -676,7 +724,7 @@ export const route = {
       const testLine = el("p", null, test);
       if (state.agentTest?.ok === false && !state.saveUntested) testLine.append(" ", saveUntested);
       return [control("How it is reached", reach), control("Bridge", bridge), el("p", null, listAgents), agentListView(), control("Agent", agent),
-        testLine, testResult];
+        testLine, testResult, explain("agent-test")];
     }
 
     function fieldsFor(typeName) {

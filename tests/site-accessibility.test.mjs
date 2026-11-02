@@ -227,7 +227,11 @@ test(`${testId(905, CASES[905].plantedImage)}: a planted image without a text al
 const LISTS = ["#uc", "#arc", "#module", "#spec"];
 const TICKED = ["#uc", "#arc", "#module"];
 
-// given: every list route drawn at both widths; input: axe-core's rule `label` over each; expect: no violation of it (the whole-page tests above stay todos while the menu, a badge or a box violates)
+// TST-905068 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: every list route drawn at both widths
+// input: axe-core's rule `label` over each
+// expect: no violation of it (the whole-page tests above stay todos while the menu, a badge or a box violates)
 test(`${testId(905, CASES[905].labels)}: the tick boxes of the lists ${LISTS.join(", ")} have an accessible name (rule label)`, () => {
   for (const address of LISTS) {
     for (const [kind] of WIDTHS) {
@@ -237,7 +241,11 @@ test(`${testId(905, CASES[905].labels)}: the tick boxes of the lists ${LISTS.joi
   }
 });
 
-// given: the lists #uc, #arc and #module, which hold open files; input: the tick boxes in <main>; expect: the list draws at least one (the known positive that the rule above has something to check), and each one's name holds the identifier of its row, the file it accepts
+// TST-905069 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: the lists #uc, #arc and #module, which hold open files
+// input: the tick boxes in <main>
+// expect: the list draws at least one (the known positive that the rule above has something to check), and each one's name holds the identifier of its row, the file it accepts
 test(`${testId(905, CASES[905].ticks)}: each tick box of the lists ${TICKED.join(", ")} names the file it accepts`, () => {
   for (const address of TICKED) {
     for (const [kind] of WIDTHS) {
@@ -283,7 +291,11 @@ test(`${testId(905, CASES[905].diagramAfter)}: a planted failed diagram fails th
 // ITM-931: the editor's preview (MOD-markdown-render) is the box that scrolls on the edit pages.
 const EDITS = ["#use-case/id=UC-002/edit=1", "#decision/id=ARC-001/edit=1", "#module/id=MOD-reader/edit=1"];
 
-// given: the edit pages of a use case, an architecture decision and a module file, drawn at both widths; input: axe-core's rule `scrollable-region-focusable` over each; expect: no violation of it (the whole-page tests above stay todos while the menu or a summary violates)
+// TST-905106 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: the edit pages of a use case, an architecture decision and a module file, drawn at both widths
+// input: axe-core's rule `scrollable-region-focusable` over each
+// expect: no violation of it (the whole-page tests above stay todos while the menu or a summary violates)
 test(`${testId(905, CASES[905].scrollEdits)}: no box that scrolls on the edit pages ${EDITS.join(", ")} is out of the keyboard's reach (rule scrollable-region-focusable)`, () => {
   for (const address of EDITS) {
     for (const [kind] of WIDTHS) {
@@ -308,7 +320,11 @@ test(`${testId(905, CASES[905].plantedScroll)}: a planted box that scrolls and c
 // the box of its difference to the last accepted text (`pre.diff`), which a person with a keyboard must be able to reach (ITM-921: tabindex 0).
 const CHANGED = ["#uc/UC-001", "#review/uc"];
 
-// given: the routes that draw the changed use case, at both widths; input: each `pre.diff` in <main>; expect: the route draws at least one (the known positive that the whole-page checks meet the box), and each has tabindex "0"
+// TST-905109 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: the routes that draw the changed use case, at both widths
+// input: each `pre.diff` in <main>
+// expect: the route draws at least one (the known positive that the whole-page checks meet the box), and each has tabindex "0"
 test(`${testId(905, CASES[905].changedKeyboard)}: the pages of the changed use case draw a difference box that the keyboard reaches`, () => {
   for (const address of CHANGED) {
     for (const [kind] of WIDTHS) {
@@ -319,7 +335,11 @@ test(`${testId(905, CASES[905].changedKeyboard)}: the pages of the changed use c
   }
 });
 
-// given: the routes that draw the box, at both widths; input: axe-core's rule scrollable-region-focusable over each; expect: no violation of it
+// TST-905110 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: the routes that draw the box, at both widths
+// input: axe-core's rule scrollable-region-focusable over each
+// expect: no violation of it
 test(`${testId(905, CASES[905].changedRule)}: the difference box of the changed use case meets the rule scrollable-region-focusable`, () => {
   for (const address of CHANGED) {
     for (const [kind] of WIDTHS) {

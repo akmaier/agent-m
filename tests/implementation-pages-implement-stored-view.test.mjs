@@ -28,6 +28,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { COMMIT, GITHUB_ADDRESS, cacheReads, factsReads, found, renderOverGitHub, storedViewBytes } from "./implementation-pages-sprints.mjs";
 import { REPO } from "./app-harness.mjs";
+import { endedJob, REJECTED } from "./implementation-pages-ended-job.mjs";
 
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { startRecord } = await import("../src/job-ledger/index.mjs");
@@ -196,4 +197,20 @@ test("TST-1264004 #implement derives the same rows in the page where the reposit
   assert.equal(listings(derived.requests).filter((r) => /state=open/.test(r)).length, 1, derived.requests.join("\n"));
   assert.ok(rowsOf(fromStore.target).length >= 4);
   assert.deepEqual(rowsOf(derived.target), rowsOf(fromStore.target));
+});
+
+// TST-1421004 · level: component · module: MOD-implementation-pages
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-034
+// given: overview-cache holding no view of the head, latest.json naming 0c0c…0c and the backlog view of 0c0c…0c, in which the only job of ITM-005 ended failed at a rejected gate, its End reason "the gate Building → Checking was rejected by docs/gates/20261102-0900-building-checking-1421.md: The review found no test."
+// input: the route implement's render
+// expect: the line "As of 0c0c0c0: …"; ITM-005 stands in the table as ready and carries that reason in <p data-returned>; ITM-006, which is not ready, has none
+test("TST-1421004 #implement draws the reason of a ready item from the view stored last, while the head's view is being stored", async () => {
+  const files = { ...FILES, ...endedJob("ITM-005", REJECTED) };
+  const page = await drawn({ "latest.json": `${JSON.stringify({ commit: C0 })}\n`, [`${C0}.backlog.json.gz`]: await storedViewBytes("backlog", files, C0, PULLS) });
+  assert.match(page.html, /As of 0c0c0c0: the view of the newest commit is being stored\./, "known positive: the stored-last view is drawn");
+  assert.equal(rowOf(page.target, "ITM-005").state, "ready");
+  const returned = (item) => found(found(page.target, `[data-item="${item}"]`)[0], "[data-returned]").map((node) => node.textContent.replace(/\s+/g, " ").trim());
+  assert.deepEqual(returned("ITM-005"), [REJECTED]);
+  assert.notEqual(rowOf(page.target, "ITM-006").state, "ready");
+  assert.deepEqual(returned("ITM-006"), []);
 });

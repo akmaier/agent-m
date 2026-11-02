@@ -141,7 +141,7 @@ test("TST-683006 a product's own token is named on that product's pages only, wi
 // guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: a view whose route fails with MOD-repository-hosts' TokenRefused { tokenName: "Agent M for acme/widget", renewal: "https://example.test/renew" } and a view whose route fails with another error, Error("something else")
 // input: startPage with each
-// expect: the first page starts and shows one notice of kind token-refused, "The server refused your token Agent M for acme/widget.", linked to https://example.test/renew; the second start resolves, shows no notice, and its main area reads "This page could not be drawn: something else" (ITM-865: it rejected with that error before)
+// expect: the first page starts and shows one notice of kind token-refused, "The server refused your token Agent M for acme/widget.", linked to https://example.test/renew; the second start resolves, shows no notice, and its main area reads first, in plain words, "Something went wrong while this page was being drawn, so it cannot be shown. Reload the page to try again. If it happens again, report it, together with the message below." and then the message, "This page could not be drawn: something else" (ITM-865: it rejected with that error before; ITM-1401: the message stood alone before)
 test("TST-683007 a route that fails with TokenRefused shows the refusal as a notice; another failure is shown as a fault of the page", async () => {
   const failing = (error) => ({ routes: [{ name: "alpha", entry: "requirements", title: "alpha", async render() { throw error; } }], strategies: [] });
   const refusal = Object.assign(new Error("rejected"), { name: "TokenRefused", tokenName: "Agent M for acme/widget", renewal: "https://example.test/renew" });
@@ -153,5 +153,6 @@ test("TST-683007 a route that fails with TokenRefused shows the refusal as a not
   const other = await start({ tokens: kept, views: [failing(new Error("something else"))] });
   await settle();
   assert.deepEqual(other.notices.filter((n) => n.kind === "token-refused"), []);
-  assert.equal(all(other.document.body, "main")[0].textContent, "This page could not be drawn: something else");
+  assert.equal(all(other.document.body, "main")[0].textContent, "Something went wrong while this page was being drawn, so it cannot be shown. Reload the page to try again. "
+    + "If it happens again, report it, together with the message below.This page could not be drawn: something else");
 });

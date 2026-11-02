@@ -48,7 +48,7 @@ const RUNS = Array.from({ length: 30 }, (_, at) => [30 - at, "a", outcomeOf(30 -
 const resultsOf = (records) => Object.fromEntries(records.map(([n, name, outcome]) => [pathOf(n, name), record(commitOf(n), outcome)]));
 
 function hostOf(records = RUNS) {
-  const base = treeHost({ trees: { main: MAIN_FILES, "test-results": resultsOf(records) } });
+  const base = treeHost({ trees: { main: MAIN_FILES, "test-results": resultsOf(records) }, onDefault: records.map(([n]) => commitOf(n)) });
   return { ...base, async listTags() { return [{ name: "v2026.1.0", commit: TAG_COMMIT }]; }, webLinks: () => ({ file: (path, ref) => `https://example.test/blob/${ref}/${path}`, run: (id) => `https://example.test/actions/runs/${id}` }) };
 }
 const hasClass = (name) => (node) => String(node.className).split(" ").includes(name);

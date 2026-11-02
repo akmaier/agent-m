@@ -21,6 +21,7 @@
 //   - A pull request is of a job the page started when its description has the line `Job: <id>` (MOD-runtimes' writer writes it) and `<id>` is a record of kind implement or refactor under docs/jobs/. The page lists the
 //     open pull requests only and reads the records they name, in one batch; for each it shows the CI runs of the first commit and of the head, and whether the Definition of Done holds: the result of the head's check
 //     `agent-m done` among the checks pullRequestFacts gives, linked. *Merge* is offered for a pull request that is no draft and whose head passed that check, and calls mergePullRequest on the head the page read.
+//   - A ready item or step whose state carries a reason shows it in its State cell, in <p data-returned>: the reason of an item a rejected gate returned (UC-034 7a). The reason is the state's own, passed on unchanged.
 //   - Where the repositoryInfo the page reads gives greenToMerge false, the head of the page says that the server does not enforce "merge only on green" and links webLinks' branchProtection (UC-024 12a).
 
 import { kindOf } from "../job-catalogue/index.mjs";
@@ -35,7 +36,7 @@ import { explain as frameExplain } from "../site-frame/index.mjs";
 import { planSchemas, startable, targetBranch } from "../work-plans/index.mjs";
 import { connectionsOf, contextOf, participantsIn, personOf, placesOf, viewOf } from "./backlog.mjs";
 import { declaredWorkflowOf } from "./plan.mjs";
-import { asOfLine } from "./progress.mjs";
+import { asOfLine, jobHref } from "./progress.mjs";
 import { heads } from "./routes.mjs";
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -50,6 +51,9 @@ const text = (value) => (typeof value === "string" ? value : value === null || v
 const h = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const explain = (html) => `<details class="explain"><summary>What is this?</summary><div>${html}</div></details>`;
 const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+
+// Why a ready item or step returned (UC-034 7a, UC-024 10a): the reason its state carries — a rejected gate's End, as MOD-work-plans' itemStates passes it on —, drawn beside its state. A state with no reason, or not ready, draws none.
+const returnedBy = (state) => (state?.state === "ready" && text(state.reason) ? `<p class="small" data-returned>${h(state.reason)}</p>` : "");
 
 // The phases that produce MOD are the implementing ones, and their roles the implementing roles (as MOD-work-plans' startable reads them).
 const implementingRoles = (workflow) => {
@@ -142,7 +146,7 @@ async function drawPlan(target, context, facts, ctx, participants, workflow, m) 
   const preselected = (row) => row.verdict.startable && row.state.state === "ready" && row.phase === current;
   headOf(target, rows.length === 0 ? "" : `<table class="list"><thead><tr><th></th><th>Step</th><th>Phase</th><th>State</th><th>Why not</th></tr></thead><tbody>${rows.map((row) => `
     <tr data-step="${h(row.state.item)}" data-state="${h(row.state.state)}" data-phase="${h(row.phase)}"><td><input type="checkbox" data-select-step aria-label="Select ${h(row.state.item)}"${row.verdict.startable ? "" : " disabled"}${preselected(row) ? " checked" : ""}></td>
-    <td>${h(row.state.item)}</td><td>${h(row.phase)}</td><td><span class="badge">${h(row.state.state)}</span></td>
+    <td>${h(row.state.item)}</td><td>${h(row.phase)}</td><td><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td>
     <td>${row.verdict.startable ? "" : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>${row.verdict.reasons.some((reason) => /^No job can implement/.test(reason)) ? `<p data-none-of="${h(row.state.item)}">No participant can write and run tests. <a href="#participants">Declare a participant with the capabilities</a>; a model endpoint can draft a decision, not implement it.</p>` : ""}`}</td></tr>`).join("")}</tbody></table>
     <p data-selected></p><div data-jobs></div><p><button type="button" data-start-jobs>Start jobs</button></p><div data-start-result></div>`, "A model that plans its work implements the steps of its implementation plan, in the plan's order.");
   // A box is ticked by its property; a document that does not keep the property is read by the attribute the page wrote.
@@ -386,7 +390,7 @@ async function draw(target, context, params) {
   // While the head's view is being stored, the items stand with their states as the view stored last gives them, and no job is started from it.
   if (backlog.asOf) {
     head(items.length === 0 ? `<p>No item is waiting to be implemented.</p>` : `<table class="list"><thead><tr><th>Item</th><th>State</th></tr></thead><tbody>${items.map((row) => `
-      <tr data-item="${h(row.item)}" data-state="${h(row.state.state)}"><td>${h(row.item)}</td><td><span class="badge">${h(row.state.state)}</span></td></tr>`).join("")}</tbody></table>
+      <tr data-item="${h(row.item)}" data-state="${h(row.state.state)}"><td>${h(row.item)}</td><td><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td></tr>`).join("")}</tbody></table>
       <p class="muted small">Jobs are started on the view of the newest commit, which is being stored: open the page again in a moment.</p>`);
     await drawPulls(target, context, snapshot);
     return;
@@ -426,7 +430,7 @@ async function draw(target, context, params) {
     .map((gate) => `${h(gate.name)} (decided by ${h(gate.decider)})`);
   const body = rows.length === 0 ? `<p>No item is waiting to be implemented.</p>` : `<table class="list"><thead><tr><th></th><th>Item</th><th>State</th><th>Start</th></tr></thead><tbody>${rows.map((row) => `
     <tr data-item="${h(row.id)}" data-state="${h(row.state.state)}" data-startable="${row.verdict.startable}"><td>${row.verdict.startable ? `<input type="checkbox" data-start-item="${h(row.id)}"${params?.item && params.item !== row.id ? "" : " checked"} aria-label="Start ${h(row.id)}">` : ""}</td>
-    <td>${h(row.id)}</td><td><span class="badge">${h(row.state.state)}</span></td>
+    <td>${h(row.id)}</td><td><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td>
     <td>${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>${row.withheld.length ? "No holder of the implementing role is at a place the linked sources permit for this job." : "No holder of the implementing role can write and run tests."}</p>${withheldText(row)}` : `
       <label>Participant <select data-participant-of="${h(row.id)}">${row.holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
       ${withheldText(row)}
@@ -461,11 +465,13 @@ async function draw(target, context, params) {
     const lines = [];
     for (const row of chosen) {
       const participant = row.holders.find((each) => each.name === choice(row.id)) ?? row.holders[0];
+      let id = null, routeName = null;
       try {
         const offer = routesFor(participant, participants, productInfo, []).find((each) => each.available);
         if (!offer) throw new Error(`${participant.name} has no route a job can take`);
+        routeName = recordRoute(offer.route);
         const { prepared } = await sentFor(prepareFor(row.id, merges(row.id)), participant);
-        const id = newJobId(now(), taken);
+        id = newJobId(now(), taken);
         taken.add(id);
         const record = { id, kind: "implement", worksOn: [row.id], participant: participant.name, model: participant.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: personOf(context), start: now(),
           agentM: { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" }, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
@@ -475,7 +481,11 @@ async function draw(target, context, params) {
         const queued = await queueJob(product.host, record, offer.route, head, bridgesOf([participant], context.store)[offer.route.bridge]);
         lines.push(`<li>${h(row.id)}: job ${h(id)} (<code>${h(queued.path)}</code>) is queued on the route ${h(recordRoute(offer.route))}.</li>`);
       } catch (failure) {
-        lines.push(`<li class="warn">${h(row.id)}: ${h(failure?.name === "WorkflowMissing" ? `the job workflow is missing (${(failure.files ?? []).join(", ")})` : failure?.message ?? failure)}; nothing was started for it.</li>`);
+        const said = failure?.name === "WorkflowMissing" ? `the job workflow is missing (${(failure.files ?? []).join(", ")})` : failure?.message ?? failure;
+        // UC-034 4a: a start record committed before the route failed (queueOnBridge's `failure.queued`) is a job that stays queued; the route that did not answer is named, and the job's page (UC-036) cancels or reassigns it.
+        lines.push(failure?.queued
+          ? `<li class="warn" data-queued="${h(row.id)}">${h(row.id)}: job ${h(id)} (<code>${h(failure.queued.path)}</code>) stays queued on the route ${h(routeName)}, which did not answer: ${h(said)}. <a data-job-page href="${h(jobHref(context, id))}">Cancel or reassign it on its page</a>.</li>`
+          : `<li class="warn">${h(row.id)}: ${h(said)}; nothing was started for it.</li>`);
       }
     }
     out.innerHTML = `<ul>${lines.join("")}</ul>`;

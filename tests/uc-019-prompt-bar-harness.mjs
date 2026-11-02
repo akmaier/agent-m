@@ -289,7 +289,7 @@ export function assertProposal(s) {
 // 2b to one of them, and the page of a use case.
 const useCase = (id, title, realises, alternative = "- **2a. The book is out.** Agent M says so.") => txt("---", `id: ${id}`, `title: ${title}`, "area: lending", "actors:", "  - Author",
   "realises:", ...realises.map((name) => `  - ${name}`), "---", `# ${id} ${title}`, "", `**Goal.** ${title}.`, "", "## Actors", "", "- **Author**", "", "## Precondition", "",
-  "- The product is managed.", "", "## Main flow", "", "1. The author starts.", "2. Agent M answers.", "", "## Alternative flows", "", alternative, "", "## Postcondition", "",
+  "- The product is managed.", "", "## Main flow", "", "1. The author starts.", "2. Agent M answers.", "", "```mermaid", "flowchart LR", "    Author --> AgentM", "```", "", "## Alternative flows", "", alternative, "", "## Postcondition", "",
   "- Nothing is written.");
 export const UC7_PATH = "docs/use-cases/UC-007-derive-use-cases.md", UC8_PATH = "docs/use-cases/UC-008-review-use-cases.md";
 export const UC7 = useCase("UC-007", "Derive use cases", [LOAN]), UC8 = useCase("UC-008", "Review use cases", [SHELF]);

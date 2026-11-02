@@ -489,7 +489,7 @@ test("queue-entries — a commit the server refuses as moved comes after the fir
 // guards: A GENERATED ARTIFACT IS A PROPOSAL
 // given: a result with a new requirement of the product and a candidate that constrains the process, each snapshot and host wrapped to record the paths read and the host calls made
 // input: the writer
-// expect: the product's snapshot is read at SPEC.md twice and the use case once; the instance's at SPEC.md three times and at each of the three files of its open queue once; each host's repositoryInfo is called once; nothing else is read (the numbers are those of the writer before this change, measured on it)
+// expect: the product's snapshot is read at SPEC.md twice, at docs/sources.md once — the links that give the source's version — and the use case once; the instance's at SPEC.md three times, at the register entry of the source once and at each of the three files of its open queue once; each host's repositoryInfo is called once; nothing else is read (the numbers are those of the writer, measured on it)
 test("queue-entries — the writer reads each file as often as before", async () => {
   const f = fixture();
   const reads = { product: [], instance: [] }, infos = { product: 0, instance: 0 };
@@ -503,8 +503,8 @@ test("queue-entries — the writer reads each file as often as before", async ()
   await writer(resultOf([NEW, GATE]), f.context);
   assert.deepEqual(infos, { product: 1, instance: 1 });
   const counted = (list) => Object.fromEntries([...new Set(list)].sort().map((path) => [path, list.filter((each) => each === path).length]));
-  assert.deepEqual(counted(reads.product), { "SPEC.md": 2, "docs/use-cases/UC-001-read-a-file.md": 1 });
-  assert.deepEqual(counted(reads.instance), { "SPEC.md": 3, [`${OPEN_QUEUE}/01-open-process.md`]: 1, [`${OPEN_QUEUE}/entscheidungen.md`]: 1, [`${OPEN_QUEUE}/index.md`]: 1 });
+  assert.deepEqual(counted(reads.product), { "SPEC.md": 2, "docs/sources.md": 1, "docs/use-cases/UC-001-read-a-file.md": 1 });
+  assert.deepEqual(counted(reads.instance), { "SPEC.md": 3, "docs/sources/SRC-fixture-book.md": 1, [`${OPEN_QUEUE}/01-open-process.md`]: 1, [`${OPEN_QUEUE}/entscheidungen.md`]: 1, [`${OPEN_QUEUE}/index.md`]: 1 });
 });
 
 // ---------------------------------------------------------------- a queue drafted from an issue names the issue (ITM-1247)
@@ -549,7 +549,7 @@ test("queue-entries — with the parameter issue, each rationale names the issue
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-005
 // given: the same job without the parameter issue; and, to show the same check finding the line, the job with the issue 12
 // input: the writer
-// expect: with the issue, a file of the commit holds "**Issue:**" (known positive); without it, no file holds it and every rationale's origin is "Source SRC-fixture-book, passages: ch. 8.", as before
+// expect: with the issue, a file of the commit holds "**Issue:**" (known positive); without it, no file holds it and every rationale's origin is "Source SRC-fixture-book, passages: ch. 8. Source version: 2026-10-01.", the version the product links
 test("queue-entries — without the parameter issue, no queue names an issue", async () => {
   const known = fixture();
   known.context.params = { source: "SRC-fixture-book", issue: 12 };
@@ -562,7 +562,7 @@ test("queue-entries — without the parameter issue, no queue names an issue", a
   for (const commit of commits) {
     const written = filesOf(commit);
     assert.ok(!Object.values(written).some((body) => body.includes("**Issue:**")), "no line Issue");
-    for (const path of Object.keys(written).filter((each) => each.endsWith(".begruendung.md"))) assert.equal(originOf(written[path]), "Source SRC-fixture-book, passages: ch. 8.");
+    for (const path of Object.keys(written).filter((each) => each.endsWith(".begruendung.md"))) assert.equal(originOf(written[path]), "Source SRC-fixture-book, passages: ch. 8. Source version: 2026-10-01.");
   }
 });
 
@@ -582,4 +582,84 @@ test("queue-entries — queues reads back the issue a written queue names", asyn
     assert.ok(queue, `the written queue ${folder} is read`);
     assert.deepEqual(queue.issue, expected);
   }
+});
+
+// ---------------------------------------------------------------- a proposal names the version of its source (ITM-1391)
+//
+// The reading this file takes, where the module file leaves one open: "the source passage and version" of a rationale's origin (MOD-spec-changes, Data) is the version the product's link names of
+// the job's source, which is the version the job read (UC-005 step 1: "reads exactly the linked version"). The origin names it in a sentence of its own after the sentence that names the source
+// and its passages: `Source version: <version>.`; a job whose source the product links at no version names none.
+
+const NEWER_ROW = `| \`2026-11-01\` | 2026-11-01 | — | the fixture | 1 file, listed below; version hash \`${"2".repeat(64)}\` |`;
+const NEWER_FILES = ["", "### Files of 2026-11-01", "", "| File | SHA-256 |", "|---|---|", `| \`08_chapter.md\` | \`${"b".repeat(64)}\` |`].join("\n");
+const TWO_VERSIONS = `${BOOK_ENTRY.replace(/(\| `2026-10-01` \|[^\n]*\n)/, `$1${NEWER_ROW}\n`).replace(/\n$/, "")}\n${NEWER_FILES}\n`;
+const linksAt = (version, hash) => LINKS.replace(`| 2026-10-01 | ${"1".repeat(64)} |`, `| ${version} | ${hash} |`);
+
+// TST-1391001 · level: unit · module: MOD-spec-changes
+// guards: A LIVING SOURCE IS PINNED; EVERY ARTIFACT NAMES ITS ORIGIN; UC-005
+// given: a product that links SRC-fixture-book at version 2026-10-01; a result with a change and a new requirement of the product and a candidate that constrains the process, so that a queue is written in the product and one in the instance; and, in the same fixture, the job with the issue 12 and the job of a change by prompt
+// input: the writer
+// expect: in both queues every rationale's origin is "Source SRC-fixture-book, passages: ch. 8. Source version: 2026-10-01." and reads without a finding in the schema queue-rationale; with the issue, "Source SRC-fixture-book, passages: ch. 8; issue #12 of https://github.com/alice/product. Source version: 2026-10-01."; by prompt, the version stands before the sentence that names the conversation
+test("queue-entries — each rationale's origin names the version of the source the product links", async () => {
+  const schema = loadSchema(readFileSync(new URL("../src/spec-changes/queue-rationale.schema.md", import.meta.url), "utf8"), "MOD-spec-changes");
+  const originsOf = async (adjust = () => {}) => {
+    const f = fixture();
+    adjust(f.context);
+    await writer(resultOf([CHANGE, NEW, GATE]), f.context);
+    const commits = [...f.product.host.commits, ...f.instance.host.commits];
+    assert.equal(commits.length, 2, "a queue in the product and one in the instance");
+    return commits.flatMap((commit) => Object.entries(filesOf(commit)).filter(([path]) => path.endsWith(".begruendung.md")).map(([path, body]) => {
+      assert.deepEqual(documentFindings(schema, readDocument(schema, path, body)), [], `${path}: no finding`);
+      return originOf(body);
+    }));
+  };
+  const plain = await originsOf();
+  assert.ok(plain.length >= 3, "a rationale for each entry of both queues");
+  for (const origin of plain) assert.equal(origin, "Source SRC-fixture-book, passages: ch. 8. Source version: 2026-10-01.");
+  for (const origin of await originsOf((context) => { context.params = { source: "SRC-fixture-book", issue: 12 }; })) {
+    assert.equal(origin, `Source SRC-fixture-book, passages: ch. 8; issue #12 of ${ADDRESS}. Source version: 2026-10-01.`);
+  }
+  for (const origin of await originsOf((context) => { context.kind = { name: "change-requirements" }; context.params = { source: "SRC-fixture-book", page: "/spec.html", instruction: "Make the reader say why." }; })) {
+    assert.match(origin, /^Source SRC-fixture-book, passages: ch\. 8\. Source version: 2026-10-01\. Asked in a conversation in the prompt bar on \/spec\.html\.$/);
+  }
+});
+
+// TST-1391002 · level: unit · module: MOD-spec-changes
+// guards: A LIVING SOURCE IS PINNED; UC-005
+// given: a register entry that records two versions, 2026-10-01 and the later 2026-11-01; the product links the earlier one; and, to show the same call naming the later, the product linking that
+// input: the writer
+// expect: with the earlier linked, every rationale names 2026-10-01 and not 2026-11-01 — the version the product's link names, not the newest the register holds; with the later linked (known positive), it names 2026-11-01
+test("queue-entries — the version named is the one the product links, not the newest the register holds", async () => {
+  const originsWith = async (links) => {
+    const f = fixture();
+    f.instanceFiles["docs/sources/SRC-fixture-book.md"] = TWO_VERSIONS;
+    f.productFiles["docs/sources.md"] = links;
+    await writer(resultOf([NEW]), f.context);
+    return Object.entries(filesOf(f.product.host.commits[0])).filter(([path]) => path.endsWith(".begruendung.md")).map(([, body]) => originOf(body));
+  };
+  const later = await originsWith(linksAt("2026-11-01", "2".repeat(64)));
+  assert.ok(later.length > 0 && later.every((origin) => origin.includes("Source version: 2026-11-01.") && !origin.includes("2026-10-01")), `known positive: the later version, when it is the one linked: ${later}`);
+  const earlier = await originsWith(LINKS);
+  assert.ok(earlier.length > 0);
+  for (const origin of earlier) assert.ok(origin.includes("Source version: 2026-10-01.") && !origin.includes("2026-11-01"), origin);
+});
+
+// TST-1391003 · level: unit · module: MOD-spec-changes
+// guards: A LIVING SOURCE IS PINNED; EVERY ARTIFACT NAMES ITS ORIGIN; UC-005
+// given: a product whose links file is absent, so that it links the job's source at no version; and, to show the same call naming one, the product with its links
+// input: the writer
+// expect: with the links, a file of the queue holds "Source version: 2026-10-01" (known positive); without them the queue is written all the same and no file holds "Source version": every origin is "Source SRC-fixture-book, passages: ch. 8."
+test("queue-entries — a source the product links at no version is named without one", async () => {
+  const known = fixture();
+  await writer(resultOf([NEW]), known.context);
+  assert.ok(Object.values(filesOf(known.product.host.commits[0])).some((body) => body.includes("Source version: 2026-10-01")), "known positive: the version is found");
+  const f = fixture();
+  delete f.productFiles["docs/sources.md"];
+  await writer(resultOf([NEW]), f.context);
+  assert.equal(f.product.host.commits.length, 1, "the queue is written");
+  const written = filesOf(f.product.host.commits[0]);
+  assert.ok(!Object.values(written).some((body) => body.includes("Source version")), "no file names a source version");
+  const rationales = Object.entries(written).filter(([path]) => path.endsWith(".begruendung.md"));
+  assert.ok(rationales.length > 0);
+  for (const [path, body] of rationales) assert.equal(originOf(body), "Source SRC-fixture-book, passages: ch. 8.", path);
 });

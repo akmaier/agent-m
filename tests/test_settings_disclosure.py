@@ -318,11 +318,11 @@ class RecordingConversationsDisclosure(unittest.TestCase):
                  "visibilities": {"public-product": "public", "private-product": "private"}}
         return js(RECORDING_PAGE + f"return await recordingSwitch({json.dumps(given)});")
 
+    # TST-1429039 · level: component · module: MOD-settings-pages
     # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
     # given: the fixture above, opened on the tab Repositories
     # input: the person presses Switch on; presses Save before ticking I have read this; then ticks it and presses Save
-    # expect: Switch on shows the notice and stores nothing; Save before the tick stores nothing (no commit, no browser setting
-    #   changed); Save after the tick commits once (the known positive that shows the check sees a commit)
+    # expect: Switch on shows the notice and stores nothing; Save before the tick stores nothing (no commit, no browser setting changed); Save after the tick commits once (the known positive that shows the check sees a commit)
     def test_the_switch_stores_nothing_before_the_notice_is_acknowledged(self):
         r = self.switch()
         self.assertFalse(r["shown"]["noticeHidden"], "Switch on shows the notice")
@@ -332,12 +332,11 @@ class RecordingConversationsDisclosure(unittest.TestCase):
                          "Switch on and Save before the tick change no browser setting")
         self.assertEqual(r["writesAfterAcknowledgedSave"], 1, "known positive: Save after the tick commits once")
 
+    # TST-1429040 · level: component · module: MOD-settings-pages
     # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
     # given: the fixture above
     # input: the person presses Switch on
-    # expect: the notice states that every message of a conversation will be committed under docs/conversations/, that it stays in
-    #   that repository's history and that conversations held on a public repository's pages will be published; the line of public
-    #   repositories names fixture/instance (as published) and the address https://github.com/fixture/public-product
+    # expect: the notice states that every message of a conversation will be committed under docs/conversations/, that it stays in that repository's history and that conversations held on a public repository's pages will be published; the line of public repositories names fixture/instance (as published) and the address https://github.com/fixture/public-product
     def test_the_notice_names_the_public_product_and_the_instance_as_published(self):
         r = self.switch()
         notice, public = r["shown"]["noticeText"], r["shown"]["publicLine"]
@@ -347,11 +346,11 @@ class RecordingConversationsDisclosure(unittest.TestCase):
         self.assertIn("fixture/instance", public)
         self.assertIn(PUBLIC_PRODUCT, public)
 
+    # TST-1429041 · level: component · module: MOD-settings-pages
     # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
     # given: the fixture above
     # input: the person presses Switch on
-    # expect: the address https://github.com/fixture/private-product, whose server reports it private, is in no part of the notice,
-    #   so it is not named as public
+    # expect: the address https://github.com/fixture/private-product, whose server reports it private, is in no part of the notice, so it is not named as public
     def test_a_private_product_is_not_named_as_public(self):
         r = self.switch()
         self.assertNotIn(PRIVATE_PRODUCT, r["shown"]["publicLine"])

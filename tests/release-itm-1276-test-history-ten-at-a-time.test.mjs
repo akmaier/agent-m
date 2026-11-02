@@ -47,7 +47,7 @@ const range = (from, to) => Array.from({ length: from - to + 1 }, (_, at) => fro
 
 /** The product's host over the harness: the branch `test-results` of `records`, and a release tag at the commit of the run `tagged`. */
 function hostOf(records, tagged = null) {
-  const base = treeHost({ trees: { main: MAIN_FILES, "test-results": resultsOf(records) } });
+  const base = treeHost({ trees: { main: MAIN_FILES, "test-results": resultsOf(records) }, onDefault: records.map(([n]) => commitOf(n)) });
   return { ...base, async listTags() { return tagged === null ? [] : [{ name: "v2026.2.0", commit: commitOf(tagged) }]; } };
 }
 const hasClass = (name) => (node) => String(node.className).split(" ").includes(name);

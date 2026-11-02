@@ -26,6 +26,7 @@
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -163,13 +164,6 @@ function find(root, match) {
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 // A person's click: a browser marks it trusted (`isTrusted`); node marks every Event untrusted, as a script's.
 const click = (node) => node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 const rowOf = (target, id) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id") === id)[0];
 const badgeOf = (root) => byClass(root, "span", "badge")[0]?.textContent;
 const rowsOf = (target) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id")).map((row) => row.getAttribute("data-id"));
@@ -326,14 +320,14 @@ test("MOD-review-pages decision/<id> and module/<id> — Accept writes one recor
     const read = fake.head();
     const target = await show(fake, route, { id });
     click(byClass(target, "button", "accept")[0]);
-    await until(() => fake.writes().length === 1, `the commit of ${id}`);
+    await until(target, () => fake.writes().length === 1, `the commit of ${id}`);
 
     const [{ change }] = fake.writes();
     const [recordPath, recordText] = recordOf(id, kind, path, body);
     assert.equal(change.expectedHead, read, `${id}: on the head that was read`);
     assert.deepEqual(change.files, [{ path: recordPath, text: recordText }], `${id}: one record, naming the blob shown`);
     assert.match(change.message, new RegExp(`Accepted by ${TOKEN.name}`));
-    await until(() => badgeOf(target) === "accepted", `${id} to be shown accepted`);
+    await until(target, () => badgeOf(target) === "accepted", `${id} to be shown accepted`);
     assert.equal(byClass(target, "button", "accept").length, 0);
   }
 });
@@ -360,11 +354,11 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits 
     for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
     assert.equal(fake.writes().length, 0, `${id}: a script's click commits nothing`);
     click(save);
-    await until(() => fake.writes().length === 1, `the commit of ${id}`);
+    await until(target, () => fake.writes().length === 1, `the commit of ${id}`);
     const [{ change }] = fake.writes();
     assert.equal(change.expectedHead, read, `${id}: on the head the editor opened`);
     assert.deepEqual(change.files, [{ path, text: edited }], `${id}: only the file, with the edited text`);
-    await until(() => find(target, (node) => node.localName === "textarea" && !node.className.split(" ").includes("reject-reason")).length === 0 && target.textContent.includes(route === "decision" ? "two small modules" : "to a member"), `${id} to be shown again`);
+    await until(target, () => find(target, (node) => node.localName === "textarea" && !node.className.split(" ").includes("reject-reason")).length === 0 && target.textContent.includes(route === "decision" ? "two small modules" : "to a member"), `${id} to be shown again`);
     assert.equal(badgeOf(target), "open", `${id}: shown again from its page, open`);
     assert.ok(find(target, (node) => node.localName === "a" && (node.getAttribute("href") ?? "").endsWith(`/commit/${fake.head()}`)).length >= 1, `${id}: the commit is linked`);
   }
@@ -425,7 +419,7 @@ test("MOD-review-pages decision/<id> — a decision that rests on what is not ac
   assert.equal(rest.length, 0, "known positive: one Accept");
   assert.notEqual(enabled.disabled, true, "known positive: Accept is enabled");
   click(enabled);
-  await until(() => free.writes().length === 1, "the commit of ARC-004");
+  await until(target, () => free.writes().length === 1, "the commit of ARC-004");
   const [{ change }] = free.writes();
   const [recordPath, recordText] = recordOf("ARC-004", "architecture-decision", A(4, "queue"), ARC4);
   assert.equal(change.expectedHead, read, "on the head that was read");
@@ -442,7 +436,7 @@ test("MOD-review-pages decision/<id> — a requirement that left the SPEC after 
   const target = await show(fake, "decision", { id: "ARC-002" });
   fake.land({ "SPEC.md": text("# Thesis tool — Specification", "", "## Lending") });
   click(byClass(target, "button", "accept")[0]);
-  await until(() => /rests on what is not accepted/.test(target.textContent), "the refusal");
+  await until(target, () => /rests on what is not accepted/.test(target.textContent), "the refusal");
 
   assert.equal(fake.writes().length, 0, "no commit");
   assert.match(target.textContent, /ARC-002: rests on what is not accepted \(A LOAN HAS A DUE DATE\)/);

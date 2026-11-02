@@ -22,7 +22,7 @@ import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, latestGraph, storedGraph } from "../trace-graph/index.mjs";
-import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
+import { editedResult, flagged, passagesLine, shownOnPanel, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
 import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
@@ -171,14 +171,14 @@ export async function preparedRun(run, snapshot = run.snapshot, params = run.par
   return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
 }
 
-// The run panel for the chosen participant and selection; Run starts the job.
+// The run panel for the chosen participant and selection; Run starts the job. A failure of the preparation is shown as the route names it (`problemOf`), else as the frame's readProblem.
 export async function panelOf(run) {
   const { stage, token, kind } = run;
   let ready;
   try {
     ready = await preparedRun(run);
   } catch (failure) {
-    stage.append(readProblem(failure, Boolean(token)));
+    stage.append(run.problemOf?.(failure) ?? readProblem(failure, Boolean(token)));
     return;
   }
   const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
@@ -225,15 +225,14 @@ async function start(run) {
   }
 }
 
-// What a run of the drafting job came to: the rounds, what the loop left, the files written.
+// What a run of the drafting job came to, as the architecture's draft shows it: the rounds, each with its findings, what the loop left, and the files written.
 async function presentDraft(outcome, result, run) {
   const { kind, context } = run;
   result.append(el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(kind.explain.draft.loop));
-  const left = el("ul", "left");
-  for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} — ${finding.fix}`));
+  if (outcome.rounds.length) result.append(roundsSection(outcome.rounds, outcome.stoppedBecause));
   const written = el("ul", "written");
   for (const file of outcome.written?.files ?? []) written.append(el("li", null, file));
-  result.append(left, written, explain(kind.explain.draft.written), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
+  result.append(findingsList("left", outcome.remaining), written, explain(kind.explain.draft.written), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
 }
 
 // The job records are asked for through the snapshot's readMany, newest first, a hundred at a time (A PAGE LOAD READS THE REPOSITORY IN BATCHES: "at most 100 files each"), each batch only
@@ -370,10 +369,21 @@ async function showRequirementsDraft(where, kind) {
       const count = prepared.parts.find((part_) => part_.recipe === "spec-with-queues")?.artifacts?.length ?? 0;
       panel.append(el("p", "requirements-included", `${count} existing requirements included.`));
     };
+    const problemOf = (failure) => (failure?.name === "HashMismatch" ? changedSource(failure, picked.choice) : null);
     await panelOf({ ...where, definition, kind, jobKind: kind.draft, params, worksOn, present: presentRequirements, chosen, participants,
-      instanceSnapshot, product, needs, stage, decoratePanel });
+      instanceSnapshot, product, needs, stage, decoratePanel, problemOf });
   });
   target.append(prepare, stage);
+}
+
+// UC-005 1a: a file whose bytes no longer match the SHA-256 its version records (MOD-source-register's HashMismatch { file, expected, actual }) is named as changed, with the link to the
+// library's entry of its source, where a new version is registered (UC-016); nothing has been sent. A file the chosen version does not hold names no source, and the link is to the library.
+function changedSource(failure, choice) {
+  const holds = choice.version.files.some((file) => file.name === failure.file);
+  return el("p", "problem changed-source",
+    `The content of ${failure.file}${holds ? ` of ${choice.id} ${choice.version.version}` : ""} changed: its SHA-256 is ${failure.actual}, not the ${failure.expected} its version records. `,
+    "Nothing is sent. A new version must be registered (UC-016): ",
+    link(holds ? `#library/source=${encodeURIComponent(choice.id)}` : "#library", "new-version", holds ? `Register a new version of ${choice.id}` : "Register a new version"));
 }
 
 function classOptions(value) {
@@ -413,7 +423,7 @@ function candidateItem(candidate, decided, linked, { parsed, register, onClass, 
   const refresh = () => showCurrent(current, parsed.requirements.get(of.value.trim()), register);
   of.addEventListener("input", refresh);
   refresh();
-  item.append(of, el("p", "candidate-rule", candidate.rule));
+  item.append(of, el("p", "candidate-rule", candidate.rule), passagesLine(decided));
   if (candidate.constrains === "process") item.append(el("p", "constrains-process", "Constrains the process."));
   if (decided.class === "conflict" && linked?.source?.fields?.authority) {
     item.append(el("p", "normative", `${linked.source.id} is ${linked.source.fields.authority}.`));
@@ -428,7 +438,7 @@ function candidateItem(candidate, decided, linked, { parsed, register, onClass, 
 }
 
 async function presentRequirements(outcome, result, run) {
-  const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
+  const candidates = (Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : []).filter((candidate) => shownOnPanel(candidate, outcome.classes));
   const classes = candidates.map((candidate) => candidateClass(candidate, outcome.classes));
   const linked = await linkedSourceInfo(run);
   const parsed = parseSpec((await run.snapshot.read("SPEC.md")) ?? "");
@@ -605,7 +615,8 @@ async function showArchitectureDraft(where, kind) {
 // What a run of the derivation came to, here: that it ran. The draft that waits for the author is shown by the page that follows.
 async function presentDerivation(outcome, result, run) {
   result.append(el("p", "ran", `Job ${run.id} ran in this tab.`));
-  const shown = el("section", "architecture-result", el("h3", null, "Drafted architecture"));
+  // The step asks the author to review the checked draft — its rounds and the findings left —, to change it and to write it (EVERY STEP EXPLAINS ITSELF), as the use cases' draft names `loop`.
+  const shown = el("section", "architecture-result", el("h3", null, "Drafted architecture"), explain(run.kind.explain.draft.loop));
   const files = el("section", "draft-files");
   const status = el("div", "draft-actions");
   let current = outcome;
@@ -633,6 +644,8 @@ async function presentDerivation(outcome, result, run) {
   if (outcome.rounds?.length) shown.append(roundsSection(outcome.rounds, outcome.stoppedBecause));
   if (outcome.remaining?.length) shown.append(findingsList("left", outcome.remaining));
   if (outcome.stepFindings?.length) shown.append(findingsList("step-findings", outcome.stepFindings));
+  // UC-022 step 6: a finding only the author can decide is not sent back but shown to the author (WHAT A PERSON DECIDES IS NOT SENT BACK).
+  if (outcome.forPerson?.length) shown.append(findingsList("for-person", outcome.forPerson));
   shown.append(files);
 
   const check = button("btn check-edit", "Check this edit");
@@ -685,6 +698,8 @@ function markdownCells(line) {
   return trimmed.slice(1, -1).split("|").map((cell) => cell.trim());
 }
 
+// The candidates of a decision's due-diligence table the author may choose among, by the label of their row. A candidate its registry does not know — its row says `not found` — is
+// not proposed (UC-022 7a); its row in the table is where it is listed, with the address queried.
 function candidateChoices(file) {
   const { section } = splitDueDiligence(file.text);
   if (!section) return [];
@@ -696,9 +711,46 @@ function candidateChoices(file) {
     if (cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
     if (!header) { header = cells; continue; }
     const at = header.findIndex((cell) => cell.toLowerCase() === "candidate");
-    if (at >= 0 && cells[at]) out.push(cells[at]);
+    if (at >= 0 && cells[at] && !cells.some((cell) => cell.startsWith("not found"))) out.push(cells[at]);
   }
   return out;
+}
+
+// The columns that name a candidate in a reuse decision's tables, as MOD-reuse-facts' Candidate holds it: its name, its ecosystem, its repository.
+const IDENTITY = new Set(["candidate", "name", "ecosystem", "repository", "source repository"]);
+const plain = (cell) => cell.replace(/`([^`]+)`/g, "$1").replace(/\s+-\s+(chosen|alternative)$/i, "").trim();
+
+/**
+ * chosenIn(text, label) -> string — the decision's text with the candidate `label` names (`<name> (<ecosystem>)`, as a row of its due-diligence table names it) made the chosen one
+ * (UC-022 step 8): its name, ecosystem and repository change places with those of the chosen candidate of `## Decision` — the first row whose role is `chosen`, or that names none —, so
+ * the step due-diligence, run again when the draft is written, finds it chosen. A text in which the label names no candidate, or the chosen one, is returned unchanged.
+ */
+function chosenIn(text, label) {
+  const [, name, ecosystem] = /^(.*?) \((\w+)\)/.exec(plain(label)) ?? [];
+  const lines = text.split("\n");
+  const rows = [];
+  let heading = null, header = null;
+  for (const [at, line] of lines.entries()) {
+    if (/^## /.test(line)) { heading = line.trim(); header = null; continue; }
+    const cells = markdownCells(line);
+    if (!cells) { header = null; continue; }
+    if (heading !== "## Decision" && heading !== "## Alternatives") continue;
+    if (cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
+    if (!header) { header = cells.map((cell) => cell.toLowerCase()); continue; }
+    const value = (column) => plain(cells[header.indexOf(column)] ?? "");
+    const role = value("role").toLowerCase() || (heading === "## Decision" ? "chosen" : "alternative");
+    rows.push({ at, cells, header, role, name: value("candidate") || value("name"), ecosystem: value("ecosystem").toLowerCase() });
+  }
+  const chosen = rows.find((row) => row.role === "chosen");
+  const picked = rows.find((row) => row.name === name && row.ecosystem === ecosystem?.toLowerCase());
+  if (!chosen || !picked || chosen === picked) return text;
+  const identity = (row) => Object.fromEntries(row.header.map((column, at) => [column, row.cells[at]]).filter(([column]) => IDENTITY.has(column)));
+  const swapped = (row, other) => {
+    const taken = identity(other);
+    return `| ${row.cells.map((cell, at) => (IDENTITY.has(row.header[at]) ? taken[row.header[at]] ?? "" : cell)).join(" | ")} |`;
+  };
+  [lines[chosen.at], lines[picked.at]] = [swapped(chosen, picked), swapped(picked, chosen)];
+  return lines.join("\n");
 }
 
 function draftFileView(file) {
@@ -718,6 +770,8 @@ function draftFileView(file) {
       radio.type = "radio";
       radio.name = `reuse-${file.path}`;
       radio.value = candidate;
+      // The pick is the author's edit of the decision's text, which Write proposals writes (UC-022 step 8).
+      radio.addEventListener("change", () => { if (radio.checked) area.value = chosenIn(area.value, candidate); });
       list.append(el("li", null, el("label", null, radio, ` ${candidate}`)));
     }
     box.append(list);

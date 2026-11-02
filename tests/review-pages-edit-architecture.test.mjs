@@ -18,6 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { emptyStorage } from "./review-pages-harness.mjs";
+import { until } from "./review-pages-wait.mjs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 // Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
@@ -139,13 +140,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(new Event("click"));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 const areaOf = (target) => find(target, (node) => node.localName === "textarea")[0];
 const saveButton = (target) => find(target, (node) => node.localName === "button" && node.textContent === "Save")[0];
 const badgeOf = (root) => byClass(root, "span", "badge")[0]?.textContent;
@@ -173,11 +167,11 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits 
     assert.notEqual(edited, body);
     type(target, edited);
     click(saveButton(target));
-    await until(() => fake.writes().length === 1, `the commit of ${id}`);
+    await until(target, () => fake.writes().length === 1, `the commit of ${id}`);
     const [{ change }] = fake.writes();
     assert.equal(change.expectedHead, read, `${id}: on the head the editor opened`);
     assert.deepEqual(change.files, [{ path, text: edited }], `${id}: only the file, with the edited text, no record`);
-    await until(() => areaOf(target) === undefined && target.textContent.includes(to), `${id} to be shown again`);
+    await until(target, () => areaOf(target) === undefined && target.textContent.includes(to), `${id} to be shown again`);
     assert.equal(badgeOf(target), "changed since acceptance", `${id}: its new text is accepted by no record, its old text was`);
   }
 });
@@ -199,7 +193,7 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — the schema's 
     const broken = fakeHost();
     broken.land({ [path]: graphEdit(body) });
     const opened = await show(broken, route, { id, edit: "1" });
-    await until(() => graphMark.test(marksOf(opened)), `${id}: the stored graph's mark`);
+    await until(opened, () => graphMark.test(marksOf(opened)), `${id}: the stored graph's mark`);
     assert.equal(saveButton(opened).disabled, false, `${id}: Save offered with the graph's mark`);
   }
 });
@@ -236,7 +230,7 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — a file change
     const newer = body.replace(from, "Another writer's sentence.");
     fake.land({ [path]: newer });
     click(saveButton(target));
-    await until(() => byClass(target, "div", "newer")[0]?.textContent.includes("Another writer's sentence."), `${id}: the newer text`);
+    await until(target, () => byClass(target, "div", "newer")[0]?.textContent.includes("Another writer's sentence."), `${id}: the newer text`);
     assert.equal(areaOf(target).value, edited, `${id}: the edit stays`);
     assert.equal(fake.writes().length, 0, `${id}: no commit`);
   }
@@ -257,7 +251,7 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — without a tok
     Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async (written) => { asked.clipboard.push(written); } } }, configurable: true, writable: true });
     globalThis.open = (url) => { asked.opened.push(url); return null; };
     click(saveButton(target));
-    await until(() => byClass(target, "a", "github-page").length === 1, `${id}: GitHub's page`);
+    await until(target, () => byClass(target, "a", "github-page").length === 1, `${id}: GitHub's page`);
     const link = new URL(byClass(target, "a", "github-page")[0].getAttribute("href"));
     assert.equal(link.origin + link.pathname, `https://github.com/alice/thesis-tool/edit/main/${path}`, `${id}: the page of the file`);
     assert.equal([...link.searchParams.keys()].length, 0, `${id}: no query in the address`);

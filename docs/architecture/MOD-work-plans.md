@@ -122,14 +122,16 @@ item schema of MOD-documents (`artifactSchemas().item`).
 An item's state, `ItemState`, is derived from the approval records, the queues, the job records and the pull requests:
 `waiting for acceptance`, `waiting for an item it builds on`, `ready`, `in progress` (a job runs, or its pull request is
 open; and once its newest job has ended as done, until a pull request of it opened after that job's `start` is merged or
-closed without merge), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged, or — for an item built
+closed without merge), `blocked` (a job failed other than at a rejected gate, or waits for a person), `done` (its pull request is merged, or — for an item built
 without a pull request naming it — its record names the commits that built it, `built_by`). A merged
 pull request decides first: an item whose pull request is merged is `done` whatever else holds, including a job of
 it started, or a pull request of it opened, after the merge, and stays `done`; an item whose record names `built_by`
 is `done` in the same way, from its record alone, with no request. A
 requirement or use case it realises that is withdrawn, changed or not accepted, or an item it builds on that is not done,
 marks a `done` item: its `reason` names that. A plan step that waits for the gate before its phase is `waiting` with
-that gate named.
+that gate named. A step or item whose newest job a rejected gate ended — its End `failed`, with the reason `the gate
+<gate> was rejected by <gate record>`, followed by `: <the record's reason>` where the record gives one — is `ready`,
+with that reason, unless it is `done`, `waiting for acceptance`, `waiting for an item it builds on` or `waiting`.
 
 An item is held by a team's sprint from its selection until a pull request with its change is merged into the default
 branch, or until its sprint's close sends it back to the backlog or into the team's next sprint: once the close is recorded

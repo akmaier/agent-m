@@ -51,7 +51,9 @@ uses:
   - MOD-work-plans.planSchemas
   - MOD-product-process.declarationSchema
   - MOD-product-process.branchesOf
+  - MOD-product-process.gateSchema
   - MOD-documents.readDocument
+  - MOD-documents.artifactSchemas
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.ask
   - MOD-bridge-client.handOver
@@ -285,7 +287,10 @@ pins — the commit the run's checkout of the instance is at —, not the commit
 - `resumeJob(record: JobRecord, gateRecord: string, route: Route, host: Host, head: string, bridge?: Bridge) ->
   Promise<void>` — appends the resumption, naming the gate record, on the head read, and hands the job back to its route:
   in the tab it goes on from the result this module kept for it, its end appended as a job of the tab ends; on a Bridge it is handed over again when `bridge` is given, and otherwise taken up when the
-  Bridge next reads the repository; on CI the push itself starts the job workflow, which goes on.
+  Bridge next reads the repository; on CI the push itself starts the job workflow, which goes on. Where the gate record
+  is a rejection (`decision: rejected`), it appends instead the job's End, `failed`, with the reason `the gate <gate> was
+  rejected by <gate record>`, followed by `: <the record's reason>` where the record gives one, and nothing goes on: the
+  tab drops the result it kept, a Bridge is not asked, CI starts nothing.
 - `liveState(record: JobRecord, product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<LiveState>` — asks the
   runtime that holds a job that has not ended: the CI service's runs of the job workflow for the job, through the host;
   the list of jobs of the Bridge its record names, among `bridges`; this tab.
@@ -404,6 +409,10 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
   `MOD-work-plans.planSchemas`, `MOD-product-process.declarationSchema`, `MOD-product-process.branchesOf`,
   `MOD-documents.readDocument` — the branch a pull request the writer opens goes into, from the sprint records, the
   plan's order and the declared branches;
+  `MOD-documents.artifactSchemas` — the item schema, by which the writer reads the `origin` of the items a pull request
+  names, for the issues they come from;
+  `MOD-product-process.gateSchema`, with `MOD-documents.readDocument` — the decision of the gate record `resumeJob` is
+  given;
   `MOD-repository-hosts.startWorkflow` — the start of a handed-over job, with its task.
 - `MOD-participant-list.reachedThrough` — a subagent's route through the participant that starts it.
 - `MOD-bridge-client.Bridge`, `MOD-bridge-client.ask`, `MOD-bridge-client.handOver`, `MOD-bridge-client.bridgeJobs`,

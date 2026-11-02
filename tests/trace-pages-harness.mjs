@@ -123,8 +123,8 @@ export function doc(id, title, keys = {}, body = "") {
 // named, and a read of any other path fails with OutsideSnapshot; `log.narrowed` records each readSnapshot as [ref, folders | null]. Building that graph is the push job's work and reads nothing the log records. The commit of a ref is a SHA of its own for each Host: MOD-trace-graph's
 // storedGraph keeps a commit's graph for the page (the module), so two Hosts of one test file never share a commit.
 let hostsMade = 0;
-export function treeHost({ trees, tags = [], failing = () => false, history = [], stored = () => true }) {
-  const log = { snapshots: [], narrowed: [], reads: [], manys: [], histories: [], fileAts: [], readOns: [] };
+export function treeHost({ trees, tags = [], failing = () => false, history = [], onDefault = [], stored = () => true }) {
+  const log = { contains: [], snapshots: [], narrowed: [], reads: [], manys: [], histories: [], fileAts: [], readOns: [] };
   const made = ++hostsMade;
   const commitOf = (ref) => createHash("sha1").update(`tree host ${made} ${ref}`).digest("hex");
   const counts = new Map();
@@ -166,7 +166,7 @@ export function treeHost({ trees, tags = [], failing = () => false, history = []
       };
     },
     // `history` is the commits of the default branch, newest first: { commit, date, files } with the whole tree of the commit. readHistory names those that changed a
-    // path (every commit for no path), as the Host does, newest first, up to the limit; readFileAt gives the text of the path at each commit asked, null where it has none.
+    // path (every commit for no path, and, for no path, the commits `onDefault` names after them), as the Host does, newest first, up to the limit; readFileAt gives the text of the path at each commit asked, null where it has none.
     async readHistory(path, options = {}) {
       log.histories.push([path, options]);
       const from = options.ref === "test-results" ? 0 : resultsLog.findIndex((entry) => entry.commit === options.ref);
@@ -175,7 +175,14 @@ export function treeHost({ trees, tags = [], failing = () => false, history = []
           changes: options.changes === false ? [] : [{ path: entry.path, change: "added" }] }));
       }
       const changed = history.filter((entry, index) => path === null || entry.files[path] !== history[index + 1]?.files[path]);
+      // For the repository (a null path) the default branch also holds the commits `onDefault` names, after those of `history`.
+      if (path === null) changed.push(...onDefault.filter((commit) => !changed.some((entry) => entry.commit === commit)).map((commit) => ({ commit, date: "2026-10-01T10:00:00Z", files: {} })));
       return changed.slice(0, options.limit ?? changed.length).map(({ commit, date }) => ({ commit, parents: [], author: { account: null, name: "fixture" }, date, message: "", changes: [] }));
+    },
+    // containsCommit(branch, commit): whether the default branch holds the commit, that is `history` or `onDefault` names it; every question is noted in `log.contains` as [branch, commit].
+    async containsCommit(branch, commit) {
+      log.contains.push([branch, commit]);
+      return onDefault.includes(commit) || history.some((entry) => entry.commit === commit);
     },
     async readFileAt(path, commits) {
       log.fileAts.push([path, [...commits]]);

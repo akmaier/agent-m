@@ -42,6 +42,8 @@ const reasonOf = (st) => (st.state === "waiting for acceptance" ? `not accepted:
 const stateCell = (st) => `${badge(st.state)}${st.reason ? ` <span class="muted small">${h(reasonOf(st))}</span>` : ""}`;
 const fileLink = (context, ref, path, label) => `<a href="${h(`${context.product.address.replace(/\/$/, "")}${context.product.kind === "gitlab" ? "/-" : ""}/blob/${ref.split("/").map(encodeURIComponent).join("/")}/${path.split("/").map(encodeURIComponent).join("/")}`)}" target="_blank" rel="noopener">${label}</a>`;
 const planLink = (team, label) => `<a class="btn" href="#backlog/plan=${encodeURIComponent(team)}">${h(label)}</a>`;
+// Start sprint work (UC-034 step 1): the route implement for a running sprint, named `<team>/<nn>`; the frame splits an address at every slash before it decodes, so the slash of the name is encoded.
+export const startWorkLink = (sprintName) => `<a class="btn" href="#implement/sprint=${encodeURIComponent(sprintName)}">Start sprint work</a>`;
 
 // ---------------------------------------------------------------- the burn-down chart
 
@@ -209,7 +211,7 @@ function teamPanel(context, ctx, { team, sprint }) {
     ${wipLine(ctx, sprint)}
     <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${chart}${close}
-    <p>${sprint.final ? "" : planLink(team, "Change the selection")}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${WHY_SPRINT}</section>`;
+    <p>${sprint.final ? "" : `${planLink(team, "Change the selection")} ${startWorkLink(sprint.name)}`}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${WHY_SPRINT}</section>`;
 }
 
 function gatesPanel(context, ctx) {
@@ -236,7 +238,7 @@ function blockedPanel(ctx, sprints) {
 }
 
 // The page of a job on the job dashboard: MOD-main-page's route `job`, on the main page; the product named where it is not the instance.
-function jobHref(context, id) {
+export function jobHref(context, id) {
   const product = context.product?.address;
   const own = product === `https://github.com/${context.instance?.repository}`;
   const fragment = `#job/id=${encodeURIComponent(id)}${product && !own ? `/product=${encodeURIComponent(product)}` : ""}`;

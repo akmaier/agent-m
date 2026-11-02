@@ -203,6 +203,11 @@ export function requireWaitingOnTab(id) {
   if (!waiting.has(id)) throw new RuntimeError("NotHeld", { job: id }, `this tab keeps no result of the job ${id}: it was not run here, or the tab was closed`);
 }
 
+/** dropOnTab(id) — the tab forgets the result it kept for a job that waits at a gate: the job ended there (a rejected gate), so nothing goes on from it. */
+export function dropOnTab(id) {
+  waiting.delete(id);
+}
+
 /**
  * endOnTab(record, host) -> Promise<void> — the job goes on from the result the tab kept for it: its end is appended on the head the branch has, as a job of the tab ends. The result is taken once the end is committed;
  * a commit the host refuses leaves it kept.

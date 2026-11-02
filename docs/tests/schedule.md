@@ -16,5 +16,5 @@ minutes: 2
 | component | | ✓ | ✓ | ✓ | ✓ | | 8 |
 | system | | ✓ | ✓ | ✓ | ✓ | | 6 |
 | paid | | | ✓ | ✓ | ✓ | | |
-| release | | ✓ | ✓ | ✓ | ✓ | | 8 |
+| release | | ✓ | ✓ | ✓ | ✓ | | 12 |
 | user | | | | ✓ | ✓ | | |

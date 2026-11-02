@@ -50,6 +50,13 @@ function usageOf(usages) {
   return { inputTokens: sum("inputTokens"), outputTokens: sum("outputTokens"), minutes: sum("minutes"), cost: reported.find((each) => each.cost)?.cost ?? null };
 }
 
+// The end of a job whose writer hands no draft back still names the tests its report lists as not written, each with its reason — what the page shows again for the person to sharpen or
+// drop (UC-026 8b): `draft: { notWritten: [{ identifier, reason }] }`, in the order of the report; null where the report lists none.
+function notWrittenOf(report) {
+  const listed = (Array.isArray(report?.tests) ? report.tests : []).filter((test) => typeof test?.notWritten === "string" && test.notWritten.trim() !== "");
+  return listed.length === 0 ? null : { notWritten: listed.map((test) => ({ identifier: test.identifier, reason: test.notWritten })) };
+}
+
 // The driver of a participant for a job: a model endpoint from the endpoint the job's record names, its key the participant's secret; or a coding
 // agent the record names, its key variable that secret's name.
 // On the model's user's side (model-user.mjs) the agent reaches its provider through the key holder, `keyHolder`, and holds no key.
@@ -269,7 +276,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     // A result is one item of the end's list, in which a comma separates items: a comma of a note or a reason becomes a semicolon.
     const listed = [...made, ...[...[...notes, ...(outcome?.notes ?? [])].map((note) => `note: ${note}`), ...passed].map((line) => line.replaceAll(",", ";"))];
     ended = { state: failed ? "failed" : "done", results: failed ? [] : listed.length > 0 ? listed : handedBack ? [] : ["no change"],
-      draft: handOver || failed ? null : handedBack ? (outcome?.shown ?? result.draft) : null, rounds: result.rounds, usage: usageOf(result.usage),
+      draft: handOver || failed ? null : handedBack ? (outcome?.shown ?? result.draft) : notWrittenOf(outcome?.shown), rounds: result.rounds, usage: usageOf(result.usage),
       reason: failed && handOver ? hidden(failed) : failed, stoppedBecause: result.stoppedBecause, drafter: result.drafter };
   } catch (error) {
     let reason = error?.message ?? String(error);
@@ -320,18 +327,22 @@ async function workFacts(env, composed, { atHead = false } = {}) {
   return productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, { scope: "work" });
 }
 
-// The jobs of this route waiting at a gate that is now passed, each with the gate record that passed it. A gate record whose decider is the job's own participant —
-// whose work the gate checks — does not resume the job.
+// The jobs of this route waiting at a gate that is now decided, each with the gate record that decided it: a passed gate resumes the job, a rejected one — by a record that names the job — ends it
+// (`rejected`: the record's reason). A gate record whose decider is the job's own participant — whose work the gate checks — decides nothing.
 async function resumable(env, composed) {
   const facts = await workFacts(env, composed);
   const wanted = routeOf(env.job.runner);
   const rows = [];
   for (const { record, state } of facts.jobs) {
     if (state !== "waiting at a gate" || record.route !== wanted) continue;
-    const reached = record.gates.at(-1)?.gate;
-    const passed = facts.gateStates.find((each) => each.gate === reached && each.state === "passed");
-    const decided = passed && facts.gates.find((each) => each.path === passed.record);
-    if (decided && decided.fields.decider !== record.participant) rows.push({ record, path: record.path, gateRecord: passed.record });
+    const verdict = facts.gateStates.find((each) => each.gate === record.gates.at(-1)?.gate);
+    const decided = verdict?.record && facts.gates.find((each) => each.path === verdict.record);
+    if (!decided || decided.fields.decider === record.participant) continue;
+    if (verdict.state === "passed") rows.push({ record, path: record.path, gateRecord: verdict.record });
+    else if (verdict.state === "rejected" && decided.fields.job === record.id) {
+      const why = decided.sections.find((section) => section.heading === "## Reason")?.text.replace(/\s+/g, " ").trim();
+      rows.push({ record, path: record.path, gateRecord: verdict.record, rejected: `the gate ${verdict.gate} was rejected by ${verdict.record}${why ? `: ${why}` : ""}` });
+    }
   }
   return rows;
 }
@@ -342,6 +353,13 @@ async function resume(host, branch, now, { record, path, gateRecord }) {
   await host.commitFiles({ branch, expectedHead: head.commit, files: [{ path, text: appendToRecord(await head.read(path), { part: "resumed", at: now, gateRecord }) }],
     message: `resume ${record.id}: ${gateRecord}` });
   return `${record.id} resumed by ${gateRecord}`;
+}
+
+// Ends a job whose gate was rejected: its End, `failed`, with the reason the rows give (the gate, the gate record and its reason), committed on the current head.
+async function endRejected(host, branch, now, participants, { record, path, gateRecord, rejected }) {
+  await endRecord(host, path, { branch, part: { part: "end", at: now, state: "failed", results: [], draft: null, rounds: [], usage: null,
+    cost: jobCost(null, participants.find((each) => each.name === record.participant)), reason: rejected, log: null } }, []);
+  return `${record.id} ended by ${gateRecord}`;
 }
 
 // The participants of the instance's register, read from its checkout.
@@ -383,7 +401,9 @@ export async function onRecordsChanged(env) {
   const missing = missingSecret(env, participants, rows);
   if (missing) return notRun(missing);
   const resumed = [];
-  for (const row of await resumable(env, composed)) resumed.push(await resume(composed.product.host, env.branch, env.now, row));
+  for (const row of await resumable(env, composed)) {
+    resumed.push(row.rejected ? await endRejected(composed.product.host, env.branch, env.now, participants, row) : await resume(composed.product.host, env.branch, env.now, row));
+  }
   const status = await runRows(env, composed, participants, rows);
   if (resumed.length === 0) return status;
   return { ...status, outcome: status.outcome === "nothing to do" ? "done" : status.outcome, summary: [...resumed, ...(status.outcome === "nothing to do" ? [] : [status.summary])].join("; ") };
@@ -906,6 +926,8 @@ function modulesOfJob(record, items) {
  * only when every shard AGENT_M_EXPECTED names left `done` or `nothing to do` and records.status is `done` (headCi); each job that is not green is a finding naming it. `done` when
  * the Definition of Done holds, `failed` with each condition it misses as a finding; the status and the findings stand in the check's log and in the run's summary. A pull request
  * that names no job, or a job of no implementing kind, is `nothing to do`; a missing token, pull request or AGENT_M_EXPECTED ends the entry `not run` before anything is read.
+ * Where the event's pull request holds its title — GitHub's payload does —, the job is read from its title and description first, and one that names none ends `nothing to do`
+ * before the pull request's facts are read, since those read every commit (ITM-1382).
  */
 export async function onDoneCheck(env) {
   if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the step as ${env.job.tokenName}. Nothing was written.`);
@@ -913,10 +935,13 @@ export async function onDoneCheck(env) {
   if (!number) return notRun("The event names no pull request: the Definition of Done is checked on a pull request. Nothing was written.");
   const jobs = expectedJobs(env.tests.expected);
   if (!jobs) return notRun(`AGENT_M_EXPECTED ${env.tests.expected ? `names no job as <row>:<shards>: ${env.tests.expected}` : "is missing"}: without it the jobs of the run are not known. Nothing was read.`);
+  const namesNoJob = nothingToDo(`Pull request #${number} names no job: the Definition of Done is checked for an implementation job's pull request.`);
+  const event = env.event.payload?.pull_request;
+  if (typeof event?.title === "string" && !JOB_ID.test(`${event.title}\n${event.body ?? ""}`)) return namesNoJob;
   const { checkout, server, instance } = composeTestRun(env);
   const facts = await server.pullRequestFacts(number);
   const id = JOB_ID.exec(`${facts.pullRequest.title}\n${facts.pullRequest.body}`)?.[0];
-  if (!id) return nothingToDo(`Pull request #${number} names no job: the Definition of Done is checked for an implementation job's pull request.`);
+  if (!id) return namesNoJob;
   const product = await productFacts(checkout, await instance.readSnapshot("HEAD"), (commit) => instance.readSnapshot(commit), env.now, { scope: "work" });
   const row = product.jobs.find(({ record }) => record.id === id);
   if (!row) return failedStatus(`Pull request #${number} names the job ${id}, which has no record in docs/jobs/.`);
