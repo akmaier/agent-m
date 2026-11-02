@@ -41,7 +41,7 @@ import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, readProblem } from "../site-frame/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { readRegister } from "../documents/index.mjs";
-import { testsHead, readsAt, column, listTable, LEVEL_TOPIC } from "./look.mjs";
+import { testsHead, readsAt, column, listTable, button, LEVEL_TOPIC } from "./look.mjs";
 import { heads } from "./routes.mjs";
 
 const REGISTER = "docs/participants.md";
@@ -58,14 +58,6 @@ function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
   node.append(...children);
-  return node;
-}
-
-// A button that answers a person's click only (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
-function button(className, text, listener) {
-  const node = el("button", className, text);
-  node.type = "button";
-  node.addEventListener("click", (event) => (event?.isTrusted === true ? listener(event) : undefined));
   return node;
 }
 

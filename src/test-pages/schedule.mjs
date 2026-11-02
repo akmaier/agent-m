@@ -26,11 +26,13 @@
 //
 // ITM-1307: where no view is stored, the counts are those scheduleView gives for the declarations the route reads; the route keeps no counting rule of its own.
 //
+// ITM-1420: Save and Merge are the module's button (look.mjs), which answers only a click the browser marks as a person's.
+//
 // Module: MOD-test-pages
 
 import { scheduleSchema, defaultSchedule, scheduleFindings, secretsNeeded, configurationDrift, occasionsOf, proposeSchedule, applyPipelineSchedule } from "../test-schedule/index.mjs";
 import { readDocument, documentFindings } from "../documents/index.mjs";
-import { testsHead, readsAt, LEVEL_TOPIC, OCCASION_TOPIC } from "./look.mjs";
+import { testsHead, readsAt, button, LEVEL_TOPIC, OCCASION_TOPIC } from "./look.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
@@ -206,8 +208,15 @@ function scheduleForm(schedule, table, state, { participants, findings, onSave }
     field.setAttribute("data-key", key);
     return field;
   });
-  const save = el("button", "btn primary", "Save");
-  save.setAttribute("type", "button");
+  // Save answers a person's click only (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
+  const save = button("btn primary", "Save", async () => {
+    save.disabled = true;
+    try {
+      await onSave(documentNow());
+    } finally {
+      check();
+    }
+  });
   const documentNow = () => {
     const now = withTable(schedule, state);
     for (const [key, input] of inputs) {
@@ -225,14 +234,6 @@ function scheduleForm(schedule, table, state, { participants, findings, onSave }
   };
   state.changed = check;
   for (const input of inputs.values()) input.addEventListener("input", check);
-  save.addEventListener("click", async () => {
-    save.disabled = true;
-    try {
-      await onSave(documentNow());
-    } finally {
-      check();
-    }
-  });
   return { form: el("div", "schedule-form", table, ...fields, findings, el("p", null, save)), check };
 }
 
@@ -375,9 +376,8 @@ async function drawProposal(place, host, pullRequest, schedule) {
         link("failing-runs", "the runs of the pull request", host.webLinks().commitRuns(pullRequest.head)), "."));
     }
     if (state === "green") {
-      const merge = el("button", "btn primary merge", "Merge");
-      merge.setAttribute("type", "button");
-      merge.addEventListener("click", () => mergeAndSchedule(box, merge, host, pullRequest, schedule));
+      // Merge answers a person's click only (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
+      const merge = button("btn primary merge", "Merge", () => mergeAndSchedule(box, merge, host, pullRequest, schedule));
       box.append(merge);
     }
   }

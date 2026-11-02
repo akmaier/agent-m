@@ -29,6 +29,8 @@
 //   - A nightly run has not run when the schedule ticks a row for nightly and no run of the event schedule started on or after the date of the
 //     last nightly time that has passed (UTC); the page shows the last run's date, or that there is none, beside that expected date, names on
 //     GitHub that scheduled workflows of a public repository are disabled after a period without activity, and links webLinks().actions.
+//   - A person's click on Save or Merge is a click the browser marks trusted (isTrusted true), as MOD-site-frame's forms and the generate page read it;
+//     a click a script makes is not, and writes nothing (TST-1420001, TST-1420002). Every other click of this file is a person's.
 // The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
@@ -53,7 +55,10 @@ const byClass = (root, name) => descendants(root, (node) => (node.className ?? "
 const byTag = (root, name) => descendants(root, (node) => node.localName === name);
 const buttonOf = (root, text) => descendants(root, (node) => node.localName === "button" && node.textContent === text).at(-1);
 const saveOf = (root) => buttonOf(root, "Save");
-const click = (button) => button.dispatchEvent(new Event("click"));
+// A person's click is one the browser marks trusted (isTrusted true); a script's click is one it does not (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
+const trusted = (type) => Object.defineProperty(new Event(type), "isTrusted", { value: true });
+const click = (button) => button.dispatchEvent(trusted("click"));
+const scriptClick = (button) => button.dispatchEvent(new Event("click"));
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
 
 // ---------------------------------------------------------------- the fixtures
@@ -181,6 +186,44 @@ for (const server of ["github", "gitlab"]) {
     assert.deepEqual(byClass(proposalOf(shown.target), "pull-request").map((link) => link.getAttribute("href")), [`${address.web}/pull/7`]);
     assert.deepEqual(writes(shown.host, "mergePullRequest"), []);
     assert.deepEqual(writes(shown.host, "setPipelineSchedule"), []);
+  });
+
+  // TST-1420001 · level: unit · module: MOD-test-pages
+  // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-027
+  // given: a product on the server (GitHub, then GitLab) with a saved schedule, the route schedule drawn
+  // input: a click on Save that a script makes (isTrusted false), then a person's click on the same Save
+  // expect: after the script's click no branch, no commit and no pull request, and no pull request shown; counter-proof: the person's click then opens one pull request and the page links it
+  test(`TST-1420001: schedule on ${server} — a script's click on Save writes nothing; a person's opens the pull request`, async () => {
+    const shown = await page(server, { "docs/tests/schedule.md": SAVED });
+    scriptClick(saveOf(shown.target));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual(shown.host.calls.filter(([call]) => call !== "listCiRuns"), [], "a script's click writes nothing");
+    assert.equal(proposalOf(shown.target), undefined, "no pull request is shown");
+    click(saveOf(shown.target));
+    await until(() => proposalOf(shown.target), "the pull request shown after the person's click");
+    assert.equal(writes(shown.host, "createBranch").length, 1);
+    assert.equal(writes(shown.host, "commitFiles").length, 1);
+    assert.equal(writes(shown.host, "openPullRequest").length, 1);
+    assert.deepEqual(byClass(proposalOf(shown.target), "pull-request").map((link) => link.getAttribute("href")), [`${address.web}/pull/7`]);
+  });
+
+  // TST-1420002 · level: unit · module: MOD-test-pages
+  // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; GITLAB PRODUCTS ARE SUPPORTED; UC-027
+  // given: the pull request of a person's Save on the server (GitHub, then GitLab), whose CI is green, with Merge offered
+  // input: a click on Merge that a script makes (isTrusted false), then a person's click on the same Merge
+  // expect: after the script's click nothing is merged, no pipeline schedule is set and the page does not say it is merged; counter-proof: the person's click then merges the pull request once at the head shown, and on GitLab sets the pipeline schedule once
+  test(`TST-1420002: schedule on ${server} — a script's click on Merge merges nothing; a person's merges`, async () => {
+    const shown = await saved(server, undefined, { pr: [ciRun("1", "pull_request", "success", null, server)], last: [] });
+    const merge = buttonOf(proposalOf(shown.target), "Merge");
+    scriptClick(merge);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual(writes(shown.host, "mergePullRequest"), [], "a script's click merges nothing");
+    assert.deepEqual(writes(shown.host, "setPipelineSchedule"), [], "a script's click sets no pipeline schedule");
+    assert.equal(byClass(shown.target, "merged").length, 0, "the page does not say it is merged");
+    click(merge);
+    await until(() => byClass(shown.target, "merged").length, "the merge shown after the person's click");
+    assert.deepEqual(writes(shown.host, "mergePullRequest").map(([, number, head]) => [number, head]), [[7, PR_HEAD]]);
+    assert.equal(writes(shown.host, "setPipelineSchedule").length, server === "gitlab" ? 1 : 0);
   });
 
   // TST-759002 · level: unit · module: MOD-test-pages
