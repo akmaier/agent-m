@@ -724,7 +724,7 @@ export const route = {
       const testLine = el("p", null, test);
       if (state.agentTest?.ok === false && !state.saveUntested) testLine.append(" ", saveUntested);
       return [control("How it is reached", reach), control("Bridge", bridge), el("p", null, listAgents), agentListView(), control("Agent", agent),
-        testLine, testResult];
+        testLine, testResult, explain("agent-test")];
     }
 
     function fieldsFor(typeName) {
