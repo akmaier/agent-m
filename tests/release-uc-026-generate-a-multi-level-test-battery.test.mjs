@@ -66,7 +66,7 @@ const EVIDENCE = {
   "A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION": [["tests/test_process_run.py", "TST-1045401"], ["tests/test_process_run.py", "TST-1045402"]],
   "A TEST JOB RECEIVES THE CHAPTER ON TESTING": [[SELF, "TST-771313"], ["tests/test_job_reading_checkout.py", "TST-417100"]],
 };
-const FINDINGS = { "TST-771309": { finding: "UC026-F2", module: "MOD-test-pages" }, "TST-771314": { finding: "UC026-F4", module: "MOD-result-records" } };
+const FINDINGS = { "TST-771309": { finding: "UC026-F2", module: "MOD-test-pages" } };
 
 // TST-771301 · level: release · module: system
 // guards: UC-026
@@ -248,8 +248,8 @@ test("TST-771313: UC-026 3 the jobs that write tests receive chapter 13 of the b
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-026
 // given: cases whose identifiers are TST-954 and case-1
 // input: the check test-proposals on each
-// expect: known positive — TST-954 has no finding; the case whose identifier is not of the scheme TST-<number> has one error under EVERY ARTIFACT HAS AN IDENTIFIER; FINDING UC026-F4 (MOD-result-records): the check names no rule of the identifier and lets the case through
-test("TST-771314: UC-026 5 a proposed case carries an identifier of the scheme TST-", { todo: "FINDING UC026-F4 (MOD-result-records): testProposals (src/result-records/strategies.mjs:180-207) checks the expected result, the runs, the guards, the paid service and the duplicate of a case, and not its identifier; a case named case-1 passes, though UC-026 5 has every case carry a TST- identifier and its postcondition every new test one" }, async () => {
+// expect: known positive — TST-954 has no finding; the case whose identifier is not of the scheme TST-<number> has one error under EVERY ARTIFACT HAS AN IDENTIFIER
+test("TST-771314: UC-026 5 a proposed case carries an identifier of the scheme TST-", async () => {
   assert.deepEqual(await checkProposal([proposed("TST-954", "unit", [OTHER_RULE])]), [], "known positive");
   const found = await checkProposal([proposed("case-1", "unit", [OTHER_RULE])]);
   assert.deepEqual(found.map((one) => one.rule), ["EVERY ARTIFACT HAS AN IDENTIFIER"]);

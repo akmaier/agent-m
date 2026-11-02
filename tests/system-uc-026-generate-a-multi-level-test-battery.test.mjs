@@ -60,6 +60,8 @@ const FLOW_EVIDENCE = {
   "main-4-implementer": { uc: "it leaves out the participant recorded as implementer of the behaviour under test, and says so", evidence: [[SELF, "TST-771213"], [UNIT, "TST-763002"]] },
   "main-4-run": { uc: "the author presses **Run** — one click", evidence: [[SELF, "TST-771204"], [SELF, "TST-771205"], [UNIT, "TST-763004"]] },
   "main-5-cases": { uc: "Each one carries a `TST-` identifier, its level", evidence: [[SELF, "TST-771205"], [SELF, "TST-771206"]] },
+  "main-5-guards-module": { uc: "the identifiers it guards", evidence: [[SELF, "TST-771210"]] },
+  "main-5-identifier": { uc: "Each one carries a `TST-` identifier", evidence: [["tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", "TST-771314"]] },
   "main-5-model": { uc: "A case whose result depends on a model's answer is marked *model-dependent*", evidence: [[SELF, "TST-771205"], [CHECKS, "TST-753103"]] },
   "main-6-checks": { uc: "Agent M checks the proposal without a model", evidence: [[SELF, "TST-771205"], [CHECKS, "TST-753101"], [PAID, "TST-851101"]] },
   "main-7-review": { uc: "The review panel shows the cases grouped by level and by what they guard", evidence: [[SELF, "TST-771206"], [UNIT, "TST-764001"]] },
@@ -81,8 +83,6 @@ const FLOW_EVIDENCE = {
 const FLOW_FINDINGS = {
   "main-1-accepted": { uc: "Agent M lists the accepted requirements, use cases and modules", finding: "UC026-F1", file: SELF, test: "TST-771203", module: "MOD-test-pages" },
   "main-4-implementer-uc": { uc: "For the *release* level it", finding: "UC026-F2", file: "tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", test: "TST-771309", module: "MOD-test-pages" },
-  "main-5-guards-module": { uc: "the identifiers it guards", finding: "UC026-F3", file: SELF, test: "TST-771210", module: "MOD-result-records" },
-  "main-5-identifier": { uc: "Each one carries a `TST-` identifier", finding: "UC026-F4", file: "tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", test: "TST-771314", module: "MOD-result-records" },
   "main-8-date": { uc: "naming the Agent M version, the participant, the model and the date.", finding: "UC026-F5", file: SELF, test: "TST-771211", module: "MOD-runtimes" },
   "8b-shown-again": { uc: "it is not written, and the review panel shows it again for the author to sharpen or drop.", finding: "UC026-F6", file: SELF, test: "TST-771209", module: "MOD-workflow-entries" },
 };
@@ -407,8 +407,8 @@ test("TST-771209: UC-026 8b a test that stays green with the planted fault is no
 // guards: UC-026; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: a product whose ended job of the kind propose-tests holds the reviewed case TST-908 at unit level, which guards the module MOD-members; test-bot writes the test as a test names its module, with `module: MOD-members` in its header, and, as a test's guards may only be a requirement or a use case, the rule it serves
 // input: Write tests on that case; the job workflow runs the job
-// expect: known positive — the participant pushed the branch and reported it; the job ends done in one round with a pull request for the branch; FINDING UC026-F3 (MOD-result-records): the written test cannot name the module among its guards and the check test-proposals asks them equal to the case's, so the job is sent back and cannot pass both checks
-test("TST-771210: UC-026 5, 8 a reviewed case that guards a module is written as a test of that module and the job passes", { todo: "FINDING UC026-F3 (MOD-result-records): `differences` (src/result-records/strategies.mjs:134-142) asks a written test's guards to equal its reviewed case's, and the case may guard a module (its finding at :194 says `requirement, use case or module`), but MOD-test-document's testFindings refuses a module among a test's guards (A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION), so a case that guards MOD-members can be written as no test both checks accept" }, async () => {
+// expect: known positive — the participant pushed the branch and reported it; the job ends done in one round with a pull request for the branch
+test("TST-771210: UC-026 5, 8 a reviewed case that guards a module is written as a test of that module and the job passes", async () => {
   const cases = [proposed("TST-908", "unit", ["MOD-members"])];
   const { path, text: start } = startRecord({ id: "JOB-20261030-0900-bb01", kind: "propose-tests", worksOn: ["MOD-members"], participant: "test-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice",
     start: new Date("2026-10-30T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [],
