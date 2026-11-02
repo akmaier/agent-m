@@ -101,13 +101,13 @@ const FLOW_EVIDENCE = {
   "6a-bridge-silent": { uc: "**6a. The Bridge does not answer.** Agent M names the reason — not running, wrong address, token missing — and saves nothing until the author decides to save untested.", evidence: [[SELF, "TST-375211"], [OLDER, "TST-375002"]] },
   "7a-used-participant": { uc: "**7a. The author changes a participant that products already use.**", evidence: [[SELF, "TST-375212"], [OLDER, "TST-375005"]] },
   "postcondition-listed": { uc: "The instance lists the participant with type, capabilities and processing place; no key is in the\n  repository.", evidence: [[SELF, "TST-375203"], [SELF, "TST-375204"], [RELEASE, "TST-375310"]] },
+  "main-3-model-preset": { uc: "and\n     the **model** the agent is configured to use, for example `claude-opus-5-5`.", evidence: [[SELF, "TST-375213"]] },
+  "main-5-self-hosted-place": { uc: "The author states where the participant processes data. Agent M presets it where it can tell", evidence: [[SELF, "TST-375214"]] },
+  "main-3-offered-agent": { uc: "the agent, chosen from those that Bridge offers (UC-044)", evidence: [[SELF, "TST-375216"]] },
 };
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-3-model-preset": { uc: "and\n     the **model** the agent is configured to use, for example `claude-opus-5-5`.", finding: "UC017-F1", file: SELF, test: "TST-375213", module: "MOD-settings-pages" },
-  "main-5-self-hosted-place": { uc: "The author states where the participant processes data. Agent M presets it where it can tell", finding: "UC017-F2", file: SELF, test: "TST-375214", module: "MOD-settings-pages" },
   "main-3-price": { uc: "its price per million input and\n   output tokens, so that the usage a runtime reports can be priced", finding: "UC017-F3", file: SELF, test: "TST-375215", module: "MOD-settings-pages" },
-  "main-3-offered-agent": { uc: "the agent, chosen from those that Bridge offers (UC-044)", finding: "UC017-F4", file: SELF, test: "TST-375216", module: "MOD-settings-pages" },
   "main-6-explained": { uc: "For a CLI or sandboxed agent, the author presses **Test**", finding: "UC017-F5", file: SELF, test: "TST-375217", module: "MOD-settings-pages" },
 };
 // The passages no code of this product carries here, with the reason.
@@ -511,8 +511,8 @@ test("TST-375212: UC-017 7a a changed participant that products use lists the pr
 // guards: UC-017; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
 // given: a real Bridge on a computer with claude (logged in) offering it, kept by this browser as laptop
 // input: the author adds a CLI agent, chooses the Bridge, presses List agents and adds the offered claude with its one click, and reads the field Model
-// expect: known positive — the Agent field holds claude and the route reads bridge laptop agent claude; FINDING UC017-F1 (MOD-settings-pages): UC-017 asks the model the agent is configured to use, for example claude-opus-5-5, and the field is filled with claude, the agent's name, which is no model; two Claude Code participants on different models would then name the same one and Agent M could not tell them apart when it picks checkers that differ
-test("TST-375213: UC-017 3 adding an offered agent leaves the model to the author instead of naming the agent as the model", { todo: "FINDING UC017-F1 (MOD-settings-pages): addOfferedAgent sets `state.model = agent.name`, so the Model of a participant added with one click is `claude`, the name of the agent; UC-017 3 asks the model the agent is configured to use (claude-opus-5-5), and UC-038 6 compares these names" }, async (t) => {
+// expect: known positive — the Agent field holds claude and the route reads bridge laptop agent claude; the Model field does not hold claude, the agent's name, so that two Claude Code participants on different models can name different ones
+test("TST-375213: UC-017 3 adding an offered agent leaves the model to the author instead of naming the agent as the model", async (t) => {
   const machine = computer({ claude: { loggedIn: true } });
   const bridge = await startBridge(t, machine, { name: "laptop", offered: ["claude"] });
   const shown = await page(t, { settings: { "bridge:laptop": { address: bridge.address, token: bridge.token } } });
@@ -528,8 +528,8 @@ test("TST-375213: UC-017 3 adding an offered agent leaves the model to the autho
 // guards: UC-017; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
 // given: the frame at #participants over an empty register
 // input: the author adds a CI agent, reads the place Agent M presets for GitHub's machines, chooses a self-hosted runner and reads the place again
-// expect: known positive — for GitHub's machines the place is GitHub hosted runner; FINDING UC017-F2 (MOD-settings-pages): UC-017 5 presets the place where Agent M can tell and asks otherwise, and for a self-hosted runner on the person's own machine it cannot tell, yet the field still says GitHub hosted runner and a Save without a change writes that
-test("TST-375214: UC-017 5 a CI agent on a self-hosted runner is not given the place GitHub hosted runner", { todo: "FINDING UC017-F2 (MOD-settings-pages): setType presets `state.place = \"GitHub hosted runner\"` for a CI agent, and ciControls' runner select (`rebuild()`) leaves it when the runner becomes `self-hosted`; the row of a person who changes the runner and not the place says GitHub processes the data that runs on their own machine" }, async (t) => {
+// expect: known positive — for GitHub's machines the place is GitHub hosted runner; for a self-hosted runner it is not GitHub hosted runner
+test("TST-375214: UC-017 5 a CI agent on a self-hosted runner is not given the place GitHub hosted runner", async (t) => {
   const shown = await page(t);
   const main = shown.main();
   await addParticipant(main, "CI agent");
@@ -565,8 +565,8 @@ test("TST-375215: UC-017 3 a price that the register cannot read is not saved wi
 // guards: UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS
 // given: a real Bridge on a computer with claude (logged in) offering only claude, kept by this browser as laptop
 // input: the author adds a CLI agent on the Bridge laptop, lists its agents, and then types an agent the Bridge does not offer (banana) in place of the offered one and presses Save
-// expect: known positive — List agents offers claude alone, and the participant naming claude is saved; FINDING UC017-F4 (MOD-settings-pages): UC-017 has the agent chosen from those the Bridge offers, and the field takes any name, so the participant naming banana is saved with the route bridge laptop agent banana, which no job can run
-test("TST-375216: UC-017 3 a CLI agent that the Bridge does not offer cannot be saved", { todo: "FINDING UC017-F4 (MOD-settings-pages): bridgeControls' `participant-agent` is a free text field and rowOf writes `bridge <bridge> agent <agent>` for any text; the register's schema holds the route as text, so a name that is none of claude, codex and opencode, or that the listed Bridge does not offer, is saved" }, async (t) => {
+// expect: known positive — List agents offers claude alone, and the participant naming claude is saved; the participant naming banana, which the Bridge does not offer, is not saved
+test("TST-375216: UC-017 3 a CLI agent that the Bridge does not offer cannot be saved", async (t) => {
   const machine = computer({ claude: { loggedIn: true } });
   const bridge = await startBridge(t, machine, { name: "laptop", offered: ["claude"] });
   const shown = await page(t, { settings: { "bridge:laptop": { address: bridge.address, token: bridge.token } } });

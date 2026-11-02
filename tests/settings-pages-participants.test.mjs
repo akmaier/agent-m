@@ -422,7 +422,7 @@ test("participants — self-hosted runners are explained, and source place restr
 // guards: UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
 // given: this browser keeps one direct Bridge and one Bridge reached through the jump host, and each Bridge reports its offered agents
 // input: the author chooses each Bridge on a CLI participant and asks for its agents, then clicks a ready offered agent
-// expect: the route calls testBridge for the chosen Bridge only; ready agents are offered as one-click additions; the clicked agent fills Agent, Model, Route and the Bridge computer as Processing place; missing or not-ready agents are not added
+// expect: the route calls testBridge for the chosen Bridge only; ready agents are offered as one-click additions; the clicked agent fills Agent, Route and the Bridge computer as Processing place and leaves Model as the author left it, empty, since the Bridge reports no model; missing or not-ready agents are not added
 test("participants — offered Bridge agents are listed, and a ready one is added in one click", async (t) => {
   const calls = [];
   withFetch(t, async (url, init = {}) => {
@@ -457,7 +457,7 @@ test("participants — offered Bridge agents are listed, and a ready one is adde
   assert.match(one(page, "participant-agent-list-result").textContent, /claude.*not ready|opencode.*missing/s);
   await click(one(page, "participant-agent-offer"));
   assert.equal(one(page, "participant-agent").value, "codex");
-  assert.equal(one(page, "participant-model").value, "codex");
+  assert.equal(one(page, "participant-model").value, "");
   assert.equal(one(page, "participant-place").value, "laptop Bridge's computer");
   assert.match(rowTextOf(page), /bridge laptop agent codex/);
 
@@ -948,4 +948,127 @@ test("participants — each product's roles are read from the model at the versi
   assert.ok(asked.includes(VERSION), `the instance was read at ${VERSION}; asked: ${asked.join(", ")}`);
   assert.match(use.textContent, /holder dev-a of the role Developers lacks the capability write to the repository/);
   assert.doesNotMatch(use.textContent, /sign releases/);
+});
+
+// ---------------------------------------------------------------- what Add fills from a Bridge or a runner (ITM-1437)
+
+// The Bridge laptop as fixture handlers answer it: it offers claude (ready) and codex (installed, not logged in), and opencode is missing on its computer.
+function laptopAnswers(t, calls = []) {
+  withFetch(t, async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    if (String(url) === "http://127.0.0.1:4711/v1/pair") return json({ bridge: { name: "laptop", version: "1", platform: "darwin" } });
+    if (String(url) === "http://127.0.0.1:4711/v1/agents") return json({ agents: [
+      { name: "claude", version: "2.1.300", ready: true, loggedIn: true },
+      { name: "codex", version: "1.2.3", ready: false, loggedIn: false },
+    ], missing: [{ name: "opencode" }] });
+    throw new Error("unexpected request " + url);
+  });
+  return calls;
+}
+const LAPTOP = { "bridge:laptop": { address: "http://127.0.0.1:4711", token: "laptop-token" } };
+
+// TST-1437001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+// given: this browser keeps the Bridge laptop, whose answer to List agents offers claude, ready, and names no model for it (the Bridge's GET /v1/agents gives name, version, ready and loggedIn)
+// input: the author adds a CLI agent, types the model claude-opus-5-5, presses List agents and Add claude; then, on a second form, presses List agents and Add claude without typing a model, and then names the model claude-sonnet-5-5 and saves
+// expect: known positive — Add fills the agent claude, the route bridge laptop agent claude and the place laptop Bridge's computer; the model stays claude-opus-5-5, as the author typed it, and the draft row holds it; on the second form the model stays empty, never claude, the agent's name, and Save is withheld until a model is named; the saved row has the model claude-sonnet-5-5; counter-proof: with Add writing the agent's name into Model, as it did, the field reads claude and the case fails
+test("participants — Add of an offered agent leaves the model the author names, never the agent's name", async (t) => {
+  laptopAnswers(t);
+  const b = browser(t, { settings: LAPTOP });
+  const page = await b.page();
+  await addParticipant(page, "CLI agent");
+  await put(one(page, "participant-name"), "claude-lap");
+  await put(one(page, "participant-model"), "claude-opus-5-5");
+  await click(one(page, "participant-list-agents"));
+  await click(one(page, "participant-agent-offer"));
+  assert.deepEqual([one(page, "participant-agent").value, one(page, "participant-route-preview").textContent, one(page, "participant-place").value],
+    ["claude", "bridge laptop agent claude", "laptop Bridge's computer"], "known positive: the offered agent is added");
+  assert.equal(one(page, "participant-model").value, "claude-opus-5-5", "the model the author typed stays");
+  assert.match(rowTextOf(page), /\| claude-lap \| CLI agent \| claude-opus-5-5 \|/);
+
+  await addParticipant(page, "CLI agent");
+  await put(one(page, "participant-name"), "claude-lap-2");
+  await click(one(page, "participant-list-agents"));
+  await click(one(page, "participant-agent-offer"));
+  assert.equal(one(page, "participant-agent").value, "claude", "known positive: the agent is added");
+  assert.equal(one(page, "participant-model").value, "", "the agent's name is no model");
+  assert.equal(saveOf(one(page, "participants-form-box")).disabled, true, "Save is withheld until a model is named");
+  await put(one(page, "participant-model"), "claude-sonnet-5-5");
+  await save(page);
+  assert.deepEqual([committedRows(b).at(-1).Model, committedRows(b).at(-1).Route], ["claude-sonnet-5-5", "bridge laptop agent claude"]);
+});
+
+// TST-1437002 · level: unit · module: MOD-settings-pages
+// guards: UC-017; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// given: the public participants Route and an empty register
+// input: the author adds a CI agent and reads the place; chooses a self-hosted runner and reads it; types the runner's label lab and reads it; chooses GitHub's machines again and reads it; then, on another form, types the place lab machine before choosing a self-hosted runner with the label gpu; then saves a self-hosted CI agent with the label lab without touching the place
+// expect: known positive — on GitHub's machines the place is GitHub hosted runner; on a self-hosted runner it is that runner's place, self-hosted runner, and with the label lab self-hosted runner lab, never GitHub hosted runner; back on GitHub's machines it is GitHub hosted runner again; a place the author typed is kept whatever the runner; the saved self-hosted row has the place self-hosted runner lab and the route ci runner:lab secret MODEL_KEY; counter-proof: a runner change that leaves the preset of GitHub's machines, as it did, keeps GitHub hosted runner and the case fails
+test("participants — a CI agent on a self-hosted runner is preset with that runner's place, not GitHub's", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await addParticipant(page, "CI agent");
+  assert.equal(one(page, "participant-place").value, "GitHub hosted runner", "known positive: GitHub's machines");
+  await put(one(page, "participant-runner"), "self-hosted", "change");
+  assert.equal(one(page, "participant-place").value, "self-hosted runner");
+  await put(one(page, "participant-runner-label"), "lab");
+  assert.equal(one(page, "participant-place").value, "self-hosted runner lab");
+  await put(one(page, "participant-runner"), "github-hosted", "change");
+  assert.equal(one(page, "participant-place").value, "GitHub hosted runner");
+
+  await addParticipant(page, "CI agent");
+  await put(one(page, "participant-place"), "lab machine");
+  await put(one(page, "participant-runner"), "self-hosted", "change");
+  await put(one(page, "participant-runner-label"), "gpu");
+  assert.equal(one(page, "participant-place").value, "lab machine", "the place the author typed is kept");
+
+  await addParticipant(page, "CI agent");
+  await put(one(page, "participant-name"), "ci-lab");
+  await put(one(page, "participant-model"), "gpt-5");
+  await put(one(page, "participant-secret-name"), "MODEL_KEY");
+  await put(one(page, "participant-runner"), "self-hosted", "change");
+  await put(one(page, "participant-runner-label"), "lab");
+  await save(page);
+  const row = committedRows(b).at(-1);
+  assert.deepEqual([row["Processing place"], row.Route], ["self-hosted runner lab", "ci runner:lab secret MODEL_KEY"]);
+});
+
+// TST-1437003 · level: unit · module: MOD-settings-pages
+// guards: UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS
+// given: this browser keeps the Bridge laptop, whose answer to List agents offers claude (ready) and codex (not logged in) and names opencode as missing
+// input: the author adds a CLI agent with a model and a place, presses List agents and types each of banana, opencode, codex and claude into Agent; saves claude; then adds another CLI agent on the same Bridge and types banana
+// expect: known positive — with claude the form says nothing of an agent not offered and Save commits the route bridge laptop agent claude; with codex, which the Bridge offers though it is not logged in, Save is open; with banana and with opencode Save is withheld and the form says that Bridge laptop does not offer it and names claude and codex; on the next form, without listing again, banana is withheld the same way and nothing more is committed; counter-proof: with the agent's field taken as any text, as it was, banana is open to Save and the case fails
+test("participants — an agent the listed Bridge does not offer is not saved", async (t) => {
+  const calls = laptopAnswers(t);
+  const b = browser(t, { settings: LAPTOP });
+  const page = await b.page();
+  const fill = async (name) => {
+    await addParticipant(page, "CLI agent");
+    await put(one(page, "participant-name"), name);
+    await put(one(page, "participant-model"), "claude-opus-5-5");
+    await put(one(page, "participant-place"), "this machine");
+  };
+  const withheld = () => saveOf(one(page, "participants-form-box")).disabled;
+  const said = () => one(page, "participants-form-box").textContent;
+  await fill("agent-a");
+  await click(one(page, "participant-list-agents"));
+  assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4711/v1/pair", "http://127.0.0.1:4711/v1/agents"]);
+  for (const agent of ["banana", "opencode"]) {
+    await put(one(page, "participant-agent"), agent);
+    assert.equal(withheld(), true, agent + ": Save is withheld");
+    assert.ok(said().includes("Bridge laptop does not offer the agent " + agent), agent + ": the form says the Bridge does not offer it");
+    assert.match(said(), /claude, codex/);
+  }
+  await put(one(page, "participant-agent"), "codex");
+  assert.equal(withheld(), false, "codex is offered, though not logged in");
+  await put(one(page, "participant-agent"), "claude");
+  assert.equal(withheld(), false, "known positive: claude is offered");
+  assert.doesNotMatch(said(), /does not offer/);
+  await save(page);
+  assert.equal(committedRows(b).at(-1).Route, "bridge laptop agent claude");
+
+  await fill("agent-b");
+  await put(one(page, "participant-agent"), "banana");
+  assert.equal(withheld(), true, "the Bridge's listing holds for the next form");
+  assert.ok(said().includes("Bridge laptop does not offer the agent banana"));
+  assert.equal(b.commits.length, 1, "nothing more is committed");
 });
