@@ -365,8 +365,8 @@ test("TST-375001: UC-017 main flow saves each participant type from the Particip
 // TST-375002 · level: system · module: MOD-settings-pages; MOD-bridge-client; MOD-bridge-jobs; MOD-agent-processes
 // guards: UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; ONE CLICK PER DECISION; NO SECRET IN THE REPOSITORY
 // given: this browser keeps a direct Bridge and a Bridge reached through the jump host, and fixture Bridge handlers answer pair, agent-list and probe requests
-// input: the author chooses the jump-host Bridge on a CLI participant, lists offered agents, adds a ready agent, tests it successfully and saves; then another Bridge probe fails and the author chooses Save untested
-// expect: only fixture handlers are called; the offered ready agent fills Agent, Model, processing place and route; the probe body names that agent; secrets stay out of the commit; on failure Save is withheld until Save untested (flow: UC-017 main flow step 6 and alternative 6a)
+// input: the author chooses the jump-host Bridge on a CLI participant, lists offered agents, adds a ready agent, names its model, tests it successfully and saves; then another Bridge probe fails and the author chooses Save untested
+// expect: only fixture handlers are called; the offered ready agent fills Agent, processing place and route and leaves Model empty for the author to name, since the Bridge reports no model; the probe body names that agent; secrets stay out of the commit; on failure Save is withheld until Save untested (flow: UC-017 main flow step 6 and alternative 6a)
 test("TST-375002: UC-017 lists Bridge-offered agents, tests them, and handles Bridge failure 6a", async (t) => {
   const calls = [];
   withFetch(t, async (url, init = {}) => {
@@ -401,9 +401,10 @@ test("TST-375002: UC-017 lists Bridge-offered agents, tests them, and handles Br
   assert.match(one(page, "participant-agent-list-result").textContent, /claude.*not ready|opencode.*missing/s);
   await click(one(page, "participant-agent-offer"));
   assert.equal(one(page, "participant-agent").value, "codex");
-  assert.equal(one(page, "participant-model").value, "codex");
+  assert.equal(one(page, "participant-model").value, "", "the agent's name is no model; the author names it");
   assert.equal(one(page, "participant-place").value, "gpu Bridge's computer");
   assert.match(rowTextOf(page), /bridge gpu agent codex/);
+  await put(one(page, "participant-model"), "gpt-5-codex");
   await click(one(page, "participant-agent-test"));
   assert.deepEqual(JSON.parse(calls[2].init.body), { args: { agent: "codex" } });
   assert.match(one(page, "participant-agent-test-result").textContent, /codex answered \(2\.1\.0\)/);
