@@ -54,6 +54,7 @@ const onBranch = (w, branch, path) => git(w.productOrigin, "show", `${branch}:${
 // The passages of UC-026 the system tests walk, each with the executable tests that walk it: this file's cases, and the older tests of the page and of the checks.
 const FLOW_EVIDENCE = {
   "main-1-list": { uc: "uncovered combinations are preselected", evidence: [[SELF, "TST-771202"], [UNIT, "TST-763001"]] },
+  "main-1-accepted": { uc: "Agent M lists the accepted requirements, use cases and modules", evidence: [[SELF, "TST-771203"]] },
   "main-2-levels": { uc: "A folded **What is this?** explains each level with the table above and names the book chapter.", evidence: [[SELF, "TST-771202"], [UNIT, "TST-1225004"]] },
   "main-3-input": { uc: "with its description and code", evidence: [[SELF, "TST-771205"], [SELECTION, "TST-752101"]] },
   "main-3-fits": { uc: "It checks that all of it fits into the participant's context.", evidence: [[SELF, "TST-771204"], [UNIT, "TST-763005"]] },
@@ -81,7 +82,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the page or a module does otherwise: the finding, its case, and the module that points to.
 const FLOW_FINDINGS = {
-  "main-1-accepted": { uc: "Agent M lists the accepted requirements, use cases and modules", finding: "UC026-F1", file: SELF, test: "TST-771203", module: "MOD-test-pages" },
   "main-4-implementer-uc": { uc: "For the *release* level it", finding: "UC026-F2", file: "tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", test: "TST-771309", module: "MOD-test-pages" },
   "main-8-date": { uc: "naming the Agent M version, the participant, the model and the date.", finding: "UC026-F5", file: SELF, test: "TST-771211", module: "MOD-runtimes" },
   "8b-shown-again": { uc: "it is not written, and the review panel shows it again for the author to sharpen or drop.", finding: "UC026-F6", file: SELF, test: "TST-771209", module: "MOD-workflow-entries" },
@@ -137,21 +137,19 @@ test.after(async () => { await quiet.stop(); });
 // guards: UC-026; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION
 // given: the product alice/thesis-tool: the rules A LOAN HAS A DUE DATE (tested at unit, component and release) and A LOAN CAN BE EXTENDED ONCE (tested at none), UC-001 (tested at system) and UC-002 (tested at none), MOD-loans (tested at unit and component) and MOD-members (tested at none)
 // input: the person opens Tests and Generate tests
-// expect: every one of the six names is listed with the levels that guard it; the names with a level of their fitting kind lacking — A LOAN HAS A DUE DATE (user), A LOAN CAN BE EXTENDED ONCE, UC-002, MOD-members — are ticked and UC-001 and MOD-loans are not; all five levels are ticked, each with a folded explanation that names chapter 13; nothing is written to the product and nothing is sent
+// expect: the accepted names — the two rules, which the SPEC holds, and UC-001, which a record accepts — are listed with the levels that guard them, and UC-002, MOD-loans and MOD-members, which no record accepts, are not (UC-026 1, "lists the accepted"); the names with a level of their fitting kind lacking — A LOAN HAS A DUE DATE (user), A LOAN CAN BE EXTENDED ONCE — are ticked and UC-001 is not; the levels lacking for a ticked name — release and user — are ticked, each of the five levels with a folded explanation that names chapter 13; nothing is written to the product and nothing is sent
 test("TST-771202: UC-026 1, 2 the page lists what can be tested with the levels that guard it, preselects the uncovered, and explains each level", async () => {
   const w = quiet.w;
   const head = w.head();
   const target = await openGenerate(w);
   const rowOf = (name) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-name") === name)[0];
   assert.ok(listedNames(target).includes("UC-001"), "known positive: the page lists UC-001");
-  assert.deepEqual(listedNames(target), [OTHER_RULE, RULE, "MOD-loans", "MOD-members", "UC-001", "UC-002"].sort());
-  assert.deepEqual(checkedNames(target).sort(), [OTHER_RULE, RULE, "MOD-members", "UC-002"].sort());
+  assert.deepEqual(listedNames(target), [OTHER_RULE, RULE, "UC-001"].sort());
+  assert.deepEqual(checkedNames(target).sort(), [OTHER_RULE, RULE].sort());
   assert.match(byClass(rowOf(RULE), "span", "covered")[0].textContent, /unit, component, release/);
   assert.match(byClass(rowOf(RULE), "span", "uncovered")[0].textContent, /user/);
   assert.match(byClass(rowOf("UC-001"), "span", "covered")[0].textContent, /system/);
-  assert.match(byClass(rowOf("MOD-loans"), "span", "covered")[0].textContent, /unit, component/);
-  assert.match(byClass(rowOf("MOD-members"), "span", "covered")[0].textContent, /no level/);
-  assert.deepEqual(checkedLevels(target), ["unit", "component", "system", "release", "user"]);
+  assert.deepEqual(checkedLevels(target), ["release", "user"]);
   for (const row of byClass(target, "tr", "level")) {
     const folds = find(row, (node) => node.localName === "details");
     assert.equal(folds.length, 1, `${row.getAttribute("data-level")} has one folded explanation`);
@@ -164,8 +162,8 @@ test("TST-771202: UC-026 1, 2 the page lists what can be tested with the levels 
 // guards: UC-026
 // given: the product of TST-771202, whose approval records name UC-001 and no other use case or module
 // input: the person opens Generate tests
-// expect: known positive — the page lists UC-001; the page lists the accepted requirements, use cases and modules only: not UC-002, which no approval record names; FINDING UC026-F1 (MOD-test-pages): it lists UC-002, MOD-loans and MOD-members as it lists the accepted ones
-test("TST-771203: UC-026 1 the page lists the accepted requirements, use cases and modules only", { todo: "FINDING UC026-F1 (MOD-test-pages): loadProduct (src/test-pages/generate.mjs:82-105) lists every requirement, use case and module of the trace graph, accepted or not; UC-002, which no approval record names, is listed and preselected, and only the run panel's precondition rests-on-accepted later refuses it (TST-763008)" }, async () => {
+// expect: known positive — the page lists UC-001; the page lists the accepted requirements, use cases and modules only: not UC-002, which no approval record names
+test("TST-771203: UC-026 1 the page lists the accepted requirements, use cases and modules only", async () => {
   const names = listedNames(await openGenerate(quiet.w));
   assert.ok(names.includes("UC-001"), "known positive: the accepted use case is listed");
   assert.ok(!names.includes("UC-002"), `UC-002 is not accepted and is not listed: ${names}`);
