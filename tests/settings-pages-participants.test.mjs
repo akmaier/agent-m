@@ -20,7 +20,7 @@ import { createHash } from "node:crypto";
 const { view } = await import("../src/settings-pages/index.mjs");
 const { openStore, readSetting, writeSetting } = await import("../src/browser-store/index.mjs");
 const { readDocument } = await import("../src/documents/index.mjs");
-const { participantSchema } = await import("../src/participant-list/index.mjs");
+const { participantSchema, participantsOf } = await import("../src/participant-list/index.mjs");
 
 const INSTANCE = "fixture/agent-m";
 const PARTICIPANTS = "docs/participants.md";
@@ -1071,4 +1071,54 @@ test("participants — an agent the listed Bridge does not offer is not saved", 
   assert.equal(withheld(), true, "the Bridge's listing holds for the next form");
   assert.ok(said().includes("Bridge laptop does not offer the agent banana"));
   assert.equal(b.commits.length, 1, "nothing more is committed");
+});
+
+// The participants the list reads from the register the last commit wrote (MOD-participant-list's participantsOf).
+const committedParticipants = (b) => participantsOf(readDocument(participantSchema(), PARTICIPANTS,
+  b.commits.at(-1).files.find((file) => file.path === PARTICIPANTS).text));
+
+// TST-1438001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; NO COST IS GUESSED
+// given: the public participants Route and an empty register
+// input: the author adds a CI agent with a model and a key's secret and types the price 2.00 / 8.00 into Price; then types 2.00 / 8.00 USD per million tokens and presses Save
+// expect: with 2.00 / 8.00 Save is withheld and the form's findings name that price and the form <input> / <output> <currency> per million tokens; nothing is committed; known positive: with 2.00 / 8.00 USD per million tokens no finding names a price, Save commits one row, and the participant list reads its price as 2 and 8 USD; counter-proof: with the price taken as any text, as it was, 2.00 / 8.00 is open to Save and the case fails
+test("participants — a price the participant list cannot read is refused, naming the form it reads", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await addParticipant(page, "CI agent");
+  await put(one(page, "participant-name"), "ci-priced");
+  await put(one(page, "participant-model"), "gpt-5");
+  await put(one(page, "participant-secret-name"), "MODEL_KEY");
+  const withheld = () => saveOf(one(page, "participants-form-box")).disabled;
+  const said = () => byClass(one(page, "participants-form-box"), "findings").map((list) => list.textContent).join(" ");
+  await put(one(page, "participant-price"), "2.00 / 8.00");
+  assert.equal(withheld(), true, "Save is withheld for a price the list reads as none");
+  assert.ok(said().includes("2.00 / 8.00"), "the form names the price it does not read");
+  assert.ok(said().includes("<input> / <output> <currency> per million tokens"), "the form names the form it reads");
+  assert.deepEqual(b.commits, [], "nothing is committed");
+  await put(one(page, "participant-price"), "2.00 / 8.00 USD per million tokens");
+  assert.equal(withheld(), false, "known positive: the list's form is open to Save");
+  assert.doesNotMatch(said(), /per million tokens/, "known positive: no finding names a price");
+  await save(page);
+  assert.equal(b.commits.length, 1);
+  assert.deepEqual(committedParticipants(b).at(-1).price, { input: 2, output: 8, currency: "USD" }, "known positive: the list reads the saved price");
+});
+
+// TST-1438002 · level: unit · module: MOD-settings-pages
+// guards: UC-017; NO COST IS GUESSED
+// given: the public participants Route and an empty register
+// input: the author adds a CI agent with a model and a key's secret, reads the hint of Price, types exactly that hint as the price, and presses Save
+// expect: the hint is not empty; typed as it stands, Save commits one row whose price the participant list reads as a price, not as none; counter-proof: the hint as it was, input / output USD per million tokens, is read as none and the case fails
+test("participants — the Price field's hint is a price the participant list reads", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await addParticipant(page, "CI agent");
+  await put(one(page, "participant-name"), "ci-hinted");
+  await put(one(page, "participant-model"), "gpt-5");
+  await put(one(page, "participant-secret-name"), "MODEL_KEY");
+  const hint = one(page, "participant-price").placeholder;
+  assert.notEqual(hint, "", "the Price field shows a hint");
+  await put(one(page, "participant-price"), hint);
+  await save(page);
+  assert.notEqual(committedParticipants(b).at(-1).price, null, `the list reads the hint ${hint} as a price`);
 });
