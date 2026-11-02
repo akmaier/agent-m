@@ -298,23 +298,16 @@ class TestReleaseRun(unittest.TestCase):
     # guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013
     # given: the schedule that ticks every row for a release candidate, the row paid included
     # input: the levels MOD-result-records' recipe commit-and-levels gives the run-tests job that startReleaseCandidate queues for a candidate
-    # expect: known positive — unit, component, system, release and user are named; and the row paid, which holds the tests that call a paid service, is named too, so that every test runs on the candidate. FINDING ITM1434-F1 (MOD-result-records)
-    @unittest.expectedFailure
+    # expect: known positive — unit, component, system, release and user are named; and the row paid, which holds the tests that call a paid service, is named too, so that every test runs on the candidate
     def test_the_run_of_a_candidate_names_the_row_of_the_tests_that_call_a_paid_service(self):
-        # FINDING ITM1434-F1 (MOD-result-records) - runOf (src/result-records/strategies.mjs:249) takes the rows `row !== "paid" && occasionsOf(row, schedule).includes("release candidate")`: the row paid is
-        # left out of every run, a candidate's included, so the tests that call a paid service are not run by the job `startReleaseCandidate` queues. MOD-test-schedule's text says the release candidate occasion
-        # runs "every row"; UC-013 step 2 lists "integration with real external services, the run that is otherwise only nightly" among the levels of the complete suite.
         self.levels("TST-1434019")
 
     # TST-1434020 · level: release · module: system
     # guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-028
     # given: a schedule whose release candidate column is empty for the rows system and user
     # input: the levels the recipe commit-and-levels gives the run-tests job queued for a candidate
-    # expect: known positive — unit, component and release are named; and system, user and paid are named too, "whatever the schedule's other columns say". FINDING ITM1434-F2 (MOD-result-records)
-    @unittest.expectedFailure
+    # expect: known positive — unit, component and release are named; and system, user and paid are named too, "whatever the schedule's other columns say"
     def test_the_run_of_a_candidate_names_every_row_whatever_the_schedule_says(self):
-        # FINDING ITM1434-F2 (MOD-result-records) - the same filter (src/result-records/strategies.mjs:249) reads the schedule's column `release candidate`, so a row it leaves empty is not run for the candidate.
-        # UC-028 1a: "Agent M runs every test at every level on it, whatever the schedule's other columns say".
         self.levels("TST-1434020")
 
 
