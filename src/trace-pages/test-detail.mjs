@@ -126,13 +126,14 @@ async function runsPage(host, ref, folders = []) {
   return { results, commits, next };
 }
 
-// The commits of the default branch (UC-029 step 5), read once when a mark first needs them: the history of the repository from the default branch's head, without the files each commit changed.
-function defaultBranchCommits(host) {
-  let read = null;
-  return () => read ??= (async () => {
-    const { defaultBranch } = await host.repositoryInfo();
-    return new Set((await host.readHistory(null, { ref: defaultBranch, changes: false })).map(({ commit }) => commit));
-  })();
+// Whether a commit is one of the default branch (UC-029 step 5): the host's containsCommit about the branch repositoryInfo names, asked once for each commit and kept for the pages of "Earlier runs".
+function onDefaultBranch(host) {
+  const branch = (async () => (await host.repositoryInfo()).defaultBranch)();
+  const asked = new Map();
+  return (commit) => {
+    if (!asked.has(commit)) asked.set(commit, branch.then((name) => host.containsCommit(name, commit)));
+    return asked.get(commit);
+  };
 }
 
 // The history through testHistory: the commits of the newest ten runs of the branch `test-results` that ran the test, with their optional run logs, the rate of a model-dependent test per release and the release tags'
@@ -144,13 +145,14 @@ async function historyPart(host, id, declaration) {
     const list = el("ul", "test-history-commits");
     const slot = el("div", "test-history-more");
     const shown = new Set();
-    const onDefault = defaultBranchCommits(host);
+    const onDefault = onDefaultBranch(host);
     // The marks of one page, in the order of its commits, a commit already marked by an earlier page left out; the release tags' outcomes are the first page's.
     const addMarks = async (page, releaseTags) => {
       const { commits, releases } = await testHistory(page.results, id, releaseTags);
       const outcomes = new Map(commits.map(({ commit, outcome }) => [commit, outcome]));
-      const onBranch = await onDefault();
-      const marks = page.commits.filter((commit) => outcomes.has(commit) && !shown.has(commit) && onBranch.has(commit));
+      const candidates = page.commits.filter((commit) => outcomes.has(commit) && !shown.has(commit));
+      const onBranch = await Promise.all(candidates.map(onDefault));
+      const marks = candidates.filter((commit, at) => onBranch[at]);
       const logs = new Map(await Promise.all(marks.map(async (commit) => [commit, await historyLogLink(host, page.results, commit, declaration)])));
       for (const commit of marks) {
         shown.add(commit);
