@@ -58,6 +58,7 @@ uses:
   - MOD-resource-list.reachableBy
   - MOD-resource-list.resourceStrategies
   - MOD-approvals.approvalStrategies
+  - MOD-approvals.statuses
   - MOD-source-register.sourceStrategies
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
@@ -142,7 +143,8 @@ formats are those of the modules it uses.
     each appended as a result record. `runs/<commit>` reads, of the branch `test-results`, only the records of the commit
     shown and of the last release's commit, through a snapshot of that branch narrowed to their folders
     (MOD-repository-hosts' `readSnapshot` with `folders`), and the test files of the commit in batches (`readMany`).
-  - `generate` — the accepted requirements, use cases and modules with the levels whose tests already guard each, the
+  - `generate` — the accepted requirements, use cases and modules — a requirement as the SPEC holds it, a use case or a
+    module whose file MOD-approvals' `statuses` gives as accepted — with the levels whose tests already guard each, the
     uncovered ones preselected; the levels chosen; the participants that fill the test-writing role, the implementer left
     out for release tests and said so; the run panel; a job of the kind `propose-tests`, run attended through the
     participant's Bridge — or, for a CI agent, on CI, its cases then read from its job's record —; the proposed cases
@@ -200,6 +202,7 @@ the result records on the branch `test-results`, the product's resources and the
   graph of a commit's own files is asked for with that commit, so that the graph `onMainChanged` stored for it is read
   where there is one (MOD-workflow-entries).
 - MOD-progress-measures.storedView — the counts of the tests stored for a commit, which the schedule shows.
+- MOD-approvals.statuses — which use cases and modules are accepted, the ones `generate` offers.
 - MOD-test-schedule.scheduleSchema, MOD-test-schedule.defaultSchedule, MOD-test-schedule.scheduleFindings,
   MOD-test-schedule.configurationDrift, MOD-test-schedule.secretsNeeded, MOD-test-schedule.occasionsOf — the schedule;
   MOD-test-schedule.proposeSchedule, MOD-test-schedule.applyPipelineSchedule — its save and, on GitLab, its nightly run.
