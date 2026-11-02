@@ -54,6 +54,7 @@ const onBranch = (w, branch, path) => git(w.productOrigin, "show", `${branch}:${
 // The passages of UC-026 the system tests walk, each with the executable tests that walk it: this file's cases, and the older tests of the page and of the checks.
 const FLOW_EVIDENCE = {
   "main-1-list": { uc: "uncovered combinations are preselected", evidence: [[SELF, "TST-771202"], [UNIT, "TST-763001"]] },
+  "main-1-accepted": { uc: "Agent M lists the accepted requirements, use cases and modules", evidence: [[SELF, "TST-771203"]] },
   "main-2-levels": { uc: "A folded **What is this?** explains each level with the table above and names the book chapter.", evidence: [[SELF, "TST-771202"], [UNIT, "TST-1225004"]] },
   "main-3-input": { uc: "with its description and code", evidence: [[SELF, "TST-771205"], [SELECTION, "TST-752101"]] },
   "main-3-fits": { uc: "It checks that all of it fits into the participant's context.", evidence: [[SELF, "TST-771204"], [UNIT, "TST-763005"]] },
@@ -81,7 +82,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the page or a module does otherwise: the finding, its case, and the module that points to.
 const FLOW_FINDINGS = {
-  "main-1-accepted": { uc: "Agent M lists the accepted requirements, use cases and modules", finding: "UC026-F1", file: SELF, test: "TST-771203", module: "MOD-test-pages" },
   "main-4-implementer-uc": { uc: "For the *release* level it", finding: "UC026-F2", file: "tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", test: "TST-771309", module: "MOD-test-pages" },
   "main-8-date": { uc: "naming the Agent M version, the participant, the model and the date.", finding: "UC026-F5", file: SELF, test: "TST-771211", module: "MOD-runtimes" },
   "8b-shown-again": { uc: "it is not written, and the review panel shows it again for the author to sharpen or drop.", finding: "UC026-F6", file: SELF, test: "TST-771209", module: "MOD-workflow-entries" },
@@ -162,8 +162,8 @@ test("TST-771202: UC-026 1, 2 the page lists what can be tested with the levels 
 // guards: UC-026
 // given: the product of TST-771202, whose approval records name UC-001 and no other use case or module
 // input: the person opens Generate tests
-// expect: known positive — the page lists UC-001; the page lists the accepted requirements, use cases and modules only: not UC-002, which no approval record names; FINDING UC026-F1 (MOD-test-pages): it lists UC-002, MOD-loans and MOD-members as it lists the accepted ones
-test("TST-771203: UC-026 1 the page lists the accepted requirements, use cases and modules only", { todo: "FINDING UC026-F1 (MOD-test-pages): loadProduct (src/test-pages/generate.mjs:82-105) lists every requirement, use case and module of the trace graph, accepted or not; UC-002, which no approval record names, is listed and preselected, and only the run panel's precondition rests-on-accepted later refuses it (TST-763008)" }, async () => {
+// expect: known positive — the page lists UC-001; the page lists the accepted requirements, use cases and modules only: not UC-002, which no approval record names
+test("TST-771203: UC-026 1 the page lists the accepted requirements, use cases and modules only", async () => {
   const names = listedNames(await openGenerate(quiet.w));
   assert.ok(names.includes("UC-001"), "known positive: the accepted use case is listed");
   assert.ok(!names.includes("UC-002"), `UC-002 is not accepted and is not listed: ${names}`);
