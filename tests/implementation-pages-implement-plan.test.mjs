@@ -26,6 +26,7 @@ import { readFileSync } from "node:fs";
 import "./site-frame-dom.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
+const { endedJob, REJECTED } = await import("./implementation-pages-ended-job.mjs");
 
 const fetched = [];
 globalThis.fetch = async (address) => { fetched.push(String(address)); throw new Error(`the test's network refuses ${address}`); };
@@ -204,4 +205,17 @@ test("on a planned model's implement page too, a server that does not enforce gr
   const guarded = await render(productFiles(), { greenToMerge: true });
   assert.equal(found(guarded.target, "[data-step]").length, 4, "known positive: the steps are listed");
   assert.equal(found(guarded.target, "[data-green-to-merge]").length, 0, "counter-proof: a server that enforces it is not named");
+});
+
+// TST-1421003 · level: unit · module: MOD-implementation-pages
+// guards: UC-024; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the product of TST-732001, in which the only job of the step ITM-010 ended failed at a rejected gate, its End reason "the gate Building → Checking was rejected by docs/gates/20261102-0900-building-checking-1421.md: The review found no test."
+// input: the route implement's render
+// expect: ITM-010 is ready and selectable and its row carries that reason in <p data-returned>; ITM-012, ready with no job, has none
+test("TST-1421003: UC-024 10a a ready step that a rejected gate returned shows the reason in its row; a step with no reason shows none", async () => {
+  const { target } = await render({ ...productFiles(), ...endedJob("ITM-010", REJECTED) });
+  assert.equal(rowOf(target, "ITM-010").getAttribute("data-state"), "ready", "known positive: the step a rejected gate returned is ready");
+  assert.equal(tickOf(target, "ITM-010").getAttribute("disabled"), null, "and selectable");
+  assert.deepEqual(found(rowOf(target, "ITM-010"), "[data-returned]").map(text), [REJECTED]);
+  assert.deepEqual(found(rowOf(target, "ITM-012"), "[data-returned]").map(text), []);
 });
