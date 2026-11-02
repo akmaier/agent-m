@@ -367,7 +367,9 @@ test("TST-771311: UC-026 4 the panel names the participant, its place and what i
   button.dispatchEvent(new Event("click"));
   const limit = Date.now() + 5000;
   while (byClass(target, "p", "queued").length === 0 && Date.now() < limit) await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(byClass(target, "p", "queued").length, 1);
+  assert.deepEqual(byClass(target, "p", "result").map((one) => one.textContent), [], "the second click refused nothing and started nothing");
   assert.match(byClass(target, "p", "queued")[0].textContent, /queued on the route ci hosted/);
   assert.equal(w.subjects().filter((subject) => /^Queue job/.test(subject)).length, 1, "one commit for two clicks");
   assert.notEqual(w.head(), head);
