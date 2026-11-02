@@ -177,8 +177,7 @@ test("TST-1447001: an element in the look passes the checks, and a bare button a
 
 // TST-1447002 · level: unit · module: MOD-implementation-pages
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
-// given: the route process over the shipped catalogue, which draws a model card with a Choose button for each model; the route models with the empty name (+ New model), which draws the buttons planned and pulled;
-//        the route models of the v-model with a product in this browser, which draws a preview button for it
+// given: the route process over the shipped catalogue, which draws a model card with a Choose button for each model; the route models with the empty name (+ New model), which draws the buttons planned and pulled; the route models of the v-model with a product in this browser, which draws a preview button for it
 // input: each route drawn
 // expect: every button of the three pages carries the class btn (the Choose of each card, planned, pulled and the product's preview button among them)
 test("TST-1447002: the buttons of the process and models pages carry the frame's class btn", async (t) => {
