@@ -264,12 +264,9 @@ test("TST-991208: UC-041 2a a sprint with no item done is closed with a review t
 
 // TST-991209 · level: system · module: system
 // guards: UC-041; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
-// given: the product of TST-991202, which is its own instance, whose docs/process.md declares the model and the Definition of Done, and the instance's list of participants; its SPEC holds THE PROCESS
-// MODEL IS DECLARED PER PRODUCT and AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF in its section "## 1. Rules", and docs/spec-freigaben/ holds no queue
+// given: the product of TST-991202, which is its own instance, whose docs/process.md declares the model and the Definition of Done, and the instance's list of participants; its SPEC holds THE PROCESS MODEL IS DECLARED PER PRODUCT and AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF in its section "## 1. Rules", and docs/spec-freigaben/ holds no queue
 // input: closer-bot's retrospective proposes a change to the process model, "Add a review phase", and one to a participant's instructions, "closer-bot reads the mails' issues first"
-// expect: the retrospective names where each goes — "change, to process model: Add a review phase" and "change, to a participant's instructions: closer-bot reads the mails' issues first" —; the first commit holds the
-// record alone, the second only files of the queue docs/spec-freigaben/rules/, whose entry proposes the section "## 1. Rules" with the requirements "**ADD A REVIEW PHASE** *()*" / "Add a review phase" and
-// "**CLOSER-BOT READS THE MAILS' ISSUES FIRST** *()*" / "closer-bot reads the mails' issues first" appended; SPEC.md, docs/process.md and docs/participants.md are byte-identical
+// expect: the retrospective names where each goes — "change, to process model: Add a review phase" and "change, to a participant's instructions: closer-bot reads the mails' issues first" —; the first commit holds the record alone, the second only files of the queue docs/spec-freigaben/rules/, whose entry proposes the section "## 1. Rules" with the requirements "**ADD A REVIEW PHASE** *()*" / "Add a review phase" and "**CLOSER-BOT READS THE MAILS' ISSUES FIRST** *()*" / "closer-bot reads the mails' issues first" appended; SPEC.md, docs/process.md and docs/participants.md are byte-identical
 test("TST-991209: UC-041 5a, 5b a change to the model or to an agent's instructions is recorded with where it goes and proposed as a SPEC change, and changes neither", async () => {
   const w = await closeWorld();
   const process = w.files["docs/process.md"], participants = w.files["docs/participants.md"], spec = w.files["SPEC.md"];
