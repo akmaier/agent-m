@@ -91,3 +91,14 @@ test("the end record of a write-tests job on CI with every case written holds no
   assert.equal(end.state, "done", "known positive: the job ended done");
   assert.equal(end.draft ?? null, null);
 });
+
+// TST-1427004 · level: unit · module: MOD-workflow-entries
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-026
+// given: the job of TST-1427001, whose report names TST-902 as not written and TST-903 as failing on the current code, which awaits its implementation (UC-026 8a), with no reason of not being written
+// input: onRecordsChanged on the push that holds the job's record
+// expect: known positive — the job ends done; the end record's draft names TST-902 with its reason and not TST-903
+test("the end record of a write-tests job on CI names only the cases the report says it did not write", async () => {
+  const end = await ran([{ identifier: "TST-902", notWritten: "it stays green with the fault planted" }, { identifier: "TST-903", outcome: "failed" }]);
+  assert.equal(end.state, "done", "known positive: the job ended done");
+  assert.deepEqual(end.draft, { notWritten: [{ identifier: "TST-902", reason: "it stays green with the fault planted" }] });
+});
