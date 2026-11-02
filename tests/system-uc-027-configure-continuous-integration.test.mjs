@@ -90,6 +90,7 @@ const FLOW_EVIDENCE = {
   "main-6-merge": { uc: "The dashboard shows the pull request and its CI outcome; once green, the author merges it with one click.", evidence: [[SELF, "TST-772207"], [RELEASE, "TST-772306"]] },
   "main-7-record": { uc: "every run the configuration starts leaves a result record (UC-028)", evidence: [[SELF, "TST-772208"], [FINISHED, "TST-1216103"], [UC28R, "TST-773101"]] },
   "main-7-last": { uc: "the schedule page shows the last run per occasion", evidence: [[SELF, "TST-772208"], [SAVE, "TST-759006"]] },
+  "main-7-release-candidate": { uc: "the schedule page shows the last run per occasion", evidence: [[SELF, "TST-772217"]] },
   "main-7-jobs": { uc: "A commit that only records a job (`docs/jobs/`) starts no run.", evidence: [[SELF, "TST-772208"], [GENERATE, "TST-744004"], [RELEASE, "TST-772309"]] },
   "1a-foreign": { uc: "**1a. The product already has a CI configuration Agent M did not generate.**", evidence: [[SELF, "TST-772209"], [SAVE, "TST-759009"]] },
   "1b-edited": { uc: "**1b. The generated configuration was edited by hand after merging.**", evidence: [[SELF, "TST-772211"], [SAVE, "TST-759005"]] },
@@ -102,7 +103,6 @@ const FLOW_EVIDENCE = {
 // The passages the code does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "1a-gitlab-triggers": { uc: "Agent M shows which of its triggers run which tests, as far as it can tell", finding: "UC027-F2", file: SELF, test: "TST-772210", module: "MOD-test-schedule" },
-  "main-7-release-candidate": { uc: "the schedule page shows the last run per occasion", finding: "UC027-F1", file: SELF, test: "TST-772217", module: "MOD-test-pages" },
 };
 
 // TST-772201 · level: system · module: system
@@ -517,18 +517,30 @@ test("TST-772216: UC-027 7a a nightly run that has not run is named with its dat
 
 // TST-772217 · level: system · module: system
 // guards: UC-027; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: alice/shop on GitHub after a merge, its generated workflow's runs one of each occasion it can tell by its event — a push, a pull request, a nightly run started now and an on-demand start —, and the schedule's five occasions every commit, pull request, nightly, release candidate and on demand
-// input: the author opens Tests → Schedule
-// expect: 7: known positive — the last runs show a row for every commit, pull request, nightly and on demand; and a row for release candidate, the fifth occasion of the schedule; FINDING UC027-F1 (MOD-test-pages): the page shows four occasions and says a release candidate's run is shown on the release panel
-test("TST-772217: UC-027 7 the schedule page shows the last run of each of the five occasions, the release candidate's among them",
-  { todo: "FINDING UC027-F1 (MOD-test-pages): the last runs (src/test-pages/schedule.mjs, RUN_OCCASIONS) leave out the release candidate and say its run is shown on the release panel; a release candidate's run is a push of a tag, which the CiRun of MOD-repository-hosts does not tell from a push of a branch, so it would be shown as the last run of every commit" },
-  async () => {
-    const world = server("github");
-    await savedAndMerged(world, await open(world));
-    for (const event of ["push", "pull_request", "workflow_dispatch"]) world.ci(world.head(), "success", { event, started: "2026-10-02T10:00:00Z" });
-    world.ci(world.head(), "success", { event: "schedule", started: new Date().toISOString() });
-    const page = await open(world);
-    const shown = descendants(byClass(page, "last-runs")[0], (node) => node.hasAttribute?.("data-occasion")).map((node) => node.getAttribute("data-occasion"));
-    for (const occasion of ["every commit", "pull request", "nightly", "on demand"]) assert.ok(shown.includes(occasion), `known positive: ${occasion} is shown`);
-    assert.ok(shown.includes("release candidate"), "the release candidate's last run is shown");
-  });
+// given: alice/shop on GitHub after a merge, its generated workflow's runs one of each occasion it can tell by its event — a push, a pull request, a nightly run started now and an on-demand start — on the default branch's head, and the schedule's five occasions every commit, pull request, nightly, release candidate and on demand; the repository has no tag; then the release tag v2026.1.0 on the head, the candidate's tag v2026.1.0-rc.1 on the pull request's head, a failed push run there started before the head's push, and a later on-demand start there
+// input: the author opens Tests → Schedule, once before the tags are set and once after
+// expect: 7: known positive — the last runs show a row for every commit, pull request, nightly and on demand; and a row for release candidate, the fifth occasion of the schedule; without a tag the release candidate row says "no run yet" and links no run; with the tags it links the push run of the candidate's tag, not the head's newer push run that only the release tag v2026.1.0 names, and not the later on-demand start on the candidate's commit; known positive: the every commit row still links the head's push run
+test("TST-772217: UC-027 7 the schedule page shows the last run of each of the five occasions, the release candidate's among them", async () => {
+  const world = server("github");
+  await savedAndMerged(world, await open(world));
+  for (const event of ["push", "pull_request", "workflow_dispatch"]) world.ci(world.head(), "success", { event, started: "2026-10-02T10:00:00Z" });
+  world.ci(world.head(), "success", { event: "schedule", started: new Date().toISOString() });
+  const shownOn = (page) => descendants(byClass(page, "last-runs")[0], (node) => node.hasAttribute?.("data-occasion")).map((node) => node.getAttribute("data-occasion"));
+  const rowOf = (page, occasion) => descendants(byClass(page, "last-runs")[0], (node) => node.getAttribute?.("data-occasion") === occasion)[0];
+  const linksOf = (page, occasion) => byTag(rowOf(page, occasion), "a").map((link) => link.getAttribute("href"));
+  const before = await open(world);
+  for (const occasion of ["every commit", "pull request", "nightly", "on demand"]) assert.ok(shownOn(before).includes(occasion), `known positive: ${occasion} is shown`);
+  assert.ok(shownOn(before).includes("release candidate"), "the release candidate's last run is shown");
+  assert.match(text(rowOf(before, "release candidate")), /no run yet/, "without a tag the release candidate has no run");
+  assert.deepEqual(linksOf(before, "release candidate"), []);
+  const candidateCommit = world.pulls[0].head;
+  world.tag("v2026.1.0", world.head());
+  world.tag("v2026.1.0-rc.1", candidateCommit);
+  const candidate = world.ci(candidateCommit, "failure", { event: "push", started: "2026-10-01T09:00:00Z" });
+  world.ci(candidateCommit, "success", { event: "workflow_dispatch", started: "2026-10-03T09:00:00Z" });
+  const after = await open(world);
+  assert.deepEqual(linksOf(after, "release candidate"), [world.links.run(candidate)], "the push run of the candidate's tag");
+  assert.match(text(rowOf(after, "release candidate")), /failure, 2026-10-01$/);
+  assert.equal(linksOf(after, "every commit").length, 1, "known positive: the every commit row links a run");
+  assert.notEqual(linksOf(after, "every commit")[0], world.links.run(candidate), "known positive: the head's newer push run is the every commit row's");
+});
