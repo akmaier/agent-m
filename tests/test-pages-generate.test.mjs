@@ -133,6 +133,8 @@ function find(root, match) {
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const trusted = (type) => Object.defineProperty(new Event(type), "isTrusted", { value: true });
 const click = (node) => node.dispatchEvent(trusted("click"));
+// A script's click is one the browser does not mark trusted (isTrusted false).
+const scriptClick = (node) => node.dispatchEvent(new Event("click"));
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 async function until(condition, what) {
   const limit = Date.now() + 3000;
@@ -406,6 +408,28 @@ test("generate — Write tests queues one job of the kind write-tests with the c
   assert.equal(handed.get("TST-7001").expected, "returns 4");
   assert.equal(handed.get("TST-7002").level, "release");
   assert.equal(handed.get("TST-5").of, "TST-5", "what the person did not change is handed over as it was");
+});
+
+// TST-1422001 · level: unit · module: MOD-test-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-026
+// given: the proposal of the previous tests, read, with its cases and Write tests offered
+// input: a click on Write tests that a script makes (isTrusted false), then a person's click on the same Write tests
+// expect: after the script's click no commit, and the page does not say a job is queued; counter-proof: the person's click then queues one job of the kind write-tests, one commit, and the page says so
+test("TST-1422001 — generate: a script's click on Write tests writes nothing; a person's queues the job", async () => {
+  const fake = fakeProduct(proposed(CASES));
+  const target = await readProposal(fake);
+  const write = writeButton(target);
+  assert.ok(write, "known positive: Write tests is offered");
+  scriptClick(write);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settle();
+  assert.deepEqual(fake.writes(), [], "a script's click writes nothing");
+  assert.equal(byClass(target, "p", "queued").length, 0, "the page does not say a job is queued");
+  click(write);
+  await until(() => byClass(target, "p", "queued").length === 1, "the queued job after the person's click");
+  await settle();
+  assert.equal(fake.writes().length, 1, "one commit for the person's click");
+  assert.match(fake.writes()[0].files[0].text, /kind: write-tests/);
 });
 
 // TST-764003 · level: unit · module: MOD-test-pages
