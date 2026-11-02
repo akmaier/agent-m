@@ -113,7 +113,7 @@ export const route = {
     const product = context.product;
     const place = product ? { host: product.host, label: product.address, address: product.address, ofInstance: false }
       : { host: context.instance.host, label: context.instance.repository, address: null, ofInstance: true };
-    const heading = el("h2", null, product ? "Resources" : "Instance resources");
+    const heading = el("section", "head", el("h2", null, product ? "Resources" : "Instance resources"));
     let opened;
     try {
       opened = await openList(place.host, place.label);
