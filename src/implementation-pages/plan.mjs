@@ -420,7 +420,7 @@ export const route = {
     const tree = architecture.map((row) => `<li data-architecture="${h(row.id)}" data-kind="${row.kind}"${row.under ? ` data-under="${h(row.under)}"` : ""}>`
       + `${h(row.id)}${row.title ? ` — ${h(row.title)}` : ""} <span class="muted small">${row.kind}</span>${marksFor(row.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</li>`).join("");
     const table = steps.length === 0 ? `<p class="muted">No plan is saved yet.</p>`
-      : `<table><thead><tr><th>Step</th><th>State</th><th>Waits for</th></tr></thead><tbody>${steps.map((step) => `<tr data-step="${h(step.id)}" data-state="${h(step.state)}">`
+      : `<table class="list"><thead><tr><th>Step</th><th>State</th><th>Waits for</th></tr></thead><tbody>${steps.map((step) => `<tr data-step="${h(step.id)}" data-state="${h(step.state)}">`
         + `<td>${h(step.id)}${step.title ? ` — ${h(step.title)}` : ""}${marksFor(step.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</td><td>${h(step.state)}</td><td data-waits-for>${h(step.reason)}</td></tr>`).join("")}</tbody></table>`;
     target.innerHTML = `<section class="panel"><h2>Plan</h2>${line ? `<p class="muted small" data-graph-as-of>${h(line)}</p>` : ""}<div data-plan-explain></div>
       <div class="cols"><div><h3>Architecture</h3><ul>${tree}</ul></div><div><h3>Steps</h3>${table}<div data-plan-diagram></div>
