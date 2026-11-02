@@ -1,5 +1,5 @@
 // The pages of implementation wear the site's one look (ITM-1447): each button of the routes process, models, plan, implement and board carries the frame's class btn, and the plan's table
-// carries the frame's class list (look.css: ".btn", ".list").
+// carries the frame's class list (look.css: ".btn", ".list"); each cell of the plan's and the implement page's tables carries data-label with its column's title (ITM-1454).
 // Run: node --test tests/implementation-pages-look.test.mjs
 //
 // Module: MOD-implementation-pages
@@ -226,4 +226,75 @@ test("TST-1447005: the plan's table carries the frame's class list", async (t) =
   const plan = await draw(t, "plan", { product: PLANNED });
   assert.equal(descendants(plan, (node) => node.localName === "table" && !within(node, ["md"])).length, 1, "the plan's table is drawn");
   assert.deepEqual(tableFindings(plan), []);
+});
+
+// ---------------------------------------------------------------- every cell names its column on a phone (ITM-1454)
+// The cells of a drawn table that do not carry their column's title as data-label (look.css: "td[data-label]::before"; MOD-site-frame: "the route that draws the table sets to the
+// column's title"): each cell of a body row beside the header cell of its column. A table inside rendered Markdown (.md) is not the route's own, and is left.
+// Reading taken: a column whose header cell is empty (the column of the tick boxes) has the empty title, so its cells carry data-label="".
+const labelFindings = (target) => descendants(target, (node) => node.localName === "table" && !within(node, ["md"])).flatMap((table) => {
+  const titles = descendants(table, (node) => node.localName === "th").map((cell) => cell.textContent.trim());
+  return descendants(table, (node) => node.localName === "tr" && node.parentNode?.localName !== "thead")
+    .flatMap((row) => [...row.childNodes].filter((cell) => cell.localName === "td").map((cell, at) => [row, cell, at]))
+    .filter(([, cell, at]) => cell.getAttribute("data-label") !== titles[at])
+    .map(([row, cell, at]) => `cell ${at + 1} of row "${text(row)}" carries data-label ${JSON.stringify(cell.getAttribute("data-label"))}, not "${titles[at]}"`);
+});
+const bodyCells = (target) => descendants(target, (node) => node.localName === "td" && !within(node, ["md"]));
+
+// TST-1454001 · level: unit · module: MOD-implementation-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the route backlog of the pulled product, which already sets data-label on each cell; a table made by hand whose second cell carries no data-label; one whose cell carries another title
+// input: the check applied to each
+// expect: known positive — the backlog page's cells are no finding; known negative — the cell without data-label is one finding, and the cell with another title is one finding
+test("TST-1454001: a route that labels its cells passes the check, and a cell without its column's title is a finding", async (t) => {
+  const backlog = await draw(t, "backlog", { product: SCRUM });
+  assert.ok(bodyCells(backlog).length > 0, "the backlog's table is drawn");
+  assert.deepEqual(labelFindings(backlog), [], "known positive: the backlog page's cells carry their columns' titles");
+  const bare = document.createElement("div");
+  bare.innerHTML = `<table class="list"><thead><tr><th>Item</th><th>State</th></tr></thead><tbody><tr><td data-label="Item">ITM-001</td><td>ready</td></tr></tbody></table>`;
+  assert.equal(labelFindings(bare).length, 1, "known negative: the cell without data-label");
+  const other = document.createElement("div");
+  other.innerHTML = `<table class="list"><thead><tr><th>Item</th></tr></thead><tbody><tr><td data-label="Title">ITM-001</td></tr></tbody></table>`;
+  assert.equal(labelFindings(other).length, 1, "known negative: the cell with another column's title");
+});
+
+// TST-1454002 · level: unit · module: MOD-implementation-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the planned product with a plan of two steps
+// input: the route plan drawn
+// expect: each cell of the steps' table carries data-label with its column's title — Step, State, Waits for
+test("TST-1454002: the plan's table names each cell's column", async (t) => {
+  const plan = await draw(t, "plan", { product: PLANNED });
+  assert.equal(bodyCells(plan).length, 6, "two steps of three cells");
+  assert.deepEqual(labelFindings(plan), []);
+});
+
+// TST-1454003 · level: unit · module: MOD-implementation-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the planned product whose plan has startable steps; the pulled product with a startable item and a job with an open pull request
+// input: the route implement drawn for each
+// expect: each cell of the steps' table carries its column's title — "" (the tick box), Step, Phase, State, Why not —, and each cell of the items' table its column's — "" (the tick box), Item, State, Start
+test("TST-1454003: the implement page's tables name each cell's column", async (t) => {
+  const steps = await draw(t, "implement", { product: PLANNED });
+  assert.ok(descendants(steps, (node) => node.hasAttribute?.("data-select-step")).length > 0, "the steps' table is drawn");
+  const items = await draw(t, "implement", { product: WITH_PULL, options: { pullRequests: [request], pulls: [pull] } });
+  assert.ok(descendants(items, (node) => node.hasAttribute?.("data-start-item")).length > 0, "the items' table is drawn");
+  assert.deepEqual([...labelFindings(steps), ...labelFindings(items)], []);
+});
+
+// TST-1454004 · level: unit · module: MOD-implementation-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: a pulled product whose head's view is not stored yet: overview-cache holding latest.json naming 0c0c…0c and the backlog view of 0c0c…0c
+// input: the route implement drawn
+// expect: the line "As of 0c0c0c0: …"; each cell of the items' table carries its column's title — Item, State
+test("TST-1454004: while the head's view is being stored, the implement page's table names each cell's column", async () => {
+  const { DECLARATION_AT_HEAD, productFiles, renderOverGitHub, storedViewBytes } = await import("./implementation-pages-sprints.mjs");
+  const C0 = "0c".repeat(20);
+  const files = productFiles({ "docs/process.md": DECLARATION_AT_HEAD });
+  const page = await renderOverGitHub("implement", {}, { files, overview: { "latest.json": `${JSON.stringify({ commit: C0 })}\n`, [`${C0}.backlog.json.gz`]: await storedViewBytes("backlog", files, C0) } });
+  try {
+    assert.match(page.html(), /As of 0c0c0c0: the view of the newest commit is being stored\./, "known positive: the view stored last is drawn");
+    assert.ok(bodyCells(page.target).length > 0, "the items' table is drawn");
+    assert.deepEqual(labelFindings(page.target), []);
+  } finally { page.done(); }
 });
