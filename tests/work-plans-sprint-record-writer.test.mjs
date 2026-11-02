@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import * as workPlans from "../src/work-plans/index.mjs";
 import { prepareJob, registerStrategies } from "../src/job-runner/index.mjs";
 import { kindOf } from "../src/job-catalogue/index.mjs";
+import { queues } from "../src/spec-changes/index.mjs";
 
 const lines = (...rows) => `${rows.join("\n")}\n`;
 const blobOf = (text) => createHash("sha1").update(text).digest("hex");
@@ -55,7 +56,8 @@ const pullRequest = (number, id, state, head) => ({ number, title: `${id}: the w
 const issue = (number, opened, closed = null, comments = []) => ({ number, title: `Issue ${number}`, body: "", labels: [], state: closed ? "closed" : "open", url: `${ADDRESS}/issues/${number}`, opened, closed, comments });
 
 // The context of a close-sprint job; the host answers readSnapshot (the product, the branch test-results), listPullRequests and listIssues.
-function contextOf({ params = { sprint: "team1/01" }, issues = [issue(7, "2026-10-14T10:00:00Z"), issue(8, "2026-09-01T10:00:00Z")], noIssues = false, files = productFiles() } = {}) {
+function contextOf({ params = { sprint: "team1/01" }, issues = [issue(7, "2026-10-14T10:00:00Z"), issue(8, "2026-09-01T10:00:00Z")], noIssues = false, files = productFiles(),
+  instanceWeb = "https://github.com/acme/agent-m" } = {}) {
   const asked = [];
   const product = snapshotOf(files, ADDRESS);
   const results = { paths: [RECORD_PATH], blob: () => null, read: async (path) => (path === RECORD_PATH ? RUN_RECORD : null) };
@@ -64,9 +66,20 @@ function contextOf({ params = { sprint: "team1/01" }, issues = [issue(7, "2026-1
     async listPullRequests() { return [pullRequest(1, "ITM-001", "merged", H1), pullRequest(2, "ITM-002", "open", "a2".repeat(20))]; },
     async listIssues(filter) { asked.push(["listIssues", filter]); if (noIssues) throw named("NotSupported"); return issues; },
   };
-  const instance = snapshotOf({ "SPEC.md": "# Instance\n" }, "https://github.com/acme/agent-m");
-  const instanceHost = { async readSnapshot(ref) { asked.push(["instance", ref]); return instance; } };
-  return { asked, context: { kind: null, params, product: { address: ADDRESS, snapshot: product, host }, instance: { snapshot: instance, host: instanceHost, checkout: null }, connect: async () => null,
+  // The instance, at its own address unless `instanceWeb` names another: it keeps what is committed to it, its head moving on with each commit.
+  const instanceFiles = { "SPEC.md": "# Instance\n" }, instanceCommits = [];
+  const instanceHead = () => String(instanceCommits.length + 1).padStart(40, "e");
+  const instanceAt = () => ({ ...snapshotOf(instanceFiles, instanceWeb), commit: instanceHead() });
+  const instance = instanceAt();
+  const instanceHost = { async readSnapshot(ref) { asked.push(["instance", ref]); return instanceAt(); },
+    async repositoryInfo() { return { defaultBranch: "main", canWrite: true }; },
+    async commitFiles(change) {
+      if (change.expectedHead !== instanceHead()) throw Object.assign(named("Moved"), { head: instanceHead() });
+      instanceCommits.push(change);
+      for (const file of change.files) { if (file.delete) delete instanceFiles[file.path]; else instanceFiles[file.path] = file.text; }
+      return { commit: instanceHead() };
+    } };
+  return { asked, instanceFiles, instanceCommits, context: { kind: null, params, product: { address: ADDRESS, snapshot: product, host }, instance: { snapshot: instance, host: instanceHost, checkout: null }, connect: async () => null,
     participants: [], places: { sources: {}, mailbox: null, contents: [] }, gates: [], person: "alice", now: new Date("2026-10-19T08:00:00Z"), agentM: { version: "unreleased", commit: "a".repeat(40) }, jobId: null } };
 }
 const recipe = (setting) => workPlans.workStrategies.recipes["sprint-facts"](setting.context, setting.context.params);
@@ -81,15 +94,16 @@ const CLOSE = { sprint: "team1/01",
   retrospective: [{ text: "Review pull requests the same day", kind: "change", goes: "team agreement" }, { text: "The fixtures were quick to build", kind: "went well", goes: null }], newItems: [] };
 
 // The setting of a job of the kind close-sprint, with a host that keeps what is committed.
-function jobOf({ close = CLOSE, files = productFiles(), params = { sprint: "team1/01" } } = {}) {
-  const setting = contextOf({ params, files });
+function jobOf({ close = CLOSE, files = productFiles(), params = { sprint: "team1/01" }, instanceWeb } = {}) {
+  const setting = contextOf({ params, files, instanceWeb });
   const commits = [];
   const host = setting.context.product.host;
-  host.repositoryInfo = async () => ({ defaultBranch: "main" });
+  host.repositoryInfo = async () => ({ defaultBranch: "main", canWrite: true });
   host.commitFiles = async (request) => { commits.push(request); return { commit: "d".repeat(40) }; };
   const context = { ...setting.context, kind: { name: "close-sprint" }, jobId: JOB_ID };
   const result = { draft: close, drafter: CLOSER, rounds: [{ number: 1 }, { number: 2 }] };
-  return { context, result, commits, files, write: () => workPlans.workStrategies.writers["sprint-record"](result, context) };
+  return { context, result, commits, files, instanceFiles: setting.instanceFiles, instanceCommits: setting.instanceCommits,
+    write: () => workPlans.workStrategies.writers["sprint-record"](result, context) };
 }
 
 // TST-620001 · level: unit · module: MOD-work-plans
@@ -271,4 +285,58 @@ test("workStrategies offers the writer the kind close-sprint names, so that the 
   assert.equal(typeof workPlans.workStrategies.writers["sprint-record"], "function");
   const prepared = await prepareJob("close-sprint", { ...jobOf().context, kind }, { drafter: null, reviewers: [] });
   assert.equal(prepared.kind.name, "close-sprint");
+});
+
+// A retrospective that recommends a change to each of the three places of the process and one to the team agreement.
+const PROCESS_CHANGES = [["Add a review phase", "process model"], ["A release test for every item", "Definition of Done"], ["closer-bot reads the issues first", "a participant's instructions"]];
+const PROPOSING = { ...CLOSE, retrospective: [...PROCESS_CHANGES.map(([text, goes]) => ({ text, kind: "change", goes })), { text: "Pair on reviews", kind: "change", goes: "team agreement" },
+  { text: "The fixtures were quick to build", kind: "went well", goes: null }] };
+// Every entry of every queue `files` hold, with its state and its proposal's text.
+const entriesOf = async (files) => {
+  const snapshot = snapshotOf(files, ADDRESS);
+  return Promise.all((await queues(snapshot)).flatMap((queue) => queue.entries.map(async (entry) => ({ queue: queue.folder, state: entry.state, proposal: await snapshot.read(entry.proposal.path) }))));
+};
+
+// TST-1406001 · level: unit · module: MOD-work-plans
+// guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
+// given: the fixture product, its instance at another address holding SPEC.md "# Instance\n" and no queue; closer-bot's close of team1/01 whose retrospective recommends "Add a review phase" to the process model, "A release test for every item" to the Definition of Done, "closer-bot reads the issues first" to a participant's instructions, "Pair on reviews" to the team agreement, and notes one thing that went well
+// input: the writer sprint-record
+// expect: the product gets one commit, of the sprint's record alone, which holds the five lines of the retrospective; the instance gets one commit for each of the three changes to the process, of files under docs/spec-freigaben/ alone, under the job's provenance lines (Agent-M-Participant: closer-bot), and its queues hold exactly three entries, each open, each proposal holding one of the three texts and none "Pair on reviews"; the instance's SPEC.md and the product's docs/process.md are byte-identical
+test("each change an agent's retrospective recommends to the process is an open entry of a queue of the instance's SPEC, and nothing of the process is written", async () => {
+  const job = jobOf({ close: PROPOSING });
+  const process = job.files["docs/process.md"];
+  await job.write();
+  assert.deepEqual(job.commits.map((commit) => commit.files.map((each) => each.path)), [["docs/backlog/sprints/team1/01.md"]]);
+  for (const entry of PROPOSING.retrospective) assert.ok(job.commits[0].files[0].text.includes(`${entry.goes ? `, to ${entry.goes}` : ""}: ${entry.text}\n`), entry.text);
+  assert.equal(job.instanceCommits.length, 3);
+  for (const commit of job.instanceCommits) {
+    assert.ok(commit.files.every((each) => each.path.startsWith("docs/spec-freigaben/")), JSON.stringify(commit.files.map((each) => each.path)));
+    assert.ok(commit.message.includes("\nAgent-M-Participant: closer-bot\n"), commit.message);
+  }
+  const entries = await entriesOf(job.instanceFiles);
+  assert.equal(entries.length, 3);
+  for (const [text] of PROCESS_CHANGES) assert.equal(entries.filter((entry) => entry.state === "open" && entry.proposal.includes(text)).length, 1, text);
+  assert.ok(entries.every((entry) => !entry.proposal.includes("Pair on reviews")));
+  assert.equal(job.instanceFiles["SPEC.md"], "# Instance\n");
+  assert.equal(job.files["docs/process.md"], process);
+});
+
+// TST-1406002 · level: unit · module: MOD-work-plans
+// guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
+// given: the same close, of a product that is its own instance — the job's instance stands at the product's address, as a hosted job of Agent M holds it in two checkouts
+// input: the writer sprint-record
+// expect: everything is committed through the product's host: first the sprint's record, then one commit for each of the three changes, of files under docs/spec-freigaben/ alone; the queues of the product's files with those commits hold three open entries, one for each text; nothing is committed through the instance's host
+test("a product that is its own instance gets the entries through the product's host, after its record", async () => {
+  const job = jobOf({ close: PROPOSING, instanceWeb: ADDRESS });
+  await job.write();
+  assert.deepEqual(job.instanceCommits, []);
+  assert.equal(job.commits.length, 4);
+  assert.deepEqual(job.commits[0].files.map((each) => each.path), ["docs/backlog/sprints/team1/01.md"]);
+  const files = { ...job.files };
+  for (const commit of job.commits.slice(1)) {
+    assert.ok(commit.files.every((each) => each.path.startsWith("docs/spec-freigaben/")), JSON.stringify(commit.files.map((each) => each.path)));
+    for (const file of commit.files) files[file.path] = file.text;
+  }
+  const entries = await entriesOf(files);
+  for (const [text] of PROCESS_CHANGES) assert.equal(entries.filter((entry) => entry.state === "open" && entry.proposal.includes(text)).length, 1, text);
 });
