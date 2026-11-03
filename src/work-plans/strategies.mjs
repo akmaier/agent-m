@@ -463,10 +463,11 @@ function sprintRecordChecks(draft) {
 /**
  * The writer sprint-record(result, context) -> Promise<WriteOutcome> — an agent's close of the sprint the job's parameter `sprint` names, the one the recipe sprint-facts reads, through closeSprint (UC-041 step 6):
  * the draft, `result.draft`, which sprint-record-checks has checked, is closeSprint's `close` with its `sprint` that of the parameter, whatever the draft holds; `facts` are those of the same sprint as the recipe sprint-facts computes them (its own function); `architecture` the module files of the job's snapshot; `head` the snapshot's
- * commit; `trailers` provenanceLines of the job, the participant's name among them — the closer's. The proposals of the retrospective are written as lines of the sprint's record and nothing else is written.
+ * commit; `trailers` provenanceLines of the job, the participant's name among them — the closer's; `instance` the host of the instance's SPEC. The proposals of the retrospective stay proposals: lines of the
+ * sprint's record, and each change to the process an open entry of the instance's SPEC, as closeSprint writes it.
  * A review that sprint-record-checks finds under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM — no source named, or no statement that no stakeholder took part when none did — is refused with
  * ReviewRefused { findings }, those findings, and nothing is written: the job runner calls the writer also when nobody attends and its loop ended with the finding open.
- * Otherwise commits once, to the product's default branch; the outcome names the commit and the record. Throws what closeSprint throws.
+ * Otherwise the outcome names the record's commit, then each entry's, and the record; its notes name each entry and each change not proposed. Throws what closeSprint throws.
  */
 async function sprintRecord(result, context) {
   const { snapshot, host } = context.product;
@@ -478,8 +479,13 @@ async function sprintRecord(result, context) {
   }
   const architecture = await moduleFiles(snapshot);
   const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId, kind: context.kind.name, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds.length });
-  const { commit, written } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers });
-  return { commits: [commit], files: written, pullRequest: null, shown: null, notes: [] };
+  // The instance's SPEC takes the retrospective's changes to the process; a product that is its own instance — the job's instance at the product's address — through the product's host,
+  // the one whose commits the job's result carries.
+  const web = (side) => side?.snapshot?.repository?.web ?? null;
+  const instance = web(context.product) !== null && web(context.product) === web(context.instance) ? host : context.instance.host;
+  const { commit, written, entries, notes } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers, instance });
+  return { commits: [commit, ...entries.map((one) => one.commit)], files: written, pullRequest: null, shown: null,
+    notes: [...entries.map((one) => `A change of the retrospective is proposed as entry ${String(one.entry).padStart(2, "0")} of the queue ${one.queue}.`), ...notes] };
 }
 
 const BACKLOG_RULE = "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY";

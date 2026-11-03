@@ -66,7 +66,8 @@ export function graphOf(snapshot) {
 // touched; a page never builds it.
 // `elsewhere` (the requirements the whole target holds, by name) is given where the section that holds now is none — the entry's anchor is not in the target: a name the target already holds is then no addition,
 // it is changed when its source, rule or check differs from the target's, and not named otherwise.
-export async function impactOf(snapshot, before, after, elsewhere = null) {
+// `build` is proposeSection's alone: where no graph is stored for the snapshot's commit — the head a job has just committed on —, the graph is built from the snapshot (graphOf).
+export async function impactOf(snapshot, before, after, elsewhere = null, build = false) {
   const was = parseSpec(before).requirements, is = parseSpec(after).requirements;
   const { withdrawn, added } = renamedRequirements(before, after);
   const named = [
@@ -81,7 +82,10 @@ export async function impactOf(snapshot, before, after, elsewhere = null) {
   // What names each requirement, as stored beside the commit's graph (MOD-trace-graph's storedReferences: a name it holds no entry for is named by nothing); the
   // graph itself only where those are not stored.
   const stored = await storedReferences(snapshot, snapshot.commit);
-  const graph = stored ? null : await storedGraph(snapshot, snapshot.commit);
+  const graph = stored ? null : await storedGraph(snapshot, snapshot.commit).catch((failure) => {
+    if (build && failure?.name === "GraphNotStored") return graphOf(snapshot);
+    throw failure;
+  });
   return named.map(({ name, change }) => ({
     name, change, referencedBy: stored ? [...(stored.get(name) ?? [])] : [...new Set(requirementImpact(graph, name).map((place) => place.id))],
   }));
