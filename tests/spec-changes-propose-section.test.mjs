@@ -66,12 +66,13 @@ function queueFiles(folder, anchors, { inSpec = [], decidedOnly = [] } = {}) {
 }
 
 const OPENED = "o".repeat(40);
-function repository({ files = {}, canWrite = true, server = "github", opened = {}, refuse = null } = {}) {
+// `stored` false: the head's graph is not stored yet, as for the head a job has just committed on.
+function repository({ files = {}, canWrite = true, server = "github", opened = {}, refuse = null, stored = true } = {}) {
   const all = { "SPEC.md": SPEC, "docs/use-cases/UC-001-read-a-file.md": useCase, ...files };
   const commits = [];
   const web = server === "github" ? "https://github.com/alice/product" : "https://gitlab.example.test/alice/product";
   // The snapshot of the default branch, whose graph is stored on trace-cache as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
-  const snapshot = withStoredGraph({ repository: { server, origin: server === "github" ? "https://github.com" : "https://gitlab.example.test", path: "alice/product", web }, ref: "main", commit: "h".repeat(40),
+  const snapshot = (stored ? withStoredGraph : (bare) => bare)({ repository: { server, origin: server === "github" ? "https://github.com" : "https://gitlab.example.test", path: "alice/product", web }, ref: "main", commit: (stored ? "h" : "u").repeat(40),
     paths: Object.keys(all), blob: (path) => (Object.hasOwn(all, path) ? gitBlob(all[path]) : null), read: async (path) => (Object.hasOwn(all, path) ? all[path] : null) });
   const reads = [];
   const began = { ...snapshot, ref: OPENED, commit: OPENED, paths: [...Object.keys(all).filter((path) => !(opened.lacking ?? []).includes(path)), ...(opened.extra ?? [])] };
@@ -396,4 +397,23 @@ test("proposeSection — a refused commit on GitLab, and any other refusal on Gi
   const github = repository({ refuse: "TokenRefused" });
   await assert.rejects(proposeSection(github.host, CHANGE), { name: "TokenRefused" });
   assert.deepEqual([...gitlab.commits, ...github.commits], []);
+});
+
+// TST-1406003 · level: unit · module: MOD-spec-changes
+// guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
+// given: the fixture repository whose head has no stored trace graph, as the head a job has just committed on; UC-001 realises A SAMPLE RULE
+// input: proposeSection of the section Reading with A SAMPLE RULE changed and the requirement A NEW READING RULE ("A reader keeps a file open.") appended — a requirement added, as a retrospective's change is
+// expect: one commit of the queue reading, with no failure for the missing graph; its rationale's impact list names A SAMPLE RULE changed and named by UC-001, and A NEW READING RULE added and named by nothing; known positive: the same edit over the head with its graph stored gives the same impact list
+test("proposeSection — where no trace graph is stored for the head it reads, it builds the graph for the impact list", async () => {
+  const edit = { ...CHANGE, text: `${READING_EDITED}\n**A NEW READING RULE** *(Product Owner)*\nA reader keeps a file open.\n*Check:* no automatic check; at review\n` };
+  const impactOf = (rationale) => /\*\*Impact list\.\*\*\n([\s\S]*?)\n\n/.exec(rationale)?.[1] ?? "";
+  const bare = repository({ stored: false });
+  await proposeSection(bare.host, edit);
+  assert.equal(bare.commits.length, 1);
+  const built = impactOf(written(bare.commits[0])[`${READING_QUEUE}/01-reading.begruendung.md`]);
+  assert.match(built, /A SAMPLE RULE: changed; named by UC-001\./);
+  assert.match(built, /A NEW READING RULE: added; nothing names it\./);
+  const stored = repository();
+  await proposeSection(stored.host, edit);
+  assert.equal(impactOf(written(stored.commits[0])[`${READING_QUEUE}/01-reading.begruendung.md`]), built, "known positive: the stored graph gives the same impact list");
 });

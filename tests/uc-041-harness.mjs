@@ -13,7 +13,9 @@
 // Authored by developer-opus-e (ITM-991). The product (`shop()`) is tests/uc-032-harness.mjs' product — a Scrum product of two teams, its items ITM-001 to ITM-010 —, with these changes: team1's sprint 02
 // selects ITM-001 and ITM-002 on its own branch sprint/team1/02, its closer is the agent closer-bot, and the Product Owner ended it on 2026-10-30; ITM-001's pull request 1 is merged into sprint/team1/02,
 // ITM-002's pull request 2 is open; the pull request 9 of sprint/team1/02 into main is open; team2 runs its sprint 01 with ITM-003; the test file tests/store.test.mjs declares TST-001, which guards RULE ONE;
-// the issue 7 was opened during the sprint, the issue 8 before it; the branch test-results holds a record of pull request 1's head.
+// the issue 7 was opened during the sprint, the issue 8 before it; the branch test-results holds a record of pull request 1's head; its SPEC holds, after RULE ONE to RULE FOUR, the three requirements
+// that govern the process — THE PROCESS MODEL IS DECLARED PER PRODUCT, A PRODUCT DECLARES ITS DEFINITION OF DONE and AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF —, so that a retrospective's change
+// has a section to be proposed in.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -24,7 +26,7 @@ import { kindOf } from "../src/job-catalogue/index.mjs";
 import { prepareJob, registerStrategies, runJob } from "../src/job-runner/index.mjs";
 import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { workStrategies } from "../src/work-plans/index.mjs";
-import { ADDRESS, HEAD, PARTICIPANTS, documentsOf, itemPath, itemText, lines, open, part, plain, pr, product, sprintPath, sprintText } from "./uc-032-harness.mjs";
+import { ADDRESS, HEAD, PARTICIPANTS, documentsOf, itemPath, itemText, lines, open, part, plain, pr, product, specOf, sprintPath, sprintText } from "./uc-032-harness.mjs";
 
 export { ADDRESS, documentsOf, itemPath, itemText, lines, open, part, plain, pr, product, sprintPath, sprintText };
 registerStrategies("tests/uc-041-harness.mjs", workStrategies);
@@ -49,7 +51,9 @@ export const team1Sprint = (over = {}) => sprintText({ n: 2, goal: "Store and sh
 export const team2Sprint = (over = {}) => sprintText({ n: 1, goal: "Mail", start: "2026-10-22", closer: "bob", selection: ["ITM-003"], ...over });
 
 /** shop({ files }) -> the files of the product, `files` laid over them (a path set to null is left out). */
-export const shop = ({ files = {} } = {}) => product({ files: { [RECORD]: team1Sprint(), [sprintPath("team2", 1)]: team2Sprint(), "tests/store.test.mjs": TEST_FILE,
+export const SPEC = specOf("RULE ONE", "RULE TWO", "RULE THREE", "RULE FOUR", "THE PROCESS MODEL IS DECLARED PER PRODUCT", "A PRODUCT DECLARES ITS DEFINITION OF DONE",
+  "AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF");
+export const shop = ({ files = {} } = {}) => product({ files: { [RECORD]: team1Sprint(), [sprintPath("team2", 1)]: team2Sprint(), "tests/store.test.mjs": TEST_FILE, "SPEC.md": SPEC,
   "docs/jobs/JOB-20261024-1000-a002.md": FAILED_JOB, ...files } });
 
 export const PULLS = [pr(1, "ITM-001", "merged", "2026-10-20T09:00:00Z", "2026-10-21T10:00:00Z", { base: BRANCH }), pr(2, "ITM-002", "open", "2026-10-21T12:00:00Z", null, { base: BRANCH }),
