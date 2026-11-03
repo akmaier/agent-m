@@ -236,7 +236,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     *Copy from the instance*.
   - `mailbox` — the route recognised from the address; for Microsoft 365 the app registration's steps and the sign-in
     with its permissions named before the provider's window opens; for every other mailbox the servers and ports, the
-    notice before the password field, and an app password explained; the Bridge the connection goes through, chosen
+    account name, the SMTP server's own account name and the sender where they differ (UC-037 step 4.1), the notice
+    before the password field, and an app password explained; the Bridge the connection goes through, chosen
     among this browser's Bridges, and, for one reached through the jump host, the notice that the jump host can read the
     password and the mails, before saving; the folders; the processing places the mail may go to, a place outside the EU
     stated as not compliant before saving; *Store and test*; *Disconnect*. Each test of the mailbox — *Store and test*
