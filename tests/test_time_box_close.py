@@ -13,8 +13,9 @@
   without one, when every selected item is done, and no close otherwise;
 - AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM — the closer is sent its sources by name, a review without stakeholder
   says so, and one listing a stakeholder names where their feedback is recorded;
-- AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF — after an agent's retrospective every file but the sprint's record
-  is byte-identical, and a draft that would write a file of the process is refused.
+- AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF — after an agent's retrospective the process model, the Definition of
+  Done, the participants, the job definitions and the SPEC are byte-identical, every change it recommends to the process is an
+  open entry of a SPEC change queue, and a draft that would write a file of the process is refused.
 
 The world is tests/uc-041-harness.mjs, asked through node (tests/jsrun.py): the real job of the kind close-sprint, run
 unattended as CI and a Bridge run it, over a product held in memory, and MOD-workflow-entries' onSchedule over temporary git
@@ -24,6 +25,8 @@ Written for the release testing of sprint 142 by developer-opus-e (ITM-991), who
 ITM-620, ITM-986, ITM-1032 and ITM-1033, nor the behaviour any case of this file guards. A SPRINT ENDS WITH A REVIEW OF ITS
 INCREMENT, which the SPEC names this file for too, rests on ITM-987, which developer-opus-e built: its release tests are
 other writers' (tests/release-uc-041-close-a-sprint.test.mjs, BUILT_BY_WRITER), and this file holds none of it.
+TST-991406 was moved to the accepted texts of MOD-work-plans and MOD-spec-changes by developer-sonnet-l (ITM-1406), who built
+none of the behaviour it guards: developer-opus-e did.
 """
 import json
 import unittest
@@ -152,22 +155,44 @@ class AnAgentsReviewNamesWhereItsFeedbackCameFrom(unittest.TestCase):
 class AnAgentsRetrospectiveChangesNoProcessByItself(unittest.TestCase):
     # TST-991406 · level: release · module: system
     # guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
-    # given: team1/02, ended, its closer closer-bot; the product's docs/process.md (the model and the Definition of Done), docs/participants.md and docs/role-assignments/
-    # input: (a) closer-bot's retrospective recommends a change to the process model, one to the Definition of Done and one to a participant's instructions; the close job runs; (b) counter-proof — closer-bot answers with a draft that also writes docs/process.md, under the key files, and then without it
-    # expect: (a) one commit, of the sprint's record alone, and every other file of the product byte-identical; (b) the second request carries a finding under AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF naming files, and the commit holds the sprint's record alone, docs/process.md byte-identical
+    # given: team1/02, ended, its closer closer-bot; the product's docs/process.md (the model and the Definition of Done), docs/process-models/, docs/participants.md, docs/role-assignments/ and SPEC.md, whose requirements all stand in the section "## 1. Rules", among them THE PROCESS MODEL IS DECLARED PER PRODUCT, A PRODUCT DECLARES ITS DEFINITION OF DONE and AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; docs/spec-freigaben/ holds no queue
+    # input: (a) closer-bot's retrospective recommends a change to the process model "Add a review phase", one to the Definition of Done "A release test for every item" and one to a participant's instructions "closer-bot reads the issues first"; the close job runs; (b) counter-proof — closer-bot answers with a draft that also writes docs/process.md, under the key files, and then without it
+    # expect: (a) the sprint's record holds the three changes, each with where it goes; the first commit holds the record alone; every file but the record and those under docs/spec-freigaben/ is byte-identical — docs/process.md, the model file, docs/participants.md, both role assignments and SPEC.md among them —; docs/spec-freigaben/rules/ holds a queue of the section "## 1. Rules", every entry of it open (no approval record, no decision), whose proposals each begin with the section as SPEC.md holds it and together hold the three texts after it; (b) the second request carries a finding under AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF naming files, and the commit holds the sprint's record alone, docs/process.md byte-identical
     def test_after_an_agents_retrospective_every_file_of_the_process_is_byte_identical(self):
         out = run("const w = await h.closeWorld(); const before = { ...w.files };"
-                  "const close = { ...h.CLOSE(), retrospective: [{ text: 'Add a review phase', kind: 'change', goes: 'process model' }, { text: 'A release test for every item', kind: 'change', goes: 'Definition of Done' },"
-                  " { text: 'closer-bot reads the issues first', kind: 'change', goes: \"a participant's instructions\" }] };"
-                  "await w.run([close]);"
+                  "const changes = [['Add a review phase', 'process model'], ['A release test for every item', 'Definition of Done'], [\"closer-bot reads the issues first\", \"a participant's instructions\"]];"
+                  "const close = { ...h.CLOSE(), retrospective: changes.map(([text, goes]) => ({ text, kind: 'change', goes })) };"
+                  "const a = await w.run([close]);"
                   "const changed = Object.keys({ ...before, ...w.files }).filter((p) => before[p] !== w.files[p]);"
+                  "const { createHash } = await import('node:crypto');"
+                  "const blob = (t) => createHash('sha1').update(`blob ${Buffer.byteLength(t)}\\0`).update(t).digest('hex');"
+                  "const snapshot = { ref: 'main', commit: 'f'.repeat(40), paths: Object.keys(w.files), blob: (p) => (p in w.files ? blob(w.files[p]) : null), read: async (p) => w.files[p] ?? null };"
+                  "const queues = await specChanges.queues(snapshot);"
+                  "const entries = queues.flatMap((q) => q.entries.map((e) => ({ folder: q.folder, anchor: e.anchor, state: e.state, proposal: w.files[e.proposal.path] ?? null })));"
+                  "const section = before['SPEC.md'].slice(before['SPEC.md'].indexOf('## 1. Rules'));"
                   "const v = await h.closeWorld(); const process = v.files['docs/process.md'];"
                   "const writes = { ...h.CLOSE(), files: [{ path: 'docs/process.md', text: 'model: none' }] };"
                   "const s = await v.run([writes, h.CLOSE()]);"
-                  "return { commits: w.commits.map((c) => c.files.map((f) => f.path)), changed, findings: s.inputs[1].findings.map((f) => [f.rule, f.what]),"
-                  " second: v.commits.map((c) => c.files.map((f) => f.path)), same: v.files['docs/process.md'] === process };")
-        self.assertEqual(out["commits"], [[RECORD]])
-        self.assertEqual(out["changed"], [RECORD])
+                  "return { failed: a.failed, record: w.files[h.RECORD], first: w.commits[0].files.map((f) => f.path), later: w.commits.slice(1).flatMap((c) => c.files.map((f) => f.path)), changed,"
+                  " kept: Object.keys(before).filter((p) => p !== h.RECORD && w.files[p] !== before[p]), entries, section, texts: changes.map(([t]) => t),"
+                  " findings: s.inputs[1].findings.map((f) => [f.rule, f.what]), second: v.commits.map((c) => c.files.map((f) => f.path)), same: v.files['docs/process.md'] === process };")
+        self.assertIsNone(out["failed"])
+        for text, goes in (("Add a review phase", "process model"), ("A release test for every item", "Definition of Done"),
+                           ("closer-bot reads the issues first", "a participant's instructions")):
+            self.assertIn(f"- change, to {goes}: {text}\n", out["record"])
+        self.assertEqual(out["first"], [RECORD])
+        self.assertEqual(out["kept"], [])
+        self.assertTrue(out["later"] and all(path.startswith("docs/spec-freigaben/") for path in out["later"]), out["later"])
+        self.assertTrue(all(path == RECORD or path.startswith("docs/spec-freigaben/") for path in out["changed"]), out["changed"])
+        self.assertTrue(out["entries"], "an entry of a SPEC change queue is written")
+        for entry in out["entries"]:
+            self.assertEqual(entry["folder"], "docs/spec-freigaben/rules")
+            self.assertEqual(entry["anchor"], "## 1. Rules")
+            self.assertEqual(entry["state"], "open")
+            self.assertTrue(entry["proposal"].startswith(out["section"]), entry["proposal"])
+        added = "\n".join(entry["proposal"][len(out["section"]):] for entry in out["entries"])
+        for text in out["texts"]:
+            self.assertIn(text, added)
         self.assertTrue(any(rule == "AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF" and "files" in what for rule, what in out["findings"]), out["findings"])
         self.assertEqual(out["second"], [[RECORD]])
         self.assertTrue(out["same"])
