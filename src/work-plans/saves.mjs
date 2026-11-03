@@ -233,7 +233,8 @@ function reviewLines(review, facts) {
  * Then each change of the retrospective to the process model, the Definition of Done or a participant's instructions is an open entry of the instance's SPEC, through MOD-spec-changes'
  * proposeSection (proposeChanges below). Readings this file takes where the module file is silent: the instance's SPEC is read and written through `context.instance`, its host, which the
  * writer sprint-record gives — the product's own host for a product that is its own instance —, and through `host` where none is given; the closer the entry names is the record's
- * `closer`; the result adds `entries`, each { queue, entry, commit }, and `notes`, which name a change not proposed.
+ * `closer`; where the retrospective holds a change to the process, the result adds `entries`, each { queue, entry, commit }, and `notes`, which name a change not proposed — a close without
+ * one returns { commit, written } alone, as the interface gives it.
  * Crosses the network, through the host; fails also with the host's failures.
  */
 export async function closeSprint(host, close, context) {
@@ -274,7 +275,8 @@ export async function closeSprint(host, close, context) {
   const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text: out }, ...items.files],
     message: message(`Close sprint ${name}`, trailers) });
   const proposed = await proposeChanges(context.instance ?? host, close.retrospective, { sprint: name, path, closer: text(record.fields.closer), trailers });
-  return { commit, written: [path, ...items.documents.map((one) => one.path)], ...proposed };
+  const written = [path, ...items.documents.map((one) => one.path)];
+  return proposed.entries.length || proposed.notes.length ? { commit, written, ...proposed } : { commit, written };
 }
 
 // Where each change of a retrospective goes that is a rule of the development process, with the requirement that governs what it changes and whose section takes it

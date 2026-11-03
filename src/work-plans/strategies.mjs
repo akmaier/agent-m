@@ -483,7 +483,7 @@ async function sprintRecord(result, context) {
   // the one whose commits the job's result carries.
   const web = (side) => side?.snapshot?.repository?.web ?? null;
   const instance = web(context.product) !== null && web(context.product) === web(context.instance) ? host : context.instance.host;
-  const { commit, written, entries, notes } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers, instance });
+  const { commit, written, entries = [], notes = [] } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers, instance });
   return { commits: [commit, ...entries.map((one) => one.commit)], files: written, pullRequest: null, shown: null,
     notes: [...entries.map((one) => `A change of the retrospective is proposed as entry ${String(one.entry).padStart(2, "0")} of the queue ${one.queue}.`), ...notes] };
 }
