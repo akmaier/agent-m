@@ -65,7 +65,7 @@ const BUILT_BY_WRITER = {
   "A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT": "ITM-1264, Implement judging its items from the backlog's view of the head",
 };
 // The findings of this file: the case, and the module it points to.
-const FINDINGS = { "TST-991306": { finding: "UC041-F4", module: "MOD-work-plans" } };
+const FINDINGS = {};
 
 // TST-991301 · level: release · module: system
 // guards: UC-041
@@ -189,8 +189,8 @@ test("TST-991305: an agent's review that names no source of its feedback is not 
 // guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
 // given: the product of tests/uc-041-harness.mjs, whose docs/spec-freigaben/ holds no queue
 // input: closer-bot's retrospective proposes three changes — to the process model "Add a review phase", to the Definition of Done "A release test for every item", to a participant's instructions "closer-bot reads the issues first" — and one to the team agreement; the close job runs
-// expect: known positive — the record of team1/02 holds the four changes with where each goes, and docs/process.md is byte-identical; every change to the process model, the Definition of Done or a participant's instructions is an open entry of a SPEC change queue: files under docs/spec-freigaben/ are written, and an entry's proposal holds each of the three texts; FINDING UC041-F4 (MOD-work-plans): the writer sprint-record writes the changes as lines of the record only, and no queue entry
-test("TST-991306: each change an agent's retrospective recommends to the process is an open entry of a SPEC change queue", { todo: "FINDING UC041-F4 (MOD-work-plans): the writer sprint-record writes a retrospective's changes to the process as lines of the sprint's record only; no SPEC change queue entry proposes them for a person's acceptance" }, async () => {
+// expect: known positive — the record of team1/02 holds the four changes with where each goes, and docs/process.md is byte-identical; every change to the process model, the Definition of Done or a participant's instructions is an open entry of a SPEC change queue: files under docs/spec-freigaben/ are written, and an entry's proposal holds each of the three texts
+test("TST-991306: each change an agent's retrospective recommends to the process is an open entry of a SPEC change queue", async () => {
   const w = await closeWorld();
   const process = w.files["docs/process.md"];
   const changes = [["Add a review phase", "process model"], ["A release test for every item", "Definition of Done"], ["closer-bot reads the issues first", "a participant's instructions"], ["Pair on reviews", "team agreement"]];

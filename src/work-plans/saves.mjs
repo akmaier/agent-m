@@ -13,7 +13,9 @@
 
 import { appendSection, artifactSchemas, readDocument, writeDocument } from "../documents/index.mjs";
 import { nextIdentifier } from "../identifiers/index.mjs";
-import { finding } from "../text-tools/index.mjs";
+import { proposeSection } from "../spec-changes/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
+import { blobSha, finding } from "../text-tools/index.mjs";
 import { backlogFindings, planFindings } from "./checks.mjs";
 import { planOrderSchema, sprintSchema } from "./schemas.mjs";
 import { moduleFiles } from "./strategies.mjs";
@@ -228,6 +230,11 @@ function reviewLines(review, facts) {
  * without a decision. The feedback's new items, `close.newItems`, are added to the backlog as saveItems adds them, in the same
  * commit: each gets an identifier that no history holds, and an error finding of backlogFindings on one of them refuses the
  * close with ItemsRefused { findings }, nothing written.
+ * Then each change of the retrospective to the process model, the Definition of Done or a participant's instructions is an open entry of the instance's SPEC, through MOD-spec-changes'
+ * proposeSection (proposeChanges below). Readings this file takes where the module file is silent: the instance's SPEC is read and written through `context.instance`, its host, which the
+ * writer sprint-record gives — the product's own host for a product that is its own instance —, and through `host` where none is given; the closer the entry names is the record's
+ * `closer`; where the retrospective holds a change to the process, the result adds `entries`, each { queue, entry, commit }, and `notes`, which name a change not proposed — a close without
+ * one returns { commit, written } alone, as the interface gives it.
  * Crosses the network, through the host; fails also with the host's failures.
  */
 export async function closeSprint(host, close, context) {
@@ -267,7 +274,45 @@ export async function closeSprint(host, close, context) {
     ? `, to ${entry.goes}` : ""}: ${entry.text}`));
   const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text: out }, ...items.files],
     message: message(`Close sprint ${name}`, trailers) });
-  return { commit, written: [path, ...items.documents.map((one) => one.path)] };
+  const proposed = await proposeChanges(context.instance ?? host, close.retrospective, { sprint: name, path, closer: text(record.fields.closer), trailers });
+  const written = [path, ...items.documents.map((one) => one.path)];
+  return proposed.entries.length || proposed.notes.length ? { commit, written, ...proposed } : { commit, written };
+}
+
+// Where each change of a retrospective goes that is a rule of the development process, with the requirement that governs what it changes and whose section takes it
+// (MOD-work-plans, closeSprint; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF). A change to the team agreement is none.
+const GOVERNING = { "process model": "THE PROCESS MODEL IS DECLARED PER PRODUCT", "Definition of Done": "A PRODUCT DECLARES ITS DEFINITION OF DONE",
+  "a participant's instructions": "AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF" };
+
+// The changes of `retrospective` to the process, each a new requirement whose rule is the change — its name the change in capitals, its source and check left for the person —
+// appended to the section of the SPEC `spec` holds that holds the requirement governing it, found by that requirement's name; the changes for one section are one entry, written
+// through proposeSection on the head the SPEC is read at, so that no two open entries replace the same section. -> { entries: [{ queue, entry, commit }], notes }: a change whose
+// governing requirement the SPEC does not hold, and an entry that is not committed — refused, or GitHub's pages —, is named in `notes`.
+async function proposeChanges(spec, retrospective, { sprint, path, closer, trailers }) {
+  const changes = (retrospective ?? []).filter((each) => each?.kind === "change" && Object.hasOwn(GOVERNING, each.goes))
+    .map((each) => ({ goes: each.goes, text: text(each.text).replace(/\s+/g, " ").trim() }));
+  const entries = [], notes = [];
+  if (changes.length === 0) return { entries, notes };
+  const at = await spec.readSnapshot((await spec.repositoryInfo()).defaultBranch);
+  const specText = (await at.read("SPEC.md")) ?? "";
+  const parsed = parseSpec(specText);
+  const bySection = new Map();
+  for (const change of changes) {
+    const heading = parsed.requirements.get(GOVERNING[change.goes])?.section ?? null;
+    if (heading === null) notes.push(`"${change.text}" is not proposed to ${change.goes}: the SPEC holds no ${GOVERNING[change.goes]}.`);
+    else bySection.set(heading, [...(bySection.get(heading) ?? []), change]);
+  }
+  for (const [heading, mine] of bySection) {
+    const found = parsed.sections.find((one) => one.heading === heading);
+    const section = specText.slice(found.start, found.end);
+    const appended = mine.map((change) => `\n**${change.text.replace(/\.$/, "").toUpperCase()}** *()*\n${change.text}\n`).join("");
+    const proposed = await proposeSection(spec, { target: "SPEC.md", anchor: heading, until: null, text: `${section}${appended}`,
+      why: `The retrospective of sprint ${sprint} recommends ${mine.map((change) => `to ${change.goes}: ${change.text}`).join("; ")}. Each is added as a requirement whose rule is the change; its source and check are the person's to complete.`,
+      origin: `the retrospective of sprint ${sprint}, ${path}`, person: closer || "the closer", openedBlob: await blobSha(section), openedHead: at.commit, trailers });
+    if (proposed.commit) entries.push({ queue: proposed.queue, entry: proposed.entry, commit: proposed.commit });
+    else notes.push(`${mine.map((change) => `"${change.text}"`).join(", ")} not proposed: ${proposed.refused ?? "GitHub's pages came back instead of a commit"}.`);
+  }
+  return { entries, notes };
 }
 
 // Who gives up an increment: the Product Owner, by the role; the commit, made with the person's token, names the person.

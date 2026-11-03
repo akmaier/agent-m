@@ -402,7 +402,7 @@ export async function proposeSection(host, change) {
   const sameSection = (entry) => entry.file === change.target && entry.anchor === change.anchor && entry.state !== "in SPEC";
   const alsoReplacing = (await queues(snapshot)).flatMap((queue) => queue.entries.filter(sameSection).map((entry) => ({ queue: queue.folder, entry: entry.number })));
 
-  const impact = await impactOf(snapshot, before ?? "", change.text, before === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
+  const impact = await impactOf(snapshot, before ?? "", change.text, before === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null, true);
   const rationale = sectionRationale(change, impact);
   const planned = new Map();
   const { folder, number, paths } = await sectionEntry(snapshot, { target: change.target, anchor: change.anchor, until: change.until, text: change.text, rationale }, planned);
