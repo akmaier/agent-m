@@ -7,6 +7,7 @@ realises:
   - AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
 modules:
   - MOD-work-plans
+  - MOD-spec-changes
   - MOD-workflow-entries
   - MOD-implementation-pages
 builds_on:
@@ -27,31 +28,22 @@ origin:
 the SPEC that a person accepts. Its check asks that every change a retrospective recommends is an open entry of a SPEC
 change queue. The close writes such a change only as a line of the sprint record (`src/work-plans/saves.mjs:266`).
 
-## The reading taken
+## How it is built
 
-MOD-work-plans says "the proposals of the retrospective stay proposals". A proposal of a change of the SPEC is an entry of
-a change queue (`A SPEC EDIT IS SAVED AS A PROPOSAL`). So each recommended change to the process model, the Definition of
-Done or a participant's instructions is written as an open queue entry, and the record names it.
+The accepted texts give it:
+- **MOD-work-plans, `closeSprint`:** after the record's commit, each change of the retrospective that `goes` to the
+  process model, the Definition of Done or a participant's instructions is written through MOD-spec-changes'
+  `proposeSection`, as an open entry of the instance's SPEC. The entry is a new requirement whose rule is the change. It is
+  appended to the section that holds the requirement governing what it changes, a section found by the requirement's
+  name: `THE PROCESS MODEL IS DECLARED PER PRODUCT`, `A PRODUCT DECLARES ITS DEFINITION OF DONE` or
+  `AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF`.
+- **MOD-spec-changes, `proposeSection`:** a job whose SPEC rule asks for an open entry may call it. It computes the impact
+  from the trace graph of the head it reads, which it builds with MOD-trace-graph's `traceGraph` where none is stored for
+  that head. This ends the `GraphNotStored` that stopped the item in sprint 143 (`accept.mjs:83-84` → `build.mjs:201-206`).
 
-MOD-work-plans' Uses name MOD-spec-changes' `Queue` and `queues`, but no function that writes an entry. The probe names the
-function the item needs. Where that function would be a new use, it is the module text's gap, which is noted for akmaier at
-the gate.
-
-## Waiting for akmaier
-
-A change is added as a new requirement, appended to the section that holds the requirement governing what it changes
-(143.md, *Ruled* for ITM-1406). Neither of MOD-spec-changes' two writing routes can write it from the close job:
-- **`proposeSection`** (`src/spec-changes/propose.mjs:405`) → `impactOf` (`accept.mjs:83-84`) needs the trace graph stored
-  for the head it reads, and `storedGraph` (`src/trace-graph/build.mjs:201-206`) throws `GraphNotStored`. Right after the
-  record's commit, no graph is stored for that head. That is certain for a product that is its own instance, and a matter
-  of luck for another. The accepted text also gives `proposeSection` "Considers: called only on a person's click".
-- **The writer `queue-entries`** builds its graph, but it writes candidates "as the person left them", and only those that
-  point to a source the product links. A retrospective's change has neither.
-
-The general change is one sentence of MOD-spec-changes: `proposeSection` may be called by a job whose SPEC rule asks for
-an open entry (`AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF`), and it builds the trace graph of the head it reads
-where none is stored. It goes to akmaier as a module-text draft with the sprint's other drafts. #1760 keeps the
-tests-only commits `dba664a6f` and `631a7a789`, and TST-991306 keeps its `todo`.
+MOD-workflow-entries and MOD-implementation-pages are named for TST-991209's system test only, which the implementer moves
+in a tests-only commit, red there. TST-991406, a release case, is moved by a participant who built none of it, after the
+code.
 
 ## Acceptance
 
