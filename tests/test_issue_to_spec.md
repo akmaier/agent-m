@@ -2,7 +2,7 @@
 
 The cases of `tests/test_issue_to_spec.py`, for the requirement `EVOLUTION ENTERS THROUGH THE SPECIFICATION` (SPEC.md): "An issue that changes behaviour — on
 GitHub or on the product's GitLab server — becomes a specification change first and a code change second." UC-012 gives the order in step 6, which "writes them
-as a queue under `docs/spec-freigaben/` naming the issue", and in its postcondition, "A change is in the specification before any code implements it, and the
+as entries under `docs/spec-freigaben/`, each naming the issue", and in its postcondition, "A change is in the specification before any code implements it, and the
 accepted entry names the issue it came from." The cases check the side of that order that precedes the queue's acceptance: the change leaves the issue as a queue,
 nothing else is committed, and no fix is offered for it. On a GitLab server the class of the issue is checked over a fake fetch, and the queue is written and checked over a fake GitLab server that serves the project, the issue and GitLab's commit API.
 
@@ -10,7 +10,7 @@ nothing else is committed, and no fix is offered for it. On a GitLab server the 
 the number of the page opened (`issue`), the person's steps in order (`class`: the click on a class of the issue; `draft`: the participant drafts the
 change and the person saves it), and the candidates the fake participant answers (`candidates`). `expected` names only what the case asserts, out of:
 `labels` and `state` (the issue at the end), `issueWrites` (the writes made to the issue), `committed` (every path committed to the product),
-`outsideDocs` (those of them that do not lie under `docs/`, which are code or tests), `queueNames` (the issue each queue index names),
+`outsideDocs` (those of them that do not lie under `docs/`, which are code or tests), `queueNames` (the issue named by the line `**Issue:** #<number> of <product address>` in the rationale of each entry),
 `queueHolds` (each of the case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), and `changeSection` and `fixSection` (whether the page
 offers the section that drafts the change and the one that fixes a bug). A case with `server` `gitlab` in its `input` runs the product on the fake GitLab server (its `issues` hold the one issue) and
 may state `unserved` (the requests of the project's API the fake did not serve). The class case on a GitLab server has `input` `issue` and `cls` (the class clicked) and `expected` `writes`

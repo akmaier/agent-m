@@ -134,7 +134,8 @@ async function runSection({ context, product, issue, kindName, title, text, name
     const instanceSnapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
     const register = await instanceSnapshot.read(REGISTER);
     const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document);
-    const admitted = eligible(participants, { capabilities: definition.needs }).eligible;
+    // A person holds roles and decides but is no driver of a job (MOD-participant-list's `eligible`): the work is handed to the other four types.
+    const admitted = eligible(participants.filter((each) => each.type !== "person"), { capabilities: definition.needs }).eligible;
     if (admitted.length === 0) { section.append(none()); return section; }
 
     const radios = admitted.map((participant) => {
@@ -278,12 +279,14 @@ const slugOf = (title) => String(title ?? "").toLowerCase().replace(/[^a-z0-9]+/
 const namesOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
 const sameAddress = (a, b) => String(a).replace(/\/+$/, "") === String(b).replace(/\/+$/, "");
 
-// The requirements that the entries of the queues naming this issue of this product add or change, in `entryView`'s impact, in the order of the entries, once each.
+// The requirements that the entries naming this issue of this product add or change, in `entryView`'s impact, in the order of the queues and their entries, once each.
 async function changedRequirements(snapshot, number, productAddress) {
   const names = [];
   for (const queue of await queues(snapshot)) {
-    if (queue.issue?.number !== number || !sameAddress(queue.issue.product, productAddress)) continue;
-    for (const entry of queue.entries) for (const { name, change } of (await entryView(queue.folder, entry.number, snapshot)).impact) if (change !== "withdrawn") names.push(name);
+    for (const entry of queue.entries) {
+      if (entry.issue?.number !== number || !sameAddress(entry.issue.product, productAddress)) continue;
+      for (const { name, change } of (await entryView(queue.folder, entry.number, snapshot)).impact) if (change !== "withdrawn") names.push(name);
+    }
   }
   return [...new Set(names)];
 }
@@ -418,7 +421,7 @@ async function expectationsOf(product, pullRequest) {
     row.setAttribute("data-test", id);
     return row;
   });
-  return el("table", "fix-expectations", el("thead", null, el("tr", null, ...["Test", "Requirement", "Old expectation", "New expectation"].map((head) => cell("th", head)))), el("tbody", null, ...rows));
+  return el("table", "fix-expectations list", el("thead", null, el("tr", null, ...["Test", "Requirement", "Old expectation", "New expectation"].map((head) => cell("th", head)))), el("tbody", null, ...rows));
 }
 
 // *Close with links*, the person's click on a merged pull request: the issue closed with `closeWithLinks`, naming the pull request and, for the job of an item, the item (null for a bug fix).

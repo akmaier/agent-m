@@ -14,6 +14,7 @@ uses:
   - MOD-approvals.statuses
   - MOD-spec-changes.Queue
   - MOD-spec-changes.queues
+  - MOD-spec-changes.proposeSection
   - MOD-spec-document.parseSpec
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.graphFindings
@@ -255,7 +256,12 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   the close of a sprint by its agent, through the writer `sprint-record` (UC-041 step 6): appends `## Review` — the increment and the items not done from `facts`, the feedback,
   who took part, for an agent the sources of its feedback —, `## Unfinished items` and `## Retrospective` to the sprint's
   file; adds the feedback's new items to the backlog as `saveItems` does, and records for each unfinished item whether it
-  goes back to the backlog or into the team's next sprint; all in one commit. Errors: `NotFound { path }` for a sprint with no record, `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
+  goes back to the backlog or into the team's next sprint; all in one commit. Then each change of the retrospective that
+  `goes` to the process model, the Definition of Done or a participant's instructions is written through MOD-spec-changes'
+  `proposeSection` as an open entry of the instance's SPEC: a new requirement whose rule is the change, appended to the
+  section that holds the requirement governing what it changes — `THE PROCESS MODEL IS DECLARED PER PRODUCT` for the
+  process model, `A PRODUCT DECLARES ITS DEFINITION OF DONE` for the Definition of Done, `AN AGENT'S RETROSPECTIVE CHANGES
+  NO PROCESS BY ITSELF` for a participant's instructions —, that section found by the requirement's name. Errors: `NotFound { path }` for a sprint with no record, `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
   without a decision, `AlreadyClosed`, `ItemsRefused { findings }`, and the host's.
 - `giveUpIncrement(host: Host, sprint: string, reason: string, context: { head: string, trailers: string[] }) -> Promise<{
   commit: string }>` — the Product Owner giving up the increment of a closed sprint whose branch was not merged: appends
@@ -299,7 +305,8 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   under `docs/architecture/`, `SPEC.md`, the approval records, the change queues, `docs/jobs/`, the branch `test-results`,
   the pull requests and the issues of the product, and the history of `docs/plan/` and `docs/backlog/`.
 - Writes, through its saves, `docs/plan/ITM-*.md`, `docs/plan/order.md`, `docs/backlog/ITM-*.md` and
-  `docs/backlog/sprints/<team>/<nn>.md`, and creates a sprint's own branch.
+  `docs/backlog/sprints/<team>/<nn>.md`, and creates a sprint's own branch; through MOD-spec-changes' `proposeSection`, an
+  entry of the instance's SPEC change queues for each change a retrospective makes to the process.
 
 ## Uses
 
@@ -310,6 +317,8 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - MOD-model-catalogue.Model — the phases a plan's steps belong to.
 - MOD-approvals.statuses, MOD-spec-changes.Queue, queues, MOD-spec-document.parseSpec — whether what an item names is
   accepted.
+- MOD-spec-changes.proposeSection — a retrospective's change to the process, written as an open entry of the instance's
+  SPEC.
 - MOD-trace-graph.systemDecisions — the decisions of the system and of its subsystems, for `architecture-and-model`.
 - MOD-trace-graph.graphFindings, TextSource — the findings of a drafted plan's steps that the graph's checks give, on a
   source of the product's files with the drafted steps in place.

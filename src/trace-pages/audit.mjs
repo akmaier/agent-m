@@ -222,7 +222,7 @@ function page(loaded, links, host) {
   for (const [kind, label] of KINDS) {
     const number = String(audit.summary[kind]);
     if (COUNTED[kind]) {
-      const button = el("button", "audit-count", number);
+      const button = el("button", "audit-count btn small", number);
       button.setAttribute("type", "button");
       button.setAttribute("data-kind", kind);
       button.addEventListener("click", () => { state.count = state.count === kind ? null : kind; draw(); });

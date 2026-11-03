@@ -14,6 +14,8 @@ function el(name, className, ...children) {
   node.append(...children);
   return node;
 }
+// A part of the page under its heading: the frame's panel.
+const part = (heading, ...nodes) => el("section", "panel", el("h3", null, heading), ...nodes);
 
 // The system of the browser, from its user agent: the file of the release for it is the installer or the image MOD-bridge-build makes for that platform. The macOS .zip is the updater's, and no person downloads it.
 const BRIDGE_FILE = { windows: /\.exe$/i, macos: /\.dmg$/i, linux: /\.AppImage$/i };
@@ -33,7 +35,7 @@ const megabytes = (size) => `${(size / 1e6).toFixed(1)} MB`;
 function downloadSection(context) {
   const host = context.instance?.host;
   if (typeof host?.listReleaseAssets !== "function") return null;
-  const section = el("section", "bridge-download", el("h3", null, "Get the Bridge"), explain("bridge-levels"));
+  const section = el("section", "bridge-download panel", el("h3", null, "Get the Bridge"), explain("bridge-levels"));
   return { section, done: offerFile(host, section) };
 }
 
@@ -461,18 +463,18 @@ export const route = {
     const kept = namedBridges(context.store);
     const download = downloadSection(context);
     target.replaceChildren(
+      el("section", "head", el("h2", null, "Connect a Bridge")),
       ...(download ? [download.section] : []),
-      el("h2", null, "Connect a Bridge"),
       el("p", "notice bridge-shared-origin", sharedPagesNotice(context)),
       el("p", null, "The copied pairing token is sent only to the Bridge address when you choose Pair Bridge."),
       el("p", null, el("label", null, "Bridge address ", address)),
       el("p", null, el("label", null, "Pairing token ", token, " ", show)),
       el("p", null, pairButton, " ", clear),
       explain("bridge-pairing"), result,
-      ...(kept.length ? [el("h3", null, "CLI sessions of the Bridges this browser keeps"),
-        el("p", null, "Test a Bridge to list the CLI sessions it offers. Declare where each processes data, its context in tokens, its model and its capabilities: the prompt bar offers a session once it has them."),
+      ...(kept.length ? [part("CLI sessions of the Bridges this browser keeps",
+          el("p", null, "Test a Bridge to list the CLI sessions it offers. Declare where each processes data, its context in tokens, its model and its capabilities: the prompt bar offers a session once it has them.")),
         ...kept.map((entry) => keptBridge(context.store, entry))] : []),
-      el("h3", null, "Trusted HTTPS jump host"),
+      part("Trusted HTTPS jump host",
       httpsExplanation,
       el("p", null, el("label", null, "Host ", hostname)),
       el("p", null, el("label", null, "SSH user ", user)),
@@ -482,16 +484,16 @@ export const route = {
       el("p", null, el("label", null, "Copied Bridge token ", httpsBridgeToken, " ", showHttpsBridgeToken)),
       el("p", null, el("label", null, "Web login ", loginUser)),
       el("p", null, el("label", null, "Web password ", loginPassword, " ", showLoginPassword)),
-      el("p", null, saveJumpHost), jumpResult,
-      el("h3", null, "+ Bridge through the jump host"),
+      el("p", null, saveJumpHost), jumpResult),
+      part("+ Bridge through the jump host",
       el("p", null, "Name the Bridge as it reports itself. It takes the lowest free port of the jump host's range. The commands are setup text only; they do not start a tunnel or test HTTPS."),
       el("p", null, el("label", null, "Bridge name ", throughName)),
       el("p", null, el("label", null, "Copied Bridge token ", throughToken, " ", showThroughToken)),
       el("p", null, addThrough), throughResult,
       el("h4", null, "Tunnel commands for this Bridge"), throughCommands,
       el("h4", null, "Apache HTTPS proxy configuration for every Bridge through the jump host"), bridgeApache,
-      el("h4", null, "nginx HTTPS proxy configuration for every Bridge through the jump host"), bridgeNginx,
-      el("h3", null, "Remote session"),
+      el("h4", null, "nginx HTTPS proxy configuration for every Bridge through the jump host"), bridgeNginx),
+      part("Remote session",
       el("p", null, "Add or select a remote Bridge session. The commands and proxy configuration are setup text only; they do not start a tunnel or test HTTPS."),
       el("p", null, el("label", null, "Stored session ", remoteSessionSelect)),
       el("p", null, el("label", null, "Session name ", remoteSessionName)),
@@ -501,7 +503,7 @@ export const route = {
       el("p", null, saveRemoteSession), remoteResult,
       el("h4", null, "Tunnel commands"), remoteCommands, copyRemoteCommands,
       el("h4", null, "Apache HTTPS proxy configuration"), remoteApache,
-      el("h4", null, "nginx HTTPS proxy configuration"), remoteNginx,
+      el("h4", null, "nginx HTTPS proxy configuration"), remoteNginx),
     );
     address.focus();
     await download?.done;

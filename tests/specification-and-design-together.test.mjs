@@ -21,7 +21,7 @@
 // put together here.
 //
 // Readings the module files leave open, taken here and named in the pull request:
-//   - A requirement edit's queue is the person's open queue of the real day (proposeSection takes no clock), `<day>_edits-of-<person>`;
+//   - A requirement edit's queue is its section's queue, `docs/spec-freigaben/reading` for `## 1. Reading` (MOD-spec-changes, Data);
 //     the folder given back is that path. The acceptance's `now` is fixed.
 //   - A record committed without the dashboard is what a person's GitHub page commits: the record file named
 //     docs/approvals/spec-<queue folder name>-<NN>-<first twelve digits of the proposal's blob>.md, with the fields MOD-approvals'
@@ -42,7 +42,7 @@ import { readDocument } from "../src/documents/index.mjs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { statuses, lastAcceptedText, acceptShown, approvalSchema } = approvals;
-const { queues, entryView, proposeSection, acceptEntries, applyApproved } = specChanges;
+const { queues, entryView, proposeSection, saveEntry, acceptEntries, applyApproved } = specChanges;
 const { saveFile } = artifactEdits;
 
 // ---------------------------------------------------------------- the product
@@ -168,7 +168,7 @@ test("a requirement edit — saved as a proposal, shown beside the current text,
 
   assert.equal(fake.writes.length, 1, "the save is one commit");
   assert.equal(fake.files()["SPEC.md"], SPEC, "the save leaves SPEC.md byte-identical");
-  assert.equal(saved.queue, `docs/spec-freigaben/${TODAY}_edits-of-alice`);
+  assert.equal(saved.queue, "docs/spec-freigaben/reading");
   assert.equal(saved.entry, 1);
   assert.equal(await stateOf(fake, saved.queue, 1), "open");
 
@@ -340,15 +340,15 @@ test("a requirement edit on a section that was accepted over meanwhile — refus
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476053 · level: component · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006
-// given: alice's entry shown to a reviewer; before the click she saves a second edit of the same section, which replaces the entry's proposal
+// given: alice's entry shown to a reviewer; before the click she saves an edit of that open entry in place (saveEntry), which replaces the entry's proposal
 // input: acceptEntries with the proposal blob that was shown
 // expect: { refused: [{ queue, entry: 1, reason }] }; no commit; the SPEC byte-identical; the entry still open
 test("an entry whose proposal was replaced after it was shown — the acceptance is refused and names the entry", async () => {
   const fake = repository();
   const saved = await proposeSection(fake.host, edit());
   const shown = shownOf(saved.queue, 1, await entryView(saved.queue, 1, await fake.snapshot()));
-  const second = await proposeSection(fake.host, edit({ text: READING_AGAIN }));
-  assert.equal(second.entry, 1, "fixture: the second edit replaced the entry");
+  const second = await saveEntry(fake.host, { queue: saved.queue, entry: 1, text: READING_AGAIN, why: "Again.", person: "alice", openedBlob: gitBlob(READING_EDITED), openedHead: null });
+  assert.ok(second.commit, "fixture: the edit of the entry replaced its proposal");
   const writes = fake.writes.length;
 
   const result = await acceptEntries(fake.host, [shown], "alice", NOW, sources());
@@ -384,7 +384,7 @@ test("a SPEC section changed after the entry was shown — the acceptance is ref
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476055 · level: component · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
-// given: a record committed by hand for the first proposal; afterwards (1) the entry's proposal is replaced by a second edit, or (2) another writer changes the SPEC section; each in its own copy
+// given: a record committed by hand for the first proposal, while (1) the entry's proposal was replaced by an edit of the entry in place (saveEntry), or afterwards (2) another writer changes the SPEC section; each in its own copy
 // input: applyApproved on each copy's snapshot
 // expect: in each the record is refused and named, nothing applied, and no changed SPEC returned (the SPEC of the copy stays as the host holds it); with the same record on an untouched copy it is applied, so the refusal is the stale text's
 test("a stale record — applyApproved refuses it when the proposal or the SPEC section differs from the blobs it names", async () => {
@@ -392,8 +392,9 @@ test("a stale record — applyApproved refuses it when the proposal or the SPEC 
     const fake = repository();
     const saved = await proposeSection(fake.host, edit());
     const [recordPath, recordText] = handRecord({ queue: saved.queue, number: 1, proposal: READING_EDITED, section: READING });
+    // An entry is edited in place only while it is open, so the edit is saved before the record of the first proposal lands.
+    if (staleness === "proposal") await saveEntry(fake.host, { queue: saved.queue, entry: 1, text: READING_AGAIN, why: "Again.", person: "alice", openedBlob: gitBlob(READING_EDITED), openedHead: null });
     fake.land({ [recordPath]: recordText });
-    if (staleness === "proposal") await proposeSection(fake.host, edit({ text: READING_AGAIN }));
     if (staleness === "section") fake.land({ "SPEC.md": HEAD + READING_BY_OTHERS + WRITING });
     return { fake, recordPath };
   };

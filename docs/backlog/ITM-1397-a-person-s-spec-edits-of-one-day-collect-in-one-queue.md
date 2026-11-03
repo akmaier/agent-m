@@ -14,6 +14,9 @@ modules:
   - MOD-maintenance-pages
   - MOD-site-frame
   - MOD-repository-hosts
+  - MOD-trace-pages
+  - MOD-documents
+  - MOD-workflow-entries
 builds_on:
   - ITM-376
 tests:

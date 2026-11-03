@@ -317,4 +317,5 @@ It writes nothing.
   of the register's path.
 - MOD-progress-measures.storedOverview — the change queues stored for the commit, read beside the first wave of `#spec`, so that
   its second wave names only the files of the queues with an entry not in the SPEC yet; where no overview is stored, the
-  index and decisions of every queue are read, then the proposals of those still open.
+  index and decisions of every queue are read, then the proposals of those still open and the rationales that
+  MOD-spec-changes' `queues` reads for their entries' issues.

@@ -153,7 +153,8 @@ entry of another queue that is not in SPEC creates it.
   string } | { fallback: Array<{ url: string, path: string, text: string, differs: boolean }> }>` — writes one edited
   section as an entry, in one commit under the person's account: appended to its section's queue, or as the first entry
   of a new one. The impact list of
-  every requirement the edit changes, withdraws or adds is computed and written with the rationale (`A REQUIREMENT IS NOT
+  every requirement the edit changes, withdraws or adds is computed from the trace graph of the head it reads, which it
+  builds where none is stored for that head, and written with the rationale (`A REQUIREMENT IS NOT
   CHANGED WITHOUT AN IMPACT LIST`); a changed name is proposed as the old name withdrawn and the new one added (`A RENAMED
   REQUIREMENT IS WITHDRAWN AND ADDED`); the target file is not touched (`A SPEC EDIT IS SAVED AS A PROPOSAL`). Refuses
   when the section's blob on the default branch differs from `openedBlob`, returning the newer text so that the caller
@@ -163,7 +164,9 @@ entry of another queue that is not in SPEC creates it.
   Without a token on GitHub, or when GitHub refuses the commit for a missing write permission (`PermissionMissing`), it
   writes nothing and returns GitHub's pages for each file of the entry, each file's `differs` saying whether it exists
   on the default branch otherwise than at `openedHead`, the commit the edit was opened on (UC-018 4a, 6b); on GitLab
-  without a token it refuses with `TokenRequired`, and a refused commit there throws `PermissionMissing`. Considers: called only on a person's click. Crosses the network. Errors:
+  without a token it refuses with `TokenRequired`, and a refused commit there throws `PermissionMissing`. Considers: called
+  on a person's click, or by a job whose SPEC rule asks for an open entry (`AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY
+  ITSELF`). Crosses the network. Errors:
   `Moved`, `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`, `TokenRequired`.
 - `saveEntry(host: Host, edit: { queue: string, entry: number, text: string, why: string, person: string, openedBlob:
   string, openedHead: string }) -> Promise<{ commit: string } | { refused: "changed meanwhile", current: string } | { refused: "not open",
@@ -287,7 +290,8 @@ entry of another queue that is not in SPEC creates it.
   a section's exact bytes and its replacement, the names an edit touches.
 - MOD-trace-graph.traceGraph, requirementImpact, coverageGaps — impact lists, and the requirements no use case realises, in a job;
   MOD-trace-graph.storedReferences — the impact list of an entry on a page (entryView, proposeSection, saveEntry), from what names each
-  requirement as stored beside the commit's graph; MOD-trace-graph.storedGraph — the same from the graph itself, where those are not stored.
+  requirement as stored beside the commit's graph; MOD-trace-graph.storedGraph — the same from the graph itself, where those are not stored;
+  MOD-trace-graph.traceGraph — the graph of the head `proposeSection` reads, where none is stored for it.
 - MOD-source-register.sourceSchemas, sourceFindings, linkedVersion — the instance's links and register as the workflow
   reads them, the requirements that name no linked source, and a candidate's source that the product does not link.
 - MOD-text-tools.Finding, finding, blobSha, lineDiff — findings, blob SHAs and the difference shown.

@@ -743,7 +743,7 @@ const rationaleAsked = (log) => [...log.reads, ...log.manys.flat()].filter((path
 // guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: the fixture product on the default branch main with three entries that wait — 2026-10-09_alpha changes ALPHA RULE and withdraws BETA RULE, 2026-10-09b_alpha-again changes ALPHA RULE, 2026-10-10_delta adds DELTA RULE — each with a rationale in the tree; the entry decided in 2026-10-08_done waits no longer
 // input: the route rendered at main (known positive: the log of the Host shows the proposals of the three entries named to readMany or read)
-// expect: the marks as the page gives them today: ALPHA RULE change proposed, BETA RULE removal proposed, GAMMA RULE in SPEC, DELTA RULE proposed; and no path ending in .begruendung.md was asked of read or readMany, while the three proposals were
+// expect: the marks as the page gives them today: ALPHA RULE change proposed, BETA RULE removal proposed, GAMMA RULE in SPEC, DELTA RULE proposed; and the page asks for no rationale itself: a path ending in .begruendung.md stands in one readMany only, queues' one batch for the entries' issues (MOD-spec-changes, Queue), and every read of one is of a path that batch named, while the three proposals were
 test("TST-1274003 the specification marks each requirement a waiting entry changes, withdraws or adds, and asks for no rationale", async () => {
   const productHost = treeHost({ trees: { main: WAITING_FILES } });
   const target = await render(productHost, mainParams);
@@ -751,5 +751,7 @@ test("TST-1274003 the specification marks each requirement a waiting entry chang
   const asked = [...productHost.log.reads, ...productHost.log.manys.flat()];
   for (const proposal of proposals) assert.equal(asked.includes(proposal), true, `known positive: the log shows the proposal ${proposal}`);
   assert.deepEqual(Object.fromEntries(statusRows(target)), { "ALPHA RULE": "change proposed", "BETA RULE": "removal proposed", "GAMMA RULE": "in SPEC", "DELTA RULE": "proposed" });
-  assert.deepEqual(rationaleAsked(productHost.log), []);
+  const batches = productHost.log.manys.filter((paths) => paths.some((path) => path.endsWith(".begruendung.md")));
+  assert.equal(batches.length, 1, "the rationales are named in queues' one batch, and in no other");
+  assert.deepEqual(rationaleAsked({ reads: productHost.log.reads, manys: [] }).filter((path) => !batches[0].includes(path)), [], "no rationale is read beyond that batch");
 });

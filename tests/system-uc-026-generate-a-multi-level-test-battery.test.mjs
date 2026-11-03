@@ -293,7 +293,7 @@ test("TST-771206: UC-026 7, 1a, 5a the review panel groups the cases, marks the 
 // TST-771207 · level: system · module: system
 // guards: UC-026; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; ONE CLICK PER DECISION; EVERY TEST HAS ONE LEVEL
 // given: the review panel of TST-771206; the person edits TST-901's expected result to "a second extension is refused" and removes the duplicate TST-903; test-bot writes, in the job's checkout, the branch tests/extension-1 with the tests of TST-901, TST-902, TST-904, TST-905 and TST-907 and a counter-proof record of each, none for the user case TST-906
-// input: Write tests pressed twice; the job workflow runs the job
+// input: Write tests pressed once; the job workflow runs the job
 // expect: one job of the kind write-tests is queued, whose cases are the six the person left, 901 edited; the job ends done after one round; the server's API was asked once to open a pull request from tests/extension-1 into main, titled with the job; the branch holds the five tests, each declaring the identifier, level, guarded name and expected result of its reviewed case, and a counter-proof record of outcome failed for each; the branch holds no test and no record for TST-906; main gained no test file — the job's commits to main touch docs/jobs/ alone
 test("TST-771207: UC-026 8, 1a Write tests queues one job; the participant's branch holds the tests as reviewed with their counter-proofs, and they reach main only as a pull request", async () => {
   const w = walk.w;
@@ -310,13 +310,13 @@ test("TST-771207: UC-026 8, 1a Write tests queues one job; the participant's bra
     return { branch, commits: [commit], pullRequest: "", tests: entries.map((each) => ({ identifier: `TST-${each.id}`, outcome: "passed", counterProof: proofPath(each.id) })) };
   });
   const before = w.subjects().length;
-  const press = writeButton(state.page);
-  click(press);
-  click(press);
+  // One press, as UC-026 8 has it: a second press runs writeTests again on the head the page read (src/test-pages/generate.mjs, writeTests), whose commit main refuses as Moved once the first has landed —
+  // before or after this case reads the page, by the timing of the run.
+  click(writeButton(state.page));
   await until(() => byClass(state.page, "p", "queued").length >= 1 || byClass(state.page, "p", "result").length > 0, "what Write tests queued");
   await settle();
   assert.deepEqual(byClass(state.page, "p", "result").map((each) => each.textContent), [], "no refusal");
-  assert.equal(w.subjects().length, before + 1, "one commit for two clicks");
+  assert.equal(w.subjects().length, before + 1, "one commit for the click");
   const written = recordOf(w, "write-tests");
   const cases = parametersOf(written).draft.cases;
   assert.deepEqual(cases.map((one) => one.identifier).sort(), ["TST-901", "TST-902", "TST-904", "TST-905", "TST-906", "TST-907"]);

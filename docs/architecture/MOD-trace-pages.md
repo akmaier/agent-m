@@ -153,7 +153,8 @@ architecture files, code files, tests, approval records, the product's links to 
 the result records on the branch `test-results`. The specification asks at once what does not wait for another read —
 the snapshot, the default branch and the tags; then the SPEC, the person's source, the entries waiting, the group file,
 the stored graph and the history of the links —, reads the change queues through MOD-progress-measures' `waitingQueues`,
-and of each entry waiting its proposal and what it changes, never its rationale. For the audit it reads the product's `docs/process.md` and `docs/gates/`
+and of each entry waiting its proposal and what it changes, never its rationale; the rationales that MOD-spec-changes'
+`queues` reads for each entry's issue, where `waitingQueues` derives the queues through it, are `queues`' reads. For the audit it reads the product's `docs/process.md` and `docs/gates/`
 at the release's commit, and the instance's `SPEC.md`, whose requirements are the process requirements. Through the
 instance's host that the frame gives every route, it also reads the instance's process models at the commit that this
 `docs/process.md` names (`model_version`), for the model the product had declared at the release (UC-031 6a).

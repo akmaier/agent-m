@@ -136,13 +136,13 @@ test("TST-585303: UC-012 a change of an existing requirement from an issue carri
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-012
 // given: the open issue 5; in one world it is confirmed as a change and the change saved; in another it is confirmed as a bug and its fix queued with ci-bot
 // input: Save of the change; Run of the fix
-// expect: the queue's index names "**Issue:** #5 of https://github.com/alice/product" and its rationale names the issue and the person's source SRC-alice; the fix's job record works on https://github.com/alice/product/issues/5
+// expect: the entry's rationale has the line "**Issue:** #5 of https://github.com/alice/product" (UC-012 step 6: each entry names the issue; MOD-spec-changes, Data: the rationale's line) and names the issue and the person's source SRC-alice; the fix's job record works on https://github.com/alice/product/issues/5
 test("TST-585304: UC-012 the change and the fix name the issue they came from", async () => {
   const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [NEW] } });
   await saved(await drafted(await confirmed(w, "change")));
   const files = queueFiles(w);
-  assert.ok(files.find((entry) => entry.path.endsWith("/index.md"))?.content.includes(`**Issue:** #5 of ${PRODUCT_URL}`), "the index names the issue");
   const rationale = files.find((entry) => entry.path.endsWith(".begruendung.md"))?.content ?? "";
+  assert.ok(rationale.split("\n").includes(`**Issue:** #5 of ${PRODUCT_URL}`), "the entry's rationale has the line Issue naming the issue and the product's address");
   assert.ok(rationale.includes(`issue #5 of ${PRODUCT_URL}`) && rationale.includes(SOURCE), rationale);
   restoreWorld();
 
@@ -187,7 +187,7 @@ test("TST-585305: UC-012 the fix writes no code to the default branch, and the i
 // given: the register lists local-llm (a model endpoint), ci-bot (a CI agent) and alice (a person), each declaring draft text; the open issue 5, not classified
 // input: the author opens the issue; clicks a class by a script, then by the person
 // expect: the analysis is offered to the agents local-llm and ci-bot, and not to the person alice; the script's click sets no label; the person's click sets it
-test("TST-585306: UC-012 the work is handed to agents and the decision is the person's", { todo: "FINDING UC012-R1 — the analysis is offered to the person alice of the register: the route issue offers every participant that declares the kind's capabilities, whatever its type (src/maintenance-pages/issues.mjs:134-136, runSection: participantsOf, then eligible over capabilities only), while UC-012 names the participant the work is handed to \"the model endpoint or agent the author hands the work to\" (UC-012, Actors) — an item for MOD-maintenance-pages" }, async () => {
+test("TST-585306: UC-012 the work is handed to agents and the decision is the person's", async () => {
   const w = start({ issues: [issueOf(5, NAMING)], rows: [LOCAL, CI_AGENT, PERSON] });
   const detail = await open(w, 5);
   await waitFor(() => byClass(detail, "participant").length > 0);

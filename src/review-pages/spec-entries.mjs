@@ -39,6 +39,8 @@ export async function entryAt(snapshot, id) {
   const item = queue?.entries.find((each) => each.number === Number(parts[2]));
   return item ? { queue, item } : null;
 }
+// The entry that creates an entry's anchor, { queue, entry }, as the page of an entry of `queue` names it: its number in the same queue, else its identifier.
+const creatorName = (queue, by) => (by.queue === queue.folder ? pad2(by.entry) : entryId(by.queue, by.entry));
 // An entry a person may accept: one that no record or decision decides.
 const acceptable = (item) => item.state === "open" || item.state === "stale";
 // An entry a person may tick: also one that waits for its anchor, which goes with the entry that creates it.
@@ -98,7 +100,7 @@ async function described({ around, asOf }, queue, item, snapshot, context, hrefO
   if (view.state === "waiting for its anchor") {
     result.shown = [shownOf(queue, item, view)];
     result.hold = el("p", "waits", view.createdBy === null ? "Its heading is in no entry of the queue: it cannot be accepted."
-      : `It goes only with or after entry ${pad2(view.createdBy)}, which creates its heading: accept them together.`);
+      : `It goes only with or after entry ${creatorName(queue, view.createdBy)}, which creates its heading: accept them together.`);
     return result;
   }
   if (!acceptable(item)) return result;
@@ -121,7 +123,7 @@ export const queueService = {
   tokenNote: "A product's SPEC is written with the product's own token. ",
   reviewAll: true,
 
-  // The queues, newest first, each as a group of its entries.
+  // The queues, in the order of their folders' names, each as a group of its entries.
   async groups({ snapshot, token }) {
     const groups = [], texts = new Map();
     const readOnce = (path) => { if (!texts.has(path)) texts.set(path, snapshot.read(path)); return texts.get(path); };
@@ -130,7 +132,7 @@ export const queueService = {
       for (const item of queue.entries) {
         let tick = null;
         if (token && tickable(item)) tick = await tickOf(queue, item, readOnce);
-        entries.push({ after: item.createdBy === null || item.createdBy === undefined ? null : idOf(queue, item.createdBy), id: idOf(queue, item.number), name: pad2(item.number), title: item.anchor, status: item.state.replaceAll(" ", "-"), label: item.state, tick });
+        entries.push({ after: item.createdBy ? entryId(item.createdBy.queue, item.createdBy.entry) : null, id: idOf(queue, item.number), name: pad2(item.number), title: item.anchor, status: item.state.replaceAll(" ", "-"), label: item.state, tick });
       }
       groups.push({ key: shortOf(queue.folder), title: queue.title || shortOf(queue.folder), entries });
     }
@@ -153,7 +155,7 @@ export const queueService = {
   async all({ snapshot, context }, hrefOf) {
     const all = await queues(snapshot);
     const rows = all.flatMap((queue) => queue.entries.map((item) => ({ queue, item, id: idOf(queue, item.number), state: item.state,
-      after: item.createdBy === null ? null : idOf(queue, item.createdBy) })));
+      after: item.createdBy ? entryId(item.createdBy.queue, item.createdBy.entry) : null })));
     const reviewable = sequenceOf(rows).sort((a, b) => a.id.localeCompare(b.id));
     await snapshot.readMany?.([...new Set(reviewable.flatMap(({ item }) => [item.file, item.proposal.path, item.rationale]).concat(sourcePaths(snapshot, context)).filter(Boolean))]);
     const entries = [];

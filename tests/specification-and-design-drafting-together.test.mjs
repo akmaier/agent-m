@@ -404,7 +404,7 @@ test("change-requirements — a restated requirement classed new is sent back, t
 
   assert.equal(fake.writes.length, 1, "one commit");
   const files = Object.fromEntries(fake.writes[0].files.map((file) => [file.path, file.text]));
-  assert.ok(Object.keys(files).every((path) => path.startsWith("docs/spec-freigaben/2026-10-12")), Object.keys(files).join(", "));
+  assert.ok(Object.keys(files).every((path) => path.startsWith("docs/spec-freigaben/export/")), Object.keys(files).join(", "));
   assert.ok(Object.keys(files).some((path) => path.endsWith("/index.md")) && Object.keys(files).some((path) => path.endsWith("/entscheidungen.md")));
   assert.equal(fake.files()["SPEC.md"], SPEC, "SPEC.md is byte-identical");
   const proposal = Object.entries(files).find(([path]) => /\/01-[^/]*\.md$/.test(path) && !path.endsWith(".begruendung.md"))[1];

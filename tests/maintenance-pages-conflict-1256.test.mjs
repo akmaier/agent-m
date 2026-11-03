@@ -135,7 +135,7 @@ test("issue — Save writes a conflict as the person decided it", async () => {
   await waitFor(() => byClass(changeOf(detail), "change-saved").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
   assert.equal(byClass(changeOf(detail), "issue-problem").length, 0, textOf(changeOf(detail)));
   const files = queueFiles(w);
-  assert.ok(files.find((entry) => entry.path.endsWith("/index.md"))?.content.includes("**Issue:** #7 of https://github.com/alice/product"), "the queue names the issue");
+  assert.ok(files.find((entry) => entry.path.endsWith(".begruendung.md"))?.content.includes("**Issue:** #7 of https://github.com/alice/product"), "the entry's rationale names the issue");
   const proposal = files.find((entry) => !entry.path.endsWith("/index.md") && !entry.path.endsWith(".begruendung.md") && !entry.path.endsWith("/entscheidungen.md"));
   assert.ok(proposal, `a proposal is written: ${files.map((entry) => entry.path)}`);
   assert.ok(proposal.content.includes(`**${NEW.name}**`), proposal.content);
