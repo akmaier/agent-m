@@ -71,6 +71,7 @@ const FLOW_EVIDENCE = {
   "main-4-unfinished": { uc: "the closer chooses **into the next sprint** if it is still ready and fits the next sprint's selection, otherwise **back to the backlog**, with the reason recorded", evidence: [[SELF, "TST-991202"]] },
   "main-5-numbers": { uc: "jobs failed or retried, correction rounds, time items waited at gates, flaky tests, cost where known —, derived and not typed", evidence: [[SELF, "TST-991205"], [FACTS, "TST-986003"], [FACTS, "TST-986004"]] },
   "main-5-goes": { uc: "For each change, the entry names where it goes", evidence: [[SELF, "TST-991209"], [CHECKS, "TST-619006"]] },
+  "main-5-as-proposal": { uc: "is written as a proposal that a person accepts", evidence: [[RELEASE, "TST-991306"]] },
   "main-5-proposal": { uc: "nothing of the process changes by itself", evidence: [[PY, "TST-991406"], [SELF, "TST-991209"]] },
   "main-6-commit": { uc: "The closer commits the review and the retrospective as one Markdown file with the sprint", evidence: [[SELF, "TST-991202"], [WRITER, "TST-620001"]] },
   "main-6-new-items": { uc: "the new backlog items from the feedback", evidence: [[NEW_ITEMS, "TST-987301"]] },
@@ -90,9 +91,7 @@ const FLOW_EVIDENCE = {
   "7c-other-team": { uc: "**7c. Another team's increment was merged into the default branch first.**", evidence: [[RELEASE, "TST-991302"]] },
 };
 // The passages the code does otherwise: the finding, its case, and the module it points to.
-const FLOW_FINDINGS = {
-  "main-5-as-proposal": { uc: "is written as a proposal that a person accepts", finding: "UC041-F4", file: RELEASE, test: "TST-991306", module: "MOD-work-plans" },
-};
+const FLOW_FINDINGS = {};
 
 // TST-991201 · level: system · module: system
 // guards: UC-041
