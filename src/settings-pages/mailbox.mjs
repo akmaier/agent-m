@@ -251,6 +251,10 @@ export const route = {
     const imapHost = el("input", "mailbox-imap-host"), imapPort = el("input", "mailbox-imap-port"), imapSecurity = el("select", "mailbox-imap-security");
     const smtpHost = el("input", "mailbox-smtp-host"), smtpPort = el("input", "mailbox-smtp-port"), smtpSecurity = el("select", "mailbox-smtp-security");
     const account = el("input", "mailbox-account");
+    // UC-037 step 4.1: the SMTP server's own account name and the sender, where they differ; left empty, neither is stored.
+    const smtpAccount = el("input", "mailbox-smtp-account");
+    const senderAddress = el("input", "mailbox-sender-address"), senderName = el("input", "mailbox-sender-name");
+    smtpAccount.value = ""; senderAddress.value = ""; senderName.value = "";
     const passwordRead = el("input", "mailbox-password-notice-read");
     const password = el("input", "mailbox-password");
     const bridgeSelect = el("select", "mailbox-bridge");
@@ -286,7 +290,7 @@ export const route = {
     graphPart.hidden = true;
     imapPart.hidden = false;
 
-    for (const input of [address, imapHost, smtpHost, account, password, folders]) { input.autocomplete = "off"; input.spellcheck = false; }
+    for (const input of [address, imapHost, smtpHost, account, smtpAccount, senderAddress, senderName, password, folders]) { input.autocomplete = "off"; input.spellcheck = false; }
     for (const select of [imapSecurity, smtpSecurity]) for (const value of ["tls", "starttls", "none"]) select.append(el("option", null, value));
     for (const checkbox of [passwordRead, jumpRead, placeRead]) checkbox.type = "checkbox";
     password.type = "password";
@@ -434,7 +438,10 @@ export const route = {
         folders: folders.value.split(",").map((name) => name.trim()).filter(Boolean),
         places: ticked.map(placeEntry),
         imap: { bridge: bridge.name, jumpHostNoted: bridge.throughJumpHost, imap: server(imapHost, imapPort, imapSecurity), smtp: server(smtpHost, smtpPort, smtpSecurity),
-          account: account.value.trim() || mail, password: password.value },
+          account: account.value.trim() || mail,
+          ...(smtpAccount.value.trim() ? { smtpAccount: smtpAccount.value.trim() } : {}),
+          ...(senderAddress.value.trim() ? { sender: { name: senderName.value.trim() || null, address: senderAddress.value.trim() } } : {}),
+          password: password.value },
       };
       if (!connection.folders.length) connection.folders = ["INBOX"];
       writeSetting(store, "mailbox", connection);
@@ -488,6 +495,8 @@ export const route = {
         imapHost.value = stored.imap.imap.host; imapPort.value = String(stored.imap.imap.port); imapSecurity.value = stored.imap.imap.security;
         smtpHost.value = stored.imap.smtp.host; smtpPort.value = String(stored.imap.smtp.port); smtpSecurity.value = stored.imap.smtp.security;
         account.value = stored.imap.account ?? ""; accountTouched = true;
+        smtpAccount.value = stored.imap.smtpAccount ?? "";
+        senderAddress.value = stored.imap.sender?.address ?? ""; senderName.value = stored.imap.sender?.name ?? "";
         if (bridges.some((bridge) => bridge.name === stored.imap.bridge)) bridgeSelect.value = stored.imap.bridge;
         showJumpNotice();
       }
@@ -508,7 +517,10 @@ export const route = {
       part("Servers",
         labelled("IMAP server", imapHost, " port ", imapPort, " encryption ", imapSecurity),
         labelled("SMTP server", smtpHost, " port ", smtpPort, " encryption ", smtpSecurity),
-        labelled("Account", account), explain("mail-server-settings")),
+        labelled("Account", account),
+        labelled("SMTP account, where the SMTP server takes another account name (empty: the account above)", smtpAccount),
+        labelled("Sender's address, where the account may send only from another address (empty: the account)", senderAddress),
+        labelled("Sender's display name (optional)", senderName), explain("mail-server-settings")),
       part("Password",
         el("p", "notice mailbox-password-notice", `The password is stored in this browser. Every GitHub Pages site under ${owner}.github.io can read it — here: the sites of ${owner}. With it, anyone can read all mail in this mailbox and send mail in its name. It goes to no server except the Bridge this connection names. Recommended: run this instance under a GitHub owner you use for nothing else.`),
         el("p", null, el("label", null, passwordRead, " I have read this")),
