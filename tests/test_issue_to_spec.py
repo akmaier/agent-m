@@ -12,7 +12,7 @@ participant, a name, Run, Save). The check then states what the product's reposi
 paths committed to the product, the files of a queue and the issue it names, the kinds of the jobs that were started, and which sections of the page
 are shown. A path committed outside docs/ is code, a test or SPEC.md itself.
 
-The sentence is read through UC-012 (step 6 and its postcondition): "[Agent M] writes them as a queue under `docs/spec-freigaben/` naming the issue"
+The sentence is read through UC-012 (step 6 and its postcondition): "[Agent M] writes them as entries under `docs/spec-freigaben/`, each naming the issue"
 and "A change is in the specification before any code implements it, and the accepted entry names the issue it came from." The check covers the
 side of that order that precedes the acceptance of the queue: the change leaves the issue as a queue and nothing else is committed, and no fix is
 offered for it. That no code job starts for a requirement not yet accepted is NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED (tests/test_job_preconditions.py).
@@ -40,7 +40,7 @@ GITLAB_QUEUE = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is written
 # The adapter. `input`: `server` (`gitlab` makes the product the project space/release-tool on a fake GitLab server, any other value the product alice/product on the fake GitHub; `issues` then holds the one issue), `issues` (the number and the labels of each issue of the product), `issue` (the number of the page opened), `steps` (`class`: a click on
 # Change or Bug; `draft`: the participant drafts the change and the person saves it), `candidates` (what the participant answers). The value is what the case may state:
 # `labels` (the labels of the issue at the end), `state` (its state), `issueWrites` (the writes made to the issue, sorted), `committed` (the paths committed to the product,
-# sorted), `outsideDocs` (those that do not lie under docs/), `queueNames` (what each entry's rationale under docs/spec-freigaben/ names as its issue), `queueHolds` (each of the
+# sorted), `outsideDocs` (those that do not lie under docs/), `queueNames` (the issue named by the line `**Issue:** #<number> of <product address>` in the rationale of each entry under docs/spec-freigaben/, as MOD-spec-changes, Data, gives it), `queueHolds` (each of the
 # case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), `changeSection` and `fixSection` (whether the page shows the section that drafts the change
 # and the one that fixes a bug), `unserved` (on a GitLab server, the requests of the project's API that the fake did not serve).
 WORLD = r"""
@@ -167,7 +167,7 @@ const out = {
   committed,
   outsideDocs: committed.filter((path) => !path.startsWith("docs/")),
   queueNames: rationales.map((entry) => /^\*\*Issue:\*\* (.*)$/m.exec(entry.content)?.[1] ?? null),
-  queueHolds: Object.fromEntries((input.needles ?? []).map((needle) => [needle, files.some((entry) => /^docs\/spec-freigaben\/[^/]+\/\d+-.*\.md$/.test(entry.path) && entry.content.includes(needle))])),
+  queueHolds: Object.fromEntries((input.needles ?? []).map((needle) => [needle, files.some((entry) => /^docs\/spec-freigaben\/[^/]+\/\d+-[^/]*\.md$/.test(entry.path) && !entry.path.endsWith(".begruendung.md") && entry.content.includes(needle))])),
   jobKinds: files.filter((entry) => /^docs\/jobs\/JOB-.*\.md$/.test(entry.path)).map((entry) => /^kind: (.*)$/m.exec(entry.content)?.[1] ?? null),
   changeSection: byClass(detail, "issue-change").length > 0,
   fixSection: byClass(detail, "issue-fix").length + byClass(detail, "issue-no-fixer").length > 0,
@@ -228,8 +228,8 @@ class TestIssueToSpec(unittest.TestCase):
     # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
     # given: the cases under "a change is written as a queue naming the issue" in the Markdown file beside this one: an issue classed as a change, with a participant that answers a new requirement, and a person who saves the draft
     # input: each case's steps, carried out on the real page of the issue over the fake GitHub and the fake endpoint
-    # expect: the saved draft is a queue under docs/spec-freigaben/ whose entry's rationale names the issue and the product and holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; the issue stays open and offers no fix
-    # Planted fault: an index line that names no issue fails queueNames; an extra file src/export/index.mjs in the queue's commit fails outsideDocs; the fix offered for a change fails fixSection.
+    # expect: the saved draft is a queue under docs/spec-freigaben/ whose entry's rationale carries the line `**Issue:** #7 of` the product's address, and whose entry holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; the issue stays open and offers no fix
+    # Planted fault: a rationale without the line `**Issue:**` fails queueNames; the line moved into the index instead fails it too; an extra file src/export/index.mjs in the queue's commit fails outsideDocs; the fix offered for a change fails fixSection.
     def test_a_change_is_written_as_a_queue_naming_the_issue(self):
         check(self, FIRST)
 
@@ -255,7 +255,7 @@ class TestIssueToSpec(unittest.TestCase):
     # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
     # given: the case under "a change is written as a queue on a GitLab server": a product on a GitLab server whose issue 7 is labelled change, a participant that answers a new requirement, and a person who saves the draft
     # input: the steps of the case, carried out on the real page of the issue, whose product is the real GitLab adapter over a fake GitLab server that serves the project, its tree and files, the issue and GitLab's commit API
-    # expect: the saved draft is a queue under docs/spec-freigaben/ whose entry's rationale names the issue and the product's GitLab address and holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; no write is made to the issue; every request the fake received was one it serves
+    # expect: the saved draft is a queue under docs/spec-freigaben/ whose entry's rationale carries the line `**Issue:** #7 of` the product's GitLab address, and whose entry holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; no write is made to the issue; every request the fake received was one it serves
     # Planted fault: the files under docs/spec-freigaben/ left out of the actions of GitLab's commitFiles fail queueNames and queueHolds; a file src/export/index.mjs added to those actions fails outsideDocs.
     def test_a_change_is_written_as_a_queue_on_a_gitlab_server(self):
         check(self, GITLAB_QUEUE)
