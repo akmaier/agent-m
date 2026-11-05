@@ -7,7 +7,7 @@
 // Level: unit
 //
 // The expected results are written here from MOD-site-frame's text, and none is read from the code. Readings taken where the text leaves one open:
-//   - "A page or file" that could link, preload or name the old style sheet is an HTML page of the repository, or a file of Agent M's code — under
+//   - "A page or file" that could link, preload or name the old style sheet is an HTML page the repository tracks, or a tracked file of Agent M's code — under
 //     src/, tests/ (but this one) or .github/. The records under docs/ (gates, backlog, jobs, measurements) and the architecture keep their text: they state
 //     what was decided, and are no page or code.
 //   - "References" is the file name lme.css in any spelling of its path (src/theme/lme.css, ../src/theme/lme.css, theme/lme.css, lme.css).
@@ -15,7 +15,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const root = new URL("../", import.meta.url).pathname;
@@ -24,25 +25,20 @@ const SKIPPED = new Set(["node_modules", ".git", ".claude", ".agent", "vendor"])
 const TEXT = /\.(html|mjs|js|cjs|css|json|md|yml|yaml|py|txt)$/;
 const OLD = /lme\.css/;
 
-function* walk(folder) {
-  for (const name of readdirSync(folder)) {
-    if (SKIPPED.has(name)) continue;
-    const path = join(folder, name);
-    if (statSync(path).isDirectory()) yield* walk(path);
-    else yield relative(root, path);
-  }
-}
-const pages = () => [...walk(root)].filter((path) => path.endsWith(".html") && !path.startsWith("docs/sources/") && !path.startsWith("products/"));
-const code = () => ["src", "tests", ".github"].filter((folder) => existsSync(join(root, folder))).flatMap((folder) => [...walk(join(root, folder))])
+// The files of this repository are the ones git tracks, read as tests/trace-graph-uses-provided.test.mjs reads them, so that a checkout of another
+// commit placed inside the working tree — the instance CI checks out at .agent-m/ — is not read as this repository's.
+const tracked = () => execFileSync("git", ["-C", root, "ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean)
+  .filter((path) => !path.split("/").some((part) => SKIPPED.has(part)));
+const pages = () => tracked().filter((path) => path.endsWith(".html") && !path.startsWith("docs/sources/") && !path.startsWith("products/"));
+const code = () => tracked().filter((path) => ["src/", "tests/", ".github/"].some((folder) => path.startsWith(folder)))
   .filter((path) => TEXT.test(path) && path !== self);
 const naming = (paths) => paths.filter((path) => OLD.test(readFileSync(join(root, path), "utf8")));
 
 // TST-1105201 · level: unit · module: MOD-site-frame
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
-// given: the repository's HTML pages (index.html, docs/index.html, src/desktop-shell/window.html) and Agent M's code under src/, tests/ and .github/
+// given: the repository's HTML pages (index.html, docs/index.html, src/desktop-shell/window.html) and Agent M's code under src/, tests/ and .github/, each a file git tracks in this repository
 // input: each file's text is searched for lme.css; the file src/theme/lme.css is looked for
-// expect: src/theme/lme.css does not exist; no page and no file of the code names lme.css — no link, no preload, no list of served files and no comment;
-//         the entry pages link src/site-frame/look.css; the known positive (index.html with its old link) is found by the same scan
+// expect: src/theme/lme.css does not exist; no page and no file of the code names lme.css — no link, no preload, no list of served files and no comment; the entry pages link src/site-frame/look.css; the known positive (index.html with its old link) is found by the same scan
 // Planted fault: a <link rel="stylesheet" href="src/theme/lme.css"> put back into index.html, or the file src/theme/lme.css restored, fails it.
 test("TST-1105201 no page or file references src/theme/lme.css, and the entry pages link look.css", () => {
   const positive = `<link rel="stylesheet" href="src/theme/lme.css">`;
@@ -74,11 +70,9 @@ const memory = () => { const values = new Map(); return { getItem: (key) => valu
 
 // TST-1105203 · level: unit · module: MOD-site-frame
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
-// given: a page whose head links src/site-frame/look.css itself, by the relative address the entry page index.html writes, and a page whose head links no
-//        style sheet, as the Bridge's window
+// given: a page whose head links src/site-frame/look.css itself, by the relative address the entry page index.html writes, and a page whose head links no style sheet, as the Bridge's window
 // input: startPage({ page: "bridge", views }) on each, with one route
-// expect: the page that links look.css still links it once, by its own link; the page that does not gets one link to look.css (MOD-site-frame, startPage:
-//         "links look.css in the page's head where the page does not link it itself")
+// expect: the page that links look.css still links it once, by its own link; the page that does not gets one link to look.css (MOD-site-frame, startPage: "links look.css in the page's head where the page does not link it itself")
 // Planted fault: comparing the page's own link by its written address with the frame's resolved one appends a second look.css to the first page.
 test("TST-1105203 startPage links look.css only where the page does not link it itself", async () => {
   const { startPage } = await import("../src/site-frame/index.mjs");
