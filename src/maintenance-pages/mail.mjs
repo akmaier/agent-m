@@ -1,11 +1,12 @@
-// The route `mail` — mail read into issues (UC-038 steps 1 to 3, 7 to 9, 10, and 2a, 4b, 6a, 7a, 7b, 8a), as docs/architecture/MOD-maintenance-pages.md states it and ITM-963 builds it: *Read mailbox*; the mails no issue lists and
+// The route `mail` — mail read into issues (UC-038 steps 1 to 3, 7 to 9, 10, and 2a, 4b, 6a, 7a, 7b, 8a), as docs/architecture/MOD-maintenance-pages.md states it and ITM-963 builds it: the mailbox read when the page is drawn, and *Read again*, which reads it anew; the mails no issue lists and
 // nobody marked *not an issue*, with sender, subject and date in this browser only; per mail, the mail in full beside the proposal (empty here: UC-038 4b), its text editable, every hit of the mail's people marked; *Create issue* — only
 // without a hit —, *Add to #n*, *Not an issue*. The participant, the run panel and *Propose* (UC-038 steps 4 to 6, 4a, 4c, 5a, 5b, 6b, 6c) are ITM-964's, below.
 //
 // Module: MOD-maintenance-pages
 //
 // Readings the texts leave open, which this file takes (the pull request names them):
-//   - Reading the mailbox and each decision are made on a click the browser marks as a person's (`isTrusted`): reading may write a note that lists a reply on the issue of its thread, and a decision writes.
+//   - The mailbox is read when the person opens the page, and again on a click on Read again the browser marks as a person's (`isTrusted`); each decision is made on such a click. Reading may write a note that lists a reply on the issue of its
+//     thread, and a decision writes. Read again is disabled while a reading runs, so that two readings never write the same note twice.
 //   - After Create issue or Add to #n the mail stays in the list with what came of the click (7b: Create issue once per concern); after Not an issue it leaves it. The next reading leaves out every mail an issue lists or the store marks.
 //   - Create issue is disabled while a hit of the mail's people stands in the title or the text, and while either is empty. A created issue of the kind change is followed by a link to its route `issue/<n>` (step 10: Propose SPEC change).
 //   - The products are those this browser keeps (`products`), each connected with its own token (else, for GitHub, the instance's). The mailbox is the stored connection; on the Bridge route the Bridge it names, by its stored name.
@@ -34,7 +35,7 @@ const SETTINGS = "docs/settings.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 
 const STEP_TEXT = {
-  read: "Read mailbox reads the folders named in the mailbox connection, read-only: nothing is marked as read, moved or flagged. Each mail gets the identifier MAIL- plus sixteen hex digits of the hash of its Message-ID. A mail whose thread an issue lists is attached to that issue at once, with a note, and shown under it. Book: ch. 14, Evolution Processes and Change Identification.",
+  read: "Opening this page reads the mails of the last 30 days in the folders named in the mailbox connection, as the mail server selects them; Read again reads them anew. Reading is read-only: nothing is marked as read, moved or flagged, and an older mail nobody decided stays in the mailbox without being listed. Each mail gets the identifier MAIL- plus sixteen hex digits of the hash of its Message-ID. A mail whose thread an issue lists is attached to that issue at once, with a note, and shown under it. Book: ch. 14, Evolution Processes and Change Identification.",
   list: "These mails are listed with sender, subject and date, in this browser only. A mail an issue already lists, or that you marked not an issue in this browser, is left out. Nothing here is stored anywhere but in the mailbox.",
   propose: "Propose asks the participant you choose, once for all the listed mails, for a proposal per mail: the product, the kind, a neutral title and text, and the open issues it may duplicate. Only participants at a place this mailbox allows are offered; a place outside the EU is named as not compliant with the GDPR and the EU AI Act. The run panel states where the participant processes data and exactly what it receives, and the three checking participants where each processes data and that each receives only the rewritten texts. Nothing is sent until you press Run. You can still decide every mail by hand without Propose.",
   review: "Each mail is shown in full beside its proposal, which is empty until you press Propose: then write the neutral title and text yourself. The text is searched, without a model, for the mail's people; a hit is marked and Create issue stays disabled until you have edited it out. An attachment goes to the participant only if you tick it; it goes into the issue only if you add it, rewritten without any person and checked by three other participants, or unchanged when the product switched pseudonymisation off.",
@@ -343,9 +344,15 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
 }
 
 async function render(target, context) {
-  listed = []; // a page drawn anew lists no mail until the mailbox is read
+  listed = []; // a page drawn anew lists no mail until its reading has answered
   const out = el("div", "mail-out");
-  const read = button("read-mailbox", "Read mailbox", async () => {
+  // Read again reads the mailbox anew; it is disabled while a reading runs, so that two readings never attach the same mail twice.
+  const again = button("read-again", "Read again", () => readMailbox());
+  const readMailbox = async () => {
+    again.disabled = true;
+    try { await readOnce(); } finally { again.disabled = false; }
+  };
+  const readOnce = async () => {
     out.replaceChildren(el("p", "muted", "Reading the mailbox…"));
     const store = context.store;
     const products = productsOf(store);
@@ -357,10 +364,10 @@ async function render(target, context) {
     } catch (failure) {
       const problem = el("p", "mailbox-problem", `The mailbox could not be read, so nothing was read: ${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`);
       if (failure?.name === "SignInExpired" && have.connection.graph) {
-        const again = button("sign-in-again", "Sign in again", async () => {
-          try { await signIn(have.connection.graph.clientId, have.connection.address); problem.textContent = "Signed in. Read the mailbox again."; } catch (error) { problem.textContent = `Signing in failed: ${error?.name ?? "Error"}: ${error?.message ?? error}`; }
+        const signInAgain = button("sign-in-again", "Sign in again", async () => {
+          try { await signIn(have.connection.graph.clientId, have.connection.address); problem.textContent = "Signed in. Read again reads the mailbox."; } catch (error) { problem.textContent = `Signing in failed: ${error?.name ?? "Error"}: ${error?.message ?? error}`; }
         });
-        out.replaceChildren(problem, again);
+        out.replaceChildren(problem, signInAgain);
       } else out.replaceChildren(problem);
       listed = [];
       return;
@@ -391,8 +398,9 @@ async function render(target, context) {
     }));
     out.replaceChildren(el("p", "mail-decided", `${found.decided} mail${found.decided === 1 ? " was" : "s were"} left out as decided.`), attached, ...(propose ? [propose] : []),
       el("section", "mail-step-list", el("h3", null, "Mails to decide"), list, fold(STEP_TEXT.list)));
-  });
-  target.replaceChildren(el("h2", null, "Mail"), el("section", "mail-step-read", el("p", null, read), fold(STEP_TEXT.read)), out);
+  };
+  target.replaceChildren(el("h2", null, "Mail"), el("section", "mail-step-read", el("p", null, again), fold(STEP_TEXT.read)), out);
+  await readMailbox(); // opening Mail reads the mailbox at once (UC-038 step 1)
 }
 
 const PASSAGE = 20;

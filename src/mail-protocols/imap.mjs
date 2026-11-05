@@ -150,28 +150,35 @@ async function parseMail(source, folder) {
   };
 }
 
-async function fetchAll(client, query) {
+// The messages of the open folder in `range` — every one by default, or the uids a search gave —, fetched by uid.
+async function fetchAll(client, query, range = "1:*") {
   const found = [];
-  for await (const message of client.fetch("1:*", query, { uid: true })) found.push(message);
+  for await (const message of client.fetch(range, query, { uid: true })) found.push(message);
   return found;
 }
 
-// The mails of one folder with their uids, opened read-only; `since` keeps the mails dated on or after it.
-async function mailsOf(client, folder, imap, since) {
+// The mails of one folder with their uids, opened read-only. `received`, a day, has the server select with SEARCH SINCE the mails
+// received on or after it, and only those are fetched; without it every mail is.
+async function mailsOf(client, folder, imap, received = null) {
   const opened = await open(client, folder, imap);
   const uidValidity = Number(opened.uidValidity);
   const mails = [];
-  if (opened.exists) {
-    for (const message of await fetchAll(client, { uid: true, source: true })) mails.push({ uid: message.uid, uidValidity, mail: await parseMail(message.source, folder) });
+  if (!opened.exists) return mails;
+  let range = "1:*";
+  if (received !== null) {
+    range = (await client.search({ since: received }, { uid: true })) || [];
+    if (!range.length) return mails;
   }
-  return mails.filter(({ mail }) => since === null || since === undefined || Date.parse(mail.date) >= Date.parse(since));
+  for (const message of await fetchAll(client, { uid: true, source: true }, range)) mails.push({ uid: message.uid, uidValidity, mail: await parseMail(message.source, folder) });
+  return mails;
 }
 
+// The mails of the named folders received on or after the day `since` names, as the server selects them; all of them where it is null.
 export function readMails(connection, Flow, since) {
   const { imap, account, password, folders } = connection;
   return withClient(imap, account, password, Flow, async (client) => {
     const all = [];
-    for (const folder of folders) all.push(...(await mailsOf(client, folder, imap, since)).map(({ mail }) => mail));
+    for (const folder of folders) all.push(...(await mailsOf(client, folder, imap, since ?? null)).map(({ mail }) => mail));
     return all;
   });
 }
@@ -193,13 +200,13 @@ export function findMail(connection, Flow, id) {
   });
 }
 
-// The folder the mailbox marks with a special use (\\Drafts or \\Sent), read.
+// The folder the mailbox marks with a special use (\\Drafts or \\Sent), read whole; `since` keeps the mails dated on or after it.
 export function markedFolder(connection, Flow, use, since) {
   const { imap, account, password } = connection;
   return withClient(imap, account, password, Flow, async (client) => {
     const folder = (await client.list({ listOnly: true })).find((each) => each.specialUse === use || each.flags?.has?.(use));
     if (!folder) throw bridgeFailure("not-found", `${use}: the mailbox marks no such folder`);
-    return mailsOf(client, folder.path, imap, since);
+    return (await mailsOf(client, folder.path, imap)).filter(({ mail }) => since === null || since === undefined || Date.parse(mail.date) >= Date.parse(since));
   });
 }
 

@@ -109,22 +109,37 @@ test("withhold finds a planted name, address, phone number, account and a passag
 
 // TST-510004 · level: unit · module: MOD-maintenance-pages
 // guards: MAIL STAYS IN THE MAILBOX; UC-049
-// given: the route mail drawn anew after an earlier reading, its own reading started by the drawing and not yet answered
-// input: the subject's paramsFor for local-llm; withhold of a message — both taken as soon as the drawing waits for the mailbox
+// given: the route mail drawn anew after an earlier reading, its own reading started by the drawing and held at the Bridge until the test lets it answer
+// input: the subject's paramsFor for local-llm; withhold of a message — both taken while the page says it is reading the mailbox
 // expect: the page holds the route's title and no mail; withhold finds nothing in a text that no listed mail's people occur in; once that reading has answered, the mail is listed again (known positive)
 test("before a reading has answered no mail is listed, so the page holds none and nothing is withheld", async () => {
   const f = await mailWorld();
   await mailRouteRead(f);
   document.body.replaceChildren();
-  const target = document.createElement("div");
-  document.body.append(target);
-  const drawing = routeOf("mail").render(target, f.w.context, {});
-  const subject = subjectOf("mail", f.w);
-  const page = pageFor(subject, LOCAL);
-  assert.ok(page.includes("Mail"));
-  assert.equal(/MAIL-/.test(page), false);
-  assert.equal(subject.withhold("Erika Mustermann writes from erika@example.invalid"), null);
-  await drawing;
-  await waitFor(() => byClass(target, "mail").length > 0);
-  assert.ok(itemOf(target, f.fresh.id), "known positive: the reading lists the mail");
+  const answering = globalThis.fetch;
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  globalThis.fetch = async (input, init) => {
+    if (String(typeof input === "object" && !(input instanceof URL) ? input.url : input).endsWith("/v1/mail/read")) await held;
+    return answering(input, init);
+  };
+  try {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const drawing = routeOf("mail").render(target, f.w.context, {});
+    await waitFor(() => /Reading the mailbox/.test(target.textContent ?? ""));
+    assert.match(target.textContent, /Reading the mailbox/, "the reading runs");
+    const subject = subjectOf("mail", f.w);
+    const page = pageFor(subject, LOCAL);
+    assert.ok(page.includes("Mail"));
+    assert.equal(/MAIL-/.test(page), false);
+    assert.equal(subject.withhold("Erika Mustermann writes from erika@example.invalid"), null);
+    release();
+    await drawing;
+    await waitFor(() => byClass(target, "mail").length > 0);
+    assert.ok(itemOf(target, f.fresh.id), "known positive: the reading lists the mail");
+  } finally {
+    release();
+    globalThis.fetch = answering;
+  }
 });
