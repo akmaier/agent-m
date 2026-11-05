@@ -73,8 +73,8 @@ are kept by Access in this browser.
 
 ## Interfaces
 
-- `NewMail` — `{ proposable: { mail: Mail, people: People }[], attached: { id: string, product: string, issue: number
-  }[], decided: { mail: Mail, product: string | null, issue: number | null }[], unwritten: { product: string, issue: number,
+- `NewMail` — `{ proposable: { mail: Mail, people: People }[], attached: { id: string, mail: Mail, product: string,
+  issue: number }[], decided: { mail: Mail, product: string | null, issue: number | null }[], unwritten: { product: string, issue: number,
   error: string }[] }`: the mails to propose, each with its people, kept in memory for the checks; the mails attached to
   an issue of their thread; the decided mails, each with the product and number of the issue that lists it, or both
   `null` for a mail this browser marked *not an issue*; and each issue of a thread that could not be written to, with the error's name, whose mail is among the
