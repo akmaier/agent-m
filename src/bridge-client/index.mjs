@@ -18,6 +18,8 @@ export class BridgeError extends Error {
 
 const privateSettings = new WeakMap();
 const requestTimeoutMs = 15_000;
+// A mail operation's time grows with the mailbox it reads: its limit is long, and finite.
+const mailTimeoutMs = 300_000;
 
 function addressOf(address) {
   let url;
@@ -71,7 +73,7 @@ async function answerJson(answer) {
 async function call(bridge, path, init) {
   const address = `${bridge.address}${path}`;
   const headers = requestHeaders(bridge, init.body !== undefined);
-  const signal = AbortSignal.timeout(requestTimeoutMs);
+  const signal = AbortSignal.timeout(path.startsWith("/v1/mail/") ? mailTimeoutMs : requestTimeoutMs);
   let answer;
   let body;
   try {

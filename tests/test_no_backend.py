@@ -333,12 +333,14 @@ _webfetch_in_node_only.site = True  # the evidence reads the whole site, not the
 
 
 def _bridge_client_transport(text: str, at: int) -> bool:
-    """MOD-bridge-client sends one request to the Bridge handle, only through its accepted pairing or endpoint-test path."""
+    """MOD-bridge-client sends one request to the Bridge handle, only through its accepted pairing or endpoint-test path. A request with a
+    time limit has a finite one: a mail operation's and every other request's limit are each a constant of a positive literal."""
     before = text[:at]
     direct = text[at:].startswith('fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" })')
     finite = (text[at:].startswith('fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" })')
-              and re.search(r"const requestTimeoutMs = [1-9][0-9_]*;", before)
-              and "const signal = AbortSignal.timeout(requestTimeoutMs);" in before)
+              and re.search(r"^const requestTimeoutMs = [1-9][0-9_]*;$", before, re.M)
+              and re.search(r"^const mailTimeoutMs = [1-9][0-9_]*;$", before, re.M)
+              and 'const signal = AbortSignal.timeout(path.startsWith("/v1/mail/") ? mailTimeoutMs : requestTimeoutMs);' in before)
     return ((direct or finite)
             and "async function call(bridge, path, init)" in before
             and "const address = `${bridge.address}${path}`;" in before
@@ -863,14 +865,24 @@ class NoServer(unittest.TestCase):
         indirect = accepted.replace("fetch(address", "globalThis.fetch(address")
         self.assertEqual(channel_findings({path: indirect}),
                          [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
-        finite = ("const requestTimeoutMs = 15000;\n" + accepted.replace(
+        # The request's time limit: a mail operation's and every other request's, each a constant of a positive literal.
+        signal_line = '  const signal = AbortSignal.timeout(path.startsWith("/v1/mail/") ? mailTimeoutMs : requestTimeoutMs);\n'
+        finite = ("const requestTimeoutMs = 15_000;\nconst mailTimeoutMs = 300_000;\n" + accepted.replace(
             '  return fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" });',
-            '  const signal = AbortSignal.timeout(requestTimeoutMs);\n'
-            '  return fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" });'))
+            signal_line + '  return fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" });'))
         self.assertEqual(channel_findings({path: finite}), [])
-        missing_signal = finite.replace('  const signal = AbortSignal.timeout(requestTimeoutMs);\n', "")
+        missing_signal = finite.replace(signal_line, "")
         self.assertEqual(channel_findings({path: missing_signal}),
-                         [f"{path}:11: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+                         [f"{path}:12: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+        for planted, note in (
+            (finite.replace("const mailTimeoutMs = 300_000;", "const mailTimeoutMs = Infinity;"), "a mail limit that is no positive literal"),
+            (finite.replace("const mailTimeoutMs = 300_000;", "const mailTimeoutMs = 0;"), "a mail limit of zero"),
+            (finite.replace("const requestTimeoutMs = 15_000;", "const requestTimeoutMs = Number(limit);"), "a request limit that is no literal"),
+            (finite.replace("const mailTimeoutMs = 300_000;\n", ""), "a mail limit declared nowhere"),
+            (finite.replace("? mailTimeoutMs : requestTimeoutMs", "? mailTimeoutMs : init.timeout"), "a limit the caller chooses"),
+        ):
+            with self.subTest(note):
+                self.assertTrue(channel_findings({path: planted}), note)
 
     def test_counter_proof_a_modules_own_data_files(self):
         # The form MOD-spec-document reads its skeleton in, in a module whose file states that it reads its own data files.
