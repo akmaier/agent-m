@@ -81,7 +81,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 ## Main flow
 
 1. The author opens **Mail** on the dashboard, and Agent M reads the mailbox at once. **Read again** reads it anew.
-2. Agent M reads the named folders — through the provider's web API, or on the IMAP route through the
+2. Agent M reads the mails of the last 30 days in the named folders, as the mail server selects them — through the provider's web API, or on the IMAP route through the
    connection's Bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
    SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
    list.
@@ -133,7 +133,7 @@ sequenceDiagram
     participant P as Participant
     participant I as Issue tracker
     A->>D: open Mail
-    D->>B: read named folders
+    D->>B: read the named folders' mails of the last 30 days
     B->>S: read-only
     B-->>D: mails
     D->>I: read issues and the MAIL identifiers they list
@@ -152,6 +152,7 @@ sequenceDiagram
 
 - **2a. The mailbox cannot be reached** — the connection's Bridge does not answer, or the provider's sign-in has
   expired. Nothing is read; Agent M names the reason (UC-037, 7a or 3b).
+- **2b. A mail nobody decided is older than 30 days.** It is no longer read or listed; it stays in the mailbox.
 - **4a. The chosen participant is a CLI agent.** The dashboard hands the job to the Bridge the participant names; the
   mails go to the agent on that Bridge's computer and do not travel further than that agent's own processing
   place, which the panel states.

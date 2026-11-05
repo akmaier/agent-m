@@ -134,7 +134,9 @@ keeps them in its own cache in `localStorage`, whose keys Access lists among the
   - `test() -> Promise<{ counts: Record<string, number>, drafts: boolean, sent: boolean, sending: "works" | string,
     route: string, encryption: string }>` — the number of mails in each named folder, whether Drafts and Sent were
     found, and whether sending works — on the Bridge route an SMTP login over TLS that sends nothing —; changes nothing.
-  - `read(since: string | null) -> Promise<Mail[]>` — the mails of the named folders, read without changing anything:
+  - `read(since: string | null) -> Promise<Mail[]>` — the mails of the named folders received on or after the day `since`
+    names, all of them where it is `null`, selected by the mail server — on the Bridge route IMAP's `SEARCH SINCE`, on the
+    provider's route a filter on the date received —, so that no other mail is fetched; read without changing anything:
     nothing marked as read, moved, flagged or deleted (`READING THE MAILBOX CHANGES NOTHING IN IT`).
   - `find(id: string) -> Promise<Mail | null>` — the mail with this `MAIL-` identifier in the named folders, found by
     hashing their mails' `Message-ID`s; `null` — *not found in the mailbox* — when none matches, never a guess (`A MAIL
