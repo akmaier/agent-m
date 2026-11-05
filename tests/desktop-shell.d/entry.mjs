@@ -51,7 +51,7 @@ export const temporary = () => mkdtempSync(join(tmpdir(), "agent-m-entry-"));
 function constructedElectron(appData) {
   const exits = [];
   const handlers = {};
-  const record = { trays: [], windows: [], loadedUrl: null, quits: 0, exits, appEvents: {}, sent: [], shown: 0 };
+  const record = { trays: [], windows: [], loadedUrl: null, quits: 0, exits, appEvents: {}, sent: [], shown: 0, dockIcons: [] };
   let settle;
   const outcome = new Promise((resolve) => { settle = resolve; });
   record.outcome = outcome;
@@ -75,6 +75,7 @@ function constructedElectron(appData) {
       on: (name, handler) => { record.appEvents[name] = handler; },
       quit: () => { record.quits += 1; settle({ kind: "quit" }); },
       exit: () => { exits.push(true); record.exited?.(); },
+      dock: { setIcon: (icon) => { record.dockIcons.push(icon); } },
     },
     protocol: { registerSchemesAsPrivileged() {}, handle() {} },
     ipcMain: { handle: (name, handler) => { handlers[name] = handler; } },
