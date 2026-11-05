@@ -130,11 +130,16 @@ person reviews it. Its formats are those of the modules it uses.
     when the token may not comment; closing an issue with links once its pull request is merged. The list reads the open
     issues without their comments (`listIssues` with `comments: false`); `issue/<number>` and `replies/<issue>` read
     their one issue with `readIssue`.
-  - `mail` — the mailbox read when the page is drawn, and *Read again*, which reads it anew; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in
-    this browser only; the participant for the proposals among those at places the mailbox allows, a place outside the
-    EU named as not compliant, and the three checkers; the run panel and *Propose*; per mail, the mail in full beside the
-    proposal, its text editable, every hit of the mail's people marked; *Create issue* — only without a hit —, *Add to
-    #n*, *Not an issue*.
+  - `mail` — the mailbox read when the page is drawn and again every five minutes while it stays drawn, never while a
+    reading runs. An inbox list in this browser only, the newest first, one line per mail with sender, subject and date:
+    the proposable mails in bold, the attached and decided ones not, each of these with its issue or its mark *not an
+    issue*. The mail clicked shows its details beside the list on a wide screen, and in place of the list, with a way
+    back to it, on a narrow one: the mail in full and, for a proposable mail, its proposal, its text editable, every hit
+    of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*. Above the list, the
+    participant for the proposals among those at places the mailbox allows, a place outside the EU named as not
+    compliant, and the three checkers; the run panel and *Propose*, for the proposable mails. A later reading keeps the
+    mail that is open, the proposals and their edits, the chosen participant and a running proposal; a mail decided
+    leaves bold and shows its decision.
   - `replies`, `replies/<issue>` — closed issues with mails to answer, answers received, open issues; an issue with what
     solved it and each listed mail found in the mailbox with its draft; *Draft replies* with its run panel, or a reply
     written without a participant; each draft complete — recipient, subject, body, attachments — and editable; *Send* with

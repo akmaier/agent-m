@@ -74,14 +74,15 @@ are kept by Access in this browser.
 ## Interfaces
 
 - `NewMail` — `{ proposable: { mail: Mail, people: People }[], attached: { id: string, product: string, issue: number
-  }[], decided: number, unwritten: { product: string, issue: number, error: string }[] }`: the mails to propose, each with
-  its people, kept in memory for the checks; the mails attached to an issue of their thread; how many were left out as
-  decided; and each issue of a thread that could not be written to, with the error's name, whose mail is among the
+  }[], decided: { mail: Mail, product: string | null, issue: number | null }[], unwritten: { product: string, issue: number,
+  error: string }[] }`: the mails to propose, each with its people, kept in memory for the checks; the mails attached to
+  an issue of their thread; the decided mails, each with the product and number of the issue that lists it, or both
+  `null` for a mail this browser marked *not an issue*; and each issue of a thread that could not be written to, with the error's name, whose mail is among the
   proposable.
 - `readNewMail(mailbox: Mailbox, products: { address: string, host: Host }[], marked: string[]) -> Promise<NewMail>` —
   reads the named folders' mails of the last 30 days — `read` with the date 30 days before now — without changing anything, names each mail by its identifier, reads the issues of every
-  product and the identifiers they list, and leaves out every mail an issue lists or this browser marked *not an issue*
-  (`A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN`). A mail whose `In-Reply-To` or `References` names a listed mail is
+  product and the identifiers they list, and names as decided every mail an issue lists or this browser marked *not an
+  issue*; a decided mail is not proposable (`A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN`). A mail whose `In-Reply-To` or `References` names a listed mail is
   attached to that issue at once — a `mail-added` note —, without any participant (`A MAIL IN A KNOWN THREAD IS MATCHED
   WITHOUT A MODEL`); a closed issue stays closed (`A CLOSED ISSUE IS REOPENED ONLY BY A PERSON`). Crosses the network to
   the mailbox and the repository servers. Errors: the mailbox's and Access's — nothing is read when the mailbox cannot
