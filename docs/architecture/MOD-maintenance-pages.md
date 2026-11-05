@@ -130,7 +130,7 @@ person reviews it. Its formats are those of the modules it uses.
     when the token may not comment; closing an issue with links once its pull request is merged. The list reads the open
     issues without their comments (`listIssues` with `comments: false`); `issue/<number>` and `replies/<issue>` read
     their one issue with `readIssue`.
-  - `mail` — *Read mailbox*; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in
+  - `mail` — the mailbox read when the page is drawn, and *Read again*, which reads it anew; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in
     this browser only; the participant for the proposals among those at places the mailbox allows, a place outside the
     EU named as not compliant, and the three checkers; the run panel and *Propose*; per mail, the mail in full beside the
     proposal, its text editable, every hit of the mail's people marked; *Create issue* — only without a hit —, *Add to
