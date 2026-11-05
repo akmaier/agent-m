@@ -1,5 +1,5 @@
 /* The main page (index.html at the root of the site): the greeting, the cards of the products — or of Agent M itself — with
-   their bars of six stages and the build, and what waits for a person. The colours are the theme's (src/theme/lme.css). */
+   their bars of six stages and the build, and what waits for a person. The colours are the look's (src/site-frame/look.css). */
 
 .greeting { margin: 0 -16px 24px; padding: 40px max(16px, calc((100% - 1208px) / 2)) 44px; background: var(--fau-blue); color: #ffffff; }
 .greeting h1 { margin: 0 0 .35rem; color: #ffffff; font-size: 2.5rem; letter-spacing: 0; }

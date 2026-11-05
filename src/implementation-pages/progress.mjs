@@ -75,7 +75,7 @@ export function remainingPerDay(items, mergedAt, start, today = new Date().toISO
   return points;
 }
 
-// The size of the page's body text, and the width the site keeps the burn-down chart at (src/theme/lme.css), in px, as the browser draws the page; null where nothing is drawn.
+// The size of the page's body text, and the width the site keeps the burn-down chart at (src/site-frame/look.css), in px, as the browser draws the page; null where nothing is drawn.
 const bodyTextSize = () => parseFloat(globalThis.getComputedStyle?.(globalThis.document?.body)?.fontSize) || null;
 const burnDownWidth = () => parseFloat(globalThis.getComputedStyle?.(globalThis.document?.documentElement)?.getPropertyValue?.("--burn-down-width")) || null;
 const chartWidth = () => Math.min(burnDownWidth() ?? 700, Math.max(1, (globalThis.innerWidth ?? 700) - 72));

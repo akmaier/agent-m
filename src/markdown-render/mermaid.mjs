@@ -5,7 +5,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 })[c]);
 // The colour scheme of the site (MOD-markdown-render, Interfaces: renderMermaid): dark when the browser prefers a dark scheme and the root element does not carry data-theme="light" — the rule
-// of look.css and lme.css. A diagram is drawn in the library's theme for it, and drawn again, in its own element, when the scheme changes.
+// of look.css. A diagram is drawn in the library's theme for it, and drawn again, in its own element, when the scheme changes.
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 let preference;
 const watched = new Set();

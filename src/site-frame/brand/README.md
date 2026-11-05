@@ -21,4 +21,4 @@ variants turn the blue ink white and the logo's thin white outline transparent.
 **The logo is not covered by Agent M's MIT licence** (`LICENSE`). It is the logo of the Pattern Recognition Lab of
 the Friedrich-Alexander-Universität Erlangen-Nürnberg and is used here with the lab's permission.
 
-The colours are defined once, in `src/theme/lme.css`.
+The colours are defined once, in `src/site-frame/look.css`.

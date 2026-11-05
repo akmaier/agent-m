@@ -30,7 +30,7 @@ import { repoServer, openDashboard, REPO, unesc } from "./app-harness.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const inMain = (selector) => globalThis.document.getElementById("main").querySelector(selector);
-// The style sheets the review page links, as paths of the repository — the site's src/theme/lme.css and src/site-frame/look.css.
+// The style sheets the review page links, as paths of the repository — the site's src/site-frame/look.css.
 const linkedSheets = () => [...read("docs/index.html").matchAll(/<link rel="stylesheet" href="([^"]+)">/g)]
   .map(([, href]) => normalize(join("docs", href)));
 
@@ -342,7 +342,7 @@ test("TST-1429011: #backlog — Plan sprint lists every item the other teams' sp
 // guards: EVERY STEP EXPLAINS ITSELF
 // given: the fixture product, its plan for team2 open
 // input: open #backlog, click Plan sprint for team2
-// expect: the title in a section.head, every button a btn and every folded explanation a details.explain; the page holds no style attribute, none of the old board's classes, and no class the style sheets the review page links — the site's src/theme/lme.css and src/site-frame/look.css, those of #uc and #arc — do not define, but for the language of the burn-down's diagram, which the Markdown renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
+// expect: the title in a section.head, every button a btn and every folded explanation a details.explain; the page holds no style attribute, none of the old board's classes, and no class the style sheets the review page links — the site's src/site-frame/look.css, that of #uc and #arc — do not define, but for the language of the burn-down's diagram, which the Markdown renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
 test("TST-1429012: #backlog — the page is laid out as #uc and #arc are: panels, list tables, buttons and badges, no style of its own", async () => {
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
@@ -385,7 +385,7 @@ test("TST-1429013: #backlog and #progress — every table stands in a box of its
   const boxes = [...html.matchAll(/<div class="([\w-]+)"(?: tabindex="0")?>\s*<table\b[\s\S]*?<\/table>\s*<\/div>/g)].map(([, name]) => name);
   assert.equal(boxes.length, tables.length, `every table stands alone in a box: ${boxes.length} of ${tables.length}`);
   const sheets = linkedSheets().filter((path) => path.startsWith("src/")).map(read).join("\n");
-  assert.match(sheets, /\.menu\s*\{[^}]*overflow-x:\s*auto/, "known positive: the menu scrolls sideways on a phone");
+  assert.match(sheets, /\bpre\s*\{[^}]*overflow-x:\s*auto/, "known positive: a code block scrolls sideways");
   for (const name of new Set(boxes)) {
     assert.match(sheets, new RegExp(`\\.${name}\\s*\\{[^}]*overflow-x:\\s*(auto|scroll)`), `.${name} lets its table scroll sideways`);
   }
