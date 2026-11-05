@@ -151,7 +151,7 @@ sequenceDiagram
   drafted (by a participant or by hand), shown complete as in step 4, and sent with **Send and wait** —
   one click. The issue gets the label `waiting-for-reporter` and a comment *Question sent to MAIL-… on
   …*; it stays open.
-- **1b. The answer arrives.** At the next *Read mailbox* (UC-038, step 3) the reporter's mail is matched
+- **1b. The answer arrives.** At the next reading of the mailbox (UC-038, step 3) the reporter's mail is matched
   to its thread without a model and its identifier added to the issue. The issue appears under *answer
   received*, with the new mail shown in full; the author removes the label, asks again, or closes.
 - **7a. A mail arrives in the thread of a closed issue** — a thank-you, or "still broken". It is shown
