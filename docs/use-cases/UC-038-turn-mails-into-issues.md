@@ -80,24 +80,25 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 ## Main flow
 
-1. The author opens **Mail** on the dashboard, and Agent M reads the mailbox at once; each opening reads it anew.
+1. The author opens **Mail** on the dashboard, and Agent M reads the mailbox at once, and again every five minutes while
+   Mail stays open.
 2. Agent M reads the mails of the last 30 days in the named folders, as the mail server selects them — through the provider's web API, or on the IMAP route through the
    connection's Bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
    SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
    list.
 3. Mails that an issue already lists, or that the author marked *not an issue* in this browser, are
-   left out. A mail whose `In-Reply-To` or `References` names a listed mail is attached to that issue
+   decided: they get no proposal. A mail whose `In-Reply-To` or `References` names a listed mail is attached to that issue
    at once, without a participant — its identifier added to the issue — and shown there (UC-039).
-4. The remaining mails are listed as a mail program lists its inbox — one line per mail with sender, subject and date,
-   the newest first —, visible only in this browser. The
+4. The mails are listed as a mail program lists its inbox — one line per mail with sender, subject and date,
+   the newest first, the undecided ones in bold —, visible only in this browser. The
    author picks the participant for the proposals; Agent M offers only participants whose processing
    place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
    it receives: the mail text, the list of the instance's products with their one-line descriptions,
    and the titles and numbers of their open issues — and the three checking participants, where each
    processes data and that each receives only the rewritten texts. The author presses **Propose** — one
-   click for all listed mails.
-5. For each mail, the participant returns a proposal:
+   click for all undecided mails.
+5. For each undecided mail, the participant returns a proposal:
    - **product** — which managed product the mail concerns;
    - **kind** — *defect* (the product does not do what its SPEC says) or *change* (the reporter wants
      different behaviour), or *no issue* (a thank-you, an out-of-office reply, spam);
@@ -114,7 +115,8 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    as a compiler-like message, and it corrects the text, within the round limit (UC-019, step 7). What
    is still found after the last round is marked in the text.
 7. The author clicks a mail in the list. Its details show: the mail in full, its proposal with the text editable, and
-   what can be done with it. The author decides with one click:
+   what can be done with it — for a decided mail, the issue that lists it or its mark *not an issue* instead. The
+   author decides an undecided mail with one click:
    - **Create issue** — possible only when the check of step 6 finds nothing;
    - **Add to #n** — the mail describes an existing issue;
    - **Not an issue** — the mail is marked in this browser by its identifier and not proposed again.
@@ -186,7 +188,7 @@ sequenceDiagram
   to create issues. Agent M says which and links the token step of UC-001; nothing is written.
 - **3a. A mail in a known thread belongs to a closed issue.** It is attached and shown under that
   issue; the issue stays closed until the author reopens it (UC-039, 7a).
-- **1a. The author reads from another browser.** Mails that became issues are left out there too — the
+- **1a. The author reads from another browser.** Mails that became issues are decided there too — the
   issues say so. Marks *not an issue* made in the first browser move with *Export settings* (UC-042).
 
 ## Postcondition
@@ -195,4 +197,4 @@ sequenceDiagram
   `MAIL-` identifiers of its mails; no name, address or signature from a mail reached any repository or
   issue tracker.
 - The mails are unchanged in the mailbox; nothing about them is stored anywhere else.
-- Clicks per reading: *Propose*, then per mail one click to open it and one decision.
+- Clicks per reading: *Propose*, then per undecided mail one click to open it and one decision.
