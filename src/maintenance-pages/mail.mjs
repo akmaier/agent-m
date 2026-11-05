@@ -1,17 +1,26 @@
-// The route `mail` — mail read into issues (UC-038 steps 1 to 3, 7 to 9, 10, and 2a, 4b, 6a, 7a, 7b, 8a), as docs/architecture/MOD-maintenance-pages.md states it and ITM-963 builds it: the mailbox read when the page is drawn, and *Read again*, which reads it anew; the mails no issue lists and
-// nobody marked *not an issue*, with sender, subject and date in this browser only; per mail, the mail in full beside the proposal (empty here: UC-038 4b), its text editable, every hit of the mail's people marked; *Create issue* — only
-// without a hit —, *Add to #n*, *Not an issue*. The participant, the run panel and *Propose* (UC-038 steps 4 to 6, 4a, 4c, 5a, 5b, 6b, 6c) are ITM-964's, below.
+// The route `mail` — mail read into issues (UC-038 steps 1 to 3, 7 to 9, 10, and 2a, 4b, 6a, 7a, 7b, 8a), as docs/architecture/MOD-maintenance-pages.md states it (ITM-963, and the inbox the PO asked for): the mailbox read when
+// the page is drawn and again every five minutes while it stays drawn, never while a reading runs; an inbox list in this browser only, the newest first, one line per mail with sender, subject and date, the proposable
+// mails in bold, the attached and decided ones not, each of these with its issue or its mark *not an issue*; the mail clicked shows its details beside the list on a wide screen and in place of it, with a way back,
+// on a narrow one: the mail in full and, for a proposable mail, its proposal (empty until Propose: UC-038 4b), its text editable, every hit of the mail's people marked; *Create issue* — only without a hit —,
+// *Add to #n*, *Not an issue*. The participant, the run panel and *Propose* (UC-038 steps 4 to 6, 4a, 4c, 5a, 5b, 6b, 6c) are ITM-964's, below, above the list.
 //
 // Module: MOD-maintenance-pages
 //
 // Readings the texts leave open, which this file takes (the pull request names them):
-//   - The mailbox is read when the person opens the page, and again on a click on Read again the browser marks as a person's (`isTrusted`); each decision is made on such a click. Reading may write a note that lists a reply on the issue of its
-//     thread, and a decision writes. Read again is disabled while a reading runs, so that two readings never write the same note twice.
-//   - After Create issue or Add to #n the mail stays in the list with what came of the click (7b: Create issue once per concern); after Not an issue it leaves it. The next reading leaves out every mail an issue lists or the store marks.
+//   - The mailbox is read when the page is drawn and then five minutes after each reading has ended (EVERY), so that no reading starts while one runs and two readings never write the same note twice; the readings stop once
+//     the frame has drawn another route into the element (the page is no longer one of its children), as MOD-main-page's reread.mjs stops. A reading that fails after one that listed mails keeps the list as it was and
+//     names the problem above it; nothing is read. Each decision is made on a click the browser marks as a person's (`isTrusted`); opening a mail writes nothing and answers any click, the keyboard's included.
+//   - The list holds the proposable and the decided mails and the mails attached to an issue of their thread, sorted by their date, the newest first. NewMail's `attached` names a mail by its identifier only
+//     (MOD-mail-handling, Interfaces), so an attached mail's line names its identifier in place of sender, subject and date and comes after the dated ones; its details show the identifier and its issue.
+//   - The date of a line is written as a mail program writes it, in the browser's time zone: the time for a mail of today, day and month for one of this year, day, month and year for an older one; the details
+//     give day, month, year and time. The raw date is the `datetime` of the <time>.
+//   - After Create issue or Add to #n the mail keeps its review (7b: Create issue once per concern) and its line leaves bold with the issue; after Not an issue its line leaves bold with the mark, and its details
+//     show the mark and no decision. A later reading names every mail an issue lists or the store marks as decided; a proposable mail keeps its review, its proposal and the edits made to it, the open mail stays
+//     open, the chosen participant stays chosen, and the run panel is drawn anew for the proposable mails only when they changed and no proposal runs. The Propose section is shown while there is a proposable mail.
 //   - Create issue is disabled while a hit of the mail's people stands in the title or the text, and while either is empty. A created issue of the kind change is followed by a link to its route `issue/<n>` (step 10: Propose SPEC change).
 //   - The products are those this browser keeps (`products`), each connected with its own token (else, for GitHub, the instance's). The mailbox is the stored connection; on the Bridge route the Bridge it names, by its stored name.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as the schedule page of MOD-test-pages does).
-//   - The subject a route that shows mail gives the prompt bar (mailSubject, ITM-510; MOD-maintenance-pages.md, Interfaces): its page holds the `MAIL-` identifiers of the listed mails, and, per mail, its sender, subject, date, text and attachments only for a
+//   - The subject a route that shows mail gives the prompt bar (mailSubject, ITM-510; MOD-maintenance-pages.md, Interfaces): its page holds the `MAIL-` identifiers of the proposable mails (those that are offered a decision), and, per mail, its sender, subject, date, text and attachments only for a
 //     participant whose `place` is among the places the mailbox's connection allows and that does not declare "write to the repository"; it refuses `propose-edit` and `hand-over`; its `withhold` gives a reason for a message that holds a name, address, phone
 //     number or account of a listed mail's people (personHits) or a passage of a listed mail's own text — a run of at least twenty characters of it, whatever the case and the spacing —, and null otherwise.
 
@@ -35,9 +44,9 @@ const SETTINGS = "docs/settings.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 
 const STEP_TEXT = {
-  read: "Opening this page reads the mails of the last 30 days in the folders named in the mailbox connection, as the mail server selects them; Read again reads them anew. Reading is read-only: nothing is marked as read, moved or flagged, and an older mail nobody decided stays in the mailbox without being listed. Each mail gets the identifier MAIL- plus sixteen hex digits of the hash of its Message-ID. A mail whose thread an issue lists is attached to that issue at once, with a note, and shown under it. Book: ch. 14, Evolution Processes and Change Identification.",
-  list: "These mails are listed with sender, subject and date, in this browser only. A mail an issue already lists, or that you marked not an issue in this browser, is left out. Nothing here is stored anywhere but in the mailbox.",
-  propose: "Propose asks the participant you choose, once for all the listed mails, for a proposal per mail: the product, the kind, a neutral title and text, and the open issues it may duplicate. Only participants at a place this mailbox allows are offered; a place outside the EU is named as not compliant with the GDPR and the EU AI Act. The run panel states where the participant processes data and exactly what it receives, and the three checking participants where each processes data and that each receives only the rewritten texts. Nothing is sent until you press Run. You can still decide every mail by hand without Propose.",
+  read: "Opening this page reads the mails of the last 30 days in the folders named in the mailbox connection, as the mail server selects them, and reads them again every five minutes while the page is open. Reading is read-only: nothing is marked as read, moved or flagged, and an older mail nobody decided stays in the mailbox without being listed. Each mail gets the identifier MAIL- plus sixteen hex digits of the hash of its Message-ID. A mail whose thread an issue lists is attached to that issue at once, with a note, and shown under it. Book: ch. 14, Evolution Processes and Change Identification.",
+  list: "The mails are listed as a mail program lists its inbox, with sender, subject and date, the newest first, in this browser only. A mail still to decide is bold. A mail an issue already lists, or that you marked not an issue in this browser, is decided: it is not bold, shows its issue or its mark, and gets no proposal. Click a mail to read it in full and see what to do with it. Nothing here is stored anywhere but in the mailbox.",
+  propose: "Propose asks the participant you choose, once for all the mails still to decide, for a proposal per mail: the product, the kind, a neutral title and text, and the open issues it may duplicate. Only participants at a place this mailbox allows are offered; a place outside the EU is named as not compliant with the GDPR and the EU AI Act. The run panel states where the participant processes data and exactly what it receives, and the three checking participants where each processes data and that each receives only the rewritten texts. Nothing is sent until you press Run. You can still decide every mail by hand without Propose.",
   review: "Each mail is shown in full beside its proposal, which is empty until you press Propose: then write the neutral title and text yourself. The text is searched, without a model, for the mail's people; a hit is marked and Create issue stays disabled until you have edited it out. An attachment goes to the participant only if you tick it; it goes into the issue only if you add it, rewritten without any person and checked by three other participants, or unchanged when the product switched pseudonymisation off.",
   decide: "One click decides a mail. Create issue writes one issue to the product's tracker, labelled defect or change, listing the mail's identifier and naming no reporter. Add to #n lists the mail on an existing issue. Not an issue marks the mail in this browser by its identifier. Nothing else of the mail is written to a repository.",
 };
@@ -150,8 +159,29 @@ async function pseudonymisationFor(product) {
 
 const who = (address) => (address.name ? `${address.name} <${address.address}>` : address.address);
 
-// The review of one mail: the mail in full beside an empty proposal, its hits, and the three decisions.
-function reviewOf({ mail, people }, { products, store, context, onMarked, session, choice, hooks }) {
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const twoDigits = (number) => String(number).padStart(2, "0");
+// A mail's date as a mail program writes it, in the browser's time zone: `long` gives day, month, year and time; otherwise the time for a mail of today, day and month for one of this year, and day, month and year for an older one.
+function dateText(iso, { long = false } = {}) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso ?? "");
+  const now = new Date();
+  const time = `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`;
+  const day = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  if (long) return `${day} ${date.getFullYear()}, ${time}`;
+  if (date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()) return time;
+  return date.getFullYear() === now.getFullYear() ? day : `${day} ${date.getFullYear()}`;
+}
+function dateOf(iso, options) {
+  const node = el("time", "mail-date", dateText(iso, options));
+  node.setAttribute("datetime", String(iso ?? ""));
+  return node;
+}
+// The head of a mail's details: its sender, subject and date in full.
+const headOf = (mail) => el("p", "mail-head", el("span", "mail-sender", who(mail.from)), " · ", el("span", "mail-subject", mail.subject), " · ", dateOf(mail.date, { long: true }));
+
+// The review of one mail: the mail in full beside an empty proposal, its hits, and the three decisions. `onDecided(id, { product, issue })` is told of an issue created or added to, `onMarked(id)` of the mark Not an issue.
+function reviewOf({ mail, people }, { products, store, context, onMarked, onDecided, session, choice, hooks }) {
   const product = el("select", "mail-product", ...[...products.values()].map((each) => { const option = el("option", null, each.name); option.setAttribute("value", each.address); return option; }));
   const kind = el("select", "mail-kind", ...["defect", "change"].map((name) => { const option = el("option", null, name); option.setAttribute("value", name); return option; }));
   kind.value = "defect";
@@ -250,6 +280,7 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, sessio
     try {
       const { issue } = await decideMail({ id: mail.id, people }, decision, found?.host ?? null, store);
       if (decision.kind === "not-an-issue") { onMarked(mail.id); return; }
+      onDecided(mail.id, { product: found?.address ?? null, issue: decision.kind === "create" ? issue : decision.issue });
       result.replaceChildren(decision.kind === "create" ? `Created issue #${issue} in ${which}.` : `Added to #${decision.issue} of ${which}.`);
       if (decision.kind === "create" && decision.label === "change") result.append(" ", link(issueRoute(issue, found?.address), "issue-link", "Propose SPEC change"));
     } catch (failure) {
@@ -265,18 +296,19 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, sessio
   }
 
   const shown = el("section", "mail-step-review", el("h3", null, "The mail and its proposal"),
-    el("p", "mail-head", el("span", "mail-sender", who(mail.from)), " · ", el("span", "mail-subject", mail.subject), " · ", el("span", "mail-date", mail.date)),
+    headOf(mail),
     el("pre", "mail-text", mail.text),
     el("label", null, "Product ", product), " ", el("label", null, "Kind ", kind),
     el("p", null, el("label", null, "Title ", title)), el("p", null, el("label", null, "Text ", body)), hitsList, proposalBox,
     ...(attachments.length ? [el("ul", "mail-attachments", ...attachments), reportStage] : []), fold(STEP_TEXT.review));
   const decisions = el("section", "mail-step-decide", create, " ", el("label", null, "Issue number ", number), " ", add, " ", none, result, fold(STEP_TEXT.decide));
-  const item = el("li", "mail", shown, decisions);
+  const item = el("div", "mail", shown, decisions);
   item.setAttribute("data-mail", mail.id);
   return { item, fill, ticked: () => [...ticks].filter(([, tick]) => tick.checked === true).map(([name]) => name) };
 }
 
-// Propose: the participants the mailbox allows, the three checkers, the run panel and its Run — *Propose*, one click for all listed mails (UC-038 4, 4a, 4c, 6c).
+// Propose: the participants the mailbox allows, the three checkers, the run panel and its Run — *Propose*, one click for all proposable mails (UC-038 4, 4a, 4c, 6c). `entries()` gives the proposable mails
+// as they stand; `hooks.running` is true while a proposal runs, and `hooks.changed` draws the run panel anew.
 async function proposeSection(session, entries, reviews, choice, hooks) {
   const section = el("section", "mail-step-propose", el("h3", null, "Propose"), fold(STEP_TEXT.propose));
   const definition = await kindOf("propose-issues");
@@ -318,19 +350,22 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
     }
     checkersBox.append(el("ul", "mail-checkers", ...found.checkers.map((checker) => el("li", "mail-checker", `${checker.name} · `, el("span", "place", checker.place ?? "no processing place declared"), " · receives only the rewritten texts"))));
     try {
-      const params = { mails: entries.map(({ mail, people }) => ({ mail, people, ticked: reviews.get(mail.id).ticked() })), products: [...session.products.values()].map(({ address, host }) => ({ address, host })) };
+      const params = { mails: entries().map(({ mail, people }) => ({ mail, people, ticked: reviews.get(mail.id)?.ticked() ?? [] })), products: [...session.products.values()].map(({ address, host }) => ({ address, host })) };
       const job = await jobOf(session, "propose-issues", params, { drafter: chosen, reviewers: [] }, name);
       if (mine !== turn) return;
       const result = el("div", "mail-propose-result");
       stage.append(runPanel(job.prepared, { onRun: async () => {
+        hooks.running = true;
         try {
           const outcome = await runJobOf(session, job);
           const given = outcome.draft?.proposals ?? [];
           let shown = 0;
           for (const proposal of given) if (reviews.has(proposal.mail)) { reviews.get(proposal.mail).fill(proposal); shown += 1; }
-          result.replaceChildren(el("p", "mail-proposed", `${shown} proposal${shown === 1 ? "" : "s"} shown beside the mails. Nothing was created: decide each mail with one click.`));
+          result.replaceChildren(el("p", "mail-proposed", `${shown} proposal${shown === 1 ? "" : "s"} shown with the mails. Nothing was created: open each mail and decide it with one click.`));
         } catch (failure) {
           result.replaceChildren(el("p", "mail-propose-problem", `Nothing was proposed: ${failed(failure)}`));
+        } finally {
+          hooks.running = false;
         }
       } }), result);
     } catch (failure) {
@@ -343,64 +378,181 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
   return section;
 }
 
+/** EVERY — the time from the end of one reading of the mailbox to the start of the next, in milliseconds: five minutes (UC-038 step 1). */
+export const EVERY = 5 * 60 * 1000;
+
+const NEWEST_FIRST = (a, b) => {
+  const at = (row) => (row.mail ? Date.parse(row.mail.date) : Number.NaN);
+  const [x, y] = [at(a), at(b)];
+  if (Number.isNaN(x) || Number.isNaN(y)) return Number.isNaN(x) - Number.isNaN(y);
+  return y - x;
+};
+const classes = (node, wanted) => { node.className = Object.entries(wanted).filter(([, on]) => on).map(([name]) => name).join(" "); };
+
+// What a decided line or details names: the issue that lists the mail, linked, or its mark.
+const decisionOf = (decisions) => (decisions.length === 0
+  ? ["not an issue"]
+  : decisions.flatMap((each, at) => [...(at ? [", "] : []), link(issueRoute(each.issue, each.product), "issue-link", `#${each.issue}`)]));
+
 async function render(target, context) {
   listed = []; // a page drawn anew lists no mail until its reading has answered
-  const out = el("div", "mail-out");
-  // Read again reads the mailbox anew; it is disabled while a reading runs, so that two readings never attach the same mail twice.
-  const again = button("read-again", "Read again", () => readMailbox());
-  const readMailbox = async () => {
-    again.disabled = true;
-    try { await readOnce(); } finally { again.disabled = false; }
+  const page = el("div", "mail-page");
+  let readings = 0;
+  page.setAttribute("data-readings", "0");
+  const status = el("p", "mail-status muted", "Reading the mailbox…");
+  const problemSlot = el("div", "mail-problem-slot");
+  const proposeSlot = el("div", "mail-propose-slot");
+  const list = el("ul", "mail-list");
+  const details = el("section", "mail-details");
+  details.setAttribute("aria-label", "The mail opened");
+  const inbox = el("div", "mail-inbox", el("section", "mail-step-list", list, fold(STEP_TEXT.list)), details);
+  page.append(el("section", "mail-step-read", status, fold(STEP_TEXT.read)), problemSlot, proposeSlot);
+  target.replaceChildren(page);
+
+  // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose.
+  const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "" };
+  const choice = { participant: null, checkers: null, person: "" };
+  const hooks = { changed: () => {}, running: false };
+  const proposable = () => state.rows.filter((row) => row.kind === "proposable").map(({ mail, people }) => ({ mail, people }));
+
+  function drawList() {
+    const focused = globalThis.document?.activeElement?.getAttribute?.("data-open") ?? null;
+    list.replaceChildren(...state.rows.map((row) => {
+      const open = lineButton(row);
+      const line = el("li", "mail-line", open);
+      classes(line, { "mail-line": true, undecided: row.kind === "proposable" && row.decisions.length === 0 });
+      line.setAttribute("data-line", row.id);
+      if (state.open === row.id) line.setAttribute("aria-current", "true");
+      if (row.kind === "attached") line.append(el("span", "mail-decision", "in the thread of ", ...decisionOf(row.decisions)));
+      else if (row.kind === "decided" || row.decisions.length) line.append(el("span", "mail-decision", ...decisionOf(row.decisions)));
+      if (focused === row.id) open.focus?.();
+      return line;
+    }));
+    classes(inbox, { "mail-inbox": true, "mail-open-shown": state.open !== null });
+  }
+  // A line's button: opening a mail writes nothing, so it answers any click.
+  function lineButton(row) {
+    const node = row.mail
+      ? el("button", "mail-open btn", el("span", "mail-sender", row.mail.from?.name || row.mail.from?.address || ""), el("span", "mail-subject", row.mail.subject ?? ""), dateOf(row.mail.date))
+      : el("button", "mail-open btn", el("span", "mail-sender", "Mail"), el("span", "mail-subject", row.id));
+    node.setAttribute("type", "button");
+    node.setAttribute("data-open", row.id);
+    node.addEventListener("click", () => openMail(row.id));
+    return node;
+  }
+  function drawDetails() {
+    const row = state.rows.find((each) => each.id === state.open);
+    if (!row) { details.replaceChildren(el("p", "muted mail-none", "Choose a mail in the list to read it here.")); return; }
+    const back = el("button", "mail-back btn", "Back to the list");
+    back.setAttribute("type", "button");
+    back.addEventListener("click", () => { const id = state.open; state.open = null; drawList(); drawDetails(); list.querySelector?.(`[data-open="${id}"]`)?.focus?.(); });
+    if (row.kind === "proposable") { details.replaceChildren(back, state.reviews.get(row.id).item); return; }
+    const shown = el("div", "mail mail-decided-details");
+    shown.setAttribute("data-mail", row.id);
+    if (row.mail) shown.append(headOf(row.mail), el("pre", "mail-text", row.mail.text));
+    else shown.append(el("p", "mail-head", `Mail ${row.id}`));
+    shown.append(row.kind === "attached"
+      ? el("p", "mail-decided-as", "This mail answers a mail an issue lists, so it was attached to that issue: ", ...decisionOf(row.decisions), ".")
+      : row.decisions.length
+        ? el("p", "mail-decided-as", "An issue lists this mail: ", ...decisionOf(row.decisions), ". It is not proposed again.")
+        : el("p", "mail-decided-as", "You marked this mail not an issue in this browser. It is not proposed again."));
+    details.replaceChildren(back, shown);
+  }
+  function openMail(id) {
+    state.open = id;
+    drawList();
+    drawDetails();
+    globalThis.document && details.querySelector?.(".mail-back")?.focus?.();
+  }
+  const onMarked = (id) => {
+    const row = state.rows.find((each) => each.id === id);
+    if (row) Object.assign(row, { kind: "decided", decisions: [] });
+    state.reviews.delete(id);
+    listed = proposable();
+    drawList();
+    if (state.open === id) drawDetails();
+    redrawPropose();
   };
+  const onDecided = (id, decision) => {
+    const row = state.rows.find((each) => each.id === id);
+    if (row) row.decisions.push(decision);
+    drawList();
+  };
+
+  // The run panel follows the proposable mails: drawn anew when they changed and no proposal runs (it keeps the participant chosen); the section is shown while there is a proposable mail.
+  function redrawPropose() {
+    const now = proposable().map(({ mail }) => mail.id).join(" ");
+    if (state.propose && now !== state.proposedFor && !hooks.running) { state.proposedFor = now; hooks.changed(); }
+    proposeSlot.replaceChildren(...(state.propose && now !== "" ? [state.propose] : []));
+  }
+
   const readOnce = async () => {
-    out.replaceChildren(el("p", "muted", "Reading the mailbox…"));
+    status.textContent = "Reading the mailbox…";
     const store = context.store;
     const products = productsOf(store);
     const have = mailboxOf(store);
-    if (!have) { out.replaceChildren(el("p", "mailbox-problem", "No mailbox is connected in this browser. Connect one on the Settings page first.")); return; }
+    const problem = (...nodes) => { problemSlot.replaceChildren(...nodes); status.textContent = state.rows.length ? "The mailbox could not be read again; the list is as it was last read." : ""; };
+    if (!have) { problem(el("p", "mailbox-problem", "No mailbox is connected in this browser. Connect one on the Settings page first.")); return; }
     let found;
     try {
       found = await readNewMail(have.box, [...products.values()].map((each) => ({ address: each.address, host: each.host })), readSetting(store, "not-an-issue") ?? []);
     } catch (failure) {
-      const problem = el("p", "mailbox-problem", `The mailbox could not be read, so nothing was read: ${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`);
+      const reason = el("p", "mailbox-problem", `The mailbox could not be read, so nothing was read: ${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`);
       if (failure?.name === "SignInExpired" && have.connection.graph) {
         const signInAgain = button("sign-in-again", "Sign in again", async () => {
-          try { await signIn(have.connection.graph.clientId, have.connection.address); problem.textContent = "Signed in. Read again reads the mailbox."; } catch (error) { problem.textContent = `Signing in failed: ${error?.name ?? "Error"}: ${error?.message ?? error}`; }
+          try { await signIn(have.connection.graph.clientId, have.connection.address); reason.textContent = "Signed in. The mailbox is read now."; await readMailbox(); } catch (error) { reason.textContent = `Signing in failed: ${error?.name ?? "Error"}: ${error?.message ?? error}`; }
         });
-        out.replaceChildren(problem, signInAgain);
-      } else out.replaceChildren(problem);
-      listed = [];
+        problem(reason, signInAgain);
+      } else problem(reason);
       return;
     }
-    const list = el("ul", "mail-list");
-    const shown = new Map();
-    const reviews = new Map();
-    const onMarked = (id) => { shown.get(id)?.remove(); reviews.delete(id); listed = listed.filter((each) => each.mail.id !== id); };
-    const choice = { participant: null, checkers: null, person: "" };
-    const hooks = { changed: () => {} };
-    let session = null, sessionProblem = null;
-    try { session = await sessionOf(context, have, products); } catch (failure) { sessionProblem = failure; }
+    problemSlot.replaceChildren();
+    if (!state.session) { try { state.session = await sessionOf(context, have, products); } catch (failure) { problemSlot.append(el("p", "mail-propose-problem", `No participant can be offered, since the instance's participants could not be read: ${failed(failure)}`)); } }
+    const before = new Map(state.rows.map((row) => [row.id, row]));
+    const rows = [
+      ...found.proposable.map(({ mail, people }) => ({ id: mail.id, mail, people, kind: "proposable", decisions: before.get(mail.id)?.kind === "proposable" ? before.get(mail.id).decisions : [] })),
+      ...found.decided.map(({ mail, product, issue }) => ({ id: mail.id, mail, kind: "decided", decisions: issue === null ? [] : [{ product, issue }] })),
+      ...found.attached.map(({ id, product, issue }) => ({ id, mail: null, kind: "attached", decisions: [{ product, issue }] })),
+    ].sort(NEWEST_FIRST);
+    for (const id of [...state.reviews.keys()]) if (!found.proposable.some((entry) => entry.mail.id === id)) state.reviews.delete(id);
     for (const entry of found.proposable) {
-      const review = reviewOf(entry, { products, store, context, onMarked, session, choice, hooks });
-      shown.set(entry.mail.id, review.item);
-      reviews.set(entry.mail.id, review);
-      list.append(review.item);
+      if (!state.reviews.has(entry.mail.id)) state.reviews.set(entry.mail.id, reviewOf(entry, { products, store, context, onMarked, onDecided, session: state.session, choice, hooks }));
     }
-    let propose = null;
-    if (sessionProblem) propose = el("p", "mail-propose-problem", `No participant can be offered, since the instance's participants could not be read: ${failed(sessionProblem)}`);
-    else if (session && found.proposable.length) {
-      try { propose = await proposeSection(session, found.proposable, reviews, choice, hooks); } catch (failure) { propose = el("p", "mail-propose-problem", `No participant can be offered: ${failed(failure)}`); }
+    state.rows = rows;
+    if (!rows.some((row) => row.id === state.open)) state.open = null;
+    listed = proposable();
+    if (!state.propose && state.session && found.proposable.length) {
+      try {
+        state.propose = await proposeSection(state.session, proposable, state.reviews, choice, hooks);
+        state.proposedFor = proposable().map(({ mail }) => mail.id).join(" ");
+      } catch (failure) { problemSlot.append(el("p", "mail-propose-problem", `No participant can be offered: ${failed(failure)}`)); }
     }
-    listed = [...found.proposable];
-    const attached = el("ul", "mail-attached", ...found.attached.map((each) => {
-      const issue = link(issueRoute(each.issue, each.product), "issue-link", `#${each.issue}`);
-      return el("li", "mail-attached-item", `Mail ${each.id} belongs to the thread of issue `, issue);
-    }));
-    out.replaceChildren(el("p", "mail-decided", `${found.decided} mail${found.decided === 1 ? " was" : "s were"} left out as decided.`), attached, ...(propose ? [propose] : []),
-      el("section", "mail-step-list", el("h3", null, "Mails to decide"), list, fold(STEP_TEXT.list)));
+    redrawPropose();
+    drawList();
+    drawDetails();
+    if (inbox.parentNode !== page) page.append(inbox);
+    const at = new Date();
+    status.textContent = `Read at ${twoDigits(at.getHours())}:${twoDigits(at.getMinutes())}. The mailbox is read again every five minutes while this page is open.`;
   };
-  target.replaceChildren(el("h2", null, "Mail"), el("section", "mail-step-read", el("p", null, again), fold(STEP_TEXT.read)), out);
+
+  // A reading at a time; the next one five minutes after it has ended, while the frame still shows this page.
+  let busy = false;
+  const readMailbox = async () => {
+    if (busy) return;
+    busy = true;
+    try { await readOnce(); } finally {
+      busy = false;
+      readings += 1;
+      page.setAttribute("data-readings", String(readings));
+    }
+  };
+  const shown = () => [...(target.children ?? [])].includes(page);
+  const schedule = () => {
+    const timer = globalThis.setTimeout(async () => { if (!shown()) return; await readMailbox(); schedule(); }, EVERY);
+    timer?.unref?.(); // in Node a waiting reading keeps no process alive; a browser's timer has no unref
+  };
   await readMailbox(); // opening Mail reads the mailbox at once (UC-038 step 1)
+  schedule();
 }
 
 const PASSAGE = 20;

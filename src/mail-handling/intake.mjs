@@ -35,8 +35,8 @@ const mailText = (mail) => ({
 /**
  * readNewMail(mailbox, products, marked) -> Promise<NewMail> — reads the mailbox first, its mails of the last 30 days (`read` with the
  * date 30 days before now, which the mail server selects by), and changes nothing in it; then the
- * issues of every product and the identifiers they list. A mail an issue lists or this browser marked is left out and counted
- * in `decided`. A mail whose In-Reply-To or References name a listed mail is attached to that issue by a `mail-added` note,
+ * issues of every product and the identifiers they list. A mail an issue lists or this browser marked is not proposable: it is named
+ * in `decided`, in the mailbox's order, with the product and number of the first issue that lists it, or both null for a mail only marked. A mail whose In-Reply-To or References name a listed mail is attached to that issue by a `mail-added` note,
  * without a participant, and the issue is neither reopened nor relabelled. An issue that cannot be written to is named in
  * `unwritten`, and its mail stays proposable. The mailbox's and the hosts' errors pass unchanged.
  * @param {{ read: (since: string | null) => Promise<object[]> }} mailbox
@@ -47,6 +47,7 @@ export async function readNewMail(mailbox, products, marked) {
   const mails = await mailbox.read(readSince());
 
   const listed = new Set();
+  const listedAt = new Map(); // a listed identifier -> the product and number of the first issue that lists it
   const threads = [];
   for (const { address, host } of products) {
     const byMail = new Map();
@@ -54,13 +55,15 @@ export async function readNewMail(mailbox, products, marked) {
       for (const id of listedMailIds(issueText(issue))) {
         listed.add(id);
         if (!byMail.has(id)) byMail.set(id, issue.number);
+        if (!listedAt.has(id)) listedAt.set(id, { product: address, issue: issue.number });
       }
     }
     threads.push({ address, host, byMail });
   }
 
   const open = new Set(undecided(mails.map((mail) => mail.id), listed, new Set(marked)));
-  const result = { proposable: [], attached: [], decided: mails.length - open.size, unwritten: [] };
+  const result = { proposable: [], attached: [], unwritten: [],
+    decided: mails.filter((mail) => !open.has(mail.id)).map((mail) => ({ mail, ...(listedAt.get(mail.id) ?? { product: null, issue: null }) })) };
   for (const mail of mails.filter((candidate) => open.has(candidate.id))) {
     let match = null;
     for (const thread of threads) {

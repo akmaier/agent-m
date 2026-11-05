@@ -73,8 +73,7 @@ const day = () => new Date().toISOString().slice(0, 10);
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; UC-038
 // given: the mailbox holds a new mail, a mail an issue lists, and a mail this browser marked; the identifier controls of MOD-mail-records work
 // input: readNewMail(mailbox, [{ address, host }], [MARKED_ID]) where the product's issue 4 lists LISTED_ID in its Mails line
-// expect: proposable holds only the new mail with its people (the name and address of its header, the name of its signature); decided names the listed mail with the product and issue 4
-//   that list it, and the marked mail with product and issue null, in the order the mailbox gave them; attached is empty
+// expect: proposable holds only the new mail with its people (the name and address of its header, the name of its signature); decided names the listed mail with the product and issue 4 that list it, and the marked mail with product and issue null, in the order the mailbox gave them; attached is empty
 test("TST-952001 a mail an issue lists and a mail marked not an issue are left out and named as decided", async () => {
   assert.equal(await mailId({ messageId: "<sample@example.invalid>", bytes: null }), ROOT_ID);
   const newMail = mail(NEW_ID);
@@ -425,11 +424,9 @@ test("TST-952021 counter-proof: another now gives the date 30 days before it", a
 // level: unit
 // module: MOD-mail-handling
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; UC-038
-// given: two products; issue 12 of the second lists one mail; a second mail is both listed by issue 3 of the first product and marked not an issue in this browser; a third mail is only marked;
-//   a fourth is new
+// given: two products; issue 12 of the second lists one mail; a second mail is both listed by issue 3 of the first product and marked not an issue in this browser; a third mail is only marked; a fourth is new
 // input: readNewMail(mailbox, both products, the marks of the second and third mail)
-// expect: decided names, in the mailbox's order, the first mail with the second product and issue 12, the second with the first product and issue 3 — an issue that lists a mail names it
-//   even where this browser marked it too —, the third with product and issue null; counter-proof: the new mail is proposable and is not among the decided
+// expect: decided names, in the mailbox's order, the first mail with the second product and issue 12, the second with the first product and issue 3 — an issue that lists a mail names it even where this browser marked it too —, the third with product and issue null; counter-proof: the new mail is proposable and is not among the decided
 test("TST-2026110501 a decided mail names the product and the issue that list it, and a mail only marked names neither", async () => {
   const second = "https://gitlab.example.invalid/group/second";
   const [one, both, marked, fresh] = [mail(LISTED_ID), mail(REPLY_ID), mail(MARKED_ID), mail(NEW_ID)];
