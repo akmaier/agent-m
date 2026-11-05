@@ -176,6 +176,8 @@ export async function start(electron, supplied = {}) {
     if (listJobs().some((job) => job.state === "running")) { show(window); window.webContents.send("quit-requested"); } else electron.app.quit();
   };
   electron.app.on("second-instance", () => show(window));
+  // The Dock's icon: a start from the source folder would show Electron's; the packaged app carries the same file.
+  if (process.platform === "darwin") electron.app.dock?.setIcon(join(sourceRoot, "desktop-shell", "icons", "macos.png"));
   if (process.platform === "linux") {
     window.on("close", (event) => { if (!quitting) event.preventDefault(); });
   } else if (electron.Tray) {
