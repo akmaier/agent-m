@@ -1,5 +1,5 @@
-// The route `mail` of MOD-maintenance-pages, up to the author's decision (ITM-963) — UC-038 steps 1 to 3, 7 to 9, 10 (the link), 2a, 4b, 6a, 7a, 7b, 8a — as the accepted text of docs/architecture/MOD-maintenance-pages.md states it (:105-110, blob
-// f21551157732): "`mail` — *Read mailbox*; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in this browser only; ... per mail, the mail in full beside the proposal, its text editable, every hit
+// The route `mail` of MOD-maintenance-pages, up to the author's decision (ITM-963) — UC-038 steps 1 to 3, 7 to 9, 10 (the link), 2a, 4b, 6a, 7a, 7b, 8a — as the accepted text of docs/architecture/MOD-maintenance-pages.md states it (:133-137, blob
+// 636f31b11b56): "`mail` — the mailbox read when the page is drawn, and *Read again*, which reads it anew; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in this browser only; ... per mail, the mail in full beside the proposal, its text editable, every hit
 // of the mail's people marked; *Create issue* — only without a hit —, *Add to #n*, *Not an issue*." The participant, the run panel and *Propose* are ITM-964's: here every proposal is empty (UC-038 4b).
 // Run: node --test tests/maintenance-pages-mail.test.mjs
 //
@@ -11,7 +11,7 @@
 // run as they are; only `fetch` is faked, by this file: the Bridge on the loopback answers the mail operation `read` (POST /v1/mail/read) with the mails given, and GitHub's REST API for alice/product answers the issues — listed and one by one —, their
 // comments, the creation of an issue and of a comment, keeping what it is given. The store is a Map-backed localStorage that holds the mailbox connection, the Bridge, the product and its token. Nothing leaves the process.
 // Readings the texts leave open, which the tests state (the pull request names them):
-//   - The page: <button class="read-mailbox"> "Read mailbox"; <p class="mail-decided"> (how many were left out); <ul class="mail-attached"> of <li class="mail-attached-item"> with <a class="issue-link"> to the address the frame writes for the issue, #issue/number=<n>/product=<address>; <ul class="mail-list"> of
+//   - The page: the mailbox is read as the page is drawn, without a click; <button class="read-again"> "Read again", disabled while a reading runs; <p class="mail-decided"> (how many were left out); <ul class="mail-attached"> of <li class="mail-attached-item"> with <a class="issue-link"> to the address the frame writes for the issue, #issue/number=<n>/product=<address>; <ul class="mail-list"> of
 //     <li class="mail" data-mail="<MAIL-id>"> with .mail-sender, .mail-subject, .mail-date, <pre class="mail-text"> (the mail in full), <select class="mail-product">, <select class="mail-kind"> (defect, change), <input class="mail-title">,
 //     <textarea class="mail-body">, <ul class="mail-hits"> of <li class="mail-hit"> (one per hit of the mail's people in the title and the text), <button class="create-issue"> "Create issue", <input class="mail-issue-number"> with
 //     <button class="add-to-issue"> "Add to #<n>", <button class="not-an-issue"> "Not an issue", and <p class="mail-result"> (what came of a click). <p class="mailbox-problem"> names why nothing was read.
@@ -128,11 +128,14 @@ async function open(world_, goes = []) {
   const context = { page: "main", instance: { repository: INSTANCE, host: null }, store: world_.store, product: null, go: (name, params) => goes.push([name, params]) };
   assert.ok(route(), `the route mail: ${pages.error?.message}`);
   await route().render(target, context, {});
+  await read(target);
   return target;
 }
-async function read(target) {
-  await trusted(byClass(target, "read-mailbox")[0]);
-  await waitFor(() => byClass(target, "mail-decided").length > 0 || byClass(target, "mailbox-problem").length > 0);
+// A reading is over when the page says how many mails were left out, or why nothing was read.
+const read = (target) => waitFor(() => byClass(target, "mail-decided").length > 0 || byClass(target, "mailbox-problem").length > 0);
+async function readAgain(target) {
+  await trusted(byClass(target, "read-again")[0]);
+  await read(target);
   return target;
 }
 const writesToGitHub = () => sent.filter((request) => request.method !== "GET");
@@ -142,17 +145,15 @@ const writesToGitHub = () => sent.filter((request) => request.method !== "GET");
 // TST-963001 · level: component · module: MOD-maintenance-pages
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; READING THE MAILBOX CHANGES NOTHING IN IT; UC-038
 // given: the mailbox holds a new mail, a mail an issue lists, a mail this browser marked, and a reply in the thread of the listed mail
-// input: the route mail drawn; the person's click on Read mailbox
-// expect: drawing reads nothing (no request); the list shows the new mail alone, with sender, subject and date; the page says two mails were left out as decided; the reply is shown under issue #4 with a link to the address the frame writes for issue 4 of alice/product (fragmentOf) and an issue-link only for it; the Bridge got one request, the read; GitHub received one write, the note that lists the reply on #4
-test("Read mailbox lists only the undecided mails, with sender, subject and date, and shows a mail of a known thread under its issue", async () => {
+// input: the route mail drawn, without any click
+// expect: drawing reads the mailbox; the list shows the new mail alone, with sender, subject and date; the page says two mails were left out as decided; the reply is shown under issue #4 with a link to the address the frame writes for issue 4 of alice/product (fragmentOf) and an issue-link only for it; the Bridge got one request, the read; GitHub received one write, the note that lists the reply on #4
+test("the mail page lists only the undecided mails, with sender, subject and date, and shows a mail of a known thread under its issue", async () => {
   const fresh = await mailOf("new"), listed = await mailOf("listed"), marked = await mailOf("marked");
   const reply = await mailOf("reply", { inReplyTo: listed.messageId, references: [listed.messageId] });
   const requests = [];
   const w = world({ mails: [fresh, listed, marked, reply], marked: [marked.id], issues: [{ number: 4, title: "Export fails", body: withMailIds("Export fails.", [listed.id]) }],
     bridge: (url, init) => { requests.push(`${init.method} ${url.pathname}`); return new Response(JSON.stringify([fresh, listed, marked, reply]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
   const target = await open(w);
-  assert.deepEqual([requests, sent], [[], []], "drawing reads nothing");
-  await read(target);
   const items = byClass(target, "mail");
   assert.deepEqual(items.map((node) => node.getAttribute("data-mail")), [fresh.id]);
   const line = textOf(items[0]);
@@ -175,7 +176,7 @@ test("Read mailbox lists only the undecided mails, with sender, subject and date
 test("Create issue is disabled while the text names the mail's people, and one click then creates one issue with the label and the Mails line", async () => {
   const mail = await mailOf("one");
   const w = world({ mails: [mail] });
-  const target = await read(await open(w));
+  const target = await open(w);
   const item = itemOf(target, mail.id);
   const create = byClass(item, "create-issue")[0];
   assert.equal(create.disabled, true, "disabled while empty");
@@ -207,12 +208,12 @@ test("Create issue is disabled while the text names the mail's people, and one c
 // TST-963003 · level: component · module: MOD-maintenance-pages
 // guards: A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; ONE CLICK PER DECISION; UC-038
 // given: one new mail and an open issue #4
-// input: the number 4 typed; the person's click on Add to #4; Read mailbox again
+// input: the number 4 typed; the person's click on Add to #4; the person's click on Read again
 // expect: exactly one comment is written to #4, the note `mail-added` naming the mail's identifier; the result names #4; the second reading lists no mail (an issue lists it now) and says one was left out
 test("Add to #n lists the mail on the existing issue with one click, and the next reading leaves it out", async () => {
   const mail = await mailOf("two");
   const w = world({ mails: [mail], issues: [{ number: 4, title: "Export fails", body: "Export fails." }] });
-  const target = await read(await open(w));
+  const target = await open(w);
   const item = itemOf(target, mail.id);
   await typed(byClass(item, "mail-issue-number")[0], "4");
   const add = byClass(item, "add-to-issue")[0];
@@ -223,7 +224,7 @@ test("Add to #n lists the mail on the existing issue with one click, and the nex
   assert.equal(comments.length, 1);
   assert.equal(JSON.parse(comments[0].body).body, noteText("mail-added", mail.id, new Date().toISOString().slice(0, 10)));
   assert.match(textOf(byClass(item, "mail-result")[0]), /#4/);
-  await read(target);
+  await readAgain(target);
   assert.deepEqual(byClass(target, "mail").map((node) => node.getAttribute("data-mail")), []);
   assert.match(textOf(byClass(target, "mail-decided")[0]), /1/);
 });
@@ -231,18 +232,18 @@ test("Add to #n lists the mail on the existing issue with one click, and the nex
 // TST-963004 · level: component · module: MOD-maintenance-pages
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; MAIL STAYS IN THE MAILBOX; ONE CLICK PER DECISION; UC-038
 // given: two new mails
-// input: the person's click on Not an issue for the first; Read mailbox again
+// input: the person's click on Not an issue for the first; the person's click on Read again
 // expect: the first leaves the list at once; the store holds its identifier under not-an-issue and nothing else of the mail; nothing is written to GitHub; the second reading lists the second mail alone
 test("Not an issue takes one click, marks the mail in this browser and writes nothing to the tracker", async () => {
   const [one, two] = [await mailOf("a"), await mailOf("b")];
   const w = world({ mails: [one, two] });
-  const target = await read(await open(w));
+  const target = await open(w);
   await trusted(byClass(itemOf(target, one.id), "not-an-issue")[0]);
   await waitFor(() => byClass(target, "mail").length === 1);
   assert.deepEqual(byClass(target, "mail").map((node) => node.getAttribute("data-mail")), [two.id]);
   assert.deepEqual(readSetting(w.store, "not-an-issue"), [one.id]);
   assert.deepEqual(writesToGitHub(), []);
-  await read(target);
+  await readAgain(target);
   assert.deepEqual(byClass(target, "mail").map((node) => node.getAttribute("data-mail")), [two.id]);
   assert.equal(JSON.stringify([...w.storage.values.values()]).includes(SECRET_SENTENCE), false, "the browser keeps no text of a mail");
 });
@@ -255,7 +256,7 @@ test("Not an issue takes one click, marks the mail in this browser and writes no
 test("a mail that mixes two concerns gets one issue per concern, each listing the same identifier", async () => {
   const mail = await mailOf("mixed");
   const w = world({ mails: [mail] });
-  const target = await read(await open(w));
+  const target = await open(w);
   const item = itemOf(target, mail.id);
   await typed(byClass(item, "mail-title")[0], "PDF export fails");
   await typed(byClass(item, "mail-body")[0], "Exporting as PDF fails with error E42.");
@@ -274,12 +275,12 @@ test("a mail that mixes two concerns gets one issue per concern, each listing th
 // TST-963006 · level: component · module: MOD-maintenance-pages
 // guards: READING THE MAILBOX CHANGES NOTHING IN IT; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-038
 // given: the Bridge the connection names does not answer (the request fails); and a Bridge that answers with BridgeUnavailable-like HTTP 401 (token refused)
-// input: the person's click on Read mailbox, for each
+// input: the route mail drawn, for each
 // expect: no mail is listed; .mailbox-problem names the reason (the failure's own words); nothing is written to GitHub
 test("an unreachable mailbox is named, nothing is listed and nothing is written", async () => {
   for (const bridge of [() => { throw new TypeError("connect ECONNREFUSED 127.0.0.1:4711"); }, () => new Response(JSON.stringify({ error: "token-refused", message: "The pairing token was refused." }), { status: 401, headers: { "Content-Type": "application/json" } })]) {
     const w = world({ mails: [], bridge });
-    const target = await read(await open(w));
+    const target = await open(w);
     assert.deepEqual(byClass(target, "mail"), []);
     const problem = byClass(target, "mailbox-problem")[0];
     assert.ok(problem && textOf(problem).length > 20, "a reason is named");
@@ -297,7 +298,7 @@ test("an issue that cannot be created names the token's refusal or the missing p
   for (const [status, words] of [[403, /permission/i], [401, /refused|token/i]]) {
     const mail = await mailOf(`refused${status}`);
     const w = world({ mails: [mail], refuse: status });
-    const target = await read(await open(w));
+    const target = await open(w);
     const item = itemOf(target, mail.id);
     await typed(byClass(item, "mail-title")[0], "PDF export fails");
     await typed(byClass(item, "mail-body")[0], "Exporting as PDF fails with error E42.");
@@ -319,7 +320,7 @@ test("an issue that cannot be created names the token's refusal or the missing p
 test("no text, sender or address of a mail reaches a repository request", async () => {
   const [a, b, c] = [await mailOf("x1"), await mailOf("x2"), await mailOf("x3")];
   const w = world({ mails: [a, b, c], issues: [{ number: 4, title: "Export fails", body: "Export fails." }] });
-  const target = await read(await open(w));
+  const target = await open(w);
   const item = itemOf(target, a.id);
   await typed(byClass(item, "mail-title")[0], "PDF export fails");
   await typed(byClass(item, "mail-body")[0], "Exporting as PDF fails with error E42.");
@@ -337,7 +338,7 @@ test("no text, sender or address of a mail reaches a repository request", async 
 
 // TST-963009 · level: component · module: MOD-maintenance-pages
 // guards: EVERY STEP EXPLAINS ITSELF; UC-038
-// given: the page before and after Read mailbox
+// given: the page as it is drawn, and after its reading
 // input: the folded explanations
 // expect: the reading step, the list of mails, the review of a mail and the decisions each carry a folded <details class="explain">, and the review of a mail carries its own
 test("every step of the route carries its folded explanation", async () => {
@@ -356,13 +357,13 @@ test("every step of the route carries its folded explanation", async () => {
 
 // TST-963010 · level: component · module: MOD-maintenance-pages
 // guards: MAIL STAYS IN THE MAILBOX; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; UC-038
-// given: the page after Read mailbox with one mail
+// given: the page after its reading, with one mail
 // input: the route's subject for its parameters, and its paramsFor for a participant
 // expect: the subject is of the kind converse, refuses propose-edit and hand-over, and its page holds the mail's MAIL- identifier and none of the mail's text, sender or subject
 test("the route gives the prompt bar a subject that holds a mail's identifier and no text of it", async () => {
   const mail = await mailOf("subject");
   const w = world({ mails: [mail] });
-  const target = await read(await open(w));
+  const target = await open(w);
   const subject = route().subject({}, { page: "main", instance: { repository: INSTANCE }, store: w.store, product: null });
   assert.ok(subject, "a subject");
   assert.equal(subject.kind, undefined, "a subject names no kind: the bar runs converse on every page");
@@ -385,6 +386,59 @@ test("the view holds the route mail under the menu entry maintenance", () => {
   assert.deepEqual([mail.entry, mail.title], ["maintenance", "Mail"]);
 });
 
+// TST-963012 · level: component · module: MOD-maintenance-pages
+// guards: READING THE MAILBOX CHANGES NOTHING IN IT; ONE CLICK PER DECISION; UC-038
+// given: one new mail; a Bridge that counts the reads it answers
+// input: the route mail drawn, without any click; then a click a script makes on Read again; then the person's click on Read again
+// expect: drawing alone reads the mailbox once and lists the mail; the page holds a button read-again "Read again" and no button read-mailbox nor the words "Read mailbox"; the script's click reads nothing; the person's click reads the mailbox a second time and lists the mail again
+test("drawing the mail page reads the mailbox at once, and Read again reads it anew", async () => {
+  const mail = await mailOf("drawn");
+  const requests = [];
+  const w = world({ mails: [mail], bridge: (url, init) => { requests.push(`${init.method} ${url.pathname}`); return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+  const target = await open(w);
+  assert.deepEqual(requests, ["POST /v1/mail/read"], "drawing reads the mailbox, without a click");
+  assert.ok(itemOf(target, mail.id), "the mail is listed");
+  const again = byClass(target, "read-again");
+  assert.equal(again.length, 1);
+  assert.equal(again[0].localName, "button");
+  assert.equal(textOf(again[0]).trim(), "Read again");
+  assert.deepEqual(byClass(target, "read-mailbox"), [], "no button Read mailbox");
+  assert.equal(textOf(target).includes("Read mailbox"), false, "the page does not name Read mailbox");
+  again[0].dispatchEvent(new Event("click"));
+  await flush();
+  assert.equal(requests.length, 1, "a click a script makes reads nothing");
+  await readAgain(target);
+  assert.deepEqual(requests, ["POST /v1/mail/read", "POST /v1/mail/read"]);
+  assert.ok(itemOf(target, mail.id), "the mail is listed again");
+});
+
+// TST-963013 · level: component · module: MOD-maintenance-pages
+// guards: UC-038
+// given: a Bridge whose answer to the first read waits until the test releases it
+// input: the route mail drawn; Read again looked at while that reading runs, the person's click on it then, and after the answer
+// expect: while the reading runs Read again is disabled and the person's click on it sends no second read; once the answer is shown it is enabled again
+test("Read again is disabled while a reading runs, so that two readings never overlap", async () => {
+  const mail = await mailOf("slow");
+  const requests = [];
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  const w = world({ mails: [mail], bridge: async (url, init) => { requests.push(`${init.method} ${url.pathname}`); await held; return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const drawn = route().render(target, { page: "main", instance: { repository: INSTANCE, host: null }, store: w.store, product: null, go: () => {} }, {});
+  await waitFor(() => requests.length === 1);
+  const again = byClass(target, "read-again")[0];
+  assert.ok(again, "Read again is drawn while the mailbox is read");
+  assert.equal(again.disabled, true);
+  await trusted(again);
+  assert.equal(requests.length, 1, "no second reading while one runs");
+  release();
+  await drawn;
+  await read(target);
+  assert.ok(itemOf(target, mail.id), "known positive: the reading ended");
+  assert.equal(again.disabled, false);
+});
+
 /** What the frame does with an address: the route and parameters routeOf reads, the product chosenProduct names (the fragment's `product`), and the route drawn with them. */
 async function followed(w, href) {
   const { name, params: { product: _named, ...params } } = routeOf(href);
@@ -405,7 +459,7 @@ async function followed(w, href) {
 test("the link to the issue of a mail's thread is the address the frame writes, and following it shows that issue's page", async () => {
   const listed = await mailOf("listed"), reply = await mailOf("reply", { inReplyTo: listed.messageId, references: [listed.messageId] });
   const w = world({ mails: [listed, reply], issues: [{ number: 4, title: "Export fails", body: withMailIds("Export fails.", [listed.id]) }] });
-  const target = await read(await open(w));
+  const target = await open(w);
   const href = byClass(byClass(target, "mail-attached-item")[0], "issue-link")[0].getAttribute("href");
   assert.equal(href, fragmentOf("issue", { number: "4", product: PRODUCT_URL }));
   const page = await followed(w, href);
@@ -424,7 +478,7 @@ test("the link to the issue of a mail's thread is the address the frame writes, 
 test("the link Propose SPEC change is the address the frame writes, and following it shows the created issue's page", async () => {
   const mail = await mailOf("one");
   const w = world({ mails: [mail] });
-  const target = await read(await open(w));
+  const target = await open(w);
   const item = itemOf(target, mail.id);
   await typed(byClass(item, "mail-title")[0], "PDF export fails with error E42");
   await typed(byClass(item, "mail-body")[0], "Exporting a thesis as PDF fails with error E42 in version 1.4. A PDF file was expected.");

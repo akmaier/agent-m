@@ -92,9 +92,14 @@ function fakeGraph({ trap = null, status = null } = {}) {
     if (list) {
       const folder = { inbox: "inbox", drafts: "drafts", sentitems: "sentitems", "REPORTS-ID": "REPORTS-ID" }[list[1]];
       if (!folder) return json({ error: { code: "ErrorItemNotFound" } }, 404);
-      const all = Object.entries(MAILS).filter(([, mail]) => mail.folder === folder).map(([id, mail]) => ({ id, internetMessageId: mail.messageId }));
+      // Graph selects by `$filter=receivedDateTime ge <date and time>`, the date received being here the mail's Date; its next page keeps the filter.
+      const received = /^receivedDateTime ge (\S+)$/.exec(url.searchParams.get("$filter") ?? "")?.[1];
+      const all = Object.entries(MAILS).filter(([, mail]) => mail.folder === folder)
+        .filter(([, mail]) => received === undefined || Date.parse(/^Date: (.*)$/m.exec(mail.raw)[1]) >= Date.parse(received))
+        .map(([id, mail]) => ({ id, internetMessageId: mail.messageId }));
       if (folder === "inbox" && !url.searchParams.has("page")) {
-        return json({ value: all.slice(0, 1), "@odata.nextLink": trap ?? `${GRAPH}/me/mailFolders/inbox/messages?page=2` });
+        const kept = received === undefined ? "" : `&$filter=${encodeURIComponent(`receivedDateTime ge ${received}`)}`;
+        return json({ value: all.slice(0, 1), "@odata.nextLink": trap ?? `${GRAPH}/me/mailFolders/inbox/messages?page=2${kept}` });
       }
       return json({ value: folder === "inbox" ? all.slice(1) : all });
     }
@@ -230,3 +235,41 @@ for (const [what, status, name, check] of [
     }
   });
 }
+
+const listRequests = (requests) => requests.filter((request) => /\/me\/mailFolders\/[^/?]+\/messages\b/.test(request.address));
+const receivedFilter = (request) => new URL(request.address).searchParams.get("$filter");
+
+// TST-478306 · level: unit · module: MOD-mail-routes
+// guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: the fake Graph of TST-478301 — INBOX holds in-1 (received 5 October 2026) over its first page and in-2 (13 October) over its second, Reports holds rep-1 (7 October) —, which lists only the messages a `$filter=receivedDateTime ge` selects, and keeps the filter on its next page
+// input: mailbox(connection of the Microsoft route with folders INBOX and Reports, null).read("2026-10-10"); then .read("2026-10-13T18:00:00Z")
+// expect: each list request of INBOX and Reports carries `$filter=receivedDateTime ge 2026-10-10T00:00:00Z`, and only the raw form of in-2 is fetched; the answer is the one Mail <in-2@example.org>; a since with a time names its day: the filter is `receivedDateTime ge 2026-10-13T00:00:00Z`, and in-2, received at 10:00 that day, is read
+test("read — on the Microsoft route: the date received is filtered by Graph, and only the mails it selects are fetched", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  signedIn();
+  let requests = fakeGraph();
+  const mails = await mailbox(CONNECTION, null).read("2026-10-10");
+  assert.deepEqual(mails.map((mail) => mail.messageId), ["<in-2@example.org>"]);
+  const lists = listRequests(requests);
+  assert.ok(lists.some((request) => request.address.includes("/inbox/")) && lists.some((request) => request.address.includes("/REPORTS-ID/")), "known positive: both folders were listed");
+  assert.deepEqual([...new Set(lists.map(receivedFilter))], ["receivedDateTime ge 2026-10-10T00:00:00Z"]);
+  assert.deepEqual(rawFetched(requests).map((request) => /messages\/([^/]+)\//.exec(decodeURIComponent(request.address))[1]), ["AAMk-in-2="]);
+  requests = fakeGraph();
+  assert.deepEqual((await mailbox(CONNECTION, null).read("2026-10-13T18:00:00Z")).map((mail) => mail.messageId), ["<in-2@example.org>"]);
+  assert.deepEqual([...new Set(listRequests(requests).map(receivedFilter))], ["receivedDateTime ge 2026-10-13T00:00:00Z"]);
+});
+
+// TST-478307 · level: unit · module: MOD-mail-routes
+// guards: UC-038
+// given: counter-proof of TST-478306: the same fake Graph
+// input: mailbox(connection of the Microsoft route, null).read(null)
+// expect: no list request carries a filter on the date received, and the raw forms of all three mails are fetched
+test("read — on the Microsoft route: without since no date is filtered and every mail is fetched", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  signedIn();
+  const requests = fakeGraph();
+  assert.equal((await mailbox(CONNECTION, null).read(null)).length, 3);
+  assert.ok(listRequests(requests).length >= 3, "known positive: the folders were listed");
+  assert.equal(listRequests(requests).some((request) => /receivedDateTime/.test(receivedFilter(request) ?? "")), false);
+  assert.equal(rawFetched(requests).length, 3);
+});

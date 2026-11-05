@@ -1,7 +1,7 @@
 // UC-038 "Turn mails into issues" as a system path: the author opens the route `mail` on the main page, started by MOD-site-frame's startPage over the view of MOD-maintenance-pages, in the browser of
 // tests/maintenance-pages-world.mjs (the repositories, the participants' register, the model endpoints ep1 and ep2, GitHub's issues of alice/product), over the mailbox on the Microsoft route — a fixture server of
 // Microsoft Graph in place of graph.microsoft.com (tests/uc-039-world.mjs) — and walks the main flow (steps 1 to 10) and the alternative flows 2a, 4b, 4c, 6a, 6c, 7a, 7b and 8a, each reached by a person's input: the
-// click on Read mailbox, a chosen participant and a typed name, Propose, an edit of the title and the text, Create issue, Add to #n, Not an issue. The Bridge route (the IMAP server) is walked in
+// opening of Mail, which reads the mailbox, Read again, a chosen participant and a typed name, Propose, an edit of the title and the text, Create issue, Add to #n, Not an issue. The Bridge route (the IMAP server) is walked in
 // tests/system-uc-038-bridge-route.test.mjs.
 // Run: node --test tests/system-uc-038-turn-mails-into-issues.test.mjs
 //
@@ -41,10 +41,12 @@ const answer = () => ({ draft: { proposals: [
 
 const open = (extra = {}) => openReplies({ route: "graph", fragment: "#mail", rows: ROWS, answer, issues: [issueRecord(3, "open", [])],
   inbox: [rawMail("a", { subject: "Export fails", body: BODY }), rawMail("b", { subject: "Dark theme", body: "Please add a dark theme.\r\nKind regards\r\nErika Mustermann" })], ...extra });
-async function readMailbox(p, clicks) {
-  clicks.push("Read mailbox");
-  await click(one(p.main(), "read-mailbox"));
-  await waitFor(() => byClass(p.main(), "mail-decided").length > 0 || byClass(p.main(), "mailbox-problem").length > 0);
+// The reading opening the page starts, waited for: it takes no click.
+const mailboxRead = (p) => waitFor(() => byClass(p.main(), "mail-decided").length > 0 || byClass(p.main(), "mailbox-problem").length > 0);
+async function readAgain(p, clicks) {
+  clicks.push("Read again");
+  await click(one(p.main(), "read-again"));
+  await mailboxRead(p);
 }
 async function chooseParticipant(p, name, person = "Anna Author") {
   const input = one(p.main(), "person");
@@ -74,16 +76,14 @@ const everyWrite = (p) => JSON.stringify([writes(p), graphWrites(p)]);
 // TST-965001 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT; MAIL STAYS IN THE MAILBOX; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL
 // given: the page at the route mail over the Microsoft route; the INBOX holds a (new), listed (which the open issue 3 lists), marked (which the author marked not an issue in this browser) and reply (whose In-Reply-To names listed); no participant is chosen
-// input: the person's click on Read mailbox
+// input: Mail opened, which reads the mailbox without a click
 // expect: only a is listed, with sender, subject and date; the mail reply is attached to issue 3 at once — one comment that adds its identifier to the issue — and shown under it, without a participant: no request reached a model endpoint; listed and marked are left out; reading wrote nothing to the mailbox and nothing but that comment to the tracker (flow: UC-038 main flow, steps 1 to 3)
 test("main flow, steps 1 to 3: the mailbox is read, decided mails are left out, a reply in a known thread is attached to its issue without a participant", async () => {
   const marked = await mailOf("marked");
-  const p = await open({ issues: [issueRecord(3, "open", [D])],
+  const p = await open({ issues: [issueRecord(3, "open", [D])], settings: { "not-an-issue": [marked.id] },
     inbox: [rawMail("a", { subject: "Export fails", body: BODY }), rawMail("listed"), rawMail("marked"), rawMail("reply", { inReplyTo: "<listed@mail.example.invalid>", references: "<listed@mail.example.invalid>", subject: "Re: Subject listed" })] });
   await lastly(p, async () => {
-    writeSetting(p.w.context.store, "not-an-issue", [marked.id]);
-    const clicks = [];
-    await readMailbox(p, clicks);
+    await mailboxRead(p);
     const listed = items(p);
     assert.deepEqual(listed.map((node) => node.getAttribute("data-mail")), [A.id], "only the undecided mail is listed");
     const text = textOf(listed[0]);
@@ -102,13 +102,13 @@ test("main flow, steps 1 to 3: the mailbox is read, decided mails are left out, 
 // TST-965002 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; ONE CLICK PER DECISION; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS
 // given: two new mails a and b; the participants local-llm and three checkers at this machine; the answer of local-llm: a neutral defect for a, a neutral change for b
-// input: Read mailbox; local-llm chosen and a name typed; a click a script makes on Propose, then the person's click; a click a script makes on Create issue, then the person's click, for a and for b
-// expect: the panel names where local-llm processes data; the script's clicks send and write nothing; one Propose sends one request for both mails; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Read mailbox, Propose and one decision per mail (flow: UC-038 main flow, steps 4, 5, 7 and 8, and the postcondition)
+// input: Mail opened, which reads the mailbox; local-llm chosen and a name typed; a click a script makes on Propose, then the person's click; a click a script makes on Create issue, then the person's click, for a and for b
+// expect: the panel names where local-llm processes data; the script's clicks send and write nothing; one Propose sends one request for both mails; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Propose and one decision per mail (flow: UC-038 main flow, steps 4, 5, 7 and 8, and the postcondition)
 test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail, neutral issues with the label and the identifier, the mailbox untouched", async () => {
   const p = await open();
   await lastly(p, async () => {
     const clicks = [];
-    await readMailbox(p, clicks);
+    await mailboxRead(p);
     await chooseParticipant(p, "local-llm");
     assert.match(textOf(one(p.main(), "run-panel")), /this machine/);
     assert.equal(byClass(p.main(), "mail-checker").length, 3);
@@ -137,7 +137,7 @@ test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail
     assert.ok(byClass(itemOf(p.main(), B.id), "issue-link").length > 0, "a change offers the SPEC change");
     assert.equal(byClass(itemOf(p.main(), A.id), "issue-link").length, 0, "a defect goes to implementation directly");
     assert.deepEqual(graphWrites(p), [], "the mailbox saw no write");
-    assert.deepEqual(clicks, ["Read mailbox", "Propose", "Create issue defect", "Create issue change"]);
+    assert.deepEqual(clicks, ["Propose", "Create issue defect", "Create issue change"]);
     assert.ok(!everyWrite(p).includes("Mustermann") && !everyWrite(p).includes("erika@example.invalid"), "no sender or name in any write");
   });
 });
@@ -145,13 +145,13 @@ test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail
 // TST-965003 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; ONE CLICK PER DECISION; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
 // given: two new mails a and b and the open issue 3
-// input: Read mailbox; the person's click on Add to #3 for a; the person's click on Not an issue for b; the mailbox read again
+// input: Mail opened, which reads the mailbox; the person's click on Add to #3 for a; the person's click on Not an issue for b; the person's click on Read again
 // expect: Add to #3 writes one comment that lists a's identifier on issue 3, and nothing else; Not an issue writes nothing to any repository and marks b in this browser; the second reading lists neither a (an issue lists it now) nor b (marked); the mailbox saw no write (flow: UC-038 main flow, steps 7 and 9)
 test("steps 7 and 9: Add to #n lists the mail on the issue, Not an issue marks it in this browser, and neither is proposed again", async () => {
   const p = await open();
   await lastly(p, async () => {
     const clicks = [];
-    await readMailbox(p, clicks);
+    await mailboxRead(p);
     const itemA = itemOf(p.main(), A.id), itemB = itemOf(p.main(), B.id);
     await typed(one(itemA, "mail-issue-number"), "3");
     await click(one(itemA, "add-to-issue"));
@@ -164,7 +164,7 @@ test("steps 7 and 9: Add to #n lists the mail on the issue, Not an issue marks i
     assert.equal(itemOf(p.main(), B.id), undefined, "the mail leaves the list at the click");
     p.w.kept.issues[0].comments.push(commentsOf(p)[0]);
     p.w.kept.issues[0].body = `${p.w.kept.issues[0].body}\n\nMails: \`${A.id}\``;
-    await readMailbox(p, clicks);
+    await readAgain(p, clicks);
     assert.deepEqual(items(p).map((node) => node.getAttribute("data-mail")), [], "neither is listed again");
     assert.deepEqual(graphWrites(p), []);
   });
@@ -172,14 +172,16 @@ test("steps 7 and 9: Add to #n lists the mail on the issue, Not an issue marks i
 
 // TST-965004 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
-// given: the page over the Microsoft route, and a provider that cannot be reached when the mailbox is read
-// input: the person's click on Read mailbox
+// given: the page over the Microsoft route, whose provider cannot be reached once the reading of the opening has answered
+// input: Mail opened, which reads the mailbox; the provider gone; the person's click on Read again
 // expect: nothing is listed; the page names the reason (the provider's answer) in the problem of the mailbox; no participant was asked and nothing was written to the tracker (flow: UC-038 alternative 2a)
 test("alternative 2a: a mailbox that cannot be reached is named, nothing is read and nothing is written", async () => {
   const p = await open();
   await lastly(p, async () => {
+    await mailboxRead(p);
+    assert.ok(items(p).length > 0, "known positive: the reading of the opening listed the mails");
     p.graph.fetch = async () => { throw new TypeError("Failed to fetch: the provider cannot be reached"); };
-    await readMailbox(p, []);
+    await readAgain(p, []);
     assert.equal(items(p).length, 0);
     assert.ok(byClass(p.main(), "mailbox-problem").length > 0, "the problem of the mailbox is named");
     assert.match(textOf(one(p.main(), "mailbox-problem")), /provider|reach|Failed to fetch/i);
@@ -191,12 +193,12 @@ test("alternative 2a: a mailbox that cannot be reached is named, nothing is read
 // TST-965005 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
 // given: two new mails; the author presses no Propose
-// input: Read mailbox; for a: the kind change chosen, a title and a text typed by hand; the person's click on Create issue
+// input: Mail opened, which reads the mailbox; for a: the kind change chosen, a title and a text typed by hand; the person's click on Create issue
 // expect: nothing was sent to any participant; Create issue is disabled while the proposal is empty and enabled by the typed title and text; the issue created holds the author's title, text and kind (the label change) and a's identifier (flow: UC-038 alternative 4b)
 test("alternative 4b: without Propose the author decides a mail by hand with an empty proposal", async () => {
   const p = await open();
   await lastly(p, async () => {
-    await readMailbox(p, []);
+    await mailboxRead(p);
     const item = itemOf(p.main(), A.id);
     assert.equal(one(item, "create-issue").disabled, true, "disabled with an empty proposal");
     one(item, "mail-kind").value = "change";
@@ -215,12 +217,12 @@ test("alternative 4b: without Propose the author decides a mail by hand with an 
 // TST-965006 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
 // given: a register whose only participant that drafts text processes data in the USA, and a mailbox that allows this machine only
-// input: Read mailbox
+// input: Mail opened, which reads the mailbox
 // expect: the page says that no participant processes data at a place the mailbox allows, links the mailbox's processing places, and offers no participant; nothing was sent; the author can still decide a mail by hand (flow: UC-038 alternative 4c)
 test("alternative 4c: no participant at an allowed place is said, the mailbox's places are linked and nothing is sent", async () => {
   const p = await open({ rows: [CLOUD] });
   await lastly(p, async () => {
-    await readMailbox(p, []);
+    await mailboxRead(p);
     assert.equal(byClass(p.main(), "mail-participant").length, 0);
     assert.ok(byClass(p.main(), "mail-no-participant").length > 0);
     assert.ok(byClass(p.main(), "places-link").length > 0 && byClass(p.main(), "places-link")[0].getAttribute("href") === "#mailbox");
@@ -234,7 +236,7 @@ test("alternative 4c: no participant at an allowed place is said, the mailbox's 
 // TST-965007 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA
 // given: the proposal for b names the reporter's address in its text
-// input: Read mailbox; local-llm chosen; Propose; the text edited to remove the address; the person's click on Create issue
+// input: Mail opened, which reads the mailbox; local-llm chosen; Propose; the text edited to remove the address; the person's click on Create issue
 // expect: the hit is marked and Create issue disabled while it stands; after the edit no hit, Create issue enabled, and the issue is created without the address (flow: UC-038 alternative 6a)
 test("alternative 6a: a hit of the mail's people is marked, Create issue stays disabled until it is edited out", async () => {
   const p = await open({ answer: () => ({ draft: { proposals: [
@@ -242,7 +244,7 @@ test("alternative 6a: a hit of the mail's people is marked, Create issue stays d
     { mail: B.id, product: PRODUCT_URL, kind: "change", title: "Add a dark theme", text: "The reporter erika@example.invalid asks for a dark theme.", duplicates: [] }] }, answers: [] }) });
   await lastly(p, async () => {
     const clicks = [];
-    await readMailbox(p, clicks);
+    await mailboxRead(p);
     await chooseParticipant(p, "local-llm");
     await propose(p, clicks);
     const item = itemOf(p.main(), B.id);
@@ -260,12 +262,12 @@ test("alternative 6a: a hit of the mail's people is marked, Create issue stays d
 // TST-965008 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; A REWRITTEN TEXT IS CHECKED BY THREE LLMS
 // given: a register with local-llm and only two checking participants at this machine
-// input: Read mailbox; local-llm chosen and a name typed
+// input: Mail opened, which reads the mailbox; local-llm chosen and a name typed
 // expect: the page names what is missing (a third checker) and links the participants and the mailbox's places; no run panel is drawn and nothing is sent; the author may still write the issue text by hand (flow: UC-038 alternative 6c)
 test("alternative 6c: with fewer than three checkers the missing one is named and nothing is sent", async () => {
   const p = await open({ rows: [LOCAL, CHECKS[0], CHECKS[1]] });
   await lastly(p, async () => {
-    await readMailbox(p, []);
+    await mailboxRead(p);
     await chooseParticipant(p, "local-llm");
     assert.ok(byClass(p.main(), "mail-missing-checkers").length > 0, "what is missing is named");
     assert.ok(byClass(p.main(), "participants-link").length > 0);
@@ -286,7 +288,7 @@ test("alternatives 7a and 7b: the author's choice is what is written, and a mail
   const p = await open();
   await lastly(p, async () => {
     const clicks = [];
-    await readMailbox(p, clicks);
+    await mailboxRead(p);
     await chooseParticipant(p, "local-llm");
     await propose(p, clicks);
     const item = itemOf(p.main(), A.id);
@@ -309,12 +311,12 @@ test("alternatives 7a and 7b: the author's choice is what is written, and a mail
 // TST-965010 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a token that lacks the permission to create issues in alice/product (the tracker answers 403)
-// input: Read mailbox; a title and a text typed for a; the person's click on Create issue
+// input: Mail opened, which reads the mailbox; a title and a text typed for a; the person's click on Create issue
 // expect: the page says that the token lacks the permission, names the product and links the token step; nothing was written (flow: UC-038 alternative 8a)
 test("alternative 8a: an issue that cannot be created says which refusal it is, links the token step and writes nothing", async () => {
   const p = await open({ createStatus: 403 });
   await lastly(p, async () => {
-    await readMailbox(p, []);
+    await mailboxRead(p);
     const item = itemOf(p.main(), A.id);
     await typed(one(item, "mail-title"), "Export fails");
     await typed(one(item, "mail-body"), "The export fails with error E42 in version 1.4.");
