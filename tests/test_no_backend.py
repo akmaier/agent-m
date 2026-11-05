@@ -863,14 +863,24 @@ class NoServer(unittest.TestCase):
         indirect = accepted.replace("fetch(address", "globalThis.fetch(address")
         self.assertEqual(channel_findings({path: indirect}),
                          [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
-        finite = ("const requestTimeoutMs = 15000;\n" + accepted.replace(
+        # The request's time limit: a mail operation's and every other request's, each a constant of a positive literal.
+        signal_line = '  const signal = AbortSignal.timeout(path.startsWith("/v1/mail/") ? mailTimeoutMs : requestTimeoutMs);\n'
+        finite = ("const requestTimeoutMs = 15_000;\nconst mailTimeoutMs = 300_000;\n" + accepted.replace(
             '  return fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" });',
-            '  const signal = AbortSignal.timeout(requestTimeoutMs);\n'
-            '  return fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" });'))
+            signal_line + '  return fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" });'))
         self.assertEqual(channel_findings({path: finite}), [])
-        missing_signal = finite.replace('  const signal = AbortSignal.timeout(requestTimeoutMs);\n', "")
+        missing_signal = finite.replace(signal_line, "")
         self.assertEqual(channel_findings({path: missing_signal}),
-                         [f"{path}:11: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+                         [f"{path}:12: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+        for planted, note in (
+            (finite.replace("const mailTimeoutMs = 300_000;", "const mailTimeoutMs = Infinity;"), "a mail limit that is no positive literal"),
+            (finite.replace("const mailTimeoutMs = 300_000;", "const mailTimeoutMs = 0;"), "a mail limit of zero"),
+            (finite.replace("const requestTimeoutMs = 15_000;", "const requestTimeoutMs = Number(limit);"), "a request limit that is no literal"),
+            (finite.replace("const mailTimeoutMs = 300_000;\n", ""), "a mail limit declared nowhere"),
+            (finite.replace("? mailTimeoutMs : requestTimeoutMs", "? mailTimeoutMs : init.timeout"), "a limit the caller chooses"),
+        ):
+            with self.subTest(note):
+                self.assertTrue(channel_findings({path: planted}), note)
 
     def test_counter_proof_a_modules_own_data_files(self):
         # The form MOD-spec-document reads its skeleton in, in a module whose file states that it reads its own data files.

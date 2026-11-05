@@ -20,7 +20,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as client from "../src/bridge-client/index.mjs";
 
-const { mailCall, bridgeAt } = client;
+const { mailCall, bridgeAt, testBridge, probe } = client;
 
 const CONNECTION = { route: "imap", address: "me@example.test", servers: { imap: "imap.example.test:993", smtp: "smtp.example.test:465" }, password: "mail-password-constructed-001" };
 const BRIDGE = { address: "http://127.0.0.1:4711", token: "bridge-token-constructed-002" };
@@ -146,4 +146,67 @@ test("mailCall — a missing or refused token, a refused web login, no answer an
     (error) => error.name === "NoAnswer" && error.likely.at(-1) === "certificate not trusted");
   mode = "timeout";
   await assert.rejects(() => mailCall(bridgeAt(BRIDGE), "test", CONNECTION, {}), rejection("Timeout"));
+});
+
+// A stand-in clock for a request's time limit: AbortSignal.timeout(ms) is recorded and returns a signal that the stand-in for fetch aborts, with
+// the TimeoutError a browser gives, when the Bridge's answer comes later than that limit — as a mail read did that the Bridge answered after 33.6 s.
+function withAnswerAfter(t, answerAfterMs, body) {
+  const limits = new Map();
+  const asked = [];
+  const priorTimeout = AbortSignal.timeout;
+  AbortSignal.timeout = (ms) => { const controller = new AbortController(); limits.set(controller.signal, { ms, controller }); asked.push(ms); return controller.signal; };
+  t.after(() => { AbortSignal.timeout = priorTimeout; });
+  withFetch(t, (_url, init) => {
+    const limit = limits.get(init.signal);
+    assert.ok(limit && Number.isFinite(limit.ms) && limit.ms > 0, "every request carries a finite time limit of its own");
+    if (limit.ms < answerAfterMs) {
+      limit.controller.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+      throw init.signal.reason;
+    }
+    return json(body);
+  });
+  return asked;
+}
+
+// TST-1790001 · level: unit · module: MOD-bridge-client
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-037
+// given: a Bridge that answers a mail read after 33 649 ms, longer than the 15 s of the client's other requests
+// input: mailCall(bridge, "read", connection, { folder: null })
+// expect: the Bridge's answer is returned, not Timeout; the request's time limit is finite and longer than the answer took
+test("TST-1790001: a mail read the Bridge answers after more than 15 s is still read", async (t) => {
+  const answer = { mails: [{ id: "1", subject: "constructed" }] };
+  const asked = withAnswerAfter(t, 33_649, answer);
+  assert.deepEqual(await mailCall(bridgeAt(BRIDGE), "read", CONNECTION, { folder: null }), answer);
+  assert.equal(asked.length, 1);
+  assert.ok(Number.isFinite(asked[0]) && asked[0] > 33_649, `the mail read's limit is finite and above the answer's time: ${asked[0]}`);
+});
+
+// TST-1790002 · level: unit · module: MOD-bridge-client
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: a Bridge whose every answer comes after 15 001 ms; and one whose answers come after 15 000 ms
+// input: testBridge(bridge) and probe(bridge, "partitions", {})
+// expect: after 15 001 ms both are Timeout, each request limited to 15 000 ms; after 15 000 ms both are answered
+test("TST-1790002: a request other than a mail operation still times out after 15 s", async (t) => {
+  await t.test("one millisecond late", async (t) => {
+    const asked = withAnswerAfter(t, 15_001, { bridge: { name: "lab-pc" }, agents: [], answer: { partitions: [] } });
+    await assert.rejects(() => testBridge(bridgeAt(BRIDGE)), rejection("Timeout"));
+    await assert.rejects(() => probe(bridgeAt(BRIDGE), "partitions", {}), rejection("Timeout"));
+    assert.deepEqual(asked, [15_000, 15_000]);
+  });
+  await t.test("at the limit", async (t) => {
+    withAnswerAfter(t, 15_000, { bridge: { name: "lab-pc" }, agents: [], answer: { partitions: [] } });
+    assert.equal((await testBridge(bridgeAt(BRIDGE))).bridge.name, "lab-pc");
+    assert.deepEqual(await probe(bridgeAt(BRIDGE), "partitions", {}), { partitions: [] });
+  });
+});
+
+// TST-1790003 · level: unit · module: MOD-bridge-client
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-037
+// given: a Bridge whose answer to each mail operation comes after 300 001 ms, one millisecond past five minutes
+// input: mailCall for each operation of the mail route
+// expect: each is Timeout, each request limited to 300 000 ms: a mail operation's limit is long, and finite
+test("TST-1790003: a mail operation still times out, at its own finite limit of five minutes", async (t) => {
+  const asked = withAnswerAfter(t, 300_001, { ok: true });
+  for (const operation of OPERATIONS) await assert.rejects(() => mailCall(bridgeAt(BRIDGE), operation, CONNECTION, {}), rejection("Timeout"), operation);
+  assert.deepEqual(asked, OPERATIONS.map(() => 300_000));
 });
