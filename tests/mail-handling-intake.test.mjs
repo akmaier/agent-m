@@ -73,8 +73,9 @@ const day = () => new Date().toISOString().slice(0, 10);
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; UC-038
 // given: the mailbox holds a new mail, a mail an issue lists, and a mail this browser marked; the identifier controls of MOD-mail-records work
 // input: readNewMail(mailbox, [{ address, host }], [MARKED_ID]) where the product's issue 4 lists LISTED_ID in its Mails line
-// expect: proposable holds only the new mail with its people (the name and address of its header, the name of its signature), decided is 2, attached is empty
-test("TST-952001 a mail an issue lists and a mail marked not an issue are left out and counted as decided", async () => {
+// expect: proposable holds only the new mail with its people (the name and address of its header, the name of its signature); decided names the listed mail with the product and issue 4
+//   that list it, and the marked mail with product and issue null, in the order the mailbox gave them; attached is empty
+test("TST-952001 a mail an issue lists and a mail marked not an issue are left out and named as decided", async () => {
   assert.equal(await mailId({ messageId: "<sample@example.invalid>", bytes: null }), ROOT_ID);
   const newMail = mail(NEW_ID);
   const mails = [mail(LISTED_ID), newMail, mail(MARKED_ID)];
@@ -84,7 +85,7 @@ test("TST-952001 a mail an issue lists and a mail marked not an issue are left o
   assert.deepEqual(result?.proposable[0].mail, newMail);
   assert.ok(result?.proposable[0].people.names.includes("Erika Mustermann"));
   assert.ok(result?.proposable[0].people.addresses.includes("erika@example.invalid"));
-  assert.equal(result?.decided, 2);
+  assert.deepEqual(result?.decided, [{ mail: mails[0], product: PRODUCT, issue: 4 }, { mail: mails[2], product: null, issue: null }]);
   assert.deepEqual(result?.attached, []);
 });
 
@@ -94,13 +95,13 @@ test("TST-952001 a mail an issue lists and a mail marked not an issue are left o
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; UC-038
 // given: counter-proof of TST-952001: the same mails, no mail marked and no issue listing any of them
 // input: readNewMail(mailbox, [{ address, host }], []) with an issue that lists a different identifier
-// expect: all three mails are proposable and decided is 0; a mail marked in TST-952001 is proposed here, so a readNewMail that ignores the marks fails TST-952001
+// expect: all three mails are proposable and decided is empty; a mail marked in TST-952001 is proposed here, so a readNewMail that ignores the marks fails TST-952001
 test("TST-952002 counter-proof: without a listing or a mark every mail is proposed", async () => {
   const mails = [mail(LISTED_ID), mail(NEW_ID), mail(MARKED_ID)];
   const host = fakeHost([issue(4, `Export fails.\n\nMails: \`${OTHER_ID}\``)]);
   const result = await handling.readNewMail?.(fakeMailbox(mails), [{ address: PRODUCT, host }], []);
   assert.deepEqual(result?.proposable.map((entry) => entry.mail.id), [LISTED_ID, NEW_ID, MARKED_ID]);
-  assert.equal(result?.decided, 0);
+  assert.deepEqual(result?.decided, []);
 });
 
 // TST-952003
@@ -109,13 +110,13 @@ test("TST-952002 counter-proof: without a listing or a mark every mail is propos
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; UC-038
 // given: an issue lists a mail only by a comment in the form of MOD-repository-hosts' Issue (author, body, date)
 // input: readNewMail over a mailbox holding that mail and a new mail
-// expect: the mail the comment lists is left out and counted; the new mail is proposable
+// expect: the mail the comment lists is left out and named as decided with the issue 9 of the comment; the new mail is proposable
 test("TST-952003 a mail an issue lists by a comment is left out", async () => {
   const comment = { author: "someone", body: `Mail \`${LISTED_ID}\` added on 2026-10-01.`, date: "2026-10-01T10:00:00Z" };
   const host = fakeHost([issue(9, "Export fails.", { comments: [comment] })]);
   const result = await handling.readNewMail?.(fakeMailbox([mail(LISTED_ID), mail(NEW_ID)]), [{ address: PRODUCT, host }], []);
   assert.deepEqual(result?.proposable.map((entry) => entry.mail.id), [NEW_ID]);
-  assert.equal(result?.decided, 1);
+  assert.deepEqual(result?.decided.map((each) => [each.mail.id, each.product, each.issue]), [[LISTED_ID, PRODUCT, 9]]);
 });
 
 // TST-952004
@@ -124,7 +125,7 @@ test("TST-952003 a mail an issue lists by a comment is left out", async () => {
 // guards: A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; A CLOSED ISSUE IS REOPENED ONLY BY A PERSON; UC-038
 // given: a closed issue 6 lists the mail <sample@example.invalid>; a reply names it in In-Reply-To; a second mail is new
 // input: readNewMail over both mails
-// expect: the reply is attached to {product, issue 6} by exactly one commentOnIssue with the mail-added note of the reply's identifier and today's date; it is not proposable; decided is 0; the issue is not reopened, relabelled or created again
+// expect: the reply is attached to {product, issue 6} by exactly one commentOnIssue with the mail-added note of the reply's identifier and today's date; it is not proposable; decided is empty; the issue is not reopened, relabelled or created again
 test("TST-952004 a mail whose In-Reply-To names a listed mail is attached by a mail-added note and a closed issue stays closed", async () => {
   const before = day();
   const host = fakeHost([issue(6, `Export fails.\n\nMails: \`${ROOT_ID}\``, { state: "closed" })]);
@@ -132,7 +133,7 @@ test("TST-952004 a mail whose In-Reply-To names a listed mail is attached by a m
   const result = await handling.readNewMail?.(fakeMailbox([reply, mail(NEW_ID)]), [{ address: PRODUCT, host }], []);
   assert.deepEqual(result?.attached, [{ id: REPLY_ID, product: PRODUCT, issue: 6 }]);
   assert.deepEqual(result?.proposable.map((entry) => entry.mail.id), [NEW_ID]);
-  assert.equal(result?.decided, 0);
+  assert.deepEqual(result?.decided, []);
   const comments = callsOf(host, "commentOnIssue");
   assert.equal(comments.length, 1);
   assert.equal(comments[0][1], 6);
@@ -418,4 +419,24 @@ test("TST-952021 counter-proof: another now gives the date 30 days before it", a
   const mailbox = fakeMailbox([mail(NEW_ID)]);
   await handling.readNewMail?.(mailbox, [{ address: PRODUCT, host: fakeHost([]) }], []);
   assert.deepEqual(mailbox.calls, [["read", "2026-02-13"]]);
+});
+
+// TST-2026110501
+// level: unit
+// module: MOD-mail-handling
+// guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; UC-038
+// given: two products; issue 12 of the second lists one mail; a second mail is both listed by issue 3 of the first product and marked not an issue in this browser; a third mail is only marked;
+//   a fourth is new
+// input: readNewMail(mailbox, both products, the marks of the second and third mail)
+// expect: decided names, in the mailbox's order, the first mail with the second product and issue 12, the second with the first product and issue 3 — an issue that lists a mail names it
+//   even where this browser marked it too —, the third with product and issue null; counter-proof: the new mail is proposable and is not among the decided
+test("TST-2026110501 a decided mail names the product and the issue that list it, and a mail only marked names neither", async () => {
+  const second = "https://gitlab.example.invalid/group/second";
+  const [one, both, marked, fresh] = [mail(LISTED_ID), mail(REPLY_ID), mail(MARKED_ID), mail(NEW_ID)];
+  const first = fakeHost([issue(3, `Export fails.\n\nMails: \`${REPLY_ID}\``)]);
+  const other = fakeHost([issue(12, `Import fails.\n\nMails: \`${LISTED_ID}\``)]);
+  const result = await handling.readNewMail?.(fakeMailbox([one, both, marked, fresh]), [{ address: PRODUCT, host: first }, { address: second, host: other }], [REPLY_ID, MARKED_ID]);
+  assert.deepEqual(result?.decided, [{ mail: one, product: second, issue: 12 }, { mail: both, product: PRODUCT, issue: 3 }, { mail: marked, product: null, issue: null }]);
+  assert.deepEqual(result?.proposable.map((entry) => entry.mail.id), [NEW_ID]);
+  assert.equal(result?.decided.some((each) => each.mail.id === NEW_ID), false, "counter-proof: the undecided mail is not decided");
 });

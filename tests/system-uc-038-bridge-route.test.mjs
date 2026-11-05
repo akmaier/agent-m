@@ -14,7 +14,7 @@
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { PRODUCT_URL, buttonsOf, byClass, flush, issueRecord, itemOf, mailOf, one, restoreWorld, textOf, trusted, waitFor, walk } from "./maintenance-pages-world.mjs";
+import { PRODUCT_URL, buttonsOf, byClass, flush, issueRecord, mailOf, mailRead, one, openMail, restoreWorld, textOf, trusted, waitFor, walk } from "./maintenance-pages-world.mjs";
 import { ACCOUNT, PASSWORD, lastly, openReplies, rawMail } from "./uc-039-world.mjs";
 
 afterEach(restoreWorld);
@@ -35,10 +35,10 @@ test("main flow on the IMAP route: the Bridge reads read-only with the password 
   const inbox = [rawMail("a", { subject: "Export fails", body: BODY })];
   const p = await open({ inbox });
   await lastly(p, async () => {
-    await waitFor(() => byClass(p.main(), "mail-decided").length > 0 || byClass(p.main(), "mailbox-problem").length > 0);
+    await mailRead(p.main());
     assert.ok(p.state.calls.some((call) => call.operation === "read"), "the Bridge's read operation ran");
-    const item = itemOf(p.main(), A.id);
-    assert.ok(item && /Erika/.test(textOf(item)) && /Export fails/.test(textOf(item)), "the mail is listed with sender and subject");
+    const line = walk(p.main(), (node) => node.getAttribute?.("data-line") === A.id)[0];
+    assert.ok(line && /Erika/.test(textOf(line)) && /Export fails/.test(textOf(line)), "the mail is listed with sender and subject");
     const commands = p.imap.logs.commands.map((command) => command.line);
     assert.ok(commands.some((line) => /\b(EXAMINE|SELECT|FETCH)\b/i.test(line)), "known positive: the server was read");
     assert.deepEqual(commands.filter((line) => /\b(STORE|APPEND|EXPUNGE|COPY|MOVE)\b/i.test(line)), [], "no command changed the mailbox");
@@ -52,8 +52,8 @@ test("main flow on the IMAP route: the Bridge reads read-only with the password 
     radio.dispatchEvent(new Event("change"));
     await waitFor(() => byClass(p.main(), "run-panel").length > 0);
     await trusted(buttonsOf(one(p.main(), "mail-stage"), "Run")[0]);
-    await waitFor(() => byClass(p.main(), "mail-title").some((node) => node.value !== "" && node.value !== undefined));
-    await trusted(one(itemOf(p.main(), A.id), "create-issue"));
+    await waitFor(() => byClass(p.main(), "mail-proposed").length > 0);
+    await trusted(one(openMail(p.main(), A.id), "create-issue"));
     await waitFor(() => p.w.kept.issues.some((issue) => issue.number >= 100));
     const made = p.w.kept.issues.filter((issue) => issue.number >= 100);
     assert.equal(made.length, 1);
@@ -76,7 +76,7 @@ test("alternative 2a: a Bridge that does not answer is named, nothing is read an
   const p = await open({ down: true });
   await lastly(p, async () => {
     await waitFor(() => byClass(p.main(), "mailbox-problem").length > 0);
-    assert.equal(byClass(p.main(), "mail").length, 0);
+    assert.equal(byClass(p.main(), "mail-line").length, 0);
     assert.match(textOf(one(p.main(), "mailbox-problem")), /paus|Bridge|answer/i);
     assert.deepEqual(p.w.kept.github.filter((request) => request.method !== "GET"), []);
     assert.deepEqual(p.imap.logs.logins, [], "the server was not logged into");

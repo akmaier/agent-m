@@ -20,7 +20,7 @@ import { PRODUCT_URL } from "./main-page-home-harness.mjs";
 import { startRecord } from "../src/job-ledger/index.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
-import { byClass, itemOf, mailOf, one, opened, pages, read, restoreWorld, start, trusted, waitFor, walk, world, issueRecord, textOf, routeNamed } from "./maintenance-pages-world.mjs";
+import { byClass, itemOf, mailOf, mailRead, openMail, one, opened, pages, read, restoreWorld, start, trusted, waitFor, walk, world, issueRecord, textOf, routeNamed } from "./maintenance-pages-world.mjs";
 
 for (const [at, strategies] of (pages.view?.strategies ?? []).entries()) {
   try { registerStrategies(`tests/maintenance-pages-look.test.mjs#${at}`, strategies); } catch { /* registered by the page's own view */ }
@@ -61,15 +61,15 @@ test("TST-1446001: an element in the look passes the checks, and a bare button a
 // TST-1446002 · level: unit · module: MOD-maintenance-pages
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 // given: the world with two mails in the mailbox and the product alice/product
-// input: the route mail drawn, which reads the mailbox
-// expect: Read again, and Create issue, Add to #n and Not an issue of each mail, are drawn, and every button of the page carries the class btn
+// input: the route mail drawn, which reads the mailbox, and the mail opened from its list
+// expect: the line's button, and Create issue, Add to #n and Not an issue of the mail opened, are drawn, and every button of the page carries the class btn
 test("TST-1446002: the buttons of the mail page carry the frame's class btn", async () => {
   const one_ = await mailOf("one", { subject: "Export fails", text: "The export fails." });
   const w = world({ mails: [one_], reading: [one_], issues: [issueRecord(3, "open", [])] });
   const target = await opened(w, {}, "mail");
-  await waitFor(() => byClass(target, "mail-decided").length > 0 || byClass(target, "mailbox-problem").length > 0);
-  assert.ok(itemOf(target, one_.id), "the mail is listed");
-  assert.equal(namesOf(target)[0], "read-again", "Read again is drawn");
+  await mailRead(target);
+  assert.ok(namesOf(target).includes("mail-open"), "the line of the mail is drawn");
+  assert.ok(openMail(target, one_.id), "the mail is opened");
   for (const wanted of ["create-issue", "add-to-issue", "not-an-issue"]) assert.ok(namesOf(itemOf(target, one_.id)).includes(wanted), `${wanted} is drawn`);
   assert.deepEqual(buttonFindings(target), []);
 });
