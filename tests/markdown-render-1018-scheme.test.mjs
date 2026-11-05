@@ -82,7 +82,7 @@ const themeOf = (element) => /<text>(\w+)<\/text>/.exec(element.innerHTML)?.[1];
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; DIAGRAMS ARE MERMAID IN MARKDOWN
 // given: the stand-in library; the browser's preference and the root element's data-theme set as listed
 // input: renderMermaid(source) in each setting
-// expect: preference light, no data-theme: the library is initialised with the theme "default" before it draws, and the drawing is the default one; preference dark, no data-theme: "dark"; preference dark and data-theme "light": "default"; preference dark and data-theme "dark": "dark"; preference light and data-theme "dark": "default" (the preference decides, as in look.css and lme.css); the library is still initialised at the strict security level in each
+// expect: preference light, no data-theme: the library is initialised with the theme "default" before it draws, and the drawing is the default one; preference dark, no data-theme: "dark"; preference dark and data-theme "light": "default"; preference dark and data-theme "dark": "dark"; preference light and data-theme "dark": "default" (the preference decides, as in look.css); the library is still initialised at the strict security level in each
 test("TST-1018001 a diagram is drawn with the dark theme where the site's scheme is dark, and with the default theme otherwise", async () => withSvg(async () => {
   installMermaid();
   const settings = [[false, null, "default"], [true, null, "dark"], [true, "light", "default"], [true, "dark", "dark"], [false, "dark", "default"]];

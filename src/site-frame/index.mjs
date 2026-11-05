@@ -237,10 +237,11 @@ export async function embedRoute(name, target, params = {}) {
   throw Object.assign(new Error(`The route ${name} is not on this page.`), { name: "RouteNotLoaded" });
 }
 
-// The header of every page: the lab's logo and the site's name; the Bridge's window names its section, "Bridge".
+// The header of every page: the lab's logo and the site's name; the Bridge's window names its section, "Bridge". It links look.css in the
+// page's head where the page does not link it itself: a link's href, as the browser resolves it, names the same file as LOOK.
 function sharedHeader(section = null) {
   const head = document.head ?? document.getElementsByTagName("head")[0];
-  if (![...head.getElementsByTagName("link")].some((link) => link.getAttribute("href") === LOOK)) {
+  if (![...head.getElementsByTagName("link")].some((link) => (link.href || link.getAttribute("href")) === LOOK)) {
     const look = document.createElement("link");
     look.setAttribute("rel", "stylesheet");
     look.setAttribute("href", LOOK);
