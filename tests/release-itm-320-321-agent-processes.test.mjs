@@ -55,7 +55,7 @@ function agents(folder, record) {
   `);
   executable(folder, "opencode", `
     const args = process.argv.slice(2);
-    if (args[0] === "--version") process.stdout.write("1.19.0\\n");
+    if (args[0] === "--version") process.stdout.write("2.2.5\\n");
     else if (args[0] === "auth") process.stdout.write("1 credential\\n");
     else if (args[0] === "models") process.stdout.write("opencode/big-pickle\\n");
     else { process.stdout.write(JSON.stringify({ type: "text", part: { text: "opencode answer" } }) + "\\n"); process.stdout.write(JSON.stringify({ type: "step_finish", part: { tokens: { input: 3, output: 2 } } }) + "\\n"); }
@@ -91,7 +91,7 @@ test("TST-320321901: public discovery reads the registered agents and tests one 
     await withPath(folder, async () => {
       const found = await installedAgents();
       assert.deepEqual(found.map(({ name, version, loggedIn }) => [name, version, loggedIn]), [
-        ["claude", "2.1.300", true], ["codex", "1.2.3", true], ["opencode", "1.19.0", true],
+        ["claude", "2.1.300", true], ["codex", "1.2.3", true], ["opencode", "2.2.5", true],
       ]);
       assert.deepEqual(await testAgent(found[0]), { answered: true, version: "2.1.300" });
     });

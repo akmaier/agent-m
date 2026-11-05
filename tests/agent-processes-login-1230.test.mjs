@@ -18,17 +18,16 @@ const withPath = async (folder, work) => {
   process.env.PATH = folder;
   try { return await work(); } finally { process.env.PATH = prior; }
 };
-// The two opencode versions as they answer on a machine with no credential stored: 2.1.4 (Homebrew) and 1.19.0 (npm, CI).
+// opencode 2 as it answers on a machine with no credential stored: 2.1.4 (Homebrew).
 const VERSIONS = [
   { version: "2.1.4", authList: "No authenticated integrations" },
-  { version: "1.19.0", authList: "0 credentials" },
 ];
-// A fixture opencode alone on the PATH: it answers its version, `auth list` with no credential, and `models` with `models`
+// A fixture opencode alone on the PATH: it answers its version, `auth list` with no credential, and `models --standalone` with `models`
 // — the lines it prints, its exit status and what it writes to standard error. Any other call exits 64.
 function opencode(folder, { version, authList }, models) {
   const lines = models.lines.map((line) => `echo '${line}'`).join("; ") || ":";
   command(folder, "opencode", `case "$*" in '--version') echo ${version};; 'auth list') echo '${authList}';; `
-    + `'models') ${lines}; ${models.stderr ? `echo '${models.stderr}' >&2;` : ""} exit ${models.status ?? 0};; *) exit 64;; esac`);
+    + `'models --standalone') ${lines}; ${models.stderr ? `echo '${models.stderr}' >&2;` : ""} exit ${models.status ?? 0};; *) exit 64;; esac`);
 }
 const opencodeOf = (found) => {
   const { name, installed, version, loggedIn, login } = found.find((agent) => agent.name === "opencode");
@@ -39,7 +38,7 @@ const opencodeOf = (found) => {
 // level: unit
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
-// given: a controlled PATH holding opencode alone, in the 2.1.4 and the 1.19.0 manner, with no credential stored (its `auth list` names none) and listing free models with `models`.
+// given: a controlled PATH holding opencode alone, in the 2.1.4 manner, with no credential stored (its `auth list` names none) and listing free models with `models --standalone`.
 // input: installedAgents().
 // expect: opencode is installed with its version, logged in, and carries its login step `opencode auth login`.
 test("TST-1230001: opencode with no credential that lists a free model is installed and logged in", async () => {

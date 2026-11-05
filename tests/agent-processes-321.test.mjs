@@ -46,12 +46,12 @@ const CLAUDE = {
 const OPENCODE = {
   name: "opencode",
   installed: true,
-  version: "1.19.0",
+  version: "2.2.5",
   loggedIn: true,
   install: {
-    macos: "https://opencode.ai/docs/#install",
-    windows: "https://opencode.ai/docs/#windows",
-    linux: "https://opencode.ai/docs/#install",
+    macos: "https://opencode.ai/v2/docs/#cli",
+    windows: "https://opencode.ai/v2/docs/#cli",
+    linux: "https://opencode.ai/v2/docs/#cli",
   },
 };
 const FAULTS = {
@@ -123,7 +123,7 @@ const claudeResult = (answer, usage = { input_tokens: 13, output_tokens: 5 }) =>
   JSON.stringify({ type: "result", subtype: "success", is_error: false, result: answer, usage, total_cost_usd: 0.01 }) + "\n";
 
 async function contextTasks(t, extra, verify) {
-  for (const [name, prefix] of [["claude", ["-p", "--output-format", "json"]], ["codex", ["exec", "-"]], ["opencode", ["run", "--format", "json"]]]) {
+  for (const [name, prefix] of [["claude", ["-p", "--output-format", "json"]], ["codex", ["exec", "-"]], ["opencode", ["run", "--format", "json", "--standalone"]]]) {
     await t.test(name, async () => {
       const folder = realpathSync(fixture()), record = join(folder, "tasks.jsonl");
       try {
