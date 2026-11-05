@@ -25,7 +25,7 @@ REGISTER = ROOT / "src" / "agent-processes" / "agents.md"
 LOGIN = {
     "claude": ("auth status", "exit 0", "exit 1"),
     "codex": ("login status", "exit 0", "exit 1"),
-    "opencode": ("models", "echo opencode/big-pickle", ":"),
+    "opencode": ("models --standalone", "echo opencode/big-pickle", ":"),
 }
 
 # What a fixture prints as its answer "ok" to a task, in the output its register row reads (agents.md), per agent.

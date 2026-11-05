@@ -55,7 +55,7 @@ async function withPath(folder, work) {
 const CASES = [
   { name: "claude", args: ["-p", "--output-format", "json"] },
   { name: "codex", args: ["exec", "-"] },
-  { name: "opencode", args: ["run", "--format", "json"] },
+  { name: "opencode", args: ["run", "--format", "json", "--standalone"] },
   { name: "claude", args: ["-p", "--output-format", "json", "--model", "fixture-model"], label: "claude with an Anthropic endpoint",
     endpoint: { kind: "anthropic", baseUrl: "https://anthropic.fixture.invalid", model: "fixture-model" } },
 ];
@@ -66,7 +66,7 @@ const CASES = [
 // guards: ONE DEFINITION, THREE DRIVERS; UC-010; UC-011; UC-049
 // given: controlled claude, codex and opencode executables on a fixture-only PATH that record their arguments and their whole standard input; claude also behind an Anthropic endpoint, which starts it through the module's settings wrapper
 // input: public agentDriver.send of a DriverInput whose prompt is 300 KB
-// expect: claude is started as `claude -p --output-format json`, codex as `codex exec -` and opencode as `opencode run --format json`, each with the endpoint's options where one is given; each reads the whole prompt once on its standard input; no argument is longer than 4 KB
+// expect: claude is started as `claude -p --output-format json`, codex as `codex exec -` and opencode as `opencode run --format json --standalone`, each with the endpoint's options where one is given; each reads the whole prompt once on its standard input; no argument is longer than 4 KB
 test("TST-1225001: a 300 KB prompt reaches each coding agent whole on its standard input, never as an argument", async (t) => {
   for (const each of CASES) {
     await t.test(each.label ?? each.name, async () => {

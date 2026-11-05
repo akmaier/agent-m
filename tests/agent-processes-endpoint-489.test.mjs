@@ -20,7 +20,7 @@ const SCHEMA = "src/agent-processes/agents.schema.md";
 const KEY_VARIABLE = "ITM489_FIXTURE_KEY";
 const PARTICIPANT = { name: "fixture-endpoint-agent", type: "CI agent", model: "fixture-model", context: 200000,
   price: null, capabilities: ["draft text", "run code and tests"], place: "fixture", route: "ci hosted secret ITM489_FIXTURE_KEY" };
-const AGENT = { name: "opencode", installed: true, version: "1.19.0", loggedIn: false,
+const AGENT = { name: "opencode", installed: true, version: "2.2.5", loggedIn: false,
   install: { macos: "https://opencode.ai/docs/", windows: "https://opencode.ai/docs/", linux: "https://opencode.ai/docs/" } };
 const INPUT = { prompt: "ITM489 fixture task", parts: [], output: null, findings: [], previous: null, workdir: null };
 

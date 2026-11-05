@@ -20,7 +20,7 @@
     { "name": "codex", "installed": true, "version": "1.2.3", "loggedIn": true, "login": "codex login",
       "install": { "macos": "https://learn.chatgpt.com/docs/codex/cli", "windows": "https://learn.chatgpt.com/docs/codex/cli", "linux": "https://learn.chatgpt.com/docs/codex/cli" } },
     { "name": "opencode", "installed": false, "version": null, "loggedIn": null, "login": "opencode auth login",
-      "install": { "macos": "https://opencode.ai/docs/#install", "windows": "https://opencode.ai/docs/#windows", "linux": "https://opencode.ai/docs/#install" } }
+      "install": { "macos": "https://opencode.ai/v2/docs/#cli", "windows": "https://opencode.ai/v2/docs/#cli", "linux": "https://opencode.ai/v2/docs/#cli" } }
   ]
 }
 ```
@@ -39,7 +39,7 @@
     { "name": "codex", "installed": false, "version": null, "loggedIn": null, "login": "codex login",
       "install": { "macos": "https://learn.chatgpt.com/docs/codex/cli", "windows": "https://learn.chatgpt.com/docs/codex/cli", "linux": "https://learn.chatgpt.com/docs/codex/cli" } },
     { "name": "opencode", "installed": false, "version": null, "loggedIn": null, "login": "opencode auth login",
-      "install": { "macos": "https://opencode.ai/docs/#install", "windows": "https://opencode.ai/docs/#windows", "linux": "https://opencode.ai/docs/#install" } }
+      "install": { "macos": "https://opencode.ai/v2/docs/#cli", "windows": "https://opencode.ai/v2/docs/#cli", "linux": "https://opencode.ai/v2/docs/#cli" } }
   ]
 }
 ```
@@ -61,7 +61,7 @@
     { "name": "codex", "installed": false, "version": null, "loggedIn": null, "login": "codex login",
       "install": { "macos": "https://learn.chatgpt.com/docs/codex/cli", "windows": "https://learn.chatgpt.com/docs/codex/cli", "linux": "https://learn.chatgpt.com/docs/codex/cli" } },
     { "name": "opencode", "installed": false, "version": null, "loggedIn": null, "login": "opencode auth login",
-      "install": { "macos": "https://opencode.ai/docs/#install", "windows": "https://opencode.ai/docs/#windows", "linux": "https://opencode.ai/docs/#install" } }
+      "install": { "macos": "https://opencode.ai/v2/docs/#cli", "windows": "https://opencode.ai/v2/docs/#cli", "linux": "https://opencode.ai/v2/docs/#cli" } }
   ]
 }
 ```
