@@ -528,3 +528,68 @@ test("mailbox — a stored connection's SMTP account and sender are shown again 
   writeSetting(bare.store, "mailbox", stored({}));
   assert.deepEqual(fields(await bare.page()), ["", "", ""]);
 });
+
+// Whether a node is shown: neither it nor an element above it, up to `root`, is hidden. The paragraphs whose text says "I have read this" that are shown.
+const shown = (node, root) => { for (let n = node; n && n !== root; n = n.parentNode) if (n.hidden === true) return false; return true; };
+const readLines = (root) => descendants(root, (node) => node.localName === "p" && /I have read this/.test(node.textContent));
+const shownReadLines = (root) => readLines(root).filter((line) => shown(line, root));
+// The line (paragraph) that holds a box.
+const lineOf = (box) => { let n = box; while (n && n.localName !== "p") n = n.parentNode; return n; };
+
+// TST-1775001 · level: unit · module: MOD-settings-pages
+// guards: UC-037; A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
+// given: the page `mailbox` on the IMAP route with this computer's Bridge (laptop, on the loopback) preset and no processing place outside the EU ticked
+// input: the page as drawn; then the Bridge gpu-box (through the jump host) chosen and laptop again; then the place "Anthropic, a provider in the USA" ticked and unticked
+// expect: as drawn, the only "I have read this" shown is the password notice's (the known positive): the lines holding the jump host's box and the place's box are hidden with their text; with gpu-box the jump host's notice, its box and its text are shown together, and with laptop hidden together again; with the US place ticked the place notice, its box and its text are shown together, and unticked hidden together
+test("mailbox — I have read this stands only with its tick box, where its notice applies", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  const jumpRead = one(page, "mailbox-jump-notice-read"), placeRead = one(page, "mailbox-place-notice-read");
+  assert.equal(one(page, "mailbox-bridge").value, "laptop", "known positive: this computer's Bridge is preset");
+  const passwordLine = lineOf(one(page, "mailbox-password-notice-read"));
+  assert.deepEqual(shownReadLines(page).map((line) => line === passwordLine), [true], "only the password notice's I have read this is shown");
+  for (const box of [jumpRead, placeRead]) {
+    assert.match(lineOf(box).textContent, /I have read this/);
+    assert.equal(shown(lineOf(box), page), false, "the line with the box and its text is hidden");
+  }
+  await put(one(page, "mailbox-bridge"), "gpu-box");
+  assert.equal(shown(one(page, "mailbox-jump-notice"), page), true);
+  assert.equal(shown(jumpRead, page), true, "the jump host's box is shown");
+  assert.equal(shown(lineOf(jumpRead), page), true, "and its text with it");
+  await put(one(page, "mailbox-bridge"), "laptop");
+  assert.equal(shown(lineOf(jumpRead), page), false);
+  const usa = byClass(page, "mailbox-place").find((box) => box.getAttribute("data-place") === "Anthropic, a provider in the USA");
+  await tick(usa);
+  assert.equal(shown(one(page, "mailbox-place-notice"), page), true);
+  assert.equal(shown(placeRead, page), true, "the place's box is shown");
+  assert.equal(shown(lineOf(placeRead), page), true, "and its text with it");
+  await tick(usa, false);
+  assert.equal(shown(lineOf(placeRead), page), false);
+  assert.deepEqual(shownReadLines(page).map((line) => line === passwordLine), [true]);
+});
+
+// TST-1775002 · level: unit · module: MOD-settings-pages
+// guards: UC-037; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
+// given: a browser whose stored IMAP connection allows only "this machine"; the connected mailbox's Processing places opened
+// input: the panel as drawn; then "Anthropic, a provider in the USA" ticked and unticked
+// expect: as drawn, the panel shows no "I have read this": the line holding its box is hidden with its text; with the US place ticked the notice, its box and its text are shown together; unticked hidden together again
+test("mailbox — the connected mailbox's Processing places show I have read this only with its tick box", async (t) => {
+  const b = browser(t);
+  writeSetting(b.store, "mailbox", { address: "reports@example.test", route: "imap", folders: ["INBOX"], places: [{ place: "this machine", outsideEu: false }],
+    imap: { bridge: "laptop", jumpHostNoted: false, imap: { host: "imap.example.test", port: 993, security: "tls" }, smtp: { host: "smtp.example.test", port: 587, security: "starttls" },
+      account: "reports@example.test", password: PASSWORD } });
+  const page = await b.page();
+  await click(one(page, "mailbox-places-change"));
+  const panel = one(page, "mailbox-places-panel");
+  const read = one(panel, "mailbox-line-place-notice-read");
+  assert.ok(byClass(panel, "mailbox-line-place").length > 0, "known positive: the places are offered");
+  assert.match(lineOf(read).textContent, /I have read this/);
+  assert.equal(shownReadLines(panel).length, 0, "no I have read this is shown");
+  const usa = byClass(panel, "mailbox-line-place").find((box) => box.getAttribute("data-place") === "Anthropic, a provider in the USA");
+  await tick(usa);
+  assert.equal(shown(one(panel, "mailbox-line-place-notice"), panel), true);
+  assert.equal(shown(read, panel), true, "the box is shown");
+  assert.deepEqual(shownReadLines(panel).map((line) => line === lineOf(read)), [true], "and its text with it");
+  await tick(usa, false);
+  assert.equal(shownReadLines(panel).length, 0);
+});
