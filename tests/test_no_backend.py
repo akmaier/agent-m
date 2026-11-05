@@ -333,12 +333,14 @@ _webfetch_in_node_only.site = True  # the evidence reads the whole site, not the
 
 
 def _bridge_client_transport(text: str, at: int) -> bool:
-    """MOD-bridge-client sends one request to the Bridge handle, only through its accepted pairing or endpoint-test path."""
+    """MOD-bridge-client sends one request to the Bridge handle, only through its accepted pairing or endpoint-test path. A request with a
+    time limit has a finite one: a mail operation's and every other request's limit are each a constant of a positive literal."""
     before = text[:at]
     direct = text[at:].startswith('fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" })')
     finite = (text[at:].startswith('fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" })')
-              and re.search(r"const requestTimeoutMs = [1-9][0-9_]*;", before)
-              and "const signal = AbortSignal.timeout(requestTimeoutMs);" in before)
+              and re.search(r"^const requestTimeoutMs = [1-9][0-9_]*;$", before, re.M)
+              and re.search(r"^const mailTimeoutMs = [1-9][0-9_]*;$", before, re.M)
+              and 'const signal = AbortSignal.timeout(path.startsWith("/v1/mail/") ? mailTimeoutMs : requestTimeoutMs);' in before)
     return ((direct or finite)
             and "async function call(bridge, path, init)" in before
             and "const address = `${bridge.address}${path}`;" in before
