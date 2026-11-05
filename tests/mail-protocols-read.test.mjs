@@ -74,9 +74,14 @@ const address = (value) => {
 };
 const envelope = (message) => `ENVELOPE (${nstring(header(message, "Date"))} ${nstring(header(message, "Subject"))} ${address(header(message, "From"))} ${address(header(message, "From"))} ${address(header(message, "Reply-To") ?? header(message, "From"))} ${address(header(message, "To"))} ${address(header(message, "Cc"))} NIL ${nstring(header(message, "In-Reply-To"))} ${nstring(header(message, "Message-ID"))})`;
 
-// `mails` maps a folder name to its messages (uid = position + 1); `advertiseStartTls: false` serves no TLS at all.
+// `mails` maps a folder name to its messages (uid = position + 1); `advertiseStartTls: false` serves no TLS at all. A message's
+// internal date — the date the server received it, which SEARCH SINCE compares, ignoring the time — is the date of its Date header.
+// `logs.fetched` names every message whose body the server sent, as { folder, uid }.
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+const imapDay = (text) => { const [day, month, year] = text.split("-"); return Date.UTC(Number(year), MONTHS.indexOf(month.toUpperCase()), Number(day)); };
+const receivedDay = (message) => { const at = new Date(Date.parse(header(message, "Date"))); return Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()); };
 async function imapServer({ mails = MAILS, advertiseStartTls = true } = {}) {
-  const logs = { commands: [], logins: [] };
+  const logs = { commands: [], logins: [], fetched: [] };
   const server = net.createServer((socket) => {
     let active = socket, secure = false, buffer = "";
     const write = (text) => active.write(text + CRLF);
@@ -126,6 +131,12 @@ async function imapServer({ mails = MAILS, advertiseStartTls = true } = {}) {
       if (command === "SELECT" || command === "STORE" || command === "COPY" || command === "MOVE" || command === "EXPUNGE" || command === "APPEND") {
         write(`${tag} NO ${command} is not allowed in this fixture`); return;
       }
+      if (command === "UID" && rest[0].toUpperCase() === "SEARCH") {
+        const since = /\bSINCE (\S+)/i.exec(line)?.[1];
+        const uids = mails[folder].map((_, index) => index + 1).filter((uid) => since === undefined || receivedDay(mails[folder][uid - 1]) >= imapDay(since));
+        write(`* SEARCH${uids.map((uid) => ` ${uid}`).join("")}`);
+        ok("UID SEARCH completed"); return;
+      }
       if (command === "UID" && rest[0].toUpperCase() === "FETCH") {
         const wanted = rest[1], items = line.slice(line.indexOf("(")).toUpperCase();
         const uids = mails[folder].map((_, index) => index + 1).filter((uid) => wanted.split(",").some((part) => {
@@ -135,7 +146,7 @@ async function imapServer({ mails = MAILS, advertiseStartTls = true } = {}) {
           const message = mails[folder][uid - 1];
           const parts = [`UID ${uid}`];
           if (items.includes("ENVELOPE")) parts.push(envelope(message));
-          if (items.includes("BODY.PEEK[]")) parts.push(`BODY[] {${Buffer.byteLength(message)}}${CRLF}${message}`);
+          if (items.includes("BODY.PEEK[]")) { parts.push(`BODY[] {${Buffer.byteLength(message)}}${CRLF}${message}`); logs.fetched.push({ folder, uid }); }
           write(`* ${uid} FETCH (${parts.join(" ")})`);
         }
         ok("UID FETCH completed"); return;
@@ -300,4 +311,40 @@ test("TST-822007: reading writes no file and no output holds the marker password
   assert.deepEqual(writes, []);
   assert.equal(output.some((text) => text.includes(PASSWORD)), false);
   assert.equal(JSON.stringify(answers).includes(PASSWORD), false);
+});
+
+// TST-822008 · level: unit · module: MOD-mail-protocols
+// guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: the fixture of TST-822001 — INBOX holds a1 (received 5 October 2026) and a2 (6 October), Reports holds r1 (7 October) —, whose server answers UID SEARCH SINCE by the day each mail was received
+// input: the handler `POST /v1/mail/read` with args { since: "2026-10-06" }
+// expect: the answer is MAIL_A2 and MAIL_R1, in folder order; the server was asked `UID SEARCH SINCE 06-Oct-2026` in each named folder; it sent the bodies of exactly INBOX uid 2 and Reports uid 1 — a1, older than the day named, is not fetched at all; no FETCH asks for the range 1:*
+test("TST-822008: read with since has the IMAP server select the mails with SEARCH SINCE and fetches only them", async () => {
+  await withMails(async (imap, smtp) => {
+    assert.deepEqual(await call("read", connection(imap, smtp), { since: "2026-10-06" }), [MAIL_A2, MAIL_R1]);
+    const lines = imap.logs.commands.map((entry) => entry.line.toUpperCase());
+    assert.equal(lines.filter((line) => /\bUID SEARCH SINCE 06-OCT-2026\b/.test(line)).length, 2, lines.join("\n"));
+    assert.deepEqual(imap.logs.fetched, [{ folder: "INBOX", uid: 2 }, { folder: "Reports", uid: 1 }]);
+    assert.equal(lines.some((line) => /\bFETCH 1:\*/.test(line)), false, "no fetch of every mail");
+    assert.equal(lines.some((line) => /\b(SELECT|STORE|COPY|MOVE|EXPUNGE|APPEND)\b/.test(line)), false);
+  });
+});
+
+// TST-822009 · level: unit · module: MOD-mail-protocols
+// guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: counter-proof of TST-822008: the same fixture
+// input: `read` with args {} (no since), and `read` with args { since: "2026-12-01" }, a day after every mail
+// expect: without since no SEARCH is sent and the bodies of all three mails are fetched; with the later day the answer is [], the server was asked SEARCH SINCE 01-Dec-2026, and no FETCH was sent at all
+test("TST-822009: read without since fetches every mail, and a SEARCH that selects none fetches nothing", async () => {
+  await withMails(async (imap, smtp) => {
+    assert.deepEqual(await call("read", connection(imap, smtp), {}), [MAIL_A1, MAIL_A2, MAIL_R1]);
+    assert.equal(imap.logs.commands.some((entry) => /\bSEARCH\b/i.test(entry.line)), false, "no SEARCH without since");
+    assert.deepEqual(imap.logs.fetched, [{ folder: "INBOX", uid: 1 }, { folder: "INBOX", uid: 2 }, { folder: "Reports", uid: 1 }]);
+  });
+  await withMails(async (imap, smtp) => {
+    assert.deepEqual(await call("read", connection(imap, smtp), { since: "2026-12-01" }), []);
+    const lines = imap.logs.commands.map((entry) => entry.line.toUpperCase());
+    assert.ok(lines.some((line) => /\bUID SEARCH SINCE 01-DEC-2026\b/.test(line)), "known positive: the server was asked");
+    assert.deepEqual(imap.logs.fetched, []);
+    assert.equal(lines.some((line) => /\bFETCH\b/.test(line)), false, "no FETCH at all");
+  });
 });

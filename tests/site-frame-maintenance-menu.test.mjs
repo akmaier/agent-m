@@ -59,7 +59,7 @@ test("TST-1099002 counter-proof: without the table's entry the menu does not ope
 // guards: UC-038; THE MENU FOLLOWS THE PROCESS
 // given: the live app on a product, a token stored
 // input: the dashboard opened at #mail
-// expect: the menu has a tab linking #mail; the main area shows the route's page: its heading Mail and its button Read mailbox, not the use-case list
+// expect: the menu has a tab linking #mail; the main area shows the route's page: its heading Mail and its button Read again, not the use-case list
 test("TST-1099003 the live app opens #mail on MOD-maintenance-pages' route and its menu links it", async () => {
   const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
   const files = {};
@@ -69,6 +69,6 @@ test("TST-1099003 the live app opens #mail on MOD-maintenance-pages' route and i
   const page = await openDashboard({ server: srv, hash: "#mail" });
   const tabs = [...page.el("tabs").matchAll(/href="#([^"]+)"/g)].map((match) => match[1]);
   assert.ok(tabs.includes("mail"), `the menu links #mail: ${tabs.join(", ")}`);
-  assert.match(page.main(), /Read mailbox/);
+  assert.match(page.main(), /Read again/);
   assert.doesNotMatch(page.main(), /#use-case\/id=UC-001"/, "not the use-case list");
 });

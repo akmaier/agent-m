@@ -11,7 +11,7 @@
 // The world is tests/maintenance-pages-world.mjs. The subject of a route is `route.subject(params, context)`, and `paramsFor(participant)` gives `{ page }` (MOD-prompt-bar's Subject). Readings the texts leave open, which the tests state (the pull request names them):
 //   - The page of a mail's text holds, per listed mail: its identifier, `From:` its sender, `Subject:`, `Date:`, its text and each attachment's name, type, size and text; the page of any other participant holds the identifiers only. A participant "whose processing place
 //     the mailbox allows" is one whose `place` is among the connection's `places`; one with no place, and a person, are not.
-//   - The routes that show mail are `mail` (the mails listed after Read mailbox) and `replies` (the mails found in the last reading); before a reading no mail is listed and the page holds none.
+//   - The routes that show mail are `mail` (the mails listed after its reading, which drawing the page starts) and `replies` (the mails found in the last reading); before a reading has answered no mail is listed and the page holds none.
 //   - `withhold(text)` gives a reason (a text) when `text` holds a name, address, phone number or account of a listed mail's people (the finding of personHits over the people of MOD-personal-data's peopleIn) or a passage of a listed mail's own text — a run of at least
 //     twenty characters of it, whatever the case and the spacing —, and null otherwise.
 // The counter-proofs are recorded in the pull request.
@@ -43,14 +43,13 @@ const ALL_OF_IT = ["Erika Mustermann", ERIKA.address, "Subject fresh", "the expo
 
 async function mailRouteRead(f) {
   const target = await opened(f.w, {}, "mail");
-  await trusted(one(target, "read-mailbox"));
   await waitFor(() => byClass(target, "mail").length > 0);
   return target;
 }
 
 // TST-510001 · level: unit · module: MOD-maintenance-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; MAIL STAYS IN THE MAILBOX; UC-049
-// given: the route mail after Read mailbox, one mail listed with an attachment; a mailbox that allows the place "this machine"; participants: local-llm (this machine, draft text), cli-writer (this machine, also write to the repository), cloud-llm (a provider in the USA), and a person with no place
+// given: the route mail after its reading, one mail listed with an attachment; a mailbox that allows the place "this machine"; participants: local-llm (this machine, draft text), cli-writer (this machine, also write to the repository), cloud-llm (a provider in the USA), and a person with no place
 // input: the subject's paramsFor for each
 // expect: for local-llm the page holds the mail's identifier, sender (name and address), subject, date, text and the attachment's name and text; for each of the others only the identifier, none of the rest; the subject is of the kind converse and refuses propose-edit and hand-over
 test("the page of the route mail holds a mail's text only for a participant at an allowed place that does not write", async () => {
@@ -110,17 +109,37 @@ test("withhold finds a planted name, address, phone number, account and a passag
 
 // TST-510004 · level: unit · module: MOD-maintenance-pages
 // guards: MAIL STAYS IN THE MAILBOX; UC-049
-// given: the route mail drawn anew after an earlier reading, before any reading of its own
-// input: the subject's paramsFor for local-llm; withhold of a message
-// expect: the page holds the route's title and no mail; withhold finds nothing in a text that no listed mail's people occur in
-test("before a reading no mail is listed, so the page holds none and nothing is withheld", async () => {
+// given: the route mail drawn anew after an earlier reading, its own reading started by the drawing and held at the Bridge until the test lets it answer
+// input: the subject's paramsFor for local-llm; withhold of a message — both taken while the page says it is reading the mailbox
+// expect: the page holds the route's title and no mail; withhold finds nothing in a text that no listed mail's people occur in; once that reading has answered, the mail is listed again (known positive)
+test("before a reading has answered no mail is listed, so the page holds none and nothing is withheld", async () => {
   const f = await mailWorld();
   await mailRouteRead(f);
   document.body.replaceChildren();
-  await opened(f.w, {}, "mail");
-  const subject = subjectOf("mail", f.w);
-  const page = pageFor(subject, LOCAL);
-  assert.ok(page.includes("Mail"));
-  assert.equal(/MAIL-/.test(page), false);
-  assert.equal(subject.withhold("Erika Mustermann writes from erika@example.invalid"), null);
+  const answering = globalThis.fetch;
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  globalThis.fetch = async (input, init) => {
+    if (String(typeof input === "object" && !(input instanceof URL) ? input.url : input).endsWith("/v1/mail/read")) await held;
+    return answering(input, init);
+  };
+  try {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const drawing = routeOf("mail").render(target, f.w.context, {});
+    await waitFor(() => /Reading the mailbox/.test(target.textContent ?? ""));
+    assert.match(target.textContent, /Reading the mailbox/, "the reading runs");
+    const subject = subjectOf("mail", f.w);
+    const page = pageFor(subject, LOCAL);
+    assert.ok(page.includes("Mail"));
+    assert.equal(/MAIL-/.test(page), false);
+    assert.equal(subject.withhold("Erika Mustermann writes from erika@example.invalid"), null);
+    release();
+    await drawing;
+    await waitFor(() => byClass(target, "mail").length > 0);
+    assert.ok(itemOf(target, f.fresh.id), "known positive: the reading lists the mail");
+  } finally {
+    release();
+    globalThis.fetch = answering;
+  }
 });

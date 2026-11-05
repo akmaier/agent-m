@@ -11,6 +11,11 @@ const MAIL_LABELS = [issueLabels.defect, issueLabels.change];
 /** Today's calendar date, `YYYY-MM-DD`, as a note names it. */
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** How many days back a reading of new mail reaches (UC-038 step 2). */
+const READ_DAYS = 30;
+/** The calendar date `READ_DAYS` days before now, `YYYY-MM-DD`: the day from which the mailbox is read. */
+const readSince = () => new Date(Date.now() - READ_DAYS * 86400000).toISOString().slice(0, 10);
+
 /**
  * A host's `Issue` as MOD-mail-records reads an issue: a comment's `date` is its `createdAt`.
  * @param {{ number: number, body: string, comments: { body: string, date: string }[] }} issue
@@ -28,7 +33,8 @@ const mailText = (mail) => ({
 });
 
 /**
- * readNewMail(mailbox, products, marked) -> Promise<NewMail> — reads the mailbox first and changes nothing in it; then the
+ * readNewMail(mailbox, products, marked) -> Promise<NewMail> — reads the mailbox first, its mails of the last 30 days (`read` with the
+ * date 30 days before now, which the mail server selects by), and changes nothing in it; then the
  * issues of every product and the identifiers they list. A mail an issue lists or this browser marked is left out and counted
  * in `decided`. A mail whose In-Reply-To or References name a listed mail is attached to that issue by a `mail-added` note,
  * without a participant, and the issue is neither reopened nor relabelled. An issue that cannot be written to is named in
@@ -38,7 +44,7 @@ const mailText = (mail) => ({
  * @param {string[]} marked
  */
 export async function readNewMail(mailbox, products, marked) {
-  const mails = await mailbox.read(null);
+  const mails = await mailbox.read(readSince());
 
   const listed = new Set();
   const threads = [];

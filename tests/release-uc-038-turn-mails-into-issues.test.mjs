@@ -116,19 +116,21 @@ async function session(extra = {}) {
   const p = await openReplies({ route: "graph", fragment: "#mail", rows: ROWS, answer, inbox, issues: [issueRecord(3, "open", [LISTED])], ...extra });
   return { p, A, B, inbox };
 }
-const readMailbox = async (p) => { await trusted(one(p.main(), "read-mailbox")); await waitFor(() => byClass(p.main(), "mail-decided").length > 0 || byClass(p.main(), "mailbox-problem").length > 0); };
+// The reading opening the page starts, waited for; readAgain is the person's click on Read again, which reads the mailbox anew.
+const mailboxRead = (p) => waitFor(() => byClass(p.main(), "mail-decided").length > 0 || byClass(p.main(), "mailbox-problem").length > 0);
+const readAgain = async (p) => { await trusted(one(p.main(), "read-again")); await mailboxRead(p); };
 
 // TST-965203 · level: release · module: MOD-maintenance-pages
 // guards: UC-038; MAIL STAYS IN THE MAILBOX; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS; READING THE MAILBOX CHANGES NOTHING IN IT
 // given: the mailbox on the Microsoft route holds two new mails from Erika Mustermann, with needle words in subject and text, and a mail an issue lists; local-llm proposes
-// input: a whole session: Read mailbox twice, local-llm chosen, Propose, Create issue for the first mail, Add to #3 for the second, Read mailbox again
+// input: a whole session: Mail opened, which reads the mailbox, and Read again, local-llm chosen, Propose, Create issue for the first mail, Add to #3 for the second, Read again
 // expect: the mails of INBOX are the very bytes they were and Agent M's requests to Graph are only reads; besides the job record of the proposal the tracker is written twice — the creation of the issue and the comment that lists the second mail —, each with the MAIL identifier of its mail, and no write holds a needle; the issue is labelled defect; the third reading lists neither mail
 test("TST-965203: a whole session leaves the mails in the mailbox and writes only neutral text and identifiers", async () => {
   const { p, A, B, inbox } = await session();
   await lastly(p, async () => {
-    await readMailbox(p);
+    await mailboxRead(p);
     const first = byClass(p.main(), "mail").map((node) => node.getAttribute("data-mail"));
-    await readMailbox(p);
+    await readAgain(p);
     assert.deepEqual(byClass(p.main(), "mail").map((node) => node.getAttribute("data-mail")), first);
     assert.deepEqual(first.sort(), [A.id, B.id].sort());
     const input = one(p.main(), "person");
@@ -157,7 +159,7 @@ test("TST-965203: a whole session leaves the mails in the mailbox and writes onl
     for (const request of made) for (const needle of NEEDLES) assert.ok(!String(request.body).includes(needle), `${needle} is not in a write to the repository (${request.path})`);
     for (const request of made.filter((each) => !record(each))) assert.match(String(request.body), /MAIL-[0-9a-f]{16}/, "an issue and a comment name their mail by an identifier");
     assert.deepEqual(JSON.parse(made.find((request) => request.path.endsWith("/issues")).body).labels, ["defect"]);
-    await readMailbox(p);
+    await readAgain(p);
     assert.deepEqual(byClass(p.main(), "mail").map((node) => node.getAttribute("data-mail")), [], "the third reading lists neither mail");
     assert.deepEqual(graphWrites(p), [], "still only reads");
   });
@@ -166,12 +168,12 @@ test("TST-965203: a whole session leaves the mails in the mailbox and writes onl
 // TST-965204 · level: release · module: MOD-maintenance-pages
 // guards: UC-038; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
 // given: a register with participants at this machine and one in the USA (outside the EU), and a mailbox that allows this machine only
-// input: Read mailbox; the participants offered; local-llm chosen; Propose
+// input: Mail opened, which reads the mailbox; the participants offered; local-llm chosen; Propose
 // expect: the participant in the USA is not offered; the panel names where local-llm processes data; every request a model endpoint received went to the endpoint of the participants at this machine and none to the one in the USA; no mail text reached any other place
 test("TST-965204: with a mailbox that allows this machine only, nothing is sent to a participant elsewhere", async () => {
   const { p, A } = await session();
   await lastly(p, async () => {
-    await readMailbox(p);
+    await mailboxRead(p);
     const offered = walk(p.main(), (node) => node.getAttribute?.("data-participant")).map((node) => node.getAttribute("data-participant"));
     assert.ok(offered.includes("local-llm") && !offered.includes("cloud-llm"), `offered: ${offered.join(", ")}`);
     const input = one(p.main(), "person");

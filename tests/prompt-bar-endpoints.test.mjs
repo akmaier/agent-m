@@ -229,7 +229,7 @@ test("drawing the bar sends testBridge's two requests to each Bridge this browse
 
 // TST-1187104 · level: component · module: MOD-prompt-bar
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; UC-049
-// given: the CLI session mac:claude as the bar offers it (offer.mjs sessionsOffered over a store keeping the Bridge mac, which offers claude ready, the session declared at "this machine" with the capabilities a CLI agent is prefilled with); the endpoint drafter as the bar offers it (endpointsOffered), declared at "this machine"; MOD-maintenance-pages' route mail after Read mailbox, one mail listed from Erika Mustermann, on a mailbox that allows "this machine"
+// given: the CLI session mac:claude as the bar offers it (offer.mjs sessionsOffered over a store keeping the Bridge mac, which offers claude ready, the session declared at "this machine" with the capabilities a CLI agent is prefilled with); the endpoint drafter as the bar offers it (endpointsOffered), declared at "this machine"; MOD-maintenance-pages' route mail after its reading, one mail listed from Erika Mustermann, on a mailbox that allows "this machine"
 // input: the route's subject's paramsFor for the session, and for the endpoint
 // expect: the session is offered as a CLI agent at "this machine" that declares write to the repository; the page it is given holds the mail's MAIL- identifier and none of the mail's text, its sender's name or address; the counter-proof: the endpoint, at the same place, which does not write, is given the mail's text
 test("a page of mail gives a CLI session of this browser the mail's MAIL- identifier only", async () => {
@@ -250,7 +250,6 @@ test("a page of mail gives a CLI session of this browser the mail's MAIL- identi
     const fresh = await mailOf("fresh");
     const w = world({ mails: [...f.found, fresh], drafts: f.drafts, issues: f.issues });
     const target = await opened(w, {}, "mail");
-    await trusted(oneIn(target, "read-mailbox"));
     await waitFor(() => byClassIn(target, "mail").length > 0);
     const subject = pages.view.routes.find((route) => route.name === "mail").subject({}, w.context);
     const forSession = String(subject.paramsFor(session).page);

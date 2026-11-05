@@ -1,5 +1,5 @@
 // The route `mail` proposes issues through a participant at an allowed place (ITM-964) — MOD-maintenance-pages, UC-038 steps 4 to 6 and the alternative flows 4a, 4c, 5a, 5b, 6b and 6c, as the accepted text of
-// docs/architecture/MOD-maintenance-pages.md states it (blob f21551157732): "`mail` — *Read mailbox*; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in this browser only; the participant for the proposals
+// docs/architecture/MOD-maintenance-pages.md states it (blob 636f31b11b56): "`mail` — the mailbox read when the page is drawn, and *Read again*, which reads it anew; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in this browser only; the participant for the proposals
 // among those at places the mailbox allows, a place outside the EU named as not compliant, and the three checkers; the run panel and *Propose*; per mail, the mail in full beside the proposal, its text editable, every hit of the mail's people marked;
 // *Create issue* — only without a hit —, *Add to #n*, *Not an issue*." (MOD-maintenance-pages.md, Interfaces, `mail`).
 // Run: node --test tests/maintenance-pages-propose.test.mjs
@@ -14,7 +14,7 @@
 //
 // The world is tests/maintenance-pages-world.mjs: the harness's browser and fake GitHub, the Bridge's mail operation `read` (the mails given) and its asks (an agent's answer), GitHub's issues of alice/product, the instance's participants, the model
 // endpoints ep1 and ep2 (their answers given by the test). The real MOD-job-runner, MOD-runtimes, MOD-mail-handling, MOD-personal-data and MOD-participant-list run as they are. Readings the texts leave open, which the tests state (the pull request names them):
-//   - After Read mailbox the page shows <section class="mail-step-propose"> above the list. Its participants are <li class="mail-participant" data-participant="<name>"> with <input class="participant"> (a radio), <span class="place"> and, for a place the
+//   - After the reading that drawing the page starts, the page shows <section class="mail-step-propose"> above the list. Its participants are <li class="mail-participant" data-participant="<name>"> with <input class="participant"> (a radio), <span class="place"> and, for a place the
 //     mailbox allows and records as outside the EU, <span class="not-compliant">. Only participants that draft text and whose place the mailbox allows are listed; with none, <p class="mail-no-participant"> names the allowed places and holds
 //     <a class="places-link" href="#mailbox"> to the mailbox's processing places, and nothing is sent (UC-038 4c).
 //   - <input class="person"> is the name of the person who presses Propose, as on the page replies. Once a participant is chosen and the name is entered, <ul class="mail-checkers"> lists the three checkers as <li class="mail-checker"> with their <span class="place">
@@ -60,7 +60,6 @@ async function setup({ rows = ROWS, places, answer, product, withAttachments = t
   const two = await mailOf("two", { subject: "Dark theme", text: "Please add a dark theme." });
   const w = world({ mails: [one_, two], reading: only ? [one_, two].filter((mail) => only.includes(mail.id)) : [one_, two], issues: [issueRecord(3, "open", [])], rows, places, answer: (request) => (answer ?? proposals)(request, { one: one_, two }), product });
   const target = await opened(w, {}, "mail");
-  await trusted(one(target, "read-mailbox"));
   await waitFor(() => byClass(target, "mail-decided").length > 0 || byClass(target, "mailbox-problem").length > 0);
   return { w, target, one: one_, two, item: (mail) => itemOf(target, mail.id) };
 }

@@ -391,3 +391,31 @@ test("TST-952019 an undefined decision and a decision that needs a host without 
   await assert.rejects(handling.decideMail?.({ id: NEW_ID, people: ERIKA_PEOPLE }, create, null), TypeError);
   await assert.rejects(handling.decideMail?.({ id: NEW_ID, people: ERIKA_PEOPLE }, { kind: "add", product: PRODUCT, issue: 12 }, null), TypeError);
 });
+
+// TST-952020
+// level: unit
+// module: MOD-mail-handling
+// guards: UC-038
+// given: the clock at 2026-11-05T12:00:00Z (node's mocked Date); a mailbox holding one new mail; a product without issues
+// input: readNewMail(mailbox, [{ address, host }], [])
+// expect: the mailbox receives exactly one call, read, with the date 30 days before now, "2026-10-06" — never null, which reads every mail
+test("TST-952020 readNewMail reads the mails of the last 30 days: read with the date 30 days before now", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.UTC(2026, 10, 5, 12, 0, 0) });
+  const mailbox = fakeMailbox([mail(NEW_ID)]);
+  await handling.readNewMail?.(mailbox, [{ address: PRODUCT, host: fakeHost([]) }], []);
+  assert.deepEqual(mailbox.calls, [["read", "2026-10-06"]]);
+});
+
+// TST-952021
+// level: unit
+// module: MOD-mail-handling
+// guards: UC-038
+// given: counter-proof of TST-952020: the clock at another now, 2026-03-15T00:30:00Z, across the end of February of a year that is no leap year
+// input: readNewMail over the same mailbox
+// expect: read with "2026-02-13", so that a readNewMail that passes a fixed date, or none, fails one of the two
+test("TST-952021 counter-proof: another now gives the date 30 days before it", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.UTC(2026, 2, 15, 0, 30, 0) });
+  const mailbox = fakeMailbox([mail(NEW_ID)]);
+  await handling.readNewMail?.(mailbox, [{ address: PRODUCT, host: fakeHost([]) }], []);
+  assert.deepEqual(mailbox.calls, [["read", "2026-02-13"]]);
+});

@@ -59,6 +59,7 @@ const upgrade = (socket, attach) => {
 // The envelope of a raw mail, as the IMAP server of tests/mail-protocols-read.test.mjs gives it (the Bridge finds a mail by the Message-ID of its envelope).
 const nstring = (value) => (value === undefined || value === null ? "NIL" : `"${String(value).replace(/(["\\])/g, "\\$1")}"`);
 const headerOf_ = (message, name) => new RegExp(`^${name}: (.*)$`, "im").exec(message)?.[1] ?? null;
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 const addressOf = (value) => {
   if (value === null) return "NIL";
   const found = /^(?:"?(.*?)"? )?<?([^@<>\s]+)@([^<>\s]+)>?$/.exec(value);
@@ -136,6 +137,14 @@ async function imapServer(seed) {
         literal = { tag, folder: rest[0].replace(/^"|"$/g, ""), size: Number(size[1]) };
         if (!line.endsWith("+}")) write("+ Ready for literal data");
         return;
+      }
+      // SEARCH SINCE selects by the day a message was received, its internal date, which is here the day of its Date header.
+      if (command === "UID" && rest[0].toUpperCase() === "SEARCH") {
+        const since = /\bSINCE (\d+)-(\w{3})-(\d{4})\b/i.exec(line);
+        const from = since ? Date.UTC(Number(since[3]), MONTHS.indexOf(since[2].toUpperCase()), Number(since[1])) : -Infinity;
+        const day = (message) => { const at = new Date(Date.parse(headerOf_(message.raw.toString("utf8"), "Date"))); return Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()); };
+        write(`* SEARCH${folders[folder].filter((message) => day(message) >= from).map((message) => ` ${message.uid}`).join("")}`);
+        ok("UID SEARCH completed"); return;
       }
       if (command === "UID" && rest[0].toUpperCase() === "FETCH") {
         const wanted = rest[1], items = line.slice(line.indexOf("(")).toUpperCase();
@@ -299,13 +308,13 @@ function bridgeOver(inner, state, mailHandlers) {
  * Starts the page of the route `replies` as a person opens it: the frame's startPage on the main page over the view of MOD-maintenance-pages, at the fragment of the route, over the mailbox of `route` ("imap": the
  * Bridge lab-pc-4 with the local IMAP and SMTP servers; "graph": the fixture of Microsoft Graph). `inbox` and `reports` name the mails the mailbox holds (raw texts), `drafts` and `sent` the folders of the same names;
  * `issues`, `places`, `rows` and `texts` are those of tests/maintenance-pages-world.mjs. `settings` are further settings the browser's store holds — the endpoints and CLI sessions the prompt bar offers (UC-049 1) — and `agents`
- * the names the Bridge lab-pc-4 lists ready. `folders` is the connection's list of folders to search. Returns the page's main element and what the fixtures kept;
+ * the names the Bridge lab-pc-4 lists ready. `folders` is the connection's list of folders to search. `down` pauses the Bridge's mail operations from the start. Returns the page's main element and what the fixtures kept;
  * `stop()` closes the servers and must be called in a `finally`.
  */
-export async function openReplies({ route = "graph", inbox, reports = [], drafts = [], sent = [], issues, rows, places, texts = [], folders = ["INBOX"], refuseMail = false, refuseSend = false, fragment = "#replies", answer = null, createStatus = null, settings = {}, agents = [] }) {
+export async function openReplies({ route = "graph", inbox, reports = [], drafts = [], sent = [], issues, rows, places, texts = [], folders = ["INBOX"], refuseMail = false, refuseSend = false, fragment = "#replies", answer = null, createStatus = null, settings = {}, agents = [], down = false }) {
   const f = await standard();
   const w = world({ mails: [], drafts: [], issues: issues ?? f.issues, ...(rows ? { rows } : {}), ...(places ? { places } : {}), texts, createStatus, ...(answer ? { answer } : {}) });
-  const state = { calls: [], asks: [], texts, down: false, agents };
+  const state = { calls: [], asks: [], texts, down, agents };
   for (const [key, value] of Object.entries(settings)) writeSetting(w.context.store, key, value);
   let imap = null, smtp = null, graph = null, layer = null;
   const realSetInterval = globalThis.setInterval;

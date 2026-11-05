@@ -50,7 +50,6 @@ const OFFER = { rows: [], settings: DECLARED, agents: ["writer"] };
 const mailPage = async (extra = {}) => {
   const p = await openReplies({ inbox: [rawMail("n1", { subject: "Help with the export", body: "My export of the thesis fails.\r\nKind regards\r\nErika Mustermann" })],
     fragment: "#mail", views: [maintenance, settings], ...OFFER, ...extra });
-  await trusted(one(p.main(), "read-mailbox"));
   await waitFor(() => byClass(p.main(), "mail-sender").length > 0);
   return p;
 };

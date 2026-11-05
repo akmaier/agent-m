@@ -185,11 +185,13 @@ async function folderResource(token, name) {
   return `/me/mailFolders/${encodeURIComponent(id)}`;
 }
 
-// The messages of a folder as Graph lists them ({ id, internetMessageId }), page after page. A next page is followed only when it is an
+// The messages of a folder as Graph lists them ({ id, internetMessageId }), page after page. `received`, a date or a time, has Graph
+// select the messages received on or after the start of the day it names (UTC). A next page is followed only when it is an
 // address of Microsoft Graph: the token goes nowhere else.
-async function listMessages(token, folder, name) {
+async function listMessages(token, folder, name, received = null) {
   const messages = [];
-  let path = `${folder}/messages?$select=id,internetMessageId&$top=100`;
+  const day = received === null ? null : `${new Date(Date.parse(received)).toISOString().slice(0, 10)}T00:00:00Z`;
+  let path = `${folder}/messages?$select=id,internetMessageId&$top=100${day === null ? "" : `&$filter=${encodeURIComponent(`receivedDateTime ge ${day}`)}`}`;
   while (path) {
     const page = await graphRead(token, path);
     if (page === null) throw failure("FolderNotFound", { folder: name }, `The folder ${name} is not in the mailbox.`);
@@ -209,13 +211,19 @@ async function fetchMail(token, id, folder) {
   return bytes === null ? null : parseMail(bytes, folder);
 }
 
-async function mailsOf(token, folder, name, from) {
+// The mails of a folder in full, each with its id: those Graph selects as received since `received` (see listMessages), or all.
+async function fetchedMails(token, folder, name, received = null) {
   const mails = [];
-  for (const { id } of await listMessages(token, folder, name)) {
+  for (const { id } of await listMessages(token, folder, name, received)) {
     const mail = await fetchMail(token, id, name);
     if (mail) mails.push({ id, mail });
   }
-  return mails.filter(({ mail }) => from === null || from === undefined || Date.parse(mail.date) >= Date.parse(from));
+  return mails;
+}
+
+// The mails of a folder in full; `from` keeps the mails dated on or after it.
+async function mailsOf(token, folder, name, from) {
+  return (await fetchedMails(token, folder, name)).filter(({ mail }) => from === null || from === undefined || Date.parse(mail.date) >= Date.parse(from));
 }
 
 // ---------------------------------------------------------------- drafting and sending (UC-039)
@@ -278,12 +286,13 @@ async function ownDraftBytes(token, ref) {
 export function graphMailbox(connection) {
   const token = async () => (await cachedToken(connection.graph, connection.address)).accessToken;
   return {
-    // The mails of the named folders, read in their raw form: nothing is marked, moved, flagged or deleted.
-    async read(from) {
+    // The mails of the named folders received on or after the day `since` names, as Graph selects them by their date received — all
+    // of them where it is null —, read in their raw form: nothing is marked, moved, flagged or deleted.
+    async read(since) {
       const accessToken = await token();
       const mails = [];
       for (const name of connection.folders) {
-        mails.push(...(await mailsOf(accessToken, await folderResource(accessToken, name), name, from)).map(({ mail }) => mail));
+        mails.push(...(await fetchedMails(accessToken, await folderResource(accessToken, name), name, since ?? null)).map(({ mail }) => mail));
       }
       return mails;
     },
