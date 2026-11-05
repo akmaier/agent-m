@@ -80,7 +80,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 ## Main flow
 
-1. The author opens **Mail** on the dashboard, and Agent M reads the mailbox at once. **Read again** reads it anew.
+1. The author opens **Mail** on the dashboard, and Agent M reads the mailbox at once; each opening reads it anew.
 2. Agent M reads the mails of the last 30 days in the named folders, as the mail server selects them — through the provider's web API, or on the IMAP route through the
    connection's Bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
    SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
@@ -88,7 +88,8 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 3. Mails that an issue already lists, or that the author marked *not an issue* in this browser, are
    left out. A mail whose `In-Reply-To` or `References` names a listed mail is attached to that issue
    at once, without a participant — its identifier added to the issue — and shown there (UC-039).
-4. The remaining mails are listed with sender, subject and date — visible only in this browser. The
+4. The remaining mails are listed as a mail program lists its inbox — one line per mail with sender, subject and date,
+   the newest first —, visible only in this browser. The
    author picks the participant for the proposals; Agent M offers only participants whose processing
    place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
@@ -112,8 +113,8 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    data for any mention of a person; a finding of any one of them goes back to the rewriting participant
    as a compiler-like message, and it corrects the text, within the round limit (UC-019, step 7). What
    is still found after the last round is marked in the text.
-7. The review panel shows, per mail, the mail in full on the left and the proposal on the right, with
-   the text editable. The author decides with one click:
+7. The author clicks a mail in the list. Its details show: the mail in full, its proposal with the text editable, and
+   what can be done with it. The author decides with one click:
    - **Create issue** — possible only when the check of step 6 finds nothing;
    - **Add to #n** — the mail describes an existing issue;
    - **Not an issue** — the mail is marked in this browser by its identifier and not proposed again.
@@ -144,6 +145,7 @@ sequenceDiagram
     D->>D: search for this mail's people
     D->>P: rewrite report data without persons
     D->>P: three LLMs check the rewritten texts, findings back
+    A->>D: open a mail from the list
     A->>D: Create issue, Add to #n, or Not an issue
     D->>I: neutral issue with MAIL identifier, label defect or change
 ```
@@ -193,4 +195,4 @@ sequenceDiagram
   `MAIL-` identifiers of its mails; no name, address or signature from a mail reached any repository or
   issue tracker.
 - The mails are unchanged in the mailbox; nothing about them is stored anywhere else.
-- Clicks per reading: *Propose*, then one decision per mail.
+- Clicks per reading: *Propose*, then per mail one click to open it and one decision.
