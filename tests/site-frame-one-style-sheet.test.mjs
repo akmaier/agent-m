@@ -54,3 +54,47 @@ test("TST-1105201 no page or file references src/theme/lme.css, and the entry pa
   assert.match(readFileSync(join(root, "index.html"), "utf8"), /<link rel="stylesheet" href="src\/site-frame\/look\.css">/);
   assert.match(readFileSync(join(root, "docs/index.html"), "utf8"), /<link rel="stylesheet" href="\.\.\/src\/site-frame\/look\.css">/);
 });
+
+// A small EventTarget DOM, as tests/mod-desktop-shell-window.test.mjs draws the Bridge's window in; a <link> reflects its href as a browser does, resolved
+// against the page's address.
+class Text { constructor(value) { this.value = String(value); } get textContent() { return this.value; } }
+class Element extends EventTarget {
+  constructor(name) { super(); this.localName = name; this.childNodes = []; this.attributes = new Map(); this.className = ""; this.parentNode = null; }
+  append(...nodes) { for (const node of nodes.flat()) { const child = typeof node === "string" ? new Text(node) : node; this.childNodes.push(child); child.parentNode = this; } }
+  replaceChildren(...nodes) { this.childNodes = []; this.append(...nodes); }
+  get textContent() { return this.childNodes.map((child) => child.textContent).join(""); }
+  set textContent(value) { this.replaceChildren(String(value)); }
+  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  getAttribute(name) { return this.attributes.get(name) ?? null; }
+  get href() { return this.localName === "link" && this.attributes.has("href") ? new URL(this.attributes.get("href"), PAGE).href : undefined; }
+  getElementsByTagName(name) { const found = []; const visit = (node) => { for (const child of node.childNodes) if (child instanceof Element) { if (child.localName === name) found.push(child); visit(child); } }; visit(this); return found; }
+}
+const PAGE = new URL("../index.html", import.meta.url).href;
+const memory = () => { const values = new Map(); return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: (key) => values.delete(key), get length() { return values.size; }, key: (index) => [...values.keys()][index] ?? null }; };
+
+// TST-1105203 · level: unit · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: a page whose head links src/site-frame/look.css itself, by the relative address the entry page index.html writes, and a page whose head links no
+//        style sheet, as the Bridge's window
+// input: startPage({ page: "bridge", views }) on each, with one route
+// expect: the page that links look.css still links it once, by its own link; the page that does not gets one link to look.css (MOD-site-frame, startPage:
+//         "links look.css in the page's head where the page does not link it itself")
+// Planted fault: comparing the page's own link by its written address with the frame's resolved one appends a second look.css to the first page.
+test("TST-1105203 startPage links look.css only where the page does not link it itself", async () => {
+  const { startPage } = await import("../src/site-frame/index.mjs");
+  const looks = (head) => head.getElementsByTagName("link").filter((link) => link.getAttribute("rel") === "stylesheet" && /site-frame\/look\.css$/.test(link.getAttribute("href")));
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: memory() });
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { hostname: "owner.github.io", pathname: "/agent-m/", hash: "" } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: new EventTarget() });
+  const views = [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", async render(target) { target.replaceChildren("drawn"); } }] }];
+  for (const own of [true, false]) {
+    const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
+    document.head = document.createElement("head"); document.body = document.createElement("body");
+    if (own) { const link = document.createElement("link"); link.setAttribute("rel", "stylesheet"); link.setAttribute("href", "src/site-frame/look.css"); document.head.append(link); }
+    globalThis.document = document;
+    await startPage({ page: "bridge", views });
+    assert.match(document.body.textContent, /drawn/, "the route is drawn");
+    assert.deepEqual(looks(document.head).map((link) => link.getAttribute("href")),
+      own ? ["src/site-frame/look.css"] : [new URL("../src/site-frame/look.css", import.meta.url).href], own ? "the page's own link, once" : "the frame's link");
+  }
+});
