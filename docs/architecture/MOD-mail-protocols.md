@@ -56,7 +56,8 @@ asks again.
   with the server's message.
   - `test` — logs in to the IMAP server, opens each named folder read-only and counts its mails, recognises Drafts and Sent
     by their special-use markings, logs in to the SMTP server and disconnects without sending.
-  - `read` — the mails of the named folders, each opened read-only so that nothing is marked as read, moved, flagged or
+  - `read` — the mails of the named folders received on or after the day the argument `since` names, all of them without
+    it, selected by the IMAP server with `SEARCH SINCE` so that only they are fetched, each folder opened read-only so that nothing is marked as read, moved, flagged or
     deleted (`READING THE MAILBOX CHANGES NOTHING IN IT`), parsed into `Mail`s, each with its `MAIL-` identifier.
   - `find` — the mail of one identifier in the named folders, found by hashing the `Message-ID`s their envelopes carry;
     *not found* when none matches (`A MAIL IS FOUND AGAIN BY ITS IDENTIFIER`).

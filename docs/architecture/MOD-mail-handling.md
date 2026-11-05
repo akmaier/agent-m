@@ -79,7 +79,7 @@ are kept by Access in this browser.
   decided; and each issue of a thread that could not be written to, with the error's name, whose mail is among the
   proposable.
 - `readNewMail(mailbox: Mailbox, products: { address: string, host: Host }[], marked: string[]) -> Promise<NewMail>` —
-  reads the named folders without changing anything, names each mail by its identifier, reads the issues of every
+  reads the named folders' mails of the last 30 days — `read` with the date 30 days before now — without changing anything, names each mail by its identifier, reads the issues of every
   product and the identifiers they list, and leaves out every mail an issue lists or this browser marked *not an issue*
   (`A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN`). A mail whose `In-Reply-To` or `References` names a listed mail is
   attached to that issue at once — a `mail-added` note —, without any participant (`A MAIL IN A KNOWN THREAD IS MATCHED
