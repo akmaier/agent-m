@@ -201,8 +201,9 @@ export function mailboxLine(context, { changed = () => {} } = {}) {
     });
     const notice = el("p", "notice mailbox-line-place-notice", PLACE_NOTICE), read = el("input", "mailbox-line-place-notice-read");
     read.type = "checkbox";
+    const readLine = el("p", null, el("label", null, read, " I have read this")); // the box and its text, shown and hidden as one with the notice
     const needsNotice = () => boxes.some((box) => box.checked && isOutsideEu(box.getAttribute("data-place")) && !noted.has(box.getAttribute("data-place")));
-    const sync = () => { notice.hidden = read.hidden = !needsNotice(); if (notice.hidden) read.checked = false; };
+    const sync = () => { notice.hidden = readLine.hidden = !needsNotice(); if (notice.hidden) read.checked = false; };
     for (const box of boxes) box.addEventListener("change", sync);
     sync();
     const save = el("button", "mailbox-places-save btn primary", "Save places");
@@ -217,7 +218,7 @@ export function mailboxLine(context, { changed = () => {} } = {}) {
       show();
     });
     panel.replaceChildren(el("h4", null, "Processing places"), ...boxes.map((box) => el("p", null, el("label", null, box, " ", box.getAttribute("data-place")))),
-      notice, el("p", null, el("label", null, read, " I have read this")), el("p", null, save));
+      notice, readLine, el("p", null, save));
   }
 
   function show() {
@@ -260,11 +261,13 @@ export const route = {
     const bridgeSelect = el("select", "mailbox-bridge");
     const jumpNotice = el("p", "notice mailbox-jump-notice", "The password and the mails pass the jump host on their way to this Bridge. Whoever administers the jump host can read them there.");
     const jumpRead = el("input", "mailbox-jump-notice-read");
+    const jumpReadLine = el("p", null, el("label", null, jumpRead, " I have read this")); // the box and its text, shown and hidden as one with the notice
     const folders = el("input", "mailbox-folders");
     const placesBox = el("div", "mailbox-places");
     const placesResult = el("p", "mailbox-places-result");
     const placeNotice = el("p", "notice mailbox-place-notice", PLACE_NOTICE);
     const placeRead = el("input", "mailbox-place-notice-read");
+    const placeReadLine = el("p", null, el("label", null, placeRead, " I have read this")); // the box and its text, shown and hidden as one with the notice
     const storeTest = el("button", "mailbox-store-test btn primary", "Store and test");
     const result = el("p", "mailbox-result");
     const resultExplanation = el("div", "mailbox-result-explanation");
@@ -300,7 +303,7 @@ export const route = {
     routeSelect.value = "imap";
     folders.value = "INBOX";
     jumpNotice.hidden = true; placeNotice.hidden = true; setup.hidden = true;
-    jumpRead.hidden = true; placeRead.hidden = true;
+    jumpReadLine.hidden = true; placeReadLine.hidden = true;
 
     const showRoute = () => { graphPart.hidden = routeSelect.value !== "graph"; imapPart.hidden = routeSelect.value === "graph"; };
     routeSelect.addEventListener("change", showRoute);
@@ -349,14 +352,14 @@ export const route = {
     for (const option of bridgeSelect.childNodes) option.value = option.textContent;
     bridgeSelect.value = bridges.find((bridge) => bridge.route === "loopback")?.name ?? "";
     const chosen = () => bridges.find((bridge) => bridge.name === bridgeSelect.value) ?? null;
-    const showJumpNotice = () => { jumpNotice.hidden = !chosen()?.throughJumpHost; jumpRead.hidden = jumpNotice.hidden; jumpRead.checked = false; };
+    const showJumpNotice = () => { jumpNotice.hidden = !chosen()?.throughJumpHost; jumpReadLine.hidden = jumpNotice.hidden; jumpRead.checked = false; };
     bridgeSelect.addEventListener("change", showJumpNotice);
     showJumpNotice();
 
     const placeBoxes = [];
     const showPlaceNotice = () => {
       const outside = placeBoxes.some(({ box, place }) => box.checked && isOutsideEu(place));
-      placeNotice.hidden = !outside; placeRead.hidden = placeNotice.hidden;
+      placeNotice.hidden = !outside; placeReadLine.hidden = placeNotice.hidden;
       if (!outside) placeRead.checked = false;
     };
     if (context.instance?.host) {
@@ -510,7 +513,7 @@ export const route = {
       graphPart, imapPart,
       part("Folders", labelled("Folders to read, separated by commas", folders)),
       part("Where the mail may be processed",
-        placesBox, placesResult, placeNotice, el("p", null, el("label", null, placeRead, " I have read this")), explain("mailbox-processing-places")),
+        placesBox, placesResult, placeNotice, placeReadLine, explain("mailbox-processing-places")),
       el("p", null, storeTest), result, resultExplanation, setup, parts, line.node,
     );
     imapPart.append(
@@ -526,7 +529,7 @@ export const route = {
         el("p", null, el("label", null, passwordRead, " I have read this")),
         labelled("Password", password), explain("gmail-app-password")),
       part("Bridge",
-        labelled("Bridge", bridgeSelect), jumpNotice, el("p", null, el("label", null, jumpRead, " I have read this"))),
+        labelled("Bridge", bridgeSelect), jumpNotice, jumpReadLine),
     );
     graphPart.append(
       part("Register the app",
