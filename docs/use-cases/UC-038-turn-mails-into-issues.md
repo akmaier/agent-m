@@ -80,7 +80,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 ## Main flow
 
-1. The author opens **Mail** on the dashboard and presses **Read mailbox**.
+1. The author opens **Mail** on the dashboard, and Agent M reads the mailbox at once. **Read again** reads it anew.
 2. Agent M reads the named folders — through the provider's web API, or on the IMAP route through the
    connection's Bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
    SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
@@ -132,7 +132,7 @@ sequenceDiagram
     participant S as Mail server
     participant P as Participant
     participant I as Issue tracker
-    A->>D: Read mailbox
+    A->>D: open Mail
     D->>B: read named folders
     B->>S: read-only
     B-->>D: mails
@@ -192,4 +192,4 @@ sequenceDiagram
   `MAIL-` identifiers of its mails; no name, address or signature from a mail reached any repository or
   issue tracker.
 - The mails are unchanged in the mailbox; nothing about them is stored anywhere else.
-- Clicks per reading: *Read mailbox*, *Propose*, then one decision per mail.
+- Clicks per reading: *Propose*, then one decision per mail.
