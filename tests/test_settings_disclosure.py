@@ -99,7 +99,7 @@ class MailboxSettingsDisclosure(unittest.TestCase):
     # guards: A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE
     # given: MOD-settings-pages' mailbox source, with Bridges that may or may not be reached through the jump host
     # input: the jump-host notice, the Bridge selection visibility rule and the first mailbox write on the IMAP path
-    # expect: only a jump-host Bridge shows the notice, the notice names that the password and mails pass it and can be read by its administrator, and the handler returns before storing until that notice is read
+    # expect: only a jump-host Bridge shows the notice together with the line holding its "I have read this" box (shown and hidden as one), the notice names that the password and mails pass it and can be read by its administrator, and the handler returns before storing until that notice is read
     def test_mailbox_jump_host_disclosure_blocks_only_the_jump_host_route(self):
         src = mailbox_text()
         notice = re.search(r'const jumpNotice = el\("p", "notice mailbox-jump-notice", "([^"]+)"\);', src)
@@ -107,7 +107,8 @@ class MailboxSettingsDisclosure(unittest.TestCase):
         for words in ["password and the mails pass the jump host", "administers the jump host can read them"]:
             self.assertIn(words, notice.group(1))
         self.assertIn("jumpNotice.hidden = !chosen()?.throughJumpHost", src)
-        self.assertIn("jumpRead.hidden = jumpNotice.hidden", src)
+        self.assertIn('const jumpReadLine = el("p", null, el("label", null, jumpRead, " I have read this"));', src)
+        self.assertIn("jumpReadLine.hidden = jumpNotice.hidden", src)
         body = store_test_handler()
         store = body.index('writeSetting(store, "mailbox", connection);')
         self.assertLess(body.index("if (bridge.throughJumpHost && !jumpRead.checked)"), store)
