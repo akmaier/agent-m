@@ -78,7 +78,9 @@ its window runs in Electron's browser part. The window serves UC-044 and UC-011.
 - `settings.mjs` — the settings file, and taking over a settings export.
 - `updates.mjs` — the offer of a newer release, its download on the click, its signatures, its installation on the
   click.
-- `window.html`, `window.mjs` — the window's page and its routes; `preload.cjs` — the fixed set of calls the window may
+- `window.html`, `window.mjs` — the window's page and its routes; the page links no style sheet, since `startPage` gives
+  it the site's look, and the routes draw their buttons, fields, tables and lists in that look's classes, with no style
+  of their own; `preload.cjs` — the fixed set of calls the window may
   make to the main process. The window has no other access to Node.
 - `icons/` — the app's icon for each platform, and the icon of the menu bar and the tray.
 
@@ -232,5 +234,5 @@ signature does not hold. Writes no repository file; the jobs it composes write t
   strategies of the mail kinds are not registered: a mail kind runs in the page, which asks an agent on the Bridge only
   to draft.
 - `MOD-site-frame.PageSetup`, `View`, `Route`, `startPage`, `explain`, `confirmDecision`, `notice` — the window, drawn as
-  the page `bridge`; its explanations; the decisions of *Pair anew*, *Quit* and *Install and restart*; its notices.
+  the page `bridge` in the site's look; its explanations; the decisions of *Pair anew*, *Quit* and *Install and restart*; its notices.
 - `MOD-markdown-render.renderArtifact` — a release's notes, rendered sanitised.

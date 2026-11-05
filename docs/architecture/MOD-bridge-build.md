@@ -60,7 +60,7 @@ publisher's update key, in base64 on one line. On Linux, the detached signature 
 signature. Other processors are not built.
 
 **What the app carries**: the main entry and the window `appDescription` names, every module folder they reach through
-the modules' `index.mjs`, and the packages above that the app needs at run time, with the licence file of each beside
+the modules' `index.mjs` with every file in it, its style sheets and images among them, and the packages above that the app needs at run time, with the licence file of each beside
 Agent M's own `LICENSE`. Among its resources the build places `build.json` and `update-key.pem` as MOD-desktop-shell
 defines them — the instance, the app's identifier `io.github.<owner>.<repository>.bridge`, the instance's Pages origin,
 the version and its commit; the public half of the publisher's update key — and electron-builder's `app-update.yml`,

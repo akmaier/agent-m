@@ -108,9 +108,11 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   form built from a schema.
 - `subject.mjs` — the subject of the route shown, its own or the frame's default, with the menu entry of the page shown,
   the one the menu marks.
-- `look.css` — colours, fonts and the header, footer and menu of the lab's look: FAU blue `#04316a`, dark blue `#041e42`,
-  metallic `#8c9fb1`, and their tints, for light and dark mode; and how a page reflows on a phone, one rule for every route
-  (`EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE`):
+- `look.css` — the one style sheet of the lab's look: colours, fonts, the page's body, headings, links and code, the
+  header, footer and menu, the buttons (class `btn`, with `primary` for the action a page leads with and `small` for one
+  beside a line of text), the form fields, the tables (class `list`) and the lists, in FAU blue `#04316a`, dark blue
+  `#041e42`, metallic `#8c9fb1`, and their tints, for light and dark mode; and how a page reflows on a phone, one rule for
+  every route (`EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE`):
   - **A table** below a phone's width (600 px) takes its narrow form: each row is a block whose cells stand one under
     another, and a table, its rows and its cells are never wider than the window. A cell is labelled by its column: the
     label is the cell's attribute `data-label`, which the route that draws the table sets to the column's title, and the
@@ -130,7 +132,7 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   - `src/site-frame/dashboard-app.mjs`: the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); its Markdown is rendered with `renderArtifact`, and it imports no library of the renderer's `vendor/`; for a route of a loaded view it shows, `#trace` among them, the entry it marks in the menu and gives the bar's subject is the entry of the page shown, by the same rule as on the frame's pages — the route's `entryShown`, else its `entry` —, in place of the lookup by view name of `src/site/menu.mjs`; removed once `docs/index.html` starts the site through `start.mjs`.
   - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
   - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
-  - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
+  - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them, each rule once, and the entry pages link `look.css` in place of `lme.css`.
   - `tests/app-harness.mjs`: moved in as the helper of this module's page tests; it serves the batch request (`POST /graphql`) and, after the switch, loads `start.mjs`.
   - `tests/load-per-view.test.mjs`: its header names this module: the Check of `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
   - `tests/dashboard-shell.test.mjs`, `tests/review-page.test.mjs`, `tests/release-sprint-01-dashboard-app.test.mjs`, `tests/release-sprint-02-a-dashboard-app.test.mjs`, `tests/release-sprint-02-d-dashboard-app.test.mjs`, `tests/review-core.d/dashboard-app.test.mjs`, `tests/review-core.d/write-refused.test.mjs`, `tests/test_instance_target.py`, `tests/test_progress_derived.py`: their headers name this module while the app is its; each is removed or rewritten on the frame's routes with the part of the app it tests.
@@ -196,7 +198,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the
   address then holds none.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
-- `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
+- `startPage(setup: PageSetup) -> Promise<void>` — links `look.css` in the page's head where the page does not link it
+  itself, as the Bridge's window does not; draws the header, the menu, whose links carry the chosen product as
   `menuOf` gives them and in which the entry of the page shown is marked, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
   change of the fragment. A route whose rendering fails is replaced in its place by `routeProblem` of that failure, except
   a refused token, which is shown as a notice. While the route shown reports `unsaved` true, closing or reloading the tab
