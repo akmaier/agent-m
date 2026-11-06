@@ -677,3 +677,41 @@ test("the link Propose SPEC change is the address the frame writes, and followin
   await waitFor(() => byClass(old, "issue-problem").length > 0);
   assert.doesNotMatch(textOf(old), /Issue #100: PDF export fails/, "the old form shows no issue page");
 });
+
+// The classes of the elements directly in .mail-page, in their order.
+const pageParts = (target) => [...pageOf(target).childNodes].filter((node) => node.nodeType === 1).map((node) => (node.className ?? "").split(" ")[0]);
+
+// TST-2026110603 · level: component · module: MOD-maintenance-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-038
+// given: one mail in the mailbox
+// input: the route mail drawn and the mailbox read
+// expect: the reading's status line with its folded explanation (<section class="mail-step-read">) is the last element of .mail-page, after the inbox, as a mail program's status bar; it says when the mailbox was read and carries its <details class="explain">
+test("the reading's status line and its explanation stand at the bottom of the page, after the inbox", async () => {
+  const mail = await mailOf("status");
+  const target = await open(world({ mails: [mail] }));
+  const parts = pageParts(target);
+  assert.equal(parts.at(-1), "mail-step-read", `the parts of the page: ${parts.join(", ")}`);
+  assert.ok(parts.indexOf("mail-inbox") >= 0 && parts.indexOf("mail-inbox") < parts.indexOf("mail-step-read"), "the inbox precedes the status line");
+  const step = byClass(target, "mail-step-read")[0];
+  assert.match(textOf(byClass(step, "mail-status")[0]), /^Read at \d\d:\d\d\./);
+  assert.equal(byClass(step, "explain").length, 1);
+});
+
+// TST-2026110604 · level: component · module: MOD-maintenance-pages
+// guards: UC-038
+// given: one mail; the first reading answers, the reading five minutes later fails (the Bridge refuses the connection) — the counter-proof of TST-2026110603
+// input: the route mail drawn, the mailbox read, the clock moved on by five minutes
+// expect: .mailbox-problem names the failure in the problem slot (<div class="mail-problem-slot">), which still precedes the inbox; the list is as it was; the status line stays the last element of the page
+test("a failed reading is named above the inbox, the status line stays at the bottom", async () => {
+  const mail = await mailOf("later-fails");
+  let calls = 0;
+  const w = world({ mails: [mail], bridge: () => { calls += 1; if (calls > 1) throw new TypeError("connect ECONNREFUSED 127.0.0.1:4711"); return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+  const target = await open(w);
+  await readAgain(target);
+  const slot = byClass(target, "mail-problem-slot")[0];
+  assert.ok(byClass(slot, "mailbox-problem").length === 1, "the failure is named in the problem slot");
+  const parts = pageParts(target);
+  assert.ok(parts.indexOf("mail-problem-slot") < parts.indexOf("mail-inbox"), `the problem slot precedes the inbox: ${parts.join(", ")}`);
+  assert.deepEqual(lineIds(target), [mail.id]);
+  assert.equal(parts.at(-1), "mail-step-read");
+});
