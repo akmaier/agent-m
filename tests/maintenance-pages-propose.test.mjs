@@ -30,6 +30,7 @@
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { writeSetting } from "../src/browser-store/index.mjs";
 import { PRODUCT_URL, buttonsOf, byClass, flush, mailOf, mailRead, one, openMail, opened, restoreWorld, textOf, trusted, waitFor, walk, world, issueRecord } from "./maintenance-pages-world.mjs";
 
 afterEach(restoreWorld);
@@ -320,4 +321,43 @@ test("A CLI agent receives the job through the Bridge it names", async () => {
   assert.ok(JSON.stringify(f.w.kept.ask[0].body).includes(f.one.id) && JSON.stringify(f.w.kept.ask[0].body).includes(f.two.id));
   assert.equal(requestsOf(f.w, PROPOSE).length, 0);
   assert.equal(one(f.item(f.one), "mail-title").value, "Export fails with E42");
+});
+
+// TST-2026110601 · level: component · module: MOD-maintenance-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-038
+// given: a mail in the mailbox, the participants of the register, and no product in this browser (the setting `products` empty)
+// input: the mail route drawn and the mailbox read; then the link Add product clicked
+// expect: the place of Propose (<div class="mail-propose-slot">) holds <p class="mail-no-products">, which says that this browser manages no product and nothing can be proposed, with <a class="add-product-link" href="#add-product">
+//         "Add product"; no participant and no run panel are offered; the link's click goes to the route add-product; nothing is sent
+test("Where this browser manages no product, the place of Propose says that nothing can be proposed and links Add product", async () => {
+  const one_ = await mailOf("one", { subject: "Export fails", text: "The export fails with error E42." });
+  const w = world({ mails: [one_], reading: [one_], issues: [], rows: ROWS });
+  writeSetting(w.context.store, "products", []);
+  const target = await opened(w, {}, "mail");
+  await mailRead(target);
+  const notice = one(one(target, "mail-propose-slot") ?? target, "mail-no-products");
+  assert.ok(notice, "the place of Propose names that no product is managed");
+  assert.match(textOf(notice), /no product/i);
+  assert.match(textOf(notice), /nothing can be proposed/i);
+  const add = one(notice, "add-product-link");
+  assert.equal(add.getAttribute("href"), "#add-product");
+  assert.equal(add.textContent, "Add product");
+  assert.deepEqual(participants(target), []);
+  assert.equal(byClass(target, "run-panel").length, 0);
+  add.dispatchEvent(new Event("click"));
+  await flush();
+  assert.deepEqual(w.context.went.map(([name]) => name), ["add-product"]);
+  assert.deepEqual(nothingSent(w), [0, 0, 0]);
+});
+
+// TST-2026110602 · level: component · module: MOD-maintenance-pages
+// guards: UC-038
+// given: two mails, the participants of the register, and the product alice/product in this browser (the counter-proof of TST-2026110601)
+// input: the mail route drawn and the mailbox read
+// expect: Propose is shown with its participants; there is no <p class="mail-no-products">
+test("Where this browser manages a product, Propose is shown and no notice of a missing product", async () => {
+  const f = await setup();
+  assert.equal(byClass(f.target, "mail-step-propose").length, 1);
+  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3"]);
+  assert.equal(byClass(f.target, "mail-no-products").length, 0);
 });
