@@ -17,6 +17,7 @@
 //   - After Create issue or Add to #n the mail keeps its review (7b: Create issue once per concern) and its line leaves bold with the issue; after Not an issue its line leaves bold with the mark, and its details
 //     show the mark and no decision. A later reading names every mail an issue lists or the store marks as decided; a proposable mail keeps its review, its proposal and the edits made to it, the open mail stays
 //     open, the chosen participant stays chosen, and the run panel is drawn anew for the proposable mails only when they changed and no proposal runs. The Propose section is shown while there is a proposable mail.
+//   - Where this browser keeps no product (`products` empty), the place of Propose says so — nothing can be proposed — and links Add product, at every reading, whatever the mailbox gives. A missing instance host offers no Propose either; it is not this case.
 //   - Create issue is disabled while a hit of the mail's people stands in the title or the text, and while either is empty. A created issue of the kind change is followed by a link to its route `issue/<n>` (step 10: Propose SPEC change).
 //   - The products are those this browser keeps (`products`), each connected with its own token (else, for GitHub, the instance's). The mailbox is the stored connection; on the Bridge route the Bridge it names, by its stored name.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as the schedule page of MOD-test-pages does).
@@ -378,6 +379,14 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
   return section;
 }
 
+// The place of Propose where this browser manages no product (MOD-maintenance-pages, `mail`; UC-038's precondition): nothing can be proposed, and Add product (UC-001) is linked as the token step links it.
+function noProductSection(context) {
+  const add = link("#add-product", "add-product-link", "Add product");
+  add.addEventListener("click", (event) => { event?.preventDefault?.(); context.go("add-product", {}); });
+  return el("section", "mail-step-propose", el("h3", null, "Propose"),
+    el("p", "mail-no-products", "This browser manages no product, so nothing can be proposed. ", add), fold(STEP_TEXT.propose));
+}
+
 /** EVERY — the time from the end of one reading of the mailbox to the start of the next, in milliseconds: five minutes (UC-038 step 1). */
 export const EVERY = 5 * 60 * 1000;
 
@@ -410,7 +419,7 @@ async function render(target, context) {
   target.replaceChildren(page);
 
   // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose.
-  const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "" };
+  const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "", noProduct: null };
   const choice = { participant: null, checkers: null, person: "" };
   const hooks = { changed: () => {}, running: false };
   const proposable = () => state.rows.filter((row) => row.kind === "proposable").map(({ mail, people }) => ({ mail, people }));
@@ -477,16 +486,19 @@ async function render(target, context) {
   };
 
   // The run panel follows the proposable mails: drawn anew when they changed and no proposal runs (it keeps the participant chosen); the section is shown while there is a proposable mail.
+  // Where this browser manages no product, the place of Propose says so instead.
   function redrawPropose() {
     const now = proposable().map(({ mail }) => mail.id).join(" ");
     if (state.propose && now !== state.proposedFor && !hooks.running) { state.proposedFor = now; hooks.changed(); }
-    proposeSlot.replaceChildren(...(state.propose && now !== "" ? [state.propose] : []));
+    proposeSlot.replaceChildren(...(state.noProduct ? [state.noProduct] : state.propose && now !== "" ? [state.propose] : []));
   }
 
   const readOnce = async () => {
     status.textContent = "Reading the mailbox…";
     const store = context.store;
     const products = productsOf(store);
+    state.noProduct = products.size === 0 ? (state.noProduct ?? noProductSection(context)) : null;
+    redrawPropose();
     const have = mailboxOf(store);
     const problem = (...nodes) => { problemSlot.replaceChildren(...nodes); status.textContent = state.rows.length ? "The mailbox could not be read again; the list is as it was last read." : ""; };
     if (!have) { problem(el("p", "mailbox-problem", "No mailbox is connected in this browser. Connect one on the Settings page first.")); return; }
