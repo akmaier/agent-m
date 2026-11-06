@@ -10,6 +10,7 @@
 //   - The mailbox is read when the page is drawn and then five minutes after each reading has ended (EVERY), so that no reading starts while one runs and two readings never write the same note twice; the readings stop once
 //     the frame has drawn another route into the element (the page is no longer one of its children), as MOD-main-page's reread.mjs stops. A reading that fails after one that listed mails keeps the list as it was and
 //     names the problem above it; nothing is read. Each decision is made on a click the browser marks as a person's (`isTrusted`); opening a mail writes nothing and answers any click, the keyboard's included.
+//   - The page reads, top to bottom: the problem of a failed reading, Propose, the inbox, and the status line of the readings with its folded explanation, as a mail program's status bar (the PO's layout; the accepted text places none of them).
 //   - The list holds the proposable and the decided mails and the mails attached to an issue of their thread, each with its Mail (MOD-mail-handling, NewMail), sorted by their date, the newest first; a mail
 //     whose date cannot be read comes after the dated ones.
 //   - The date of a line is written as a mail program writes it, in the browser's time zone: the time for a mail of today, day and month for one of this year, day, month and year for an older one; the details
@@ -415,7 +416,9 @@ async function render(target, context) {
   const details = el("section", "mail-details");
   details.setAttribute("aria-label", "The mail opened");
   const inbox = el("div", "mail-inbox", el("section", "mail-step-list", list, fold(STEP_TEXT.list)), details);
-  page.append(el("section", "mail-step-read", status, fold(STEP_TEXT.read)), problemSlot, proposeSlot);
+  // The reading's status line stands at the bottom, as a mail program's status bar; a failed reading is named above the list.
+  const readStep = el("section", "mail-step-read", status, fold(STEP_TEXT.read));
+  page.append(problemSlot, proposeSlot, readStep);
   target.replaceChildren(page);
 
   // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose.
@@ -539,7 +542,7 @@ async function render(target, context) {
     redrawPropose();
     drawList();
     drawDetails();
-    if (inbox.parentNode !== page) page.append(inbox);
+    if (inbox.parentNode !== page) page.replaceChildren(problemSlot, proposeSlot, inbox, readStep);
     const at = new Date();
     status.textContent = `Read at ${twoDigits(at.getHours())}:${twoDigits(at.getMinutes())}. The mailbox is read again every five minutes while this page is open.`;
   };
