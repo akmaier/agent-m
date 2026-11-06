@@ -4,7 +4,7 @@ The cases of `tests/test_mail_import.py`. Every identifier below was computed ou
 first sixteen hex digits of the SHA-256 of the UTF-8 text between the angle brackets of a `Message-ID` (SPEC
 `A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER`).
 
-The sections after the three above are the cases of MOD-mail-handling: a fake mailbox and a fake host of the accepted interface (MOD-repository-hosts.md:233-240) are built from each case's `input` (`today`, the mails by key, the keys the mailbox reads, the issues of the product, the `steps` carried out in order). `expected` names only what the case asserts, out of: `results` (one per step), `created` (title, body and labels of each issue), `comments` (issue and text), `writeCalls` (the functions of the host that wrote, in order). Identifiers are those of tests/test_mail_replies.md.
+The sections after the three above are the cases of MOD-mail-handling: a fake mailbox and a fake host of the accepted interface (MOD-repository-hosts.md:233-240) are built from each case's `input` (`today`, the mails by key, the keys the mailbox reads, the issues of the product, the `steps` carried out in order). `expected` names only what the case asserts, out of: `results` (one per step), `created` (title, body and labels of each issue), `comments` (issue and text), `writeCalls` (the functions of the host that wrote, in order), `mailboxCalls` (the functions of the mailbox called, in order) and `readSince` (the day each reading asked the mailbox for). In a `readNewMail` result, an attached mail's `mail` and a decided mail are given by the identifier of the Mail they carry. Identifiers are those of tests/test_mail_replies.md.
 
 ## A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER
 
@@ -507,7 +507,7 @@ The sections after the three above are the cases of MOD-mail-handling: a fake ma
           "MAIL-ca171c6d1e8e76f0"
         ],
         "attached": [],
-        "decided": 0,
+        "decided": [],
         "unwritten": []
       },
       {
@@ -618,7 +618,7 @@ The sections after the three above are the cases of MOD-mail-handling: a fake ma
           "MAIL-ca171c6d1e8e76f0"
         ],
         "attached": [],
-        "decided": 0,
+        "decided": [],
         "unwritten": []
       },
       {
@@ -768,7 +768,7 @@ The sections after the three above are the cases of MOD-mail-handling: a fake ma
           "MAIL-ca171c6d1e8e76f0"
         ],
         "attached": [],
-        "decided": 0,
+        "decided": [],
         "unwritten": []
       },
       {
@@ -867,7 +867,7 @@ The sections after the three above are the cases of MOD-mail-handling: a fake ma
           "MAIL-ca171c6d1e8e76f0"
         ],
         "attached": [],
-        "decided": 0,
+        "decided": [],
         "unwritten": []
       },
       {
@@ -959,6 +959,86 @@ The sections after the three above are the cases of MOD-mail-handling: a fake ma
     "writeCalls": [
       "createIssue"
     ]
+  }
+}
+```
+
+## A READING NAMES THE DECIDED MAILS
+
+The cases of UC-038 steps 2 and 3 as MOD-mail-handling's `readNewMail` and `NewMail` state them: a reading asks the mailbox for the mails received on or after the day 30 days before now (`readSince`, the day of each `since` the fake mailbox was given), and names every mail an issue lists or this browser marked *not an issue* as decided — with the product and number of the issue that lists it, or both `null` for a mail only marked —, never as proposable; a mail in the thread of a listed mail is attached and carries its Mail. In `results`, a decided mail and an attached mail's `mail` are given by the identifier of the Mail they carry; the decided mails are compared in the order of their identifiers. Written by a participant who built none of `readNewMail` or `NewMail` (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
+
+### A reading asks for the mails of the last 30 days
+
+```json
+{
+  "given": "The clock shows 2026-10-18; the mailbox holds the new mail A. The mailbox is read once.",
+  "input": {
+    "today": "2026-10-18",
+    "mails": {
+      "A": { "id": "MAIL-ca171c6d1e8e76f0", "messageId": "<sample@example.invalid>", "from": { "name": "Erika Mustermann", "address": "erika@example.invalid" }, "text": "The export fails with the error E42." }
+    },
+    "issues": [],
+    "steps": [ { "do": "readNewMail" } ]
+  },
+  "expected": {
+    "readSince": ["2026-09-18"],
+    "mailboxCalls": ["read"]
+  }
+}
+```
+
+### A listed mail is named with its issue, a marked one with neither, and neither is proposed
+
+```json
+{
+  "given": "Issue 7 is open and lists A. This browser marked B not an issue. C is new and unmarked; D answers A by In-Reply-To. The mailbox is read with B's identifier marked.",
+  "input": {
+    "today": "2026-10-18",
+    "mails": {
+      "A": { "id": "MAIL-ca171c6d1e8e76f0", "messageId": "<sample@example.invalid>", "from": { "name": "Erika Mustermann", "address": "erika@example.invalid" }, "subject": "Export fails", "text": "The export fails with the error E42." },
+      "B": { "id": "MAIL-f9f8e80f54bb5fa3", "messageId": "<other@example.invalid>", "from": { "name": "Max Muster", "address": "max@example.invalid" }, "subject": "Out of office", "text": "I am out of the office until Monday." },
+      "C": { "id": "MAIL-327d1b3c6e47dfc8", "messageId": "<third@example.invalid>", "from": { "name": "Frank Beispiel", "address": "frank@example.invalid" }, "subject": "Dark theme", "text": "Please add a dark theme." },
+      "D": { "id": "MAIL-15192047a5b7d4c1", "messageId": "<fourth@example.invalid>", "inReplyTo": "<sample@example.invalid>", "from": { "name": "Erika Mustermann", "address": "erika@example.invalid" }, "subject": "Re: Export fails", "text": "It still fails in version 1.5." }
+    },
+    "issues": [ { "number": 7, "title": "Export fails", "body": "Export fails.\n\nMails: `MAIL-ca171c6d1e8e76f0`" } ],
+    "steps": [ { "do": "readNewMail", "marked": ["MAIL-f9f8e80f54bb5fa3"] } ]
+  },
+  "expected": {
+    "results": [
+      {
+        "proposable": ["MAIL-327d1b3c6e47dfc8"],
+        "attached": [ { "id": "MAIL-15192047a5b7d4c1", "mail": "MAIL-15192047a5b7d4c1", "product": "https://github.com/example/thesis-tool", "issue": 7 } ],
+        "decided": [
+          { "mail": "MAIL-ca171c6d1e8e76f0", "product": "https://github.com/example/thesis-tool", "issue": 7 },
+          { "mail": "MAIL-f9f8e80f54bb5fa3", "product": null, "issue": null }
+        ],
+        "unwritten": []
+      }
+    ],
+    "comments": [ [7, "Mail `MAIL-15192047a5b7d4c1` added on 2026-10-18."] ],
+    "writeCalls": ["commentOnIssue"]
+  }
+}
+```
+
+### Counter-proof: with nothing listed and nothing marked, every mail is proposed and none is decided
+
+```json
+{
+  "given": "The same mails A, B and C; no issue lists a mail and nothing is marked in this browser.",
+  "input": {
+    "today": "2026-10-18",
+    "mails": {
+      "A": { "id": "MAIL-ca171c6d1e8e76f0", "messageId": "<sample@example.invalid>", "from": { "name": "Erika Mustermann", "address": "erika@example.invalid" }, "text": "The export fails with the error E42." },
+      "B": { "id": "MAIL-f9f8e80f54bb5fa3", "messageId": "<other@example.invalid>", "from": { "name": "Max Muster", "address": "max@example.invalid" }, "text": "I am out of the office until Monday." },
+      "C": { "id": "MAIL-327d1b3c6e47dfc8", "messageId": "<third@example.invalid>", "from": { "name": "Frank Beispiel", "address": "frank@example.invalid" }, "text": "Please add a dark theme." }
+    },
+    "issues": [ { "number": 7, "title": "Export fails", "body": "Export fails." } ],
+    "steps": [ { "do": "readNewMail" } ]
+  },
+  "expected": {
+    "results": [ { "proposable": ["MAIL-ca171c6d1e8e76f0", "MAIL-f9f8e80f54bb5fa3", "MAIL-327d1b3c6e47dfc8"], "attached": [], "decided": [], "unwritten": [] } ],
+    "writeCalls": []
   }
 }
 ```

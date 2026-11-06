@@ -25,6 +25,7 @@ CLICK = "A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK"
 KIND = "AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE"
 JOB = "The kind propose-issues"
 DUPLICATE = "A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE"
+READING = "A READING NAMES THE DECIDED MAILS"
 
 # The adapter of MOD-mail-handling. It builds the fake mailbox and the fake host of one case from its data, carries out the
 # case's steps in order, and returns everything a case may state: each step's result, the issues created, the comments and
@@ -57,7 +58,9 @@ const mk = (key) => {
 };
 
 const mailboxCalls = [];
-const known = { read: async () => { mailboxCalls.push("read"); return (input.read ?? Object.keys(input.mails)).map(mk); } };
+// The day each `since` the mailbox was given names (MOD-mail-routes: "the mails of the named folders received on or after the day `since` names"), null for none.
+const readSince = [];
+const known = { read: async (since) => { mailboxCalls.push("read"); readSince.push(since === undefined || since === null ? null : new RealDate(since).toISOString().slice(0, 10)); return (input.read ?? Object.keys(input.mails)).map(mk); } };
 const mailbox = new Proxy(known, { get: (t, p) => (typeof p === "string" && p !== "then" && !(p in t) ? async () => { mailboxCalls.push(p); return null; } : t[p]) });
 
 const issues = input.issues.map((i) => ({ number: i.number, title: i.title ?? "Issue " + i.number, body: i.body, labels: [...(i.labels ?? [])], state: i.state ?? "open",
@@ -94,7 +97,8 @@ for (const step of input.steps) {
     switch (step.do) {
       case "readNewMail": {
         state.read = await mailHandling.readNewMail(mailbox, products, step.marked ?? []);
-        results.push({ proposable: state.read.proposable.map((p) => p.mail.id), attached: state.read.attached, decided: state.read.decided, unwritten: state.read.unwritten });
+        results.push({ proposable: state.read.proposable.map((p) => p.mail.id), attached: state.read.attached.map((a) => ({ id: a.id, mail: a.mail?.id ?? null, product: a.product, issue: a.issue })),
+          decided: state.read.decided.map((d) => ({ mail: d.mail?.id ?? null, product: d.product, issue: d.issue })).sort((x, y) => String(x.mail).localeCompare(String(y.mail))), unwritten: state.read.unwritten });
         break;
       }
       case "kind": {
@@ -158,6 +162,7 @@ return {
   writeCalls: hostCalls.filter((n) => n !== "listIssues" && n !== "repositoryInfo"),
   writtenVia: written.map((w) => w.via),
   mailboxCalls,
+  readSince,
   storage: sinks,
 };
 """
@@ -267,6 +272,14 @@ class TestMailImport(unittest.TestCase):
     # expect: add writes one mail-added note on issue 7 naming the identifier and creates no issue; create creates one and writes no note
     def test_a_confirmed_duplicate_is_added_to_the_existing_issue(self):
         check_world(self, DUPLICATE)
+
+    # TST-994005 · level: release · module: MOD-mail-handling
+    # guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; UC-038
+    # given: the cases under "A READING NAMES THE DECIDED MAILS" beside this file: the clock at 2026-10-18; issue 7 listing A, B marked not an issue in this browser, C new, D answering A
+    # input: readNewMail over the fake mailbox and host, with B's identifier marked; as counter-proof, the same mails with nothing listed and nothing marked
+    # expect: the mailbox is asked for the mails from 2026-09-18 on (UC-038 step 2: the last 30 days); A is named decided with product and issue 7, B decided with neither, D attached to issue 7 carrying its Mail, only C proposable (UC-038 step 3; MOD-mail-handling NewMail); counter-proof: every mail proposable and none decided
+    def test_a_reading_names_the_decided_mails(self):
+        check_world(self, READING)
 
 
 if __name__ == "__main__":

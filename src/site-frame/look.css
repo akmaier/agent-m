@@ -273,3 +273,30 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .prompt-bar .buttons { display: flex; gap: .5rem; justify-content: flex-end; margin-left: auto; }
 .prompt-bar .conversation { list-style: none; padding: 0; display: grid; align-content: start; gap: .35rem; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .prompt-bar .conversation:empty, .prompt-bar .status:empty { display: none; }
+
+/* The mail page (maintenance-pages/mail.mjs): the inbox as a mail program lists it — one line per mail, a button with sender, date and subject, the
+   undecided ones bold — and the mail clicked beside the list on a wide screen; on a narrow one it takes the list's place, with a way back. */
+.mail-inbox { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 1.2rem; align-items: start; margin-block: 1rem; }
+.mail-list { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.mail-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5rem; padding: .1rem .35rem; border-bottom: 1px solid var(--line); font-weight: 400; }
+.mail-line:last-child { border-bottom: none; }
+.mail-line.undecided { font-weight: 700; }
+.mail-line[aria-current="true"] { background: var(--code); }
+.mail-list .mail-open.btn { flex: 1 1 14rem; min-width: 0; margin: 0; border: 0; background: none; text-align: left; font-weight: inherit;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .1rem .75rem; }
+.mail-open .mail-sender, .mail-open .mail-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-open .mail-date { color: var(--muted); font-size: .85em; white-space: nowrap; }
+.mail-open .mail-subject { grid-column: 1 / -1; }
+.mail-line .mail-decision { padding-inline: .8rem; font-size: .85rem; font-weight: 400; color: var(--muted); }
+.mail-decision a, .mail-decided-as a { display: inline-flex; align-items: center; min-height: 24px; }
+.mail-details { min-width: 0; }
+.mail-details .mail-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mail-details .mail-title, .mail-details .mail-body { box-sizing: border-box; width: 100%; }
+.mail-details .mail-body { min-height: 8rem; }
+.mail-details .mail-back { display: none; }
+@media (max-width: 760px) {
+  .mail-inbox { grid-template-columns: minmax(0, 1fr); }
+  .mail-inbox.mail-open-shown > .mail-step-list { display: none; }
+  .mail-inbox:not(.mail-open-shown) > .mail-details { display: none; }
+  .mail-details .mail-back { display: inline-block; }
+}

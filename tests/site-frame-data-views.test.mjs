@@ -48,9 +48,10 @@ test("the live app draws its menu and its routes from the views data-views names
   const heading = async (hash) => { await page.go(hash); return (/<h2>([^<]*)/.exec(page.main()) || [])[1]?.trim(); };
   assert.equal(await heading("#uc"), "Use cases");
   assert.equal(await heading("#settings"), "Settings");
-  assert.equal(await heading("#mail"), "Mail", "the maintenance pages answer");
+  await page.go("#mail");
+  assert.ok(page.main().includes('class="mail-page"'), "the maintenance pages answer: the page of mail, which draws no heading of its own");
   await page.go("#backlog");
-  assert.ok(page.main().length > 0 && !page.main().includes("<h2>Mail"), "the implementation pages answer");
+  assert.ok(page.main().length > 0 && !page.main().includes('class="mail-page"'), "the implementation pages answer");
 });
 
 // TST-1116003 · level: unit · module: MOD-site-frame

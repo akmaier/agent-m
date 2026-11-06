@@ -14,7 +14,7 @@
 //
 // The world is tests/maintenance-pages-world.mjs: the harness's browser and fake GitHub, the Bridge's mail operation `read` (the mails given) and its asks (an agent's answer), GitHub's issues of alice/product, the instance's participants, the model
 // endpoints ep1 and ep2 (their answers given by the test). The real MOD-job-runner, MOD-runtimes, MOD-mail-handling, MOD-personal-data and MOD-participant-list run as they are. Readings the texts leave open, which the tests state (the pull request names them):
-//   - After the reading that drawing the page starts, the page shows <section class="mail-step-propose"> above the list. Its participants are <li class="mail-participant" data-participant="<name>"> with <input class="participant"> (a radio), <span class="place"> and, for a place the
+//   - After the reading that drawing the page starts, the page shows <section class="mail-step-propose"> above the list; a mail's review is in the page once its line is clicked. Its participants are <li class="mail-participant" data-participant="<name>"> with <input class="participant"> (a radio), <span class="place"> and, for a place the
 //     mailbox allows and records as outside the EU, <span class="not-compliant">. Only participants that draft text and whose place the mailbox allows are listed; with none, <p class="mail-no-participant"> names the allowed places and holds
 //     <a class="places-link" href="#mailbox"> to the mailbox's processing places, and nothing is sent (UC-038 4c).
 //   - <input class="person"> is the name of the person who presses Propose, as on the page replies. Once a participant is chosen and the name is entered, <ul class="mail-checkers"> lists the three checkers as <li class="mail-checker"> with their <span class="place">
@@ -30,7 +30,7 @@
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { PRODUCT_URL, buttonsOf, byClass, flush, itemOf, mailOf, one, opened, restoreWorld, textOf, trusted, waitFor, walk, world, issueRecord } from "./maintenance-pages-world.mjs";
+import { PRODUCT_URL, buttonsOf, byClass, flush, mailOf, mailRead, one, openMail, opened, restoreWorld, textOf, trusted, waitFor, walk, world, issueRecord } from "./maintenance-pages-world.mjs";
 
 afterEach(restoreWorld);
 
@@ -60,8 +60,9 @@ async function setup({ rows = ROWS, places, answer, product, withAttachments = t
   const two = await mailOf("two", { subject: "Dark theme", text: "Please add a dark theme." });
   const w = world({ mails: [one_, two], reading: only ? [one_, two].filter((mail) => only.includes(mail.id)) : [one_, two], issues: [issueRecord(3, "open", [])], rows, places, answer: (request) => (answer ?? proposals)(request, { one: one_, two }), product });
   const target = await opened(w, {}, "mail");
-  await waitFor(() => byClass(target, "mail-decided").length > 0 || byClass(target, "mailbox-problem").length > 0);
-  return { w, target, one: one_, two, item: (mail) => itemOf(target, mail.id) };
+  await mailRead(target);
+  // A mail's review is shown once its line is clicked (MOD-maintenance-pages, `mail`: "The mail clicked shows its details").
+  return { w, target, one: one_, two, item: (mail) => openMail(target, mail.id) };
 }
 const participants = (target) => walk(target, (node) => node.getAttribute?.("data-participant")).map((node) => node.getAttribute("data-participant"));
 const choose = async (target, name, person = "Anna Author") => {
@@ -75,7 +76,7 @@ const choose = async (target, name, person = "Anna Author") => {
 };
 const propose = async (target) => {
   await trusted(buttonsOf(one(target, "mail-stage"), "Run")[0]);
-  await waitFor(() => byClass(target, "mail-title").some((node) => node.value !== "" && node.value !== undefined));
+  await waitFor(() => byClass(target, "mail-proposed").length > 0 || byClass(target, "mail-propose-problem").length > 0);
 };
 const nothingSent = (w) => [w.kept.endpoint.length, w.kept.ask.length, w.kept.github.filter((request) => request.method !== "GET").length];
 

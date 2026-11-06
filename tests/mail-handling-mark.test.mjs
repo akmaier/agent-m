@@ -76,15 +76,15 @@ test("a second mark keeps the first, and a mail is marked once", async () => {
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN
 // given: a mailbox with the two mails; the first marked through decideMail
 // input: readNewMail(mailbox, [{ address, host }], the marks read from the store); and the same with no marks
-// expect: with the marks the first mail is left out and counted as decided, the second proposed; with none both are proposed
+// expect: with the marks the first mail is left out and named as decided, with no product and no issue, the second proposed; with none both are proposed and none is decided
 test("readNewMail with the marks of the store leaves the marked mail out", async () => {
   const { store } = fresh();
   await handling.decideMail({ id: FIRST, people: PEOPLE }, { kind: "not-an-issue" }, null, store);
   const products = [{ address: PRODUCT, host: fakeHost() }];
   const marked = await handling.readNewMail(mailbox([mail(FIRST), mail(SECOND)]), products, readSetting(store, "not-an-issue") ?? []);
-  assert.deepEqual([marked.proposable.map((each) => each.mail.id), marked.decided], [[SECOND], 1]);
+  assert.deepEqual([marked.proposable.map((each) => each.mail.id), marked.decided.map((each) => [each.mail.id, each.product, each.issue])], [[SECOND], [[FIRST, null, null]]]);
   const none = await handling.readNewMail(mailbox([mail(FIRST), mail(SECOND)]), products, []);
-  assert.deepEqual([none.proposable.map((each) => each.mail.id), none.decided], [[FIRST, SECOND], 0]);
+  assert.deepEqual([none.proposable.map((each) => each.mail.id), none.decided], [[FIRST, SECOND], []]);
 });
 
 // TST-956004 · level: unit · module: MOD-mail-handling

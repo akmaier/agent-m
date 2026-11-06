@@ -43,7 +43,7 @@ const ALL_OF_IT = ["Erika Mustermann", ERIKA.address, "Subject fresh", "the expo
 
 async function mailRouteRead(f) {
   const target = await opened(f.w, {}, "mail");
-  await waitFor(() => byClass(target, "mail").length > 0);
+  await waitFor(() => byClass(target, "mail-line").length > 0);
   return target;
 }
 
@@ -136,8 +136,8 @@ test("before a reading has answered no mail is listed, so the page holds none an
     assert.equal(subject.withhold("Erika Mustermann writes from erika@example.invalid"), null);
     release();
     await drawing;
-    await waitFor(() => byClass(target, "mail").length > 0);
-    assert.ok(itemOf(target, f.fresh.id), "known positive: the reading lists the mail");
+    await waitFor(() => byClass(target, "mail-line").length > 0);
+    assert.ok(byClass(target, "mail-line").some((line) => line.getAttribute("data-line") === f.fresh.id), "known positive: the reading lists the mail");
   } finally {
     release();
     globalThis.fetch = answering;

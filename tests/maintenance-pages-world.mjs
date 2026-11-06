@@ -40,6 +40,15 @@ const waitFor = async (condition) => { for (let n = 0; n < 500 && !condition(); 
 const trusted = async (node) => { const event = new Event("click"); Object.defineProperty(event, "isTrusted", { value: true }); node.dispatchEvent(event); await flush(); };
 const buttonsOf = (root, text) => walk(root, (node) => node.localName === "button" && node.textContent === text);
 const itemOf = (target, id) => walk(target, (node) => node.getAttribute?.("data-mail") === id)[0];
+// The route mail: how many of its readings have ended (data-readings of .mail-page), a wait for the reading of `count` or for the mailbox's problem, and a mail opened from its list — the line's
+// button clicked, which a script may do since opening a mail writes nothing — with its details returned (itemOf).
+const mailReadings = (target) => Number(byClass(target, "mail-page")[0]?.getAttribute("data-readings") ?? 0);
+const mailRead = (target, count = 1) => waitFor(() => mailReadings(target) >= count || byClass(target, "mailbox-problem").length > 0);
+function openMail(target, id) {
+  const line = walk(target, (node) => node.getAttribute?.("data-line") === id)[0];
+  byClass(line ?? target, "mail-open")[0]?.dispatchEvent(new Event("click"));
+  return itemOf(target, id);
+}
 
 /** A mail as the Bridge returns it; its identifier is the hash of its Message-ID. */
 async function mailOf(key, over = {}) {
@@ -209,4 +218,4 @@ const start = async (extra = {}) => {
 };
 
 
-export { routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, issueRecord };
+export { mailReadings, mailRead, openMail, routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, issueRecord };

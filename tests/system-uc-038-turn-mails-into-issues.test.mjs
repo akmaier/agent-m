@@ -1,7 +1,7 @@
 // UC-038 "Turn mails into issues" as a system path: the author opens the route `mail` on the main page, started by MOD-site-frame's startPage over the view of MOD-maintenance-pages, in the browser of
 // tests/maintenance-pages-world.mjs (the repositories, the participants' register, the model endpoints ep1 and ep2, GitHub's issues of alice/product), over the mailbox on the Microsoft route — a fixture server of
 // Microsoft Graph in place of graph.microsoft.com (tests/uc-039-world.mjs) — and walks the main flow (steps 1 to 10) and the alternative flows 2a, 4b, 4c, 6a, 6c, 7a, 7b and 8a, each reached by a person's input: the
-// opening of Mail, which reads the mailbox, Read again, a chosen participant and a typed name, Propose, an edit of the title and the text, Create issue, Add to #n, Not an issue. The Bridge route (the IMAP server) is walked in
+// opening of Mail, which reads the mailbox, Mail opened again, which reads it anew, a mail opened from the list, a chosen participant and a typed name, Propose, an edit of the title and the text, Create issue, Add to #n, Not an issue. The Bridge route (the IMAP server) is walked in
 // tests/system-uc-038-bridge-route.test.mjs.
 // Run: node --test tests/system-uc-038-turn-mails-into-issues.test.mjs
 //
@@ -19,8 +19,8 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { writeSetting } from "../src/browser-store/index.mjs";
-import { PRODUCT_URL, buttonsOf, byClass, flush, issueRecord, itemOf, mailOf, one, restoreWorld, textOf, waitFor, trusted as click, walk } from "./maintenance-pages-world.mjs";
-import { graphWrites, lastly, openReplies, rawMail, writes } from "./uc-039-world.mjs";
+import { PRODUCT_URL, buttonsOf, byClass, flush, issueRecord, mailOf, mailRead, one, openMail, restoreWorld, textOf, waitFor, trusted as click, walk } from "./maintenance-pages-world.mjs";
+import { graphWrites, hashTo, lastly, openReplies, rawMail, writes } from "./uc-039-world.mjs";
 
 afterEach(restoreWorld);
 
@@ -42,12 +42,17 @@ const answer = () => ({ draft: { proposals: [
 const open = (extra = {}) => openReplies({ route: "graph", fragment: "#mail", rows: ROWS, answer, issues: [issueRecord(3, "open", [])],
   inbox: [rawMail("a", { subject: "Export fails", body: BODY }), rawMail("b", { subject: "Dark theme", body: "Please add a dark theme.\r\nKind regards\r\nErika Mustermann" })], ...extra });
 // The reading opening the page starts, waited for: it takes no click.
-const mailboxRead = (p) => waitFor(() => byClass(p.main(), "mail-decided").length > 0 || byClass(p.main(), "mailbox-problem").length > 0);
+const mailboxRead = (p) => mailRead(p.main());
+// Mail opened again — the author goes to Replies and back to Mail —, which reads the mailbox anew (UC-038 step 1).
 async function readAgain(p, clicks) {
-  clicks.push("Read again");
-  await click(one(p.main(), "read-again"));
+  clicks.push("Mail opened again");
+  await hashTo("#replies");
+  await waitFor(() => byClass(p.main(), "mail-page").length === 0);
+  await hashTo("#mail");
   await mailboxRead(p);
 }
+// A mail opened from the list: its details.
+const itemOf = (main, id) => openMail(main, id);
 async function chooseParticipant(p, name, person = "Anna Author") {
   const input = one(p.main(), "person");
   input.value = person;
@@ -64,10 +69,11 @@ async function propose(p, clicks) {
   const byScript = p.w.kept.endpoint.length;
   clicks.push("Propose");
   await click(run);
-  await waitFor(() => byClass(p.main(), "mail-title").some((node) => node.value !== "" && node.value !== undefined));
+  await waitFor(() => byClass(p.main(), "mail-proposed").length > 0);
   return byScript;
 }
-const items = (p) => byClass(p.main(), "mail");
+const items = (p) => byClass(p.main(), "mail-line");
+const bold = (p) => items(p).filter((node) => node.className.split(" ").includes("undecided")).map((node) => node.getAttribute("data-line"));
 const created = (p) => p.w.kept.github.filter((request) => request.method === "POST" && /\/issues$/.test(request.path)).map((request) => JSON.parse(request.body));
 const commentsOf = (p) => p.w.kept.github.filter((request) => request.method === "POST" && request.path.endsWith("/comments")).map((request) => JSON.parse(request.body).body);
 const typed = async (node, value) => { node.value = value; node.dispatchEvent(new Event("input")); await flush(); };
@@ -77,20 +83,21 @@ const everyWrite = (p) => JSON.stringify([writes(p), graphWrites(p)]);
 // guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT; MAIL STAYS IN THE MAILBOX; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL
 // given: the page at the route mail over the Microsoft route; the INBOX holds a (new), listed (which the open issue 3 lists), marked (which the author marked not an issue in this browser) and reply (whose In-Reply-To names listed); no participant is chosen
 // input: Mail opened, which reads the mailbox without a click
-// expect: only a is listed, with sender, subject and date; the mail reply is attached to issue 3 at once — one comment that adds its identifier to the issue — and shown under it, without a participant: no request reached a model endpoint; listed and marked are left out; reading wrote nothing to the mailbox and nothing but that comment to the tracker (flow: UC-038 main flow, steps 1 to 3)
+// expect: every mail is listed, only a in bold, a with sender, subject and date; listed and marked are not bold; the mail reply is attached to issue 3 at once — one comment that adds its identifier to the issue — and shown under it, without a participant: no request reached a model endpoint; listed and marked are left out; reading wrote nothing to the mailbox and nothing but that comment to the tracker (flow: UC-038 main flow, steps 1 to 3)
 test("main flow, steps 1 to 3: the mailbox is read, decided mails are left out, a reply in a known thread is attached to its issue without a participant", async () => {
   const marked = await mailOf("marked");
   const p = await open({ issues: [issueRecord(3, "open", [D])], settings: { "not-an-issue": [marked.id] },
     inbox: [rawMail("a", { subject: "Export fails", body: BODY }), rawMail("listed"), rawMail("marked"), rawMail("reply", { inReplyTo: "<listed@mail.example.invalid>", references: "<listed@mail.example.invalid>", subject: "Re: Subject listed" })] });
   await lastly(p, async () => {
     await mailboxRead(p);
-    const listed = items(p);
-    assert.deepEqual(listed.map((node) => node.getAttribute("data-mail")), [A.id], "only the undecided mail is listed");
-    const text = textOf(listed[0]);
-    assert.ok(text.includes("Erika") && text.includes("Export fails") && /2026/.test(text), "sender, subject and date");
-    const attached = textOf(one(p.main(), "mail-attached"));
-    assert.ok(attached.includes("#3"), "the reply is shown under issue 3");
     const reply = await mailOf("reply");
+    assert.deepEqual(items(p).map((node) => node.getAttribute("data-line")).sort(), [A.id, D.id, L.id, reply.id].sort(), "every mail is listed");
+    assert.deepEqual(bold(p), [A.id], "only the undecided mail is bold");
+    const line = items(p).find((node) => node.getAttribute("data-line") === A.id);
+    const text = textOf(line);
+    assert.ok(text.includes("Erika") && text.includes("Export fails") && /^2026-10-18/.test(one(line, "mail-date").getAttribute("datetime")), "sender, subject and date");
+    const attached = textOf(items(p).find((node) => node.getAttribute("data-line") === reply.id));
+    assert.ok(attached.includes("#3"), "the reply is shown with issue 3");
     assert.deepEqual(commentsOf(p).length, 1, "one comment adds the reply's identifier");
     assert.ok(commentsOf(p)[0].includes(reply.id));
     assert.equal(p.w.kept.endpoint.length + p.w.kept.ask.length, 0, "no participant was asked");
@@ -145,27 +152,29 @@ test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail
 // TST-965003 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; ONE CLICK PER DECISION; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
 // given: two new mails a and b and the open issue 3
-// input: Mail opened, which reads the mailbox; the person's click on Add to #3 for a; the person's click on Not an issue for b; the person's click on Read again
-// expect: Add to #3 writes one comment that lists a's identifier on issue 3, and nothing else; Not an issue writes nothing to any repository and marks b in this browser; the second reading lists neither a (an issue lists it now) nor b (marked); the mailbox saw no write (flow: UC-038 main flow, steps 7 and 9)
+// input: Mail opened, which reads the mailbox; the person's click on Add to #3 for a; the person's click on Not an issue for b; Mail opened again
+// expect: Add to #3 writes one comment that lists a's identifier on issue 3, and nothing else; Not an issue writes nothing to any repository, marks b in this browser and takes it out of bold; the second reading
+//   proposes neither a (an issue lists it now) nor b (marked): both are listed, neither bold; the mailbox saw no write (flow: UC-038 main flow, steps 7 and 9)
 test("steps 7 and 9: Add to #n lists the mail on the issue, Not an issue marks it in this browser, and neither is proposed again", async () => {
   const p = await open();
   await lastly(p, async () => {
     const clicks = [];
     await mailboxRead(p);
-    const itemA = itemOf(p.main(), A.id), itemB = itemOf(p.main(), B.id);
+    const itemA = itemOf(p.main(), A.id);
     await typed(one(itemA, "mail-issue-number"), "3");
     await click(one(itemA, "add-to-issue"));
     await waitFor(() => commentsOf(p).length > 0);
     assert.equal(commentsOf(p).length, 1);
     assert.ok(commentsOf(p)[0].includes(A.id));
     const before = writes(p).length;
-    await click(one(itemB, "not-an-issue"));
+    await click(one(itemOf(p.main(), B.id), "not-an-issue"));
     assert.equal(writes(p).length, before, "Not an issue writes nothing to a repository");
-    assert.equal(itemOf(p.main(), B.id), undefined, "the mail leaves the list at the click");
+    assert.deepEqual(bold(p), [], "the mails leave bold at the clicks");
     p.w.kept.issues[0].comments.push(commentsOf(p)[0]);
     p.w.kept.issues[0].body = `${p.w.kept.issues[0].body}\n\nMails: \`${A.id}\``;
     await readAgain(p, clicks);
-    assert.deepEqual(items(p).map((node) => node.getAttribute("data-mail")), [], "neither is listed again");
+    assert.deepEqual(bold(p), [], "neither is proposed again");
+    assert.equal(items(p).length, 2, "known positive: both are listed");
     assert.deepEqual(graphWrites(p), []);
   });
 });
@@ -173,7 +182,7 @@ test("steps 7 and 9: Add to #n lists the mail on the issue, Not an issue marks i
 // TST-965004 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 // given: the page over the Microsoft route, whose provider cannot be reached once the reading of the opening has answered
-// input: Mail opened, which reads the mailbox; the provider gone; the person's click on Read again
+// input: Mail opened, which reads the mailbox; the provider gone; Mail opened again
 // expect: nothing is listed; the page names the reason (the provider's answer) in the problem of the mailbox; no participant was asked and nothing was written to the tracker (flow: UC-038 alternative 2a)
 test("alternative 2a: a mailbox that cannot be reached is named, nothing is read and nothing is written", async () => {
   const p = await open();

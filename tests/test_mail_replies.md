@@ -17,7 +17,7 @@ repository host lists them (`issues`: number, state, labels, body, comments), th
 (`found`), what Drafts, Sent and a new reading hold (`drafts`, `sent`, `read`), the day the clock shows (`today`), and the
 `steps` the case carries out in order. `expected` names only what the case asserts, out of: `results` (one per step; a
 `repliesDue` result lists the issues of each group with `closedBy` and, per listed mail, whether the mailbox `found` it, the
-`draft` it shows and whether a reply is `noted`), `issues` (their state and labels at the end), `added` (the comments written,
+`draft` it shows and whether a reply is `noted`; in a `readNewMail` result an attached mail's `mail` and a decided mail are given by the identifier of the Mail they carry), `issues` (their state and labels at the end), `added` (the comments written,
 as issue and text), `labelCalls`, `stateCalls` (a call that changes an issue's state), `hostCalls`, `mailboxCalls`, `finds`,
 `order`, `recipients` (of each stored draft), `draftUids`, `draftThreads` (the `In-Reply-To` of each draft in Drafts),
 `draftBodies` and `storage` (reads and writes of the browser's storage, and requests to the network). The fake mailbox threads a
@@ -667,7 +667,7 @@ stored draft on the `Message-ID` of the mail it replies to, as MOD-mail-routes' 
   },
   "expected": {
     "results": [
-      { "proposable": [], "attached": [ { "id": "MAIL-4bbaa9c39cbf4f0e", "product": "https://github.com/example/thesis-tool", "issue": 6 } ], "decided": 0, "unwritten": [] },
+      { "proposable": [], "attached": [ { "id": "MAIL-4bbaa9c39cbf4f0e", "mail": "MAIL-4bbaa9c39cbf4f0e", "product": "https://github.com/example/thesis-tool", "issue": 6 } ], "decided": [], "unwritten": [] },
       { "toAnswer": [ { "issue": 6, "closedBy": null, "mails": [
           { "id": "MAIL-ca171c6d1e8e76f0", "found": true, "draft": null, "noted": true },
           { "id": "MAIL-4bbaa9c39cbf4f0e", "found": true, "draft": null, "noted": false } ] } ], "answerReceived": [], "open": [] }
