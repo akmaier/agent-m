@@ -124,13 +124,13 @@ test("TST-952003 a mail an issue lists by a comment is left out", async () => {
 // guards: A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; A CLOSED ISSUE IS REOPENED ONLY BY A PERSON; UC-038
 // given: a closed issue 6 lists the mail <sample@example.invalid>; a reply names it in In-Reply-To; a second mail is new
 // input: readNewMail over both mails
-// expect: the reply is attached to {product, issue 6} by exactly one commentOnIssue with the mail-added note of the reply's identifier and today's date; it is not proposable; decided is empty; the issue is not reopened, relabelled or created again
+// expect: the reply is attached to {product, issue 6}, carrying its Mail, by exactly one commentOnIssue with the mail-added note of the reply's identifier and today's date; it is not proposable; decided is empty; the issue is not reopened, relabelled or created again
 test("TST-952004 a mail whose In-Reply-To names a listed mail is attached by a mail-added note and a closed issue stays closed", async () => {
   const before = day();
   const host = fakeHost([issue(6, `Export fails.\n\nMails: \`${ROOT_ID}\``, { state: "closed" })]);
   const reply = mail(REPLY_ID, { inReplyTo: "<sample@example.invalid>" });
   const result = await handling.readNewMail?.(fakeMailbox([reply, mail(NEW_ID)]), [{ address: PRODUCT, host }], []);
-  assert.deepEqual(result?.attached, [{ id: REPLY_ID, product: PRODUCT, issue: 6 }]);
+  assert.deepEqual(result?.attached, [{ id: REPLY_ID, mail: reply, product: PRODUCT, issue: 6 }]);
   assert.deepEqual(result?.proposable.map((entry) => entry.mail.id), [NEW_ID]);
   assert.deepEqual(result?.decided, []);
   const comments = callsOf(host, "commentOnIssue");
@@ -153,7 +153,7 @@ test("TST-952005 a mail whose References name a listed mail is attached", async 
   const host = fakeHost([issue(3, `Export fails.\n\nMails: \`${ROOT_ID}\``)]);
   const reply = mail(REPLY_ID, { references: ["<unrelated@example.invalid>", "<sample@example.invalid>"] });
   const result = await handling.readNewMail?.(fakeMailbox([reply]), [{ address: PRODUCT, host }], []);
-  assert.deepEqual(result?.attached, [{ id: REPLY_ID, product: PRODUCT, issue: 3 }]);
+  assert.deepEqual(result?.attached, [{ id: REPLY_ID, mail: reply, product: PRODUCT, issue: 3 }]);
   assert.deepEqual(result?.proposable, []);
   assert.equal(callsOf(host, "commentOnIssue").length, 1);
 });
@@ -187,7 +187,7 @@ test("TST-952007 a thread is matched within the product whose issue lists the ma
   const reply = mail(REPLY_B_ID, { inReplyTo: "<sample@example.invalid>" });
   const result = await handling.readNewMail?.(fakeMailbox([reply]),
     [{ address: "https://github.com/example/a", host: hostA }, { address: "https://github.com/example/b", host: hostB }], []);
-  assert.deepEqual(result?.attached, [{ id: REPLY_B_ID, product: "https://github.com/example/b", issue: 5 }]);
+  assert.deepEqual(result?.attached, [{ id: REPLY_B_ID, mail: reply, product: "https://github.com/example/b", issue: 5 }]);
   assert.deepEqual(callsOf(hostA, "commentOnIssue"), []);
   assert.equal(callsOf(hostB, "commentOnIssue").length, 1);
 });
@@ -436,4 +436,22 @@ test("TST-2026110501 a decided mail names the product and the issue that list it
   assert.deepEqual(result?.decided, [{ mail: one, product: second, issue: 12 }, { mail: both, product: PRODUCT, issue: 3 }, { mail: marked, product: null, issue: null }]);
   assert.deepEqual(result?.proposable.map((entry) => entry.mail.id), [NEW_ID]);
   assert.equal(result?.decided.some((each) => each.mail.id === NEW_ID), false, "counter-proof: the undecided mail is not decided");
+});
+
+// TST-2026110507
+// level: unit
+// module: MOD-mail-handling
+// guards: A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; UC-038
+// given: issue 6 lists the mail <sample@example.invalid>; a reply names it in In-Reply-To, with its own sender, subject and date; a second mail is new
+// input: readNewMail over both mails
+// expect: the attached entry carries the reply's Mail itself — its sender, subject and date — beside its identifier, product and issue; counter-proof: the new mail is proposable and attached to nothing
+test("TST-2026110507 an attached mail carries its Mail, so that its sender, subject and date can be shown", async () => {
+  const reply = mail(REPLY_ID, { inReplyTo: "<sample@example.invalid>", subject: "Re: Export fails", date: "2026-10-21T09:30:00Z", from: { name: "Max Muster", address: "max@example.invalid" } });
+  const host = fakeHost([issue(6, `Export fails.\n\nMails: \`${ROOT_ID}\``)]);
+  const result = await handling.readNewMail?.(fakeMailbox([reply, mail(NEW_ID)]), [{ address: PRODUCT, host }], []);
+  assert.equal(result?.attached.length, 1);
+  assert.equal(result.attached[0].mail, reply, "the very Mail the mailbox gave");
+  assert.deepEqual([result.attached[0].mail.from, result.attached[0].mail.subject, result.attached[0].mail.date], [reply.from, "Re: Export fails", "2026-10-21T09:30:00Z"]);
+  assert.deepEqual([result.attached[0].id, result.attached[0].product, result.attached[0].issue], [REPLY_ID, PRODUCT, 6]);
+  assert.deepEqual(result.proposable.map((entry) => entry.mail.id), [NEW_ID], "counter-proof: the new mail is proposable, not attached");
 });

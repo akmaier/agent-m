@@ -19,7 +19,7 @@
 //   - The page: <div class="mail-page" data-readings="<n>"> counts the readings that have ended; no heading "Mail" and no button Read again. <p class="mail-status"> says when the mailbox was read. <p class="mailbox-problem">
 //     names why nothing was read. The inbox is <div class="mail-inbox"> with <section class="mail-step-list"> (<ul class="mail-list"> of <li class="mail-line" data-line="<MAIL-id>">, the class undecided on the bold ones) and
 //     <section class="mail-details">. Each line holds <button class="mail-open"> with .mail-sender, .mail-subject and <time class="mail-date" datetime="<the mail's date>">, the date written as a mail program writes it, not
-//     the raw ISO text; a decided or attached line holds <span class="mail-decision"> with <a class="issue-link"> to #issue/number=<n>/product=<address>, or the words "not an issue".
+//     the raw ISO text — an attached mail's line too, sorted among the others by its date; a decided or attached line holds <span class="mail-decision"> with <a class="issue-link"> to #issue/number=<n>/product=<address>, or the words "not an issue".
 //   - The mail clicked: the line gets aria-current="true", the inbox the class mail-open-shown, and the details hold <button class="mail-back"> "Back to the list" and <div class="mail" data-mail="<MAIL-id>">: for a
 //     proposable mail the review — <pre class="mail-text"> (the mail in full), <select class="mail-product">, <select class="mail-kind">, <input class="mail-title">, <textarea class="mail-body">, <ul class="mail-hits">,
 //     <button class="create-issue">, <input class="mail-issue-number"> with <button class="add-to-issue"> "Add to #<n>", <button class="not-an-issue">, <p class="mail-result"> —; for a decided one the mail in full and
@@ -176,8 +176,8 @@ const writesToGitHub = () => sent.filter((request) => request.method !== "GET");
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; READING THE MAILBOX CHANGES NOTHING IN IT; UC-038
 // given: the mailbox holds a new mail (of 20 October), a mail an issue lists (19 October), a mail this browser marked (18 October), and a reply in the thread of the listed mail
 // input: the route mail drawn, without any click
-// expect: drawing reads the mailbox; the list holds one line per mail, the newest first — new, listed, marked — and the reply, which the reading attached, last; only the new mail is bold; its line names
-//   sender, subject and date; the listed mail's line and the reply's link the address the frame writes for issue 4 of alice/product, the marked mail's says "not an issue"; the Bridge got one request, the read;
+// expect: drawing reads the mailbox; the list holds one line per mail, the newest first — the reply (21 October), which the reading attached, then new, listed, marked; only the new mail is bold; its line
+//   and the reply's name sender, subject and date; the listed mail's line and the reply's link the address the frame writes for issue 4 of alice/product, the marked mail's says "not an issue"; the Bridge got one request, the read;
 //   GitHub received one write, the note that lists the reply on #4
 test("the mail page lists every mail as an inbox, the newest first, the undecided one bold and each decided one with its issue or its mark", async () => {
   const fresh = await mailOf("new", { date: "2026-10-20T08:00:00Z" }), listed = await mailOf("listed", { date: "2026-10-19T08:00:00Z" }), marked = await mailOf("marked", { date: "2026-10-18T08:00:00Z" });
@@ -186,10 +186,13 @@ test("the mail page lists every mail as an inbox, the newest first, the undecide
   const w = world({ mails: [marked, reply, listed, fresh], marked: [marked.id], issues: [{ number: 4, title: "Export fails", body: withMailIds("Export fails.", [listed.id]) }],
     bridge: (url, init) => { requests.push(`${init.method} ${url.pathname}`); return new Response(JSON.stringify([marked, reply, listed, fresh]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
   const target = await open(w);
-  assert.deepEqual(lineIds(target), [fresh.id, listed.id, marked.id, reply.id]);
+  assert.deepEqual(lineIds(target), [reply.id, fresh.id, listed.id, marked.id]);
   assert.deepEqual(bold(target), [fresh.id]);
   const line = textOf(lineOf(target, fresh.id));
   assert.ok(line.includes("Erika Mustermann") && line.includes("Subject new"), line);
+  const replyLine = textOf(lineOf(target, reply.id));
+  assert.ok(replyLine.includes("Erika Mustermann") && replyLine.includes("Subject reply"), replyLine);
+  assert.equal(byClass(lineOf(target, reply.id), "mail-date")[0].getAttribute("datetime"), "2026-10-21T08:00:00Z");
   const issue4 = fragmentOf("issue", { number: "4", product: PRODUCT_URL });
   for (const id of [listed.id, reply.id]) assert.deepEqual(byClass(lineOf(target, id), "issue-link").map((link) => link.getAttribute("href")), [issue4], id);
   assert.match(textOf(byClass(lineOf(target, marked.id), "mail-decision")[0]), /not an issue/);
@@ -574,6 +577,29 @@ test("a later reading keeps the open mail and its edited proposal, and shows wha
   assert.equal(byClass(still, "mail-title")[0].value, "PDF export fails");
   assert.equal(byClass(still, "mail-body")[0].value, "Exporting as PDF fails with error E42.");
   assert.equal(lineOf(target, one.id).getAttribute("aria-current"), "true");
+});
+
+// TST-2026110508 · level: component · module: MOD-maintenance-pages
+// guards: UC-038; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL
+// given: issue 4 lists a mail of 15 October; a reply in its thread of 19 October from Max Muster with the subject "Re: Export fails"; a new mail of 20 October and a marked mail of 17 October
+// input: the route mail drawn; the reply's line clicked
+// expect: the reply's line names Max Muster, "Re: Export fails" and its date, and stands by that date — after the new mail, before the marked one —: new, reply, marked, listed; counter-proof: a page that put
+//   the attached mail last would give new, marked, listed, reply; its details show the reply in full and its issue #4, and no decision
+test("an attached mail's line shows its sender, subject and date and stands among the others by its date", async () => {
+  const listed = await mailOf("listed", { date: "2026-10-15T08:00:00Z" }), fresh = await mailOf("new", { date: "2026-10-20T08:00:00Z" }), marked = await mailOf("marked", { date: "2026-10-17T08:00:00Z" });
+  const reply = await mailOf("reply", { inReplyTo: listed.messageId, references: [listed.messageId], date: "2026-10-19T08:00:00Z", subject: "Re: Export fails",
+    from: { name: "Max Muster", address: "max@example.invalid" }, text: "Hello,\nit still fails in version 1.5.\nMax" });
+  const target = await open(world({ mails: [listed, reply, fresh, marked], marked: [marked.id], issues: [{ number: 4, title: "Export fails", body: withMailIds("Export fails.", [listed.id]) }] }));
+  assert.deepEqual(lineIds(target), [fresh.id, reply.id, marked.id, listed.id]);
+  assert.notDeepEqual(lineIds(target), [fresh.id, marked.id, listed.id, reply.id], "counter-proof: the attached mail is not put last");
+  const line = lineOf(target, reply.id);
+  assert.ok(textOf(line).includes("Max Muster") && textOf(line).includes("Re: Export fails"), textOf(line));
+  assert.equal(byClass(line, "mail-date")[0].getAttribute("datetime"), "2026-10-19T08:00:00Z");
+  assert.deepEqual(bold(target), [fresh.id]);
+  const shown = await openMail(target, reply.id);
+  assert.match(textOf(byClass(shown, "mail-text")[0]), /still fails in version 1\.5/);
+  assert.match(textOf(byClass(shown, "mail-decided-as")[0]), /#4/);
+  for (const name of ["create-issue", "add-to-issue", "not-an-issue"]) assert.equal(byClass(shown, name).length, 0, `no ${name}`);
 });
 
 // TST-2026110506 · level: unit · module: MOD-maintenance-pages
