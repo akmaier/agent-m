@@ -137,7 +137,8 @@ person reviews it. Its formats are those of the modules it uses.
     back to it, on a narrow one: the mail in full and, for a proposable mail, its proposal, its text editable, every hit
     of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*. Above the list, the
     participant for the proposals among those at places the mailbox allows, a place outside the EU named as not
-    compliant, and the three checkers; the run panel and *Propose*, for the proposable mails. A later reading keeps the
+    compliant, and the three checkers; the run panel and *Propose*, for the proposable mails. Where this browser manages no product,
+    the place of *Propose* says so — nothing can be proposed — and links *Add product* (UC-001). A later reading keeps the
     mail that is open, the proposals and their edits, the chosen participant and a running proposal; a mail decided
     leaves bold and shows its decision.
   - `replies`, `replies/<issue>` — closed issues with mails to answer, answers received, open issues; an issue with what
