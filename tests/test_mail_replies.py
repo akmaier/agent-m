@@ -115,7 +115,8 @@ for (const step of input.steps) {
       case "repliesDue": results.push(groups(await mailHandling.repliesDue(mailbox, products))); break;
       case "readNewMail": {
         const r = await mailHandling.readNewMail(mailbox, products, step.marked ?? []);
-        results.push({ proposable: r.proposable.map((p) => p.mail.id), attached: r.attached, decided: r.decided, unwritten: r.unwritten });
+        results.push({ proposable: r.proposable.map((p) => p.mail.id), attached: r.attached.map((a) => ({ id: a.id, mail: a.mail?.id ?? null, product: a.product, issue: a.issue })),
+          decided: r.decided.map((d) => ({ mail: d.mail?.id ?? null, product: d.product, issue: d.issue })).sort((x, y) => String(x.mail).localeCompare(String(y.mail))), unwritten: r.unwritten });
         break;
       }
       case "storeReplies": {

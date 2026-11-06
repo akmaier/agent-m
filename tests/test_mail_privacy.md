@@ -1235,7 +1235,7 @@ The identifiers are those of tests/test_mail_replies.md.
           "MAIL-f9f8e80f54bb5fa3"
         ],
         "attached": [],
-        "decided": 0,
+        "decided": [],
         "unwritten": []
       },
       {
@@ -1390,7 +1390,7 @@ The identifiers are those of tests/test_mail_replies.md.
           "MAIL-f9f8e80f54bb5fa3"
         ],
         "attached": [],
-        "decided": 0,
+        "decided": [],
         "unwritten": []
       },
       {
@@ -1489,7 +1489,7 @@ The identifiers are those of tests/test_mail_replies.md.
           "MAIL-f9f8e80f54bb5fa3"
         ],
         "attached": [],
-        "decided": 0,
+        "decided": [],
         "unwritten": []
       },
       {
