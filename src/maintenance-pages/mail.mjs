@@ -10,8 +10,8 @@
 //   - The mailbox is read when the page is drawn and then five minutes after each reading has ended (EVERY), so that no reading starts while one runs and two readings never write the same note twice; the readings stop once
 //     the frame has drawn another route into the element (the page is no longer one of its children), as MOD-main-page's reread.mjs stops. A reading that fails after one that listed mails keeps the list as it was and
 //     names the problem above it; nothing is read. Each decision is made on a click the browser marks as a person's (`isTrusted`); opening a mail writes nothing and answers any click, the keyboard's included.
-//   - The list holds the proposable and the decided mails and the mails attached to an issue of their thread, sorted by their date, the newest first. NewMail's `attached` names a mail by its identifier only
-//     (MOD-mail-handling, Interfaces), so an attached mail's line names its identifier in place of sender, subject and date and comes after the dated ones; its details show the identifier and its issue.
+//   - The list holds the proposable and the decided mails and the mails attached to an issue of their thread, each with its Mail (MOD-mail-handling, NewMail), sorted by their date, the newest first; a mail
+//     whose date cannot be read comes after the dated ones.
 //   - The date of a line is written as a mail program writes it, in the browser's time zone: the time for a mail of today, day and month for one of this year, day, month and year for an older one; the details
 //     give day, month, year and time. The raw date is the `datetime` of the <time>.
 //   - After Create issue or Add to #n the mail keeps its review (7b: Create issue once per concern) and its line leaves bold with the issue; after Not an issue its line leaves bold with the mark, and its details
@@ -382,7 +382,7 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
 export const EVERY = 5 * 60 * 1000;
 
 const NEWEST_FIRST = (a, b) => {
-  const at = (row) => (row.mail ? Date.parse(row.mail.date) : Number.NaN);
+  const at = (row) => Date.parse(row.mail.date);
   const [x, y] = [at(a), at(b)];
   if (Number.isNaN(x) || Number.isNaN(y)) return Number.isNaN(x) - Number.isNaN(y);
   return y - x;
@@ -432,9 +432,7 @@ async function render(target, context) {
   }
   // A line's button: opening a mail writes nothing, so it answers any click.
   function lineButton(row) {
-    const node = row.mail
-      ? el("button", "mail-open btn", el("span", "mail-sender", row.mail.from?.name || row.mail.from?.address || ""), el("span", "mail-subject", row.mail.subject ?? ""), dateOf(row.mail.date))
-      : el("button", "mail-open btn", el("span", "mail-sender", "Mail"), el("span", "mail-subject", row.id));
+    const node = el("button", "mail-open btn", el("span", "mail-sender", row.mail.from?.name || row.mail.from?.address || ""), el("span", "mail-subject", row.mail.subject ?? ""), dateOf(row.mail.date));
     node.setAttribute("type", "button");
     node.setAttribute("data-open", row.id);
     node.addEventListener("click", () => openMail(row.id));
@@ -449,8 +447,7 @@ async function render(target, context) {
     if (row.kind === "proposable") { details.replaceChildren(back, state.reviews.get(row.id).item); return; }
     const shown = el("div", "mail mail-decided-details");
     shown.setAttribute("data-mail", row.id);
-    if (row.mail) shown.append(headOf(row.mail), el("pre", "mail-text", row.mail.text));
-    else shown.append(el("p", "mail-head", `Mail ${row.id}`));
+    shown.append(headOf(row.mail), el("pre", "mail-text", row.mail.text));
     shown.append(row.kind === "attached"
       ? el("p", "mail-decided-as", "This mail answers a mail an issue lists, so it was attached to that issue: ", ...decisionOf(row.decisions), ".")
       : row.decisions.length
@@ -512,7 +509,7 @@ async function render(target, context) {
     const rows = [
       ...found.proposable.map(({ mail, people }) => ({ id: mail.id, mail, people, kind: "proposable", decisions: before.get(mail.id)?.kind === "proposable" ? before.get(mail.id).decisions : [] })),
       ...found.decided.map(({ mail, product, issue }) => ({ id: mail.id, mail, kind: "decided", decisions: issue === null ? [] : [{ product, issue }] })),
-      ...found.attached.map(({ id, product, issue }) => ({ id, mail: null, kind: "attached", decisions: [{ product, issue }] })),
+      ...found.attached.map(({ id, mail, product, issue }) => ({ id, mail, kind: "attached", decisions: [{ product, issue }] })),
     ].sort(NEWEST_FIRST);
     for (const id of [...state.reviews.keys()]) if (!found.proposable.some((entry) => entry.mail.id === id)) state.reviews.delete(id);
     for (const entry of found.proposable) {

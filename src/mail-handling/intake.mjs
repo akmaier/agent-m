@@ -37,7 +37,7 @@ const mailText = (mail) => ({
  * date 30 days before now, which the mail server selects by), and changes nothing in it; then the
  * issues of every product and the identifiers they list. A mail an issue lists or this browser marked is not proposable: it is named
  * in `decided`, in the mailbox's order, with the product and number of the first issue that lists it, or both null for a mail only marked. A mail whose In-Reply-To or References name a listed mail is attached to that issue by a `mail-added` note,
- * without a participant, and the issue is neither reopened nor relabelled. An issue that cannot be written to is named in
+ * without a participant, and named in `attached` with its Mail; the issue is neither reopened nor relabelled. An issue that cannot be written to is named in
  * `unwritten`, and its mail stays proposable. The mailbox's and the hosts' errors pass unchanged.
  * @param {{ read: (since: string | null) => Promise<object[]> }} mailbox
  * @param {{ address: string, host: object }[]} products
@@ -73,7 +73,7 @@ export async function readNewMail(mailbox, products, marked) {
     if (match) {
       try {
         await match.thread.host.commentOnIssue(match.issue, noteText("mail-added", mail.id, today()));
-        result.attached.push({ id: mail.id, product: match.thread.address, issue: match.issue });
+        result.attached.push({ id: mail.id, mail, product: match.thread.address, issue: match.issue });
         continue;
       } catch (error) {
         result.unwritten.push({ product: match.thread.address, issue: match.issue, error: error?.name ?? "Error" });
