@@ -445,6 +445,50 @@ class RegroupingLeavesTheGroupedFilesUnchanged(unittest.TestCase):
                              ["MOD-page", ["Kernel", ["MOD-export"]], ["Pages", []]])
 
 
+def place(kind: str, text: str, places: list) -> dict:
+    """UC-006 step 6: read a group file, give each new item its first place, write the canonical text — the acceptance of a
+    SPEC entry as the dashboard writes its places."""
+    return call("const t = groupDocument.parseGroupFile(D.path, D.text);"
+                "const r = groupDocument.placeItems(t, D.places);"
+                "return { tree: r.tree, placed: r.placed, notApplied: r.notApplied, text: groupDocument.groupFileText(r.tree) };",
+                path=path_of(kind), text=text, places=places)
+
+
+class FirstPlaceIsNoRegrouping(unittest.TestCase):
+    """A REGROUPING IS COMMITTED DIRECTLY and REGROUPING LEAVES THE GROUPED FILE UNCHANGED are about moves of items the group
+    file already holds. The first place of a new requirement, written by the acceptance of its SPEC entry, is no move: it adds
+    the item the file did not name and moves none it names."""
+
+    def test_a_first_place_adds_the_new_item_and_moves_none_the_file_names(self):
+        # Input: the requirement group file of tests/fixtures/groups/; a place for the new EXPORT AS XML in "Formats", one for
+        # the new EXPORT HAS A TITLE PAGE in a new group "Pages" in "Identity", and one for EXPORT AS PDF, which the file holds
+        # in "Withdrawn", in "Formats". Precondition: the file is canonical. Expected: the two new items are placed, EXPORT AS
+        # PDF is not and keeps its place; the text is the canonical file with only the two new lines and the group "Pages"
+        # added; every member the file held stands in the group it stood in.
+        given = parse("requirements", read(FIX / "requirements.md"))
+        r = place("requirements", read(FIX / "requirements.md"), [
+            {"item": "EXPORT AS XML", "place": {"group": ["Formats"], "new": None}},
+            {"item": "EXPORT HAS A TITLE PAGE", "place": {"group": ["Identity"], "new": "Pages"}},
+            {"item": "EXPORT AS PDF", "place": {"group": ["Formats"], "new": None}},
+        ])
+        self.assertEqual([p["item"] for p in r["placed"]], ["EXPORT AS XML", "EXPORT HAS A TITLE PAGE"])
+        self.assertEqual([n["item"] for n in r["notApplied"]], ["EXPORT AS PDF"])
+        self.assertEqual(r["text"], CANONICAL["requirements"]
+                         .replace("    - Owners\n      - THE AUTHOR'S OWN EXPORT\n", "    - Owners\n      - THE AUTHOR'S OWN EXPORT\n  - Pages\n    - EXPORT HAS A TITLE PAGE\n")
+                         .replace("  - EXPORT AS CSV\n", "  - EXPORT AS CSV\n  - EXPORT AS XML\n"))
+
+        def where(node, path=()):
+            return {**{m["id"]: path for m in node["members"]}, **{k: v for g in node["groups"] for k, v in where(g, path + (g["title"],)).items()}}
+        before, after = where(given), where(r["tree"])
+        self.assertEqual({k: after[k] for k in before}, before, "every item the file held keeps its place")
+
+    def test_a_regrouping_by_moves_still_changes_no_artifact(self):
+        # Known positive for the reading above: a move of an item the file holds is a regrouping, and it moves that item.
+        r = regroup("requirements", read(FIX / "requirements.md"), [{"op": "move", "item": "EXPORT AS PDF", "to": ["Formats"]}])
+        self.assertEqual(r["refused"], [])
+        self.assertIn("  - EXPORT AS CSV\n  - EXPORT AS PDF\n", r["text"])
+
+
 class UngroupedItemAtTheTopLevel(unittest.TestCase):
     """AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL — in the hierarchy, and written only once a move has placed it."""
 
