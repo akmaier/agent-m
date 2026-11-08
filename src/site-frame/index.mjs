@@ -17,7 +17,7 @@ import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs"
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { menuOf, labelOf, linkOf, foldMenu } from "./menu.mjs";
 import { siteFooter } from "./footer.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, loadRoute } from "./routing.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, managedProducts, loadRoute } from "./routing.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
@@ -448,6 +448,8 @@ async function startSite({ page, views }) {
       writeAddress(route, given, forRepository) });
   await attachPromptBar(foot, { page, store, instance,
     product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host },
+    // The products this browser manages, each with the host productHostFollowingStore gives for it, read at each call (UC-049 3d).
+    products: managedProducts({ store }),
     subject: () => subjectOf({ ...shown, drawn: () => target.textContent }),
     explain,
     go: (name, given) => shown.context.go(name, given) });

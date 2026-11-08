@@ -1,6 +1,6 @@
 // MOD-trace-pages' specification view reads the product's links file and the instance's register entries through Snapshot.readMany: on the
-// default branch the person's own source is looked up in docs/sources.md and in the entries of docs/sources/, and an opened requirement shows its sources
-// from the same files, at any version; these files are named to readMany before they are read, so that a host that can batch fetches them together.
+// an opened requirement shows its sources from docs/sources.md and the entries of docs/sources/, at any version; these files are named to readMany before they are
+// read, so that a host that can batch fetches them together. Drawing the page reads none of them: no subject gives the person's source (MOD-trace-pages, MOD-prompt-bar).
 //
 // Run: node --test tests/trace-pages-register-batch.test.mjs
 //
@@ -15,8 +15,7 @@
 // - "one batch of the files it shows" (SPEC.md, A PAGE LOAD READS THE REPOSITORY IN BATCHES): the links file and the register entries are asked for in
 //   one readMany call where they stand in one snapshot; where the product's and the instance's snapshots are two, the register's entries are asked for in
 //   one call of the instance's snapshot, and the links file, a batch of one file, by its own read.
-// - "It reads the product's snapshot at the chosen version" (MOD-trace-pages, Files): the register is looked up for the prompt bar's person only on the default
-//   branch; at a released version no file of the register is asked for until a requirement is opened.
+// - "It reads the product's snapshot at the chosen version" (MOD-trace-pages, Files): at no version is a file of the register asked for until a requirement is opened.
 // - "Sources — each with the version and the part the product links" (UC-020 step 5): opening a requirement reads the same files, and they are named to readMany
 //   in one call for the drawing the requirement is opened in, however many requirements are opened in it.
 
@@ -82,53 +81,21 @@ const register = (events) => events.filter((event) => event.includes("docs/sourc
 
 // CASE ITM-833-01
 // TST-833001 · level: unit · module: MOD-trace-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE PERSON WHO PROMPTS IS A SOURCE
 // given: one Host for the product and the instance, which hands the same Snapshot for main each time; that Snapshot holds SPEC.md, docs/sources.md and two register entries
 // input: the specification route drawn at main, its first group opened, the subject asked for
-// expect: of the calls that name a file of the register, the first is one readMany of docs/sources.md and the two entries, in that order; the three files are then read once each; readMany was called once in all — the trace graph for the counts of the groups is the stored one, read by one readOn of ("trace-cache", "main.json.gz"), and is not built; known positive: the subject's source is SRC-acme-person
-test("on the default branch the links file and the register entries are named to readMany together before they are read", async () => {
+// expect: no call names docs/sources.md or an entry of the register and nothing is told to readMany — the drawing looks up no source of the person, since no subject gives one
+//   (the person's account is the prompt bar's) —; the trace graph for the counts of the groups is the stored one, one readOn of ("trace-cache", "main.json.gz"); the subject gives
+//   no source; known positive: the subject is given, with its page
+test("on the default branch the drawing names no file of the register, and its subject gives no source", async () => {
   const events = [];
   const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
   const subject = await drawn({ product: host, instance: host });
-  assert.equal(register(events)[0], `host many docs/sources.md,${PERSON_FILE},${OTHER_FILE}`);
-  assert.deepEqual(register(events).slice(1).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
-  assert.equal(events.filter((event) => event.startsWith("host many")).length, 1);
+  assert.deepEqual(register(events), []);
+  assert.deepEqual(events.filter((event) => event.startsWith("host many")), []);
   assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), [`host readOn trace-cache main@${hosts}.gaps.json`, `host readOn trace-cache main@${hosts}.json.gz`], "no gaps stored: the trace graph is the stored one");
-  assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
-});
-
-// CASE ITM-833-02
-// TST-833002 · level: unit · module: MOD-trace-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: a product Host whose Snapshot holds SPEC.md and docs/sources.md, and an instance Host, another one, whose Snapshot holds the two register entries
-// input: the specification route drawn at main, its first group opened, the subject asked for
-// expect: the instance's Snapshot is told the two entries in one readMany, before it reads them once each; the product's Snapshot is told nothing to readMany — its trace graph is the stored one, one readOn of ("trace-cache", "main.json.gz") — and reads docs/sources.md once; known positive: the subject's source is SRC-acme-person
-test("where the register is another snapshot's, its entries are named to readMany together and the links file is read by itself", async () => {
-  const events = [];
-  const product = recordingHost({ label: "product", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS }, events });
-  const instance = recordingHost({ label: "instance", files: REGISTER, events });
-  const subject = await drawn({ product, instance });
-  const instanceCalls = events.filter((event) => event.startsWith("instance "));
-  assert.equal(instanceCalls[0], `instance many ${PERSON_FILE},${OTHER_FILE}`);
-  assert.deepEqual(instanceCalls.slice(1).sort(), [`instance read ${OTHER_FILE}`, `instance read ${PERSON_FILE}`].sort());
-  assert.deepEqual(events.filter((event) => event.startsWith("product many")), []);
-  assert.deepEqual(events.filter((event) => event.startsWith("product readOn")), [`product readOn trace-cache main@${hosts - 1}.gaps.json`, `product readOn trace-cache main@${hosts - 1}.json.gz`]);
-  assert.deepEqual(events.filter((event) => event === "product read docs/sources.md"), ["product read docs/sources.md"]);
-  assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
-});
-
-// CASE ITM-833-03
-// TST-833003 · level: unit · module: MOD-trace-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the Host of case 1 without readMany on its Snapshots
-// input: the specification route drawn at main, its first group opened, the subject asked for
-// expect: the three files of the register are read once each by read, no call is refused, and the subject's source is SRC-acme-person
-test("a snapshot without readMany is read file by file as before", async () => {
-  const events = [];
-  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true, batching: false });
-  const subject = await drawn({ product: host, instance: host });
-  assert.deepEqual(register(events).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
-  assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
+  assert.equal(typeof subject.paramsFor({ name: "po-opus" }).page, "string", "known positive: the subject is given");
+  assert.equal(subject.paramsFor({ name: "po-opus" }).source, undefined);
 });
 
 // CASE ITM-833-04

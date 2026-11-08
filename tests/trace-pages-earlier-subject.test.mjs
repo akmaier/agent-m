@@ -1,8 +1,9 @@
 // MOD-trace-pages' specification subject on the earlier version shown while the head's graph is stored (ITM-1235), as
 // docs/architecture/MOD-trace-pages.md (Data: specification) states it: "Its subject for the prompt bar is context only (MOD-prompt-bar's `Subject`): the
 // page and, at the current state — the default branch, or the earlier version shown while the head's graph is stored —, the open requirement, or the
-// group with the names it holds, as `requirements`, the person's own source where the product links one, and the review pages' `draft` as its draft
-// route (UC-019 step 1); at a released version, the requirement as it read there, and no draft route (UC-020 1a, UC-049 2a)".
+// group with the names it holds, as `requirements`, and the review pages' `draft` as its draft
+// route (UC-019 step 1); at a released version, the requirement as it read there, and no draft route (UC-020 1a, UC-049 2a)". No subject gives a `source`:
+// the person's account is the source the prompt bar gives every message (MOD-prompt-bar); a `source` the view would keep is not carried.
 //
 // Run: node --test tests/trace-pages-earlier-subject.test.mjs
 //
@@ -30,15 +31,15 @@ const shownAt = (ref, asOf, source, open) => ({ target: { textContent: "" }, ref
 // guards: UC-019; UC-049; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the specification view kept while the head's graph is stored: the earlier version shown (ref an earlier commit, onDefaultBranch false, asOf set) with the person's source SRC-po-fixture and FIRST REQUIREMENT open; known positive: the same requirement open at the released version v2026.1.0 (asOf null, no source) gives no draft route
 // input: subjectOf({ title, params, context, shown }), then its paramsFor({})
-// expect: draftRoute starts "draft/subject=" and holds the encoded subject key, which holds requirement=FIRST%20REQUIREMENT; paramsFor gives requirements ["FIRST REQUIREMENT"] and source SRC-po-fixture; at the released version draftRoute null and no requirements
-test("TST-1235001: on the earlier version shown while the head's graph is stored, the open requirement is the subject with the draft route and the source", () => {
+// expect: draftRoute starts "draft/subject=" and holds the encoded subject key, which holds requirement=FIRST%20REQUIREMENT; paramsFor gives requirements ["FIRST REQUIREMENT"] and no source; at the released version draftRoute null and no requirements
+test("TST-1235001: on the earlier version shown while the head's graph is stored, the open requirement is the subject with the draft route, and no source", () => {
   const subject = subjectOf({ title: "Current requirements", params, context,
     shown: shownAt(EARLIER, "As of eeeeeee: the trace graph of the newest commit is being stored.", "SRC-po-fixture", { requirements: ["FIRST REQUIREMENT"] }) });
   assert.ok(subject.key.includes("requirement=FIRST%20REQUIREMENT"), subject.key);
   assert.equal(subject.draftRoute, `draft/subject=${encodeURIComponent(subject.key)}`);
   const given = subject.paramsFor({});
   assert.deepEqual(given.requirements, ["FIRST REQUIREMENT"]);
-  assert.equal(given.source, "SRC-po-fixture");
+  assert.equal(given.source, undefined);
   const released = subjectOf({ title: "Current requirements", params: { key: "specification", ref: "v2026.1.0" }, context,
     shown: shownAt("v2026.1.0", null, null, { requirements: ["FIRST REQUIREMENT"] }) });
   assert.equal(released.draftRoute, null);
@@ -49,8 +50,8 @@ test("TST-1235001: on the earlier version shown while the head's graph is stored
 // guards: UC-019; UC-049; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the earlier version shown while the head's graph is stored, with the person's source SRC-po-fixture and the group "First group" (FIRST REQUIREMENT, SECOND REQUIREMENT) open and no requirement open
 // input: subjectOf({ title, params, context, shown }), then its paramsFor({})
-// expect: title "First group"; draftRoute "draft/subject=<the encoded key>"; paramsFor gives requirements ["FIRST REQUIREMENT", "SECOND REQUIREMENT"] and source SRC-po-fixture
-test("TST-1235002: on the earlier version shown while the head's graph is stored, the open group is the subject with the draft route and the source", () => {
+// expect: title "First group"; draftRoute "draft/subject=<the encoded key>"; paramsFor gives requirements ["FIRST REQUIREMENT", "SECOND REQUIREMENT"] and no source
+test("TST-1235002: on the earlier version shown while the head's graph is stored, the open group is the subject with the draft route, and no source", () => {
   const group = { heading: "First group", path: ["First group"], names: ["FIRST REQUIREMENT", "SECOND REQUIREMENT"] };
   const subject = subjectOf({ title: "Current requirements", params, context,
     shown: shownAt(EARLIER, "As of eeeeeee: the trace graph of the newest commit is being stored.", "SRC-po-fixture", { groups: [group] }) });
@@ -58,5 +59,5 @@ test("TST-1235002: on the earlier version shown while the head's graph is stored
   assert.equal(subject.draftRoute, `draft/subject=${encodeURIComponent(subject.key)}`);
   const given = subject.paramsFor({});
   assert.deepEqual(given.requirements, ["FIRST REQUIREMENT", "SECOND REQUIREMENT"]);
-  assert.equal(given.source, "SRC-po-fixture");
+  assert.equal(given.source, undefined);
 });

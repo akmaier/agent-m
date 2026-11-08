@@ -32,7 +32,7 @@ import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs"
 import { attachPromptBar, explain, pageStarted, routeProblem } from "./index.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { foldMenu } from "./menu.mjs";
-import { fragmentOf, instanceHostFollowingStore, loadView, loadRoute, routeOf, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
+import { fragmentOf, instanceHostFollowingStore, loadView, loadRoute, managedProducts, routeOf, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
 import { registerViews } from "./register.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
@@ -1107,6 +1107,8 @@ function startBar() {
     // The instance shown is read through the app's own host, which holds what this load read; another instance through the host that follows the store.
     instance: { repository: T.instance, host: isInstance() ? pagesHost() : instanceHostFollowingStore({ store: barStore, address: parseAddress(`https://github.com/${T.instance}`) }) },
     product: () => (isInstance() ? null : { address: T.product.address, host: pagesHost() }),
+    // The products this browser manages, each with the host productHostFollowingStore gives for it, read at each call (UC-049 3d).
+    products: managedProducts({ store: barStore }),
     subject: barSubject,
     // The snapshot this load read, where the product shown is the instance and no other branch than its default is named (?ref=): the bar reads no commit and no tree
     // again (A PAGE LOAD READS THE REPOSITORY IN BATCHES).

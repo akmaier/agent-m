@@ -1,5 +1,5 @@
-// The register of the sources on the dashboard's #spec (ITM-833): the specification view looks the person's own source up in docs/sources.md and in the
-// entries of docs/sources/, and with a token these files are fetched together in one batch, not one request each.
+// The register of the sources on the dashboard's #spec (ITM-833): the page's first wave names docs/sources.md and the entries of docs/sources/ (MOD-site-frame), and with a
+// token these files are fetched together in one batch, not one request each; the specification view itself looks up no source of the person.
 //
 // Module: MOD-trace-pages
 // Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -52,13 +52,15 @@ test("with a token #spec reads the SPEC, the links file and the register entries
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same repository, and a stored token that is not sent
 // input: the real #spec drawn without a token
-// expect: GitHub's batch query needs the token: no batch is sent; SPEC.md and the three files of the register are read by their own requests, once each, 9 requests in all (the commit, the tree, the four files, the repository's information, the tag list and the one page of the history of docs/sources.md that the mark source changed (ITM-657) adds)
-test("without a token #spec reads the links file and each register entry by itself", async () => {
+// expect: GitHub's batch query needs the token: no batch is sent; SPEC.md is read by its own request, and no file of the register — the page looks up no source of the person, since
+//   no subject gives one (MOD-trace-pages, MOD-prompt-bar) —, 6 requests in all (the commit, the tree, SPEC.md, the repository's information, the tag list and the one page of the history
+//   of docs/sources.md that the mark source changed (ITM-657) adds)
+test("without a token #spec reads SPEC.md by itself and no file of the register", async () => {
   const server = await repoServer({ files: FILES });
   const page = await openDashboard({ server, hash: "#spec", token: null });
   assert.match(page.main(), /Current requirements/, "known positive: the specification is drawn");
   assert.deepEqual(server.batches, []);
-  assert.deepEqual(files(page.requests), ["SPEC.md", ...REGISTER]);
-  assert.equal(page.requests.length, 9, page.requests.join(" | "));
+  assert.deepEqual(files(page.requests), ["SPEC.md"]);
+  assert.equal(page.requests.length, 6, page.requests.join(" | "));
   assert.deepEqual(page.requests.filter((request) => request.startsWith("history ")), ["history docs/sources.md"], "the one request the mark source changed adds");
 });

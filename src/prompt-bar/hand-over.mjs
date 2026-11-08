@@ -77,7 +77,7 @@ export async function assess({ handOver, participant, instance, page, instanceSn
 /**
  * queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation }) -> Promise<{ id: string, path: string, commit: string, person: string }> — prepares the job of
  * the kind the participant named, with the task as its instruction, and hands it over on the route `assessment` found, as the person's commit on the head `assessment` read
- * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. `source` is the person's own source for a hand-over of the subject's own kind, else undefined. Throws NoToken when no token that writes to the page's repository is stored,
+ * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. `source` is the bar's source, the person's account, or undefined where it has none. Throws NoToken when no token that writes to the page's repository is stored,
  * what prepareJob throws, and what handOverJob throws — NotStartable { findings } among it, with nothing written.
  */
 export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source }) {
@@ -89,7 +89,7 @@ export async function queue({ handOver, participant, assessment, store, instance
   const commit = instanceSnapshot.commit ?? "unknown";
   const agentM = { version: commit, commit };
   const worksOn = worksOnOf(handOver);
-  // For the subject's own kind, `source` is the person's own source that the subject's paramsFor gave: the one parameter beside what the hand-over works on, so that no message and no page text enters the job's record.
+  // `source` is the bar's, the person's account: the one parameter beside what the hand-over works on, so that no message and no page text enters the job's record.
   const params = { ...(source === undefined ? {} : { source }), ...handOverParams(worksOn, snapshot) };
   const inputs = { product: { address: page.address, snapshot, host: page.host }, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
     places: { ...(await placesOf(instanceSnapshot, page.address)), mailbox: null }, gates: [], person, agentM, jobId: id };

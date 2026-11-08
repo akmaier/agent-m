@@ -333,3 +333,29 @@ test("TST-506006 the bar is handed the instance as connected, the chosen product
   one(onInstance.footer, "review").dispatchEvent(new Event("click"));
   assert.equal(onInstance.location.hash, "#beta");
 });
+
+// TST-2026110822 · level: unit · module: MOD-site-frame
+// guards: UC-049
+// given: a browser that keeps the products https://github.com/acme/widget and https://github.com/acme/gadget, each with its own token; the route alpha (entry requirements), which gives no subject
+// input: the review page at #alpha/product=<the widget>: Send "update the gadget readme"; then press "Review the draft"
+// expect: startPage hands the bar the products this browser manages, each with the host productHostFollowingStore gives: the message's page names https://github.com/acme/gadget and
+//   none of the widget's page, the gadget was read with its own token ("Bearer github_pat_GADGET"), and the fragment becomes the review pages' draft with the gadget named as the product;
+//   known positive: the widget's own page, Send "draft it", gives the widget's page
+test("TST-2026110822 the bar is handed the products this browser manages, each with its own host, so that a message naming one is about it", async () => {
+  const views = [route("alpha", "requirements"), route("beta", "tests"), route("draft", null)];
+  const known = await start({ fragment: `#alpha/product=${encoded(WIDGET)}`, views });
+  await drawn(known);
+  await sends(known, "draft it");
+  assert.ok(seen[0].page.includes(WIDGET), `known positive: ${seen[0].page}`);
+
+  const page = await start({ fragment: `#alpha/product=${encoded(WIDGET)}`, views });
+  await drawn(page);
+  await sends(page, "update the gadget readme");
+  const GADGET = "https://github.com/acme/gadget";
+  assert.ok(seen[0].page.includes(GADGET), seen[0].page);
+  assert.equal(seen[0].page.includes(WIDGET), false, seen[0].page);
+  assert.ok(requests.some((request) => request.url.startsWith("https://api.github.com/repos/acme/gadget") && request.authorization === "Bearer github_pat_GADGET"),
+    "the gadget was read with its own token");
+  one(page.footer, "review").dispatchEvent(new Event("click"));
+  assert.ok(page.location.hash.startsWith("#draft/subject=") && page.location.hash.endsWith(`/product=${encoded(GADGET)}`), page.location.hash);
+});

@@ -1,7 +1,7 @@
 // A change from an issue is drafted and saved as a queue naming the issue (ITM-584) — MOD-maintenance-pages' route `issue/<number>` over MOD-issue-handling's recipe `issue-context` and MOD-job-catalogue's kind `change-requirements`, as the accepted text of
 // docs/architecture/MOD-maintenance-pages.md (:117-126) states it: "for a change, the change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates shown by class beside the requirements they refer to and every conflict
-// decided by the person, then *Save*, which writes them as a change queue naming the issue — the job of `change-requirements` given the issue's number as its parameter `issue` and the person's own source as its parameter `source`, which `personSource` names for
-// `personAccount`'s account among the product's links and the instance's register, or, without one, the steps its precondition names"; UC-012 step 6 and its second postcondition.
+// decided by the person, then *Save*, which writes them as a change queue naming the issue — the job of `change-requirements` given the issue's number as its parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
+// instance's snapshot, or, where it gives none, what its precondition names as required"; UC-012 step 6 and its second postcondition.
 // Run: node --test tests/maintenance-pages-save-584.test.mjs
 //
 // Module: MOD-maintenance-pages; MOD-issue-handling; MOD-job-catalogue
@@ -12,7 +12,7 @@
 // MOD-job-catalogue, MOD-job-runner, MOD-spec-changes, MOD-source-register, MOD-runtimes and MOD-repository-hosts are the real ones. Readings the texts leave open, which the tests state (the pull request names them):
 //   - The change is drafted and saved in a section of the issue's page, <section class="issue-change">, shown for an issue whose class is change — by its label, or by the person's click on Change — and for no other class. It has what the analysis has under its own class names: <input class="change-participant">
 //     (radio) for each participant that declares draft text, <input class="change-person">, and, once both are given, the run panel of the kind change-requirements; Run is the person's click.
-//   - The job's parameters are `issue` (the number) and `source` (the identifier of the person's register entry); the job's prompt carries the part of the issue-context recipe. Without a source the run panel lists the finding of the precondition person-source and offers no Run; nothing is sent.
+//   - The job's parameters are `issue` (the number) and `source` (the person's account, github.com/alice); the job's prompt carries the part of the issue-context recipe. The account needs no register entry and no link.
 //   - After Run the candidates are listed as <li class="candidate" data-class="new|change|duplicate|conflict"> and <button class="save-change"> "Save" is offered; Save is the person's click (`isTrusted`) and writes through the writer of the kind, MOD-job-runner's writeResult, as <p class="change-saved">.
 
 import test, { afterEach } from "node:test";
@@ -37,6 +37,8 @@ const ISSUES = [issueRecord(5, []), issueRecord(6, ["defect"]), issueRecord(7, [
 
 const lines = (...rows) => `${rows.join("\n")}\n`;
 const SOURCE = "SRC-alice";
+// The person's account, the owner of the instance alice/agent-m: the source of the change (MOD-source-register's personAccount).
+const ACCOUNT = "github.com/alice";
 const LINKS = lines("# Requirement sources of the product", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| ${SOURCE} | 2026-10-13 | ${"0".repeat(64)} | prompt |`);
 const PERSON_SOURCE = lines("---", `id: ${SOURCE}`, "title: Alice", "kind: person", "identifier: github.com/alice", "authority: informative", "licence: may be republished - fixture", "---", `# ${SOURCE} Alice`, "",
   "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `2026-10-13` | 2026-10-13 | fixture | this repository | one file, hashed only |");
@@ -86,7 +88,7 @@ const queueFiles = (w) => writtenFiles(w).filter((entry) => entry.path.startsWit
 // guards: UC-012; EVERY ARTIFACT NAMES ITS ORIGIN; THE PERSON WHO PROMPTS IS A SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: known positive first — the issue 7 labelled change; the product links the source SRC-alice, whose register entry in the instance is of the account github.com/alice, the account of the instance's owner; the participant answers a new candidate
 // input: the route issue 7; a participant and a name; Run by a person; Save by a script and then by a person
-// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; the candidate is listed by class, the new one; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source SRC-alice
+// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; the candidate is listed by class, the new one; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source github.com/alice, the person's account
 test("issue — Save runs change-requirements with the issue and the person's source and writes a queue naming the issue", async () => {
   const w = start({ ...WITH_SOURCE, answer: () => ({ draft: { candidates: [CANDIDATE] }, answers: [] }) });
   const detail = await ready(w);
@@ -115,22 +117,22 @@ test("issue — Save runs change-requirements with the issue and the person's so
   assert.ok(index, `a queue index is written: ${files.map((entry) => entry.path)}`);
   const rationale = files.find((entry) => entry.path.endsWith(".begruendung.md"));
   assert.ok(rationale.content.includes("**Issue:** #7 of https://github.com/alice/product"), rationale.content);
-  assert.ok(rationale.content.includes("issue #7 of https://github.com/alice/product") && rationale.content.includes(SOURCE), rationale.content);
+  assert.ok(rationale.content.includes("issue #7 of https://github.com/alice/product") && rationale.content.includes(ACCOUNT), rationale.content);
   assert.equal(w.kept.issues.find((issue) => issue.number === 7).state, "open");
 });
 
 // TST-584102 · level: component · module: MOD-maintenance-pages, MOD-job-catalogue
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-012
-// given: known positive first (TST-584101's world offers Run); the issue 7 labelled change; the product links no source; and a second world where the instance's register holds the person's entry but the product's links file does not link it
+// given: the issue 7 labelled change; a world where the product links no source and the instance's register holds no entry of the person; and a second where the register holds the person's entry but the product's links file does not link it
 // input: the route issue 7, a participant and a name, in each
-// expect: the run panel lists the finding of the precondition person-source, naming the two steps (register the person as a source, link that source to the product), and offers no Run; no request reaches the endpoint; nothing is written under docs/spec-freigaben/
-test("issue — without a source of the person the page shows the steps the precondition names and runs nothing", async () => {
+// expect: the run panel names no finding of the precondition person-source and offers Run: the person's account github.com/alice is the change's source, without a register entry or a link; nothing is sent or written before Run
+test("issue — without a register entry or a link of the person the change still offers Run, its source the person's account", async () => {
   for (const over of [WITHOUT_ANY, WITHOUT_LINK]) {
     const w = start(over);
     const detail = await ready(w);
     const panel = one(changeOf(detail), "run-panel");
-    assert.match(textOf(one(panel, "blocking")), /register the person as a source \(#library\) and link that source to the product \(#sources\)/);
-    assert.deepEqual(buttonsOf(panel, "Run"), []);
+    assert.equal(byClass(panel, "blocking").length, 0, textOf(panel));
+    assert.equal(buttonsOf(panel, "Run").length, 1);
     assert.equal(w.kept.endpoint.length, 0);
     assert.deepEqual(queueFiles(w), []);
     restoreWorld();

@@ -111,10 +111,41 @@ export function dropDraft(store, subject) {
 // What a failure says: its name and message.
 const said = (failure) => `${failure.name ?? "Error"}: ${failure.message}`;
 
+// A letter, a digit or `_`: what stands on either side of a word boundary's inside (UC-049 3d).
+const WORD_CHARACTER = "[\\p{L}\\p{N}_]";
+const escaped = (word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// The words of a repository name — the last part of the address's path —, split at each change from a lower-case letter or a digit to an upper-case
+// letter and at `-`, `_` and `.`, and lowered: AlienInvasion and alien-invasion both give ["alien", "invasion"].
+function repositoryWords(address) {
+  const name = String(address ?? "").replace(/\/+$/, "").split("/").pop() ?? "";
+  return name.replace(/([\p{Ll}\p{Nd}])(\p{Lu})/gu, "$1-$2").split(/[-_.]+/).filter(Boolean).map((word) => word.toLowerCase());
+}
+
+/**
+ * namedProduct(text: string, products: { address: string }[]) -> string | null — the address of the one product among `products` whose repository name `text`
+ * names, or null where none or more than one does (UC-049 3d). The text names it where, read without regard to case, it holds the name's words in their
+ * order, separated by spaces, or joined into one word, beginning and ending at word boundaries. Pure.
+ */
+export function namedProduct(text, products) {
+  const message = String(text ?? "");
+  const named = (products ?? []).filter(({ address }) => {
+    const words = repositoryWords(address).map(escaped);
+    if (words.length === 0) return false;
+    return new RegExp(`(?<!${WORD_CHARACTER})(?:${words.join(" +")}|${words.join("")})(?!${WORD_CHARACTER})`, "iu").test(message);
+  });
+  return named.length === 1 ? named[0].address : null;
+}
+
+// Two repository addresses that name the same repository, read without regard to case or a closing `/`.
+const sameAddress = (a, b) => String(a ?? "").replace(/\/+$/, "").toLowerCase() === String(b ?? "").replace(/\/+$/, "").toLowerCase();
+// The repository's path of an address: `owner/repo`.
+const repositoryPath = (address) => { try { return new URL(address).pathname.replace(/^\/+|\/+$/g, ""); } catch { return String(address); } };
+
 /**
  * startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host: Host },
- * product: () -> { address: string, host: Host } | null, subject: () -> Subject, explain: (topic: string) -> Element,
- * go: (route: string, params?: Record<string, string>) -> void }) -> { stop: () -> void } — draws the bar into `target` once this
+ * product: () -> { address: string, host: Host } | null, products: () -> { address: string, host: Host }[], subject: () -> Subject, explain: (topic: string) -> Element,
+ * go: (route: string, params?: Record<string, string>) -> void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void } — draws the bar into `target` once this
  * browser's endpoints and the CLI sessions its Bridges offer are read, and keeps it for the life of the page; no participant list is read for the
  * offer. With none offered it draws nothing and says nothing (UC-049 1a). It crosses the network through the hosts, the Bridges this browser keeps
  * and the participant's route; a failure of either is shown in the bar by name, and
@@ -163,6 +194,27 @@ export function startPromptBar(target, setup) {
     return product ? { address: product.address, host: product.host } : { address: instanceWeb, host: instance.host };
   }
 
+  // The product the person's words name (UC-049 3d), where it is another than the page's — `product()`, or the instance for a page of the instance —: { address, host }
+  // from `products`, less an entry that is the instance's own repository; null where they name none, several, or the page's own.
+  function namedBy(instruction) {
+    const listed = (setup.products?.() ?? []).filter((each) => !sameAddress(each.address, instanceWeb));
+    const address = namedProduct(instruction, listed);
+    if (address === null || sameAddress(address, pageOf().address)) return null;
+    return { address, host: listed.find((each) => each.address === address).host };
+  }
+
+  // The subject of a message about a named product: that product as its page, naming that the message named it, and none of the shown page's artifact parameters;
+  // the shown subject's entry, refuses and withhold stay.
+  const aboutSubject = (shown, about) => ({ ...shown, key: `about/product=${encodeURIComponent(about.address)}`, title: `About ${repositoryPath(about.address)}`,
+    paramsFor: () => ({ page: `The product ${about.address}, which the person's message names; the page shown is another.` }), draftRoute: null });
+  const aboutLine = (about) => el("p", "about", `About ${repositoryPath(about.address)} — named in your message.`);
+  // Nothing is sent about a product this browser keeps no token for: the bar names it and links adding it (UC-001).
+  function noTokenFor(about, verb) {
+    const add = button("add-product-link", "Add the product and its token");
+    add.addEventListener("click", () => setup.go("add-product"));
+    show(problem(`Nothing was ${verb}. Your message names the product ${about.address}, and this browser keeps no token for it.`), add);
+  }
+
   // Appends one entry to the conversation record of the repository the page is held on: the record the tab keeps for it, or a new one.
   async function record(page, person, entry) {
     const records = readTabValue(store, RECORDS) ?? {};
@@ -189,7 +241,7 @@ export function startPromptBar(target, setup) {
     refreshStop();
     const route = view.route ?? "";
     const waiting = view.end !== null || route === "" ? [] : [el("p", "waiting", route.startsWith("bridge ") ? `waiting for the Bridge ${route.slice("bridge ".length)}` : "waiting for GitHub Actions")];
-    const secret = view.missingSecret === null ? [] : [el("p", "missing-secret", `Not run: the secret ${view.missingSecret} is missing. Add it on the server's page of this repository's secrets: `, secretsLink(pageOf().host))];
+    const secret = view.missingSecret === null ? [] : [el("p", "missing-secret", `Not run: the secret ${view.missingSecret} is missing. Add it on the server's page of this repository's secrets: `, secretsLink(state.followedHost ?? pageOf().host))];
     const run = view.address === null ? [] : [el("p", "run-address", "Run: ", linkTo(view.address))];
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
@@ -204,16 +256,18 @@ export function startPromptBar(target, setup) {
     }
   }
 
-  function follow(job) {
+  // The job is followed in the repository it was queued in: the page's, or the product the message named.
+  function follow(job, host = pageOf().host) {
     state.follower?.stop();
     state.following = true;
-    state.follower = followJob({ id: job.id, address: job.address, host: pageOf().host, store, show: showJob });
+    state.followedHost = host;
+    state.follower = followJob({ id: job.id, address: job.address, host, store, show: showJob });
     refreshStop();
   }
 
   // The hand-over the participant proposed: the route it would take; it is queued as the participant's own job — no start rule of the product's process applies, its kind's own
   // preconditions refuse it where they find something —, and the bar follows it.
-  async function proposeHandOver(section, handOver, participant, subject) {
+  async function proposeHandOver(section, handOver, participant, subject, about = null) {
     const outcome = el("div", "outcome", el("p", "checking", "Checking whether it can start…"));
     section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
     const render = (assessment) => {
@@ -228,16 +282,16 @@ export function startPromptBar(target, setup) {
     // Queued at once where nothing keeps the work from starting: the person's Send, whose answer proposed it, is the request (UC-049 4a.2).
     async function queueNow(assessment) {
       try {
-        const page = pageOf();
-        // The job takes the one parameter of the subject's paramsFor beside what it works on, the person's own `source` (THE PERSON WHO PROMPTS IS A SOURCE) where the subject gives one —
-        // no other, so that no message and no page text enters the job's record (A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON).
-        const source = subject.paramsFor(participant).source;
+        const page = about ?? pageOf();
+        // The job takes, beside what it works on, only the bar's `source`, the person's account (THE PERSON WHO PROMPTS IS A SOURCE) — no other parameter, so that
+        // no message and no page text enters the job's record (A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON).
         const fresh = assessment;
+        const source = (await sendPart()).sourceOf(fresh.instanceSnapshot) ?? undefined;
         const conversation = (await recordingOf(fresh.instanceSnapshot)) ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
-        const queued = await (await handPart()).queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: setup.product() !== null, conversation, source });
+        const queued = await (await handPart()).queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: about !== null || setup.product() !== null, conversation, source });
         outcome.append(el("p", "queued", `Queued as ${queued.id}.`));
         keepJob({ id: queued.id, address: page.address });
-        follow({ id: queued.id, address: page.address });
+        follow({ id: queued.id, address: page.address }, page.host);
         if (conversation !== null) {
           try {
             await record(page, queued.person, { at: new Date(), job: queued.id });
@@ -252,7 +306,7 @@ export function startPromptBar(target, setup) {
       }
     }
     try {
-      const assessment = await (await handPart()).assess({ handOver, participant, instance, page: pageOf() });
+      const assessment = await (await handPart()).assess({ handOver, participant, instance, page: about ?? pageOf() });
       render(assessment);
       if (assessment.route !== null) await queueNow(assessment);
     } catch (failure) {
@@ -260,7 +314,7 @@ export function startPromptBar(target, setup) {
     }
   }
 
-  function showAnswer(result, ready, subject, participant) {
+  function showAnswer(result, ready, subject, participant, about = null) {
     const draft = result.draft;
     if (result.stoppedBecause === "unusable" || draft === null || draft === undefined) {
       const raw = el("details", "raw", el("summary", null, "The answer as received"), el("pre", null, result.raw ?? ""));
@@ -272,26 +326,28 @@ export function startPromptBar(target, setup) {
     const parts = [el("p", "rounds", `Rounds: ${result.rounds.length}`)];
     if (left.length) parts.push(el("ul", "left", ...left.map((each) => el("li", "finding", sending.shown(each)))));
     // The edits the participant proposed are a draft, which the review pages show against the current text.
-    if (Array.isArray(draft.edits) && draft.edits.length > 0) parts.push(reviewButton(subject, ready.prepared.kind.name, participant, ready.prepared.params, result));
+    if (Array.isArray(draft.edits) && draft.edits.length > 0) parts.push(reviewButton(subject, ready.prepared.kind.name, participant, ready.prepared.params, result, about));
     status.append(...parts);
     return text;
   }
 
   // *Review the draft*: keeps the ConversationDraft in the tab and goes to the subject's draft route, or to the review pages' `draft` for the subject's key. The parameters kept are
-  // those of the job less `page`, so that the draft route's own page stands as the context of a follow-up.
-  function reviewButton(subject, kind, participant, params, result) {
+  // those of the job less `page`, so that the draft route's own page stands as the context of a follow-up. For a message about a named product, the review pages'
+  // `draft` is opened with that product named in `go`'s `product` (UC-049 3d).
+  function reviewButton(subject, kind, participant, params, result, about = null) {
     const review = button("review", "Review the draft");
     review.addEventListener("click", () => {
       const { page: _page, ...kept } = params;
       writeTabValue(store, DRAFT, { subject: subject.key, kind, participant: participant.name, params: kept, result });
-      setup.go(subject.draftRoute ?? `draft/subject=${encodeURIComponent(subject.key)}`);
+      if (about) setup.go("draft", { subject: subject.key, product: about.address });
+      else setup.go(subject.draftRoute ?? `draft/subject=${encodeURIComponent(subject.key)}`);
     });
     return review;
   }
 
   // A hand-over the participant proposed, carried out without a further click (UC-049 4a): in this tab where its kind's result waits for the person and the participant can do the
   // kind — prepared as a message is, its draft kept for *Review the draft* —, else queued as the participant's own job (proposeHandOver).
-  async function handOn(handOver, participant, subject, conversation, signal) {
+  async function handOn(handOver, participant, subject, conversation, signal, about = null) {
     const { worksOnOf } = await handPart();
     const section = el("section", "hand-over", el("h3", null, "The participant hands this on"),
       el("p", "kind", `Kind: ${handOver.kind}`), el("p", "works-on", `Works on: ${worksOnOf(handOver).join(", ")}`), el("p", "task", `Task: ${handOver.task}`));
@@ -305,12 +361,12 @@ export function startPromptBar(target, setup) {
     }
     // The conversation itself handed on (the bar's own kind) goes on as a job, as a kind the tab cannot run does: the endpoint's own (UC-049 4a.2).
     if (kind.name === BAR_KIND || kind.review !== "person" || eligible([participant], { capabilities: kind.needs }).eligible.length === 0) {
-      await proposeHandOver(section, handOver, participant, subject);
+      await proposeHandOver(section, handOver, participant, subject, about);
       return;
     }
     let ready;
     try {
-      ready = await (await sendPart()).prepareHandOver({ handOver, subject, participant, conversation, store, instance, product: setup.product() });
+      ready = await (await sendPart()).prepareHandOver({ handOver, subject, participant, conversation, store, instance, product: about ?? setup.product() });
     } catch (failure) {
       section.append(problem(`Nothing was run. ${said(failure)}`));
       return;
@@ -329,7 +385,7 @@ export function startPromptBar(target, setup) {
     }
     const left = [...result.remaining, ...result.forPerson];
     section.append(el("p", "rounds", `Rounds: ${result.rounds.length}`), ...(left.length ? [el("ul", "left", ...left.map((each) => el("li", "finding", sending.shown(each))))] : []),
-      reviewButton(subject, handOver.kind, participant, ready.prepared.params, result));
+      reviewButton(subject, handOver.kind, participant, ready.prepared.params, result, about));
   }
 
   async function onSend(event) {
@@ -345,11 +401,14 @@ export function startPromptBar(target, setup) {
     send.disabled = true;
     show();
     try {
-      const subject = setup.subject();
+      // A message that names another product is about that product (UC-049 3d): it is the message's page, and nothing is sent without its token.
+      const about = namedBy(instruction);
+      if (about !== null && !(await sendPart()).keepsTokenFor(store, about.address)) { noTokenFor(about, "sent"); return; }
+      const subject = about ? aboutSubject(setup.subject(), about) : setup.subject();
       const earlier = conversationOf(store);
       let ready;
       try {
-        ready = await (await sendPart()).prepareMessage({ subject, participant, instruction, conversation: earlier, store, instance, product: setup.product() });
+        ready = await (await sendPart()).prepareMessage({ subject, participant, instruction, conversation: earlier, store, instance, product: about ?? setup.product() });
       } catch (failure) {
         show(problem(`Nothing was sent. ${said(failure)}`));
         return;
@@ -361,7 +420,7 @@ export function startPromptBar(target, setup) {
         return;
       }
       const to = ready.prepared.destinations.map((each) => el("li", "destination", `${each.participant.name} — ${each.place || "no processing place declared"}`));
-      show(el("p", "sends", "Sent to:"), el("ul", "destinations", ...to),
+      show(...(about ? [aboutLine(about)] : []), el("p", "sends", "Sent to:"), el("ul", "destinations", ...to),
         el("p", "limit", `The correction loop runs at most ${ready.prepared.limit} rounds.`));
       const who = ready.person ?? "person";
       if (ready.recording) {
@@ -381,7 +440,7 @@ export function startPromptBar(target, setup) {
       running = { kind: BAR_KIND, participant: participant.name, started: new Date() };
       stop.disabled = false;
       const result = await sending.runMessage(ready, { signal: controller.signal });
-      const answered = showAnswer(result, ready, subject, participant);
+      const answered = showAnswer(result, ready, subject, participant, about);
       if (answered !== null) {
         keep([...conversationOf(store), { at: new Date(), from: "participant", who: participant.name, text: answered, subject: subject.key }]);
         if (ready.recording) {
@@ -393,7 +452,7 @@ export function startPromptBar(target, setup) {
           }
         }
         // The hand-over the answer proposes goes on now, within the same Send: Stop ends it as it ends the message.
-        if (result.draft?.handOver) await handOn(result.draft.handOver, participant, subject, conversationOf(store), controller.signal);
+        if (result.draft?.handOver) await handOn(result.draft.handOver, participant, subject, conversationOf(store), controller.signal, about);
       }
     } catch (failure) {
       show(controller.signal.aborted || failure?.name === "Cancelled" ? problem("Stopped. Nothing was written.") : problem(said(failure)));
@@ -414,17 +473,20 @@ export function startPromptBar(target, setup) {
     send.disabled = true;
     show(el("p", "spawning", `Spawning a job for ${participant.name} — ${placeOf(participant)} on GitHub Actions…`));
     try {
-      const subject = setup.subject();
-      const page = pageOf();
+      // A message that names another product spawns its job in that product's repository (UC-049 3d), and nothing without its token.
+      const about = namedBy(instruction);
+      if (about !== null && !(await sendPart()).keepsTokenFor(store, about.address)) { noTokenFor(about, "spawned"); return; }
+      const subject = about ? aboutSubject(setup.subject(), about) : setup.subject();
+      const page = about ?? pageOf();
       const instanceSnapshot = await (await sendPart()).defaultSnapshot(instance.host);
       const recordingOn = await recordingOf(instanceSnapshot);
       showRecording(recordingOn);
-      let source;
-      try { source = subject.paramsFor(participant).source; } catch (failure) { show(problem(`Nothing was spawned. ${said(failure)}`)); return; }
+      // The bar's source, the person's account (THE PERSON WHO PROMPTS IS A SOURCE).
+      const source = sending.sourceOf(instanceSnapshot) ?? undefined;
       const who = sending.personOf(store, instanceSnapshot, false) ?? "person";
       if (recordingOn) await record(page, who, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
       const conversationPath = recordingOn ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
-      const spawned = await (await handPart()).spawnEndpointJob({ kind: BAR_KIND, task: instruction, participant, store, instance, page, ofProduct: setup.product() !== null,
+      const spawned = await (await handPart()).spawnEndpointJob({ kind: BAR_KIND, task: instruction, participant, store, instance, page, ofProduct: about !== null || setup.product() !== null,
         conversation: conversationPath, source, instanceSnapshot });
       if (spawned.refused) {
         const parts = [problem(`Nothing was spawned: ${spawned.refused}.`)];
@@ -439,9 +501,9 @@ export function startPromptBar(target, setup) {
       keep([...conversationOf(store), { at: new Date(), from: "person", who, text: instruction, subject: subject.key }]);
       input.value = "";
       state.spawnedBy = participant.name;
-      show(el("p", "queued", `Spawned as ${spawned.id} on GitHub Actions.`));
+      show(...(about ? [aboutLine(about)] : []), el("p", "queued", `Spawned as ${spawned.id} on GitHub Actions.`));
       keepJob({ id: spawned.id, address: page.address });
-      follow({ id: spawned.id, address: page.address });
+      follow({ id: spawned.id, address: page.address }, page.host);
     } catch (failure) {
       const findings = failure?.name === "NotStartable" && Array.isArray(failure.findings) ? failure.findings : [];
       show(problem(findings.length > 0 ? "Nothing was spawned." : `Nothing was spawned. ${said(failure)}`),

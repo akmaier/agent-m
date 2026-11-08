@@ -9,7 +9,7 @@
 //
 // It belongs to the Site (ARC-038) and runs in a browser. Every other file of this folder is private to the module.
 
-export { currentJob, dropDraft, followJob, latestDraft, startPromptBar } from "./bar.mjs";
+export { currentJob, dropDraft, followJob, latestDraft, namedProduct, startPromptBar } from "./bar.mjs";
 export { recordingOf, recordingSchema } from "./record.mjs";
 export { endpointLacks, endpointsOffered } from "./offer.mjs";
 

@@ -108,14 +108,15 @@ async function wholeSpec(context) {
  *   `candidate-classes` classifies a draft; no part for a product without a requirement;
  * - recipe `whole-spec`: the SPEC as it stands, byte for byte, as one part named SPEC.md. Throws SpecNotFound { path } for a product without one.
  */
-// The precondition `person-source`: an error under THE PERSON WHO PROMPTS IS A SOURCE where the job's parameter `source` names no source, naming the two steps that are missing
-// (UC-019 4b); none otherwise, so that a change of requirements by prompt starts only with the person's own source, wherever it runs.
+// The precondition `person-source`: an error under THE PERSON WHO PROMPTS IS A SOURCE where the job's parameter `source` is missing or blank — the person's
+// account `<server>/<account>` could not be told —, its fix naming what is required: an instance repository whose address names its owner, the account Agent M
+// takes; none otherwise, so that a change of requirements by prompt starts only with the person's account as its source, wherever it runs.
 async function personSource(context) {
   const source = context.params?.source;
   if (typeof source === "string" && source.trim() !== "") return null;
   return finding({ artifact: context.product?.address ?? SPEC_PATH, line: 1, kind: "error", rule: "THE PERSON WHO PROMPTS IS A SOURCE",
-    what: "the person who asks for this change has no source of their own that the product links",
-    fix: "register the person as a source (#library) and link that source to the product (#sources), then ask again" });
+    what: "the account <server>/<account> of the person who asks for this change could not be told",
+    fix: "keep the instance in a repository whose address names its owner — the owner's account is the source Agent M takes for the person —, then ask again" });
 }
 
 export const specStrategies = {

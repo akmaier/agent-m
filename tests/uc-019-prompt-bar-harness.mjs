@@ -276,11 +276,12 @@ export async function run(s, options = {}) {
   await until(() => all(s.target, "section", "requirements-result").length === 1, `the draft of the requirements: ${s.target.textContent}`);
 }
 
-export function assertProposal(s) {
+// `source` is how the prompting source stands in the saved proposal, the person's register entry by default; a caller that expects the person's account names it.
+export function assertProposal(s, source = /SRC-author, make visible/) {
   assert.equal(s.product.files["SPEC.md"], SPEC, "SPEC stays byte-identical before acceptance");
   assert.equal(proposalWrites(s).length, 1, "one Save produces one proposal commit for the affected section");
   const text = proposalTexts(s).join("\n");
-  assert.match(text, /SRC-author, make visible/, "the prompting source reaches the saved proposal");
+  assert.match(text, source, "the prompting source reaches the saved proposal");
   assert.ok(!Object.keys(s.product.files).some((path) => path.startsWith("docs/approvals/")), "the generated proposal carries no acceptance");
   return text;
 }

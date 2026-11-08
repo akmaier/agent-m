@@ -1,6 +1,6 @@
-// MOD-trace-pages' specification view reads the instance's default branch once for the drawing it is given: the person's own source on the default branch
-// (personsSource) and the sources of an opened requirement (sourcesOf) take the same instance snapshot, however often the version is drawn again or a requirement
-// is opened, so that the instance's repository information, its commit and that commit's tree are asked for once.
+// MOD-trace-pages' specification view reads the instance's default branch once for the drawing it is given: the sources of every opened requirement (sourcesOf)
+// take the same instance snapshot, however often the version is drawn again or a requirement is opened, so that the instance's repository information, its commit
+// and that commit's tree are asked for once. The drawing itself reads no register for the person: no subject gives a source (MOD-trace-pages, MOD-prompt-bar).
 //
 // Run: node --test tests/trace-pages-instance-once.test.mjs
 //
@@ -14,8 +14,7 @@
 // - "one load of a dashboard page reads its commit and that commit's tree once" (SPEC.md, A PAGE LOAD READS THE REPOSITORY IN BATCHES): one load is one Route.render
 //   with one context, and whatever the person does on it afterwards — choosing another version, opening requirements; the instance's snapshot of its default branch
 //   is its commit and tree, so it is asked for by one readSnapshot after one repositoryInfo.
-// - "Opening a requirement reads the instance's commit and tree no more than once per load" (ITM-867, Acceptance): the person's own source on the default branch and the
-//   sources of an opened requirement count together.
+// - "Opening a requirement reads the instance's commit and tree no more than once per load" (ITM-867, Acceptance): the sources of every opened requirement count together.
 // - a read that failed has not read the snapshot: the next caller asks again (case ITM-867-04); a second load, with a context of its own, reads again (case ITM-867-05).
 
 import test from "node:test";
@@ -80,14 +79,14 @@ async function open(target, name) {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product Host whose Snapshots hold SPEC.md (two requirements naming SRC-acme-person) and docs/sources.md, and an instance Host, another one, whose Snapshots hold the two register entries
 // input: the specification route drawn at main, the default branch, then the requirement FIRST RULE opened
-// expect: the instance's Host received exactly `instance info` and `instance snapshot main`, in that order, once each — the drawing's and the opening's calls together; known positive: the Sources of the opened requirement read "A person — version 2026-10-11", and the subject of the opened requirement carries the source SRC-acme-person
+// expect: the instance's Host received exactly `instance info` and `instance snapshot main`, in that order, once each — the drawing's and the opening's calls together; known positive: the Sources of the opened requirement read "A person — version 2026-10-11"; the subject of the opened requirement carries no source
 test("on the default branch the drawing and an opened requirement read the instance's snapshot once", async () => {
   const events = [];
   const { target, context } = await drawn({ product: host({ label: "product", files: PRODUCT_FILES, events }), instance: host({ label: "instance", files: REGISTER, events }) });
   await open(target, "FIRST RULE");
   assert.deepEqual(instanceCalls(events), ["instance info", "instance snapshot main"]);
   assert.ok(target.textContent.includes(SOURCES_SHOWN), "known positive: the sources are shown");
-  assert.equal(route.subject({ key: "specification", ref: "main" }, context).paramsFor({ name: "po-opus" }).source, PERSON);
+  assert.equal(route.subject({ key: "specification", ref: "main" }, context).paramsFor({ name: "po-opus" }).source, undefined);
 });
 
 // CASE ITM-867-02
@@ -129,12 +128,13 @@ test("drawing the page again at a release and opening a requirement there reads 
 // TST-867004 · level: unit · module: MOD-trace-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the Hosts of case 1, the instance's first readSnapshot failing as an unreachable server does
-// input: the specification route drawn at main (its reading of the person's own source fails), then FIRST RULE opened
-// expect: the instance's Host received `instance info`, `instance snapshot main`, `instance info`, `instance snapshot main` — the failed read is not kept, and the opening asks again; known positive: the Sources of the opened requirement read "A person — version 2026-10-11"
+// input: the specification route drawn at main, then FIRST RULE opened (its reading of the instance fails), then SECOND RULE opened
+// expect: the instance's Host received `instance info`, `instance snapshot main`, `instance info`, `instance snapshot main` — the failed read is not kept, and the second opening asks again; known positive: the Sources of the second requirement read "A person — version 2026-10-11"
 test("a read of the instance's snapshot that failed is asked for again by the next caller", async () => {
   const events = [];
   const { target } = await drawn({ product: host({ label: "product", files: PRODUCT_FILES, events }), instance: host({ label: "instance", files: REGISTER, events, failing: 1 }) });
   await open(target, "FIRST RULE");
+  await open(target, "SECOND RULE");
   assert.deepEqual(instanceCalls(events), ["instance info", "instance snapshot main", "instance info", "instance snapshot main"]);
   assert.ok(target.textContent.includes(SOURCES_SHOWN), "known positive: the sources are shown");
 });

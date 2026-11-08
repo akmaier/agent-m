@@ -1,7 +1,9 @@
 // MOD-trace-pages' specification view gives the prompt bar its subject (ITM-508), as docs/architecture/MOD-trace-pages.md states it: "Its subject for the
 // prompt bar is context only (MOD-prompt-bar's `Subject`): the page and, on the default branch, the open requirement, or the group with the names it holds,
-// as `requirements`, the person's own source where the product links one, and the review pages' `draft` as its draft route (UC-019 step 1); at a released
+// as `requirements`, and the review pages' `draft` as its draft route (UC-019 step 1); at a released
 // version, the requirement as it read there, and no draft route (UC-020 1a, UC-049 2a)" and "every other view's the frame's default with the version shown among its page".
+// No subject gives a `source`: the person's account is the source the prompt bar gives every message (MOD-prompt-bar), whether or not the product links a register
+// entry of the person.
 // Run: node --test tests/trace-pages-subject.test.mjs
 //
 // Module: MOD-trace-pages
@@ -15,10 +17,8 @@
 //   - A released version is any ref that is not the default branch the Host names; a Host that cannot name it is read as not the default branch.
 //   - "The open requirement" is the requirement whose detail was opened last and is still open; "the group" is the group of the group file whose list was opened last and
 //     is still open. A requirement open beats a group open; with neither open, and on every key but `specification`, the subject is the frame's default
-//     (no kind of its own, the route's title, a page holding the title, the product, the version shown and the text the route has drawn); on `specification` it carries the person's
-//     source beside the page. A subject names no kind: it is context only, and the bar runs `converse` on every page (MOD-prompt-bar, Subject).
-//   - The person is the owner of the instance repository: the account `<host of the instance's origin>/<owner>`, as the review pages' prompt route reads it.
-//     A person whose source cannot be found, or read, has none: the subject is still given, and its `paramsFor` gives no source and refuses nothing.
+//     (no kind of its own, the route's title, a page holding the title, the product, the version shown and the text the route has drawn); on `specification` too. A subject names no kind: it is context only, and the bar runs `converse` on every page (MOD-prompt-bar, Subject).
+//   - The subject is given whether or not the instance can be read; its `paramsFor` gives no source and refuses nothing.
 //   - A subject at a released version offers no draft route (`null`): a change is drafted only against the current text.
 // The counter-proofs are recorded in the pull request.
 
@@ -119,8 +119,8 @@ const withoutPage = ({ page, ...rest }) => rest;
 // guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the specification of a library on its default branch main; the instance acme/agent-m, whose register holds SRC-acme-person, a person of the account github.com/acme, which the product links
 // input: the route rendered at main, then the requirement A LOAN HAS A DUE DATE opened through its requirement-name control, then route.subject(params, context)
-// expect: no kind of its own; draftRoute "draft/subject=" followed by encodeURIComponent of the subject's key (ITM-558); withhold null; refuses []; paramsFor gives the page — which names the requirement — and else exactly { requirements: ["A LOAN HAS A DUE DATE"], source: "SRC-acme-person" }; a key that is a non-empty string
-test("TST-600150 on the default branch the open requirement is the subject, with the person's source and the draft route, as context", async () => {
+// expect: no kind of its own; draftRoute "draft/subject=" followed by encodeURIComponent of the subject's key (ITM-558); withhold null; refuses []; paramsFor gives the page — which names the requirement — and else exactly { requirements: ["A LOAN HAS A DUE DATE"] } — no source, though the product links the person's entry —; a key that is a non-empty string
+test("TST-600150 on the default branch the open requirement is the subject, with the draft route, as context and no source", async () => {
   assert.equal(typeof route.subject, "function", "the route gives a subject");
   const page = await shown();
   click(named(page.target, LOAN));
@@ -130,7 +130,7 @@ test("TST-600150 on the default branch the open requirement is the subject, with
   assert.equal(subject.withhold, null);
   assert.deepEqual(subject.refuses, []);
   assert.ok(subject.paramsFor(PARTICIPANT).page.includes(LOAN), "the page names what is open");
-  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [LOAN], source: PERSON });
+  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [LOAN] });
   assert.equal(typeof subject.key, "string");
   assert.notEqual(subject.key, "");
 });
@@ -139,31 +139,31 @@ test("TST-600150 on the default branch the open requirement is the subject, with
 // guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the same specification on main, whose group "1. Lending" holds A LOAN HAS A DUE DATE then A BOOK IS SHELVED and whose group "2. Membership" holds A MEMBER HAS A CARD
 // input: the group "1. Lending" opened through its spec-group-toggle control; then A BOOK IS SHELVED opened inside it; then that requirement closed; then the group closed
-// expect: group open: requirements [LOAN, SHELF] in group order, source "SRC-acme-person", draftRoute "draft"; requirement open inside it: requirements [SHELF] (the narrower subject wins); requirement closed: the group again; group closed: the frame's default, draftRoute null, the page and the person's source; the group's draftRoute is "draft/subject=" followed by encodeURIComponent of its key (ITM-558)
+// expect: group open: requirements [LOAN, SHELF] in group order and no source, draftRoute "draft"; requirement open inside it: requirements [SHELF] (the narrower subject wins); requirement closed: the group again; group closed: the frame's default, draftRoute null, the page alone; the group's draftRoute is "draft/subject=" followed by encodeURIComponent of its key (ITM-558)
 test("TST-600151 an open group gives the names it holds in group order, an open requirement in it narrows the subject, and closing them gives it back", async () => {
   const page = await shown();
   click(toggled(page.target, "1. Lending"));
   let subject = page.subject();
   assert.equal(subject.kind, undefined);
   assert.equal(subject.draftRoute, `draft/subject=${encodeURIComponent(subject.key)}`);
-  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [LOAN, SHELF], source: PERSON });
+  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [LOAN, SHELF] });
   const groupKey = subject.key;
 
   click(named(page.target, SHELF));
   subject = page.subject();
-  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [SHELF], source: PERSON });
+  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [SHELF] });
   assert.notEqual(subject.key, groupKey, "the requirement is another subject than its group");
 
   click(named(page.target, SHELF));
   subject = page.subject();
-  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [LOAN, SHELF], source: PERSON });
+  assert.deepEqual(withoutPage(subject.paramsFor(PARTICIPANT)), { requirements: [LOAN, SHELF] });
   assert.equal(subject.key, groupKey);
 
   click(toggled(page.target, "1. Lending"));
   subject = page.subject();
   assert.equal(subject.kind, undefined);
   assert.equal(subject.draftRoute, null);
-  assert.deepEqual(Object.keys(subject.paramsFor(PARTICIPANT)), ["page", "source"]);
+  assert.deepEqual(Object.keys(subject.paramsFor(PARTICIPANT)), ["page"]);
 });
 
 // TST-600152 · level: unit · module: MOD-trace-pages
@@ -210,12 +210,12 @@ test("TST-600153 at a released version the requirement as it read there is the s
 // guards: UC-049; UC-020
 // given: the route rendered with the key "timeline" at v1.0 and at main — a view the specification route does not draw (the key "tests" is drawn since ITM-766) — and the specification view at main with nothing opened
 // input: route.subject for each
-// expect: each is the frame's default: no kind, draftRoute null, withhold null, refuses [], title "Current requirements", paramsFor giving the key "page" whose text holds the title, the product's address and the version shown — "v1.0", "main" —, and, on the specification at main, the person's source beside it; two different versions are two different keys
+// expect: each is the frame's default: no kind, draftRoute null, withhold null, refuses [], title "Current requirements", paramsFor giving the key "page" whose text holds the title, the product's address and the version shown — "v1.0", "main" — on the specification at main too, with no source; two different versions are two different keys
 test("TST-600154 every other view, and the specification with nothing open, give the frame's default with the version shown", async () => {
   const tests = await shown({ key: "timeline", ref: "v1.0" });
   const audit = await shown({ key: "timeline", ref: "main" });
   const nothingOpen = await shown({ key: "specification", ref: "main" });
-  for (const [page, version, keys] of [[tests, "v1.0", ["page"]], [audit, "main", ["page"]], [nothingOpen, "main", ["page", "source"]]]) {
+  for (const [page, version, keys] of [[tests, "v1.0", ["page"]], [audit, "main", ["page"]], [nothingOpen, "main", ["page"]]]) {
     const subject = page.subject();
     assert.equal(subject.kind, undefined, version);
     assert.equal(subject.draftRoute, null, version);
@@ -232,13 +232,14 @@ test("TST-600154 every other view, and the specification with nothing open, give
 
 // TST-600155 · level: unit · module: MOD-trace-pages
 // guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the subject of an open requirement on main (known positive: source "SRC-acme-person"); then the same page where (a) the product's links file holds no row for the person, (b) the register holds only a person of another account, (c) the context has no instance at all, as in the tests of ITM-360, (d) the instance's Host fails
+// given: the subject of an open requirement on main, the product linking the person's entry SRC-acme-person; then the same page where (a) the product's links file holds no row for the person, (b) the register holds only a person of another account, (c) the context has no instance at all, as in the tests of ITM-360, (d) the instance's Host fails
 // input: A LOAN HAS A DUE DATE opened and route.subject for each
-// expect: the known positive gives source "SRC-acme-person"; for (a) to (d) the requirement is still listed and opens, the subject is still given, and its paramsFor gives the requirement and no source, refusing nothing
-test("TST-600155 a person whose source is not found, or cannot be read, gives no source and the page still opens", async () => {
+// expect: none gives a source, the linked entry neither; in each the requirement is still listed and opens, the subject is still given, and its paramsFor gives the requirement and no source, refusing nothing
+test("TST-600155 the subject gives no source, whatever the product links or the instance can be read, and the page still opens", async () => {
   const positive = await shown();
   click(named(positive.target, LOAN));
-  assert.equal(positive.subject().paramsFor(PARTICIPANT).source, PERSON, "known positive");
+  assert.deepEqual(positive.subject().paramsFor(PARTICIPANT).requirements, [LOAN], "the requirement is the subject");
+  assert.equal("source" in positive.subject().paramsFor(PARTICIPANT), false, "a linked entry of the person gives no source");
 
   const failing = { async readSnapshot() { throw Object.assign(new Error("unreachable"), { name: "Unreachable" }); }, async repositoryInfo() { throw Object.assign(new Error("unreachable"), { name: "Unreachable" }); } };
   const product = productHost({ links: linksText() });

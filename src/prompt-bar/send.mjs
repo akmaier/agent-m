@@ -17,7 +17,7 @@ import { handOverParams, prepareJob, taskRefusal } from "../job-runner/index.mjs
 import { runOnTab, tabContext } from "../runtimes/index.mjs";
 import { BAR_KIND, readParticipants } from "./offer.mjs";
 import { readDocument } from "../documents/index.mjs";
-import { registerPaths, restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
+import { personAccount, registerPaths, restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { recordingOf } from "./record.mjs";
 
 /** defaultSnapshot(host: Host) -> Promise<Snapshot> — the repository at its default branch now. */
@@ -52,6 +52,23 @@ export function personOf(store, snapshot, ofProduct, instanceSnapshot = null) {
 }
 
 /**
+ * sourceOf(instanceSnapshot: Snapshot) -> string | null — the `source` the bar gives every message and hand-over: the person's account, which MOD-source-register's
+ * personAccount gives for the instance's snapshot (THE PERSON WHO PROMPTS IS A SOURCE); null where the snapshot names no owner. The one place the bar computes it.
+ */
+export const sourceOf = (instanceSnapshot) => personAccount(instanceSnapshot);
+
+/**
+ * keepsTokenFor(store: Store, address: string) -> boolean — whether this browser keeps the own token of the product at `address`, a repository's web address, as
+ * personOf reads it for a product's page: `github.com/<owner>/<name>` on GitHub, any other server a GitLab server (UC-049 3d). No request is made.
+ */
+export function keepsTokenFor(store, address) {
+  let url;
+  try { url = new URL(address); } catch { return false; }
+  const repository = { server: url.hostname === "github.com" ? "github" : "gitlab", origin: url.origin, path: url.pathname.replace(/^\/+|\/+$/g, "") };
+  return personOf(store, { repository }, true) !== null;
+}
+
+/**
  * connectionsOf(participant: Participant, store: Store) -> { endpoints, bridges } — the endpoint and the Bridges the participant is reached through, from what the store
  * keeps: an endpoint's configuration and the Bridge it is called through, and the Bridge of an agent, each Bridge with settingsOf and then bridgeAt.
  */
@@ -74,7 +91,7 @@ export function connectionsOf(participant, store) {
 
 /**
  * prepareMessage({ subject, participant, instruction, conversation, store, instance, product }) -> Promise<Ready> — reads the instance
- * and the page's repository now, builds the job's parameters, and prepares the job without sending anything. Ready holds `prepared`, the
+ * and the page's repository now, builds the job's parameters — beside the subject's, the bar's `source` (sourceOf) —, and prepares the job without sending anything. Ready holds `prepared`, the
  * `context` and `connections` to run it with, the `participants` of the register, whether the instance `recording` is on now, the
  * `person`, and the repository `page` the conversation is held on ({ address, host, snapshot }). Throws what the hosts and prepareJob throw.
  */
@@ -88,7 +105,7 @@ export { BAR_KIND };
 /**
  * prepareHandOver({ handOver, subject, participant, conversation, store, instance, product }) -> Promise<Ready> — a hand-over { kind, works_on, task } prepared to run in this
  * tab as a message is (UC-049 4a.1): of its kind, its parameters the subject's paramsFor less `page`, with what MOD-job-runner's handOverParams gives for what it works on, its
- * task as `instruction`, the conversation so far, the subject's entry and refuses. A kind with reviewers is prepared with the participant itself as its one reviewer and
+ * task as `instruction`, the conversation so far, the subject's entry and refuses, and the bar's `source` (sourceOf). A kind with reviewers is prepared with the participant itself as its one reviewer and
  * `selfReview` set, since the change is described in the prompt bar (NO REVIEWER IS THE DRAFTER). Writes nothing; throws what prepareMessage throws, and what kindOf throws.
  */
 export async function prepareHandOver({ handOver, subject, participant, conversation, store, instance, product }) {
@@ -110,7 +127,9 @@ async function prepareIn(kind, paramsOf, { participant, store, instance, product
   const person = personOf(store, page.snapshot, product !== null, instanceSnapshot);
   const commit = instanceSnapshot.commit ?? "unknown";
   const inputs = {
-    params: paramsOf(page.snapshot),
+    // The bar's source, the person's account, on every page (THE PERSON WHO PROMPTS IS A SOURCE): none where the instance names no owner, which a kind that needs
+    // one refuses by its own precondition.
+    params: { ...paramsOf(page.snapshot), ...(sourceOf(instanceSnapshot) === null ? {} : { source: sourceOf(instanceSnapshot) }) },
     product: page, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
     places: { ...(await placesOf(instanceSnapshot, page.address)), mailbox: null }, gates: [], person, agentM: { version: commit, commit }, jobId: null,
   };

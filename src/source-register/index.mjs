@@ -2,10 +2,9 @@
 // its interface. It gives sourceSchemas, the schemas of a register entry and of a product's links file; permittedPlaces, the
 // processing places to which the content of a source may be given; readContent, which reads a version's files with their hashes
 // checked (content.mjs); linkedVersion; sourceStrategies, the recipe source-excerpt and the recipes of the book's chapters
-// (strategies.mjs); sourceFindings, the requirements that name no source the product links; recogniseLegalText and
-// fetchLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names and the official text; personSource,
-// the source of the person who gives an instruction, and personAccount, the account personSource takes (person.mjs, which this
-// file re-exports); registrationCommits and versionCommits, the commit plans of a registration and of a new version, a file
+// (strategies.mjs); sourceFindings, the requirements that name neither a source the product links nor an account; recogniseLegalText
+// and fetchLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names and the official text; personAccount, the
+// account of the person who gives an instruction, which is their source (person.mjs, which this file re-exports); registrationCommits and versionCommits, the commit plans of a registration and of a new version, a file
 // that was only hashed recorded with the note where its copy is kept; and affectedRequirements and changedPassages. Every
 // function the module file's Interfaces names is built.
 //
@@ -28,7 +27,7 @@ import { strategiesOf } from "./strategies.mjs";
 import { commitOf, failure, filesOf, linkOf, unquoted, versionHash, versionRecord } from "./content.mjs";
 
 export { readContent } from "./content.mjs";
-export { personAccount, personSource } from "./person.mjs";
+export { personAccount } from "./person.mjs";
 export { fetchLegalText, recogniseLegalText } from "./legal-text.mjs";
 
 /**
@@ -366,14 +365,20 @@ export function changedPassages(before, after) {
 
 const REGISTERED_SOURCE = "A REQUIREMENT HAS A REGISTERED SOURCE";
 const TERMS_ENTER_AS_SOURCE = "A RESOURCE'S TERMS ENTER AS A SOURCE";
+// An account `<server>/<account>` as a whole source item, alone or followed by `, ` and the part it draws on (MOD-source-register, Data:
+// "How a requirement names an account"): a host name of two or more labels of letters, digits and `-`, joined by `.`, with `:` and a port
+// where the server has one, one `/`, and the account — letters, digits, `-`, `_` and `.`, holding no `/` and no space —, as personAccount
+// writes it. An account is a source of every product without a register entry or a link.
+const ACCOUNT_ITEM = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?::[0-9]+)?\/[A-Za-z0-9._-]+(?:$|, )/;
+
 // A resource entry's identifier at the start of a source item, followed by the end of the item or by `, ` and the part, as an
 // item names a register entry (namesSource): a resource entry is never a source, whatever the other items name.
 const RESOURCE_ITEM = /^(RES-[a-z0-9]+(?:-[a-z0-9]+)*)(?:$|, )/;
 
 /**
  * sourceFindings(requirements: Requirement[], links: Document, register: Document[]) -> Finding[] — an error under A
- * REQUIREMENT HAS A REGISTERED SOURCE for each requirement none of whose source items names a source the product links,
- * naming the requirement, its line and its items; a requirement with no source item names none. And an error under A
+ * REQUIREMENT HAS A REGISTERED SOURCE for each requirement none of whose source items names a source the product links or an
+ * account `<server>/<account>` (ACCOUNT_ITEM), naming the requirement, its line and its items; a requirement with no source item names none. And an error under A
  * RESOURCE'S TERMS ENTER AS A SOURCE for each resource entry (RES-…) a source item names, beside a linked source or not. An item names the register
  * entry whose identifier, title or — for a standard — designation it begins with, the longest such match, followed by the
  * end of the item or by `, ` and the part; the product links the source when its links file holds a row for that entry.
@@ -385,15 +390,16 @@ export function sourceFindings(requirements, links, register) {
   return requirements.flatMap((requirement) => {
     const items = requirement.sources ?? [];
     const linked = items.some((item) => {
+      if (ACCOUNT_ITEM.test(item)) return true;
       const entry = entryNamed(register, item);
       return entry !== null && linkOf(links, entry) !== undefined;
     });
     const resources = [...new Set(items.map((item) => RESOURCE_ITEM.exec(item)?.[1]).filter(Boolean))];
     return [
       ...(linked ? [] : [finding({ artifact: requirement.name, line: requirement.line, kind: "error", rule: REGISTERED_SOURCE,
-        what: items.length ? `no source item names a source the product links: ${items.map((item) => `"${item}"`).join("; ")}`
+        what: items.length ? `no source item names a source the product links or an account: ${items.map((item) => `"${item}"`).join("; ")}`
           : "it names no source",
-        fix: "begin a source item with the identifier, the title or the designation of a register entry that the product links" })]),
+        fix: "begin a source item with the identifier, the title or the designation of a register entry that the product links, or name an account <server>/<account>" })]),
       ...resources.map((resource) => finding({ artifact: requirement.name, line: requirement.line, kind: "error",
         rule: TERMS_ENTER_AS_SOURCE, what: `the source names the resource entry ${resource}`,
         fix: "name the registered source of its terms (SRC-…), linked to the product, in its place" })),

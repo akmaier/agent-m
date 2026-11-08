@@ -5,16 +5,13 @@
 // Module: MOD-review-pages
 //
 // A subject is built by a route's `subject(params, context)`, which is synchronous, and its `paramsFor` too; what they need from the repository — the file's blob, the SPEC section's
-// blob, the person's own source — is read when the route is drawn (`remember`) and kept for the context it was drawn in, which the frame hands to both. Nothing is written.
-// THE PERSON WHO PROMPTS IS A SOURCE: a requirement's subject carries the person's own source where the product links one; without one, a change of requirements refuses by its
-// own precondition (UC-019 4b), not the subject.
+// blob — is read when the route is drawn (`remember`) and kept for the context it was drawn in, which the frame hands to both. Nothing is written.
+// THE PERSON WHO PROMPTS IS A SOURCE: no subject gives a `source`; the person's account is the source the prompt bar gives every message (MOD-prompt-bar).
 
 import { statuses } from "../approvals/index.mjs";
-import { personAccount, personSource } from "../source-register/index.mjs";
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
-import { defaultSnapshot } from "./common.mjs";
-import { entryAt, sourcesOf } from "./spec-entries.mjs";
+import { entryAt } from "./spec-entries.mjs";
 
 const SPEC = "SPEC.md";
 // What was read for a context when its route was drawn: { facts } — the facts of the subject, or null where the page names none.
@@ -49,12 +46,12 @@ async function requirementFacts({ snapshot }, kind, params) {
   const spec = (await snapshot.read(SPEC)) ?? "";
   if (kind.fresh) {
     const version = await sectionVersion(spec, params.section);
-    return version === undefined ? null : { parts: [["section", params.section]], title: `New requirement in ${params.section}`, source: true,
+    return version === undefined ? null : { parts: [["section", params.section]], title: `New requirement in ${params.section}`,
       params: { requirements: [], section: params.section, version } };
   }
   const requirement = parseSpec(spec).requirements.get(params.name ?? "");
   if (!requirement) return null;
-  return { parts: [["name", requirement.name]], title: requirement.name, source: true,
+  return { parts: [["name", requirement.name]], title: requirement.name,
     params: { requirements: [requirement.name], version: await sectionVersion(spec, requirement.section) } };
 }
 
@@ -68,7 +65,7 @@ async function entryFacts({ snapshot }, kind, id) {
   const held = parseSpec(spec).requirements;
   const requirements = [...parseSpec((await snapshot.read(item.proposal.path)) ?? "").requirements.keys()].filter((name) => held.has(name));
   const version = await sectionVersion(spec, held.get(requirements[0])?.section);
-  return { parts: [["id", id]], title: id, source: true, params: { [kind.change.parameter]: id, requirements, ...(version === undefined ? {} : { version }) } };
+  return { parts: [["id", id]], title: id, params: { [kind.change.parameter]: id, requirements, ...(version === undefined ? {} : { version }) } };
 }
 
 async function factsOf(where, kind, params) {
@@ -76,18 +73,6 @@ async function factsOf(where, kind, params) {
   if (kind.edit) return requirementFacts(where, kind, params);
   if (!params.id || params.id === "all" || params.id === "draft" || params.id === "history") return null;
   return kind.accept === "queue" ? entryFacts(where, kind, params.id) : fileFacts(where, kind, params.id);
-}
-
-// The person's own source — the register entry of the instance's author that the product links — or null.
-async function ownSource(where) {
-  try {
-    const { snapshot, context } = where;
-    const instanceSnapshot = context.product ? await defaultSnapshot(context.instance.host) : snapshot;
-    const { links, register } = await sourcesOf({ ...where, instanceSnapshot });
-    return personSource(links, register, personAccount(instanceSnapshot));
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -98,7 +83,7 @@ export async function remember(where, kind, params) {
   const here = drawn.get(where.context);
   if (!here) return;
   const facts = await factsOf(where, kind, params);
-  here.facts = facts === null ? null : { ...facts, source: facts.source ? await ownSource(where) : undefined };
+  here.facts = facts;
 }
 
 /**
@@ -111,7 +96,7 @@ export function subjectOf(kind, params, context) {
   if (facts !== null) {
     const key = keyOf(kind.route, facts.parts, context);
     return { key, title: facts.title, entry: kind.entry,
-      paramsFor: () => ({ ...facts.params, ...(typeof facts.source === "string" ? { source: facts.source } : {}) }),
+      paramsFor: () => ({ ...facts.params }),
       draftRoute: `draft/subject=${encoded(key)}`, withhold: null, refuses: [] };
   }
   return null;

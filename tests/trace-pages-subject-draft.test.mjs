@@ -15,8 +15,8 @@
 // one it takes, and the pull request names it:
 //   - "encoded by `encodeURIComponent`" is read as: the route is `draft/subject=` followed by `encodeURIComponent(subject.key)`, with nothing after it; the address part `subject=<value>`
 //     is read back as the frame reads a part, by decoding the value once, and gives the subject's key.
-//   - "the person's own source" is absent when the product's links file names none of the instance's register for the person's account, and when the instance cannot be read or is not
-//     given: the page that cannot say gives `source: null`, which the subject refuses at `paramsFor`.
+//   - No subject gives a `source`: the person's account is the source the prompt bar gives every message (MOD-prompt-bar, MOD-trace-pages), whether or not the product links a
+//     register entry of the person.
 //   - The refusal is raised by `paramsFor`, not by `subject`: the subject itself is still given, so that the bar can show the error and the page opens.
 //   - A subject at a released version (kind `converse`) needs no source of the person and does not refuse.
 // The counter-proofs are recorded in the pull request.
@@ -148,9 +148,10 @@ test("TST-558002 the draft route of an open group is draft/subject=<its key, enc
 
 // TST-558003 · level: unit · module: MOD-trace-pages
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: a requirement open on main; the known positive: the product links the person's source SRC-acme-person; then (a) the links file holds no row for the person, (b) the register holds only a person of another account, (c) the context has no instance, (d) the instance's Host fails
+// given: a requirement open on main; first the product links a register entry SRC-acme-person of the person's account; then (a) the links file holds no row for the person, (b) the register holds only a person of another account, (c) the context has no instance, (d) the instance's Host fails
 // input: route.subject, then subject.paramsFor(participant), under a fetch spy
-// expect: known positive: the parameters hold requirements [LOAN] and source "SRC-acme-person"; (a) to (d): the subject is still given, names no kind, and paramsFor refuses nothing — it gives requirements [LOAN] and no source, since a subject is context only and a change of requirements refuses by its own precondition (MOD-spec-changes' person-source); no fetch is made
+// expect: with the entry linked, the parameters hold requirements [LOAN] and no source — no subject gives one: the person's account is the source the prompt bar gives every message
+//   (MOD-prompt-bar) —; (a) to (d): the subject is still given, names no kind, and paramsFor refuses nothing — it gives requirements [LOAN] and no source, since a subject is context only and a change of requirements refuses by its own precondition (MOD-spec-changes' person-source); no fetch is made
 test("TST-558003 without the person's source linked by the product, the subject gives the requirement and no source, and refuses nothing", async () => {
   const before = globalThis.fetch;
   const requests = [];
@@ -159,7 +160,7 @@ test("TST-558003 without the person's source linked by the product, the subject 
     const positive = await shown();
     click(named(positive.target, LOAN));
     const known = positive.subject().paramsFor(PARTICIPANT);
-    assert.deepEqual([known.requirements, known.source], [[LOAN], PERSON], "known positive");
+    assert.deepEqual([known.requirements, "source" in known], [[LOAN], false], "a linked register entry of the person gives no source either");
 
     const failing = { async readSnapshot() { throw Object.assign(new Error("unreachable"), { name: "Unreachable" }); }, async repositoryInfo() { throw Object.assign(new Error("unreachable"), { name: "Unreachable" }); } };
     const cases = {

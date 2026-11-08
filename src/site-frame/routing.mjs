@@ -123,6 +123,16 @@ export function productHostFollowingStore({ store }) {
   };
 }
 
+// managedProducts({ store }) -> () -> { address: string, host: Host }[] — the products this browser manages, read from `products` at each call, each by its web
+// address with the host productHostFollowingStore gives for it, for the prompt bar (MOD-prompt-bar's setup.products, UC-049 3d); an entry that is no repository
+// address is left out.
+export function managedProducts({ store }) {
+  const hostFor = productHostFollowingStore({ store });
+  return () => (readSetting(store, "products") ?? []).flatMap((entry) => {
+    try { return [{ address: parseAddress(entry).web, host: hostFor(entry) }]; } catch { return []; }
+  });
+}
+
 // viewAddress(slug) -> the address of a view module: `../<slug>/routes.mjs`, relative to the folder of the frame — the view's routes, whose
 // strategies it imports only for a job (View: loadStrategies); preloads.mjs names the same address in an entry page's block.
 const viewAddress = (slug) => new URL(`../${slug}/routes.mjs`, import.meta.url).href;

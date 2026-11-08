@@ -1,7 +1,7 @@
 // The account of the person who gives an instruction (ITM-552) — MOD-source-register's personAccount(instance), as the accepted text of
-// docs/architecture/MOD-source-register.md states it: the account `<server>/<account>` that personSource takes — the owner of the
+// docs/architecture/MOD-source-register.md states it: the account `<server>/<account>`, which is the person's source — the owner of the
 // instance's repository on its server's host, `github.com` on GitHub —, `null` where the snapshot names no owner, and no request made
-// (THE PERSON WHO PROMPTS IS A SOURCE). The review pages' and the trace pages' callers are not part of these tests.
+// (THE PERSON WHO PROMPTS IS A SOURCE). The prompt bar, its caller, is not part of these tests.
 // Run: node --test tests/source-register-person-account-552.test.mjs
 //
 // Module: MOD-source-register

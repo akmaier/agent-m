@@ -149,7 +149,8 @@ async function handedOver(handOver, context, record, handOn) {
     const { participant, driver, context: nested, notes } = await handOn(kind, params);
     const prepared = await prepareJob(kind.name, nested, { drafter: participant, reviewers: [], limit: record.limit });
     if (prepared.blocking.length > 0 || prepared.notFitting.length > 0) {
-      return notRun(prepared.blocking.map((found) => `${found.what} [${found.rule}]`).join("; ") || "the job does not fit its participant");
+      // Each finding that keeps it from starting as `<what> [<rule>] — <fix>`, so that the end names what the hand-over requires to run (UC-049 4a.5).
+      return notRun(prepared.blocking.map((found) => `${found.what} [${found.rule}] — ${found.fix}`).join("; ") || "the job does not fit its participant");
     }
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context: nested });
     const failed = failedBecause(result);

@@ -1,8 +1,8 @@
 // MOD-review-pages' routes give the prompt bar their subject (ITM-507), as the accepted text of docs/architecture/MOD-review-pages.md and MOD-site-frame.md state it:
 // "`<k>/<id>` … Its subject for the prompt bar names the file and its version — the use case, or the architecture file —, as context (MOD-prompt-bar's `Subject`), with `draft` as its
 // draft route", "`<k>/<id>/edit`, and `requirement/<name>/edit` and `requirements/new` for a requirement — whose subject for the prompt bar is the file, or the requirement
-// with `change-requirements`, as on the file's route", "For a change of requirements, the subject's parameters carry the person's own source, which `personSource` names among
-// the product's linked sources; without one, the prompt bar sends nothing and names the step that is missing (UC-004, UC-015, UC-019 4b)", and MOD-site-frame's Route.subject.
+// with `change-requirements`, as on the file's route", "For a change of requirements, the person's account is its `source`, which the prompt bar gives (MOD-prompt-bar); no
+// subject of these routes gives one", and MOD-site-frame's Route.subject.
 // Run: node --test tests/review-pages-subjects.test.mjs
 //
 // Module: MOD-review-pages · MOD-site-frame
@@ -15,8 +15,8 @@
 //     `section=<heading>` —, with `product=<address>` after them on a product's page, every part percent-encoded, as MOD-site-frame writes the key of its default subject. The
 //     page of a file and its editor are one subject. Its `draftRoute` is `draft/subject=<the key, percent-encoded>`: the route `draft` reads the subject from its address.
 //   - The job's parameters are, for a use case, `useCase` (the identifier the recipe `use-case-with-neighbours` reads); for an architecture decision or module file, `target`
-//     (its identifier); for requirements, `requirements` (the names the SPEC holds), `source` and, for a new requirement, `section`; for a SPEC change entry `target` (its
-//     identifier), the `requirements` of its proposal that the SPEC holds, and `source`. All carry `version`: the blob of the file, or of the SPEC section the named requirements stand in, as the
+//     (its identifier); for requirements, `requirements` (the names the SPEC holds) and, for a new requirement, `section`; for a SPEC change entry `target` (its
+//     identifier) and the `requirements` of its proposal that the SPEC holds; none gives `source`. All carry `version`: the blob of the file, or of the SPEC section the named requirements stand in, as the
 //     page read it, which is the text the job reads.
 //   - A page that names no file — a list, Review all, a drafting page, an identifier the product does not hold — has no subject of its own: the route's subject gives `null`, and the
 //     frame's default stands (MOD-site-frame's Route.subject): no kind of its own, its key the route's fragment, its title the route's title, no draft route, the page it has drawn.
@@ -83,8 +83,8 @@ test("decision/<id> and module/<id> — the subject is the architecture file, wi
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: a product whose SPEC holds the requirement A LOAN HAS A DUE DATE in the section "## 1. Lending"; the instance's author github.com/alice, whose person source SRC-alice the product links
 // input: the subject of the route `requirement` with the name A LOAN HAS A DUE DATE
-// expect: no kind of its own, entry requirements, title "A LOAN HAS A DUE DATE", key "requirement/name=<the name, encoded>/product=<address>", draftRoute "draft/subject=<key, encoded>"; the parameters {requirements: ["A LOAN HAS A DUE DATE"], source: "SRC-alice", version: the blob of the section "## 1. Lending"}
-test("requirement/<name> — the subject is the requirement, with change-requirements and the person's own source", async () => {
+// expect: no kind of its own, entry requirements, title "A LOAN HAS A DUE DATE", key "requirement/name=<the name, encoded>/product=<address>", draftRoute "draft/subject=<key, encoded>"; the parameters {requirements: ["A LOAN HAS A DUE DATE"], version: the blob of the section "## 1. Lending"} — no source, which the prompt bar gives
+test("requirement/<name> — the subject is the requirement, and gives no source", async () => {
   const fake = fakeProduct();
   const subject = (await draw(fake, "requirement", { name: LOAN })).subject();
   const key = `requirement/name=${encodeURIComponent(LOAN)}/product=${PRODUCT}`;
@@ -93,15 +93,15 @@ test("requirement/<name> — the subject is the requirement, with change-require
   assert.equal(subject.title, LOAN);
   assert.equal(subject.key, key);
   assert.equal(subject.draftRoute, draftRouteOf(key));
-  assert.deepEqual(subject.paramsFor(participant), { requirements: [LOAN], source: SOURCE, version: blobOf(LENDING) });
+  assert.deepEqual(subject.paramsFor(participant), { requirements: [LOAN], version: blobOf(LENDING) });
 });
 
 // TST-507004 · level: unit · module: MOD-review-pages
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the page of a new requirement in the section "## 1. Lending"
 // input: the subject of the route `requirements` with the section "## 1. Lending"
-// expect: no kind of its own; title "New requirement in ## 1. Lending"; key "requirements/section=<the heading, encoded>/product=<address>"; draftRoute "draft/subject=<key, encoded>"; the parameters {requirements: [], section: "## 1. Lending", source: "SRC-alice", version: the blob of the section}
-test("requirements/new — the subject is the new requirement in its section, with the person's own source", async () => {
+// expect: no kind of its own; title "New requirement in ## 1. Lending"; key "requirements/section=<the heading, encoded>/product=<address>"; draftRoute "draft/subject=<key, encoded>"; the parameters {requirements: [], section: "## 1. Lending", version: the blob of the section} — no source
+test("requirements/new — the subject is the new requirement in its section, and gives no source", async () => {
   const fake = fakeProduct();
   const subject = (await draw(fake, "requirements", { section: HEADING })).subject();
   const key = `requirements/section=${encodeURIComponent(HEADING)}/product=${PRODUCT}`;
@@ -109,14 +109,14 @@ test("requirements/new — the subject is the new requirement in its section, wi
   assert.equal(subject.title, `New requirement in ${HEADING}`);
   assert.equal(subject.key, key);
   assert.equal(subject.draftRoute, draftRouteOf(key));
-  assert.deepEqual(subject.paramsFor(participant), { requirements: [], section: HEADING, source: SOURCE, version: blobOf(LENDING) });
+  assert.deepEqual(subject.paramsFor(participant), { requirements: [], section: HEADING, version: blobOf(LENDING) });
 });
 
 // TST-507005 · level: unit · module: MOD-review-pages
 // guards: UC-019; UC-006
 // given: the SPEC change entry 01 of a queue, which proposes the section "## 1. Lending" with both of its requirements
 // input: the subject of the route `spec-entry` with the id spec-2026-03-01_sample-01
-// expect: no kind of its own, entry requirements, title "spec-2026-03-01_sample-01", key "spec-entry/id=spec-2026-03-01_sample-01/product=<address>", draftRoute "draft/subject=<key, encoded>"; the parameters {target: "spec-2026-03-01_sample-01", requirements: ["A LOAN HAS A DUE DATE", "A BOOK IS SHELVED"], source: "SRC-alice", version: the blob of the SPEC section "## 1. Lending", which the job reads}
+// expect: no kind of its own, entry requirements, title "spec-2026-03-01_sample-01", key "spec-entry/id=spec-2026-03-01_sample-01/product=<address>", draftRoute "draft/subject=<key, encoded>"; the parameters {target: "spec-2026-03-01_sample-01", requirements: ["A LOAN HAS A DUE DATE", "A BOOK IS SHELVED"], version: the blob of the SPEC section "## 1. Lending", which the job reads}
 test("spec-entry/<id> — the subject is the entry, with the requirements of its proposal", async () => {
   const fake = fakeProduct();
   const subject = (await draw(fake, "spec-entry", { id: ENTRY_ID })).subject();
@@ -126,7 +126,7 @@ test("spec-entry/<id> — the subject is the entry, with the requirements of its
   assert.equal(subject.title, ENTRY_ID);
   assert.equal(subject.key, key);
   assert.equal(subject.draftRoute, draftRouteOf(key));
-  assert.deepEqual(subject.paramsFor(participant), { target: ENTRY_ID, requirements: [LOAN, SHELF], source: SOURCE, version: blobOf(LENDING) });
+  assert.deepEqual(subject.paramsFor(participant), { target: ENTRY_ID, requirements: [LOAN, SHELF], version: blobOf(LENDING) });
 });
 
 // TST-507006 · level: unit · module: MOD-review-pages

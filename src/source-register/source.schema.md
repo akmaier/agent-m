@@ -10,8 +10,7 @@ What the language cannot say is written where it applies:
   on with the licence's name or terms, as in `restricted — the publisher's terms of use`. The language has no type for a
   text that begins so: the schema holds it as text, and `permittedPlaces` reads the licence's class from its first words.
 - `identifier` is written for an EU legal text (its CELEX number or ELI), for a repository (its address) and for a person: the
-  person's account on a repository server, `<server>/<account>`, such as `github.com/akmaer`, by which `personSource` finds the
-  source of the person who gives an instruction. `content_repository` is written for restricted content kept as files, and
+  person's account on a repository server, `<server>/<account>`, such as `github.com/akmaier`. `content_repository` is written for restricted content kept as files, and
   `places` for restricted content. A condition of the language compares a whole value, and no key holds what these depend on —
   whether a source is an EU legal text or a repository, whether a person has an account, whether content is restricted —, so
   none of them is required by a condition; `designation` is, for a standard.

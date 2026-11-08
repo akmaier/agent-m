@@ -13,7 +13,7 @@
 //   - The decision's buttons are "Bug", "Change" and "Not reproducible" before a proposal and "Confirm <class>" for the class proposed and "Correct to <class>" for another after it; a click is the person's or does nothing. A class needs no analysis first.
 //     "Reject issue" is disabled while the reason is blank. After a rejection the issue is closed, and the page offers neither analysis nor decision. A failure names itself, nothing is half done, and the controls stay.
 //   - The change (ITM-584): a section "Change" is shown for an issue whose class is change — by its label, or by the person's click on Change —, built as the analysis is (`runSection`) over the kind `change-requirements`, whose parameters are `issue` and `source`, the
-//     latter the identifier `personSource` gives over the product's links and the instance's register; without one the precondition `person-source` blocks the run panel, which lists its steps. The candidates are listed with their class (ITM-1256), each beside the requirement its
+//     latter the person's account, which MOD-source-register's `personAccount` gives for the instance's snapshot; where it gives none the precondition `person-source` blocks the run panel, which names what it requires. The candidates are listed with their class (ITM-1256), each beside the requirement its
 //     class's `of` names, with the rule the prepared job's parts give for that name; a conflict offers its decision, <select class="conflict-decision">, undecided until the person gives it the class
 //     new, change or duplicate. Save, the person's click, is disabled while a conflict is undecided; it writes the candidates with the kind's writer through `writeResult`, with the classes the loop
 //     gave and each conflict replaced by the class the person decided it as.
@@ -49,7 +49,7 @@ import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, writeResult } from "../job-runner/index.mjs";
 import { issueLabels } from "../mail-records/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { personAccount, personSource, sourceSchemas } from "../source-register/index.mjs";
+import { personAccount } from "../source-register/index.mjs";
 import { jobTrail, queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { recordRoute } from "../prompt-bar/hand-over.mjs";
@@ -69,7 +69,7 @@ const NOT_CLASSIFIED = "not classified";
 const STEP_TEXT = {
   list: "The open issues of the chosen product, with the class their label says. Open one to analyse it and to decide its class.",
   analyse: "Analyse asks the participant you choose for the class of this issue — a bug, a change or not reproducible — with its reasoning. The panel states where the participant processes data and exactly what it receives: the issue and the requirements, use cases, tests and modules it names, or the whole SPEC where it names none. The analysis writes nothing to the issue. Book: ch. 14, Evolution Processes and Change Identification.",
-  change: "Draft change asks the participant you choose for the changed requirements this issue asks for, against every requirement of the product. The panel states where the participant processes data and exactly what it receives: the issue with what it names, the requirements, the open queues and the chapters of the book. The change is drafted in your own name: the job needs your own source, the register entry of your account that the product links. Save writes the candidates as a change queue under docs/spec-freigaben/ that names this issue; nothing is written before it. A conflict is not written until a person has decided it.",
+  change: "Draft change asks the participant you choose for the changed requirements this issue asks for, against every requirement of the product. The panel states where the participant processes data and exactly what it receives: the issue with what it names, the requirements, the open queues and the chapters of the book. The change is drafted in your own name: every requirement it drafts names your account, the owner of this instance's repository, among its sources; no register entry and no link are needed. Save writes the candidates as a change queue under docs/spec-freigaben/ that names this issue; nothing is written before it. A conflict is not written until a person has decided it.",
   move: "Move to backlog prefills a backlog item from this issue: its title and outcome from the issue, its origin the issue's address, what it realises (for a bug the requirement the analysis names as violated, for a change the requirements the change queues of this issue change or add) and the modules it changes, which you confirm or correct. The form names what fails. Add commits the item under docs/backlog/ of the product, adds a comment naming the item to the issue and gives the issue the label backlog. Where no token is stored that may comment, the item is committed all the same and the comment is shown for you to copy. Where the issue describes the work of an item already in the backlog, add it to that item instead: the item then names both issues as its origins, and both get the comment. A change item waits for the acceptance of the requirements it names.",
   fix: "Fix hands a confirmed bug to a participant that can run code and tests: a coding agent in CI, on a Bridge or in a sandbox. A model endpoint can analyse an issue but cannot fix it. Run queues the job on the participant's route; the panel states where the participant processes data and exactly what it receives: the issue and what it names, the analysis you confirmed, the code and tests of the modules you name, and the instruction to write a regression test first, with invented data, never the reporter's. The job works on a branch of its own and opens a pull request that links the issue and the requirement it restores; the pull request is merged once the Definition of Done holds, and the issue is then closed with a link to it. Book: ch. 13, Software Testing in the Age of Coding Agents.",
   decide: "One click decides. A class sets the label defect, change or not-reproducible on the issue and removes the other two. Reject issue closes the issue with the reason you give and changes nothing else. A requirement that is missing is a change, not a bug.",
@@ -104,20 +104,6 @@ async function renderList(target, context) {
     })), fold(STEP_TEXT.list));
   } catch (failure) {
     out.append(el("p", "issues-problem", `The issues could not be read: ${failed(failure)}`));
-  }
-}
-
-// The person's own source: the register entry of the instance's author that the product links (MOD-source-register's personSource over the product's links file and the instance's register), or null.
-async function ownSource(product, instanceSnapshot) {
-  try {
-    const { entry, links } = sourceSchemas();
-    const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
-    const linked = readDocument(links, "docs/sources.md", (await head.read("docs/sources.md")) ?? "");
-    const register = await Promise.all(instanceSnapshot.paths.filter((path) => /^docs\/sources\/SRC-[^/]+\.md$/.test(path))
-      .map(async (path) => readDocument(entry, path, (await instanceSnapshot.read(path)) ?? "")));
-    return personSource(linked, register, personAccount(instanceSnapshot));
-  } catch {
-    return null;
   }
 }
 
@@ -209,12 +195,13 @@ function analysisSection({ context, product, issue, onProposal }) {
     } });
 }
 
-// The change of requirements the issue asks for (UC-012 step 6): the job of `change-requirements` given the issue's number and the person's own source, run attended; its candidates by class, and Save, which writes them as a change queue naming the issue
-// through the kind's writer on the draft as it stands. Without a source the precondition `person-source` keeps the job from starting, and the run panel lists its steps.
+// The change of requirements the issue asks for (UC-012 step 6): the job of `change-requirements` given the issue's number and, as its `source`, the person's account, which personAccount gives for the
+// instance's snapshot, run attended; its candidates by class, and Save, which writes them as a change queue naming the issue through the kind's writer on the draft as it stands. Where personAccount gives
+// no account the precondition `person-source` keeps the job from starting, and the run panel names what it requires.
 function changeSection({ context, product, issue }) {
   return runSection({ context, product, issue, kindName: "change-requirements", title: "Change", text: STEP_TEXT.change, failure: "The change could not be drafted",
     names: { section: "issue-change", participant: "change-participant", person: "change-person" },
-    paramsOf: async (instanceSnapshot) => { const source = await ownSource(product, instanceSnapshot); return source === null ? {} : { source }; },
+    paramsOf: async (instanceSnapshot) => { const source = personAccount(instanceSnapshot); return source === null ? {} : { source }; },
     onResult: async (outcome, { stage, result, prepared, jobContext }) => {
       const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
       const classes = Array.isArray(outcome.classes) ? outcome.classes : [];

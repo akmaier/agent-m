@@ -1,21 +1,17 @@
 // The subject the specification view gives the prompt bar (docs/architecture/MOD-trace-pages.md, Data: specification; Interfaces: view),
 // MOD-prompt-bar's `Subject`, for UC-049, UC-019 (step 1) and UC-020 (1a). A subject is context only: the bar runs `converse` on every page.
 // - at the current state — the default branch, or the earlier version shown while the head's graph is stored — the open requirement, or the group
-//   with the names it holds, as `requirements`, the person's own source where the product
-//   links one, and the review pages' `draft` as its draft route, `draft/subject=<key, encoded>`, in the form the review pages' own subjects give;
-//   with nothing open, the page and the person's own source where there is one; a missing source refuses nothing here — a change of requirements
-//   refuses by its own precondition (UC-019 4b);
+//   with the names it holds, as `requirements`, and the review pages' `draft` as its draft route, `draft/subject=<key, encoded>`, in the form the
+//   review pages' own subjects give; with nothing open, the page. No subject gives a `source`: the person's account is the source the prompt bar
+//   gives every message (MOD-prompt-bar);
 // - at a released version, the requirement as it read there, and no draft route, since a change is drafted only against the current text;
 // - every other view the frame's default with the version shown among its page.
 // "The open requirement" is the one whose detail was opened last and is still open; "the open group" the group of the group file whose list was opened last
 // and is still open; an open requirement is the narrower subject and wins. The subject is read at each Send, so what is open is kept as
-// the person opens and closes it, and the person's source is read when the page is drawn: a subject reads nothing and sends nothing.
+// the person opens and closes it: a subject reads nothing and sends nothing.
 //
 // Module: MOD-trace-pages
 // Private to the module: flow.mjs uses it.
-
-import { personAccount, personSource, sourceSchemas } from "../source-register/index.mjs";
-import { readDocument } from "../documents/index.mjs";
 
 const DRAFT_ROUTE = "draft";
 
@@ -44,28 +40,6 @@ export function instanceSnapshot(context) {
   return held;
 }
 
-/**
- * personsSource(context, snapshot) -> Promise<string | null> — the identifier of the register entry of the person who prompts, which the
- * product links (THE PERSON WHO PROMPTS IS A SOURCE): the product's links file at `snapshot`, and the instance's register at its default branch,
- * read through the hosts the frame gave the route. Null when there is none, and when a host or the context cannot say.
- */
-export async function personsSource(context, snapshot) {
-  try {
-    const { entry, links } = sourceSchemas();
-    const instance = await instanceSnapshot(context);
-    const entries = instance.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
-    // The files are named to Snapshot.readMany before they are read (as MOD-trace-pages' moduleFilesOf does): one batch where the links file and the
-    // register are one snapshot, the register's own where they are not; a host that cannot batch reads nothing ahead.
-    if (instance === snapshot) await snapshot.readMany?.(["docs/sources.md", ...entries]);
-    else await instance.readMany?.(entries);
-    const linked = readDocument(links, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? "");
-    const register = await Promise.all(entries.map(async (path) => readDocument(entry, path, (await instance.read(path)) ?? "")));
-    return personSource(linked, register, personAccount(instance));
-  } catch {
-    return null;
-  }
-}
-
 const encoded = encodeURIComponent;
 
 const lines = (...parts) => parts.filter((part) => typeof part === "string" && part !== "").join("\n");
@@ -74,7 +48,7 @@ const lines = (...parts) => parts.filter((part) => typeof part === "string" && p
  * subjectOf({ title, params, context, shown }) -> Subject — the subject of the route `trace` shown with these `params` and this `context`;
  * `shown` is what the route has kept while it was drawn: `target` (what it has drawn), `ref` (the version shown, which the version choice may have changed from `params.ref`), `onDefaultBranch`, `asOf` (latestGraph's line where the
  * version shown is the earlier one drawn while the head's graph is stored, else null), `spec` (as parseSpec reads it),
- * `source` (the person's, or null), and `requirements` (names) and `groups` ({ heading, path, names }) in the order they were opened; null where
+ * and `requirements` (names) and `groups` ({ heading, path, names }) in the order they were opened; null where
  * the route was not drawn with this context. `key` tells the view, the version, what is open and the product apart.
  */
 export function subjectOf({ title, params, context, shown }) {
@@ -84,8 +58,7 @@ export function subjectOf({ title, params, context, shown }) {
   const keyOf = (...parts) => ["trace", `key=${encoded(params.key ?? "")}`, ...(version ? [`ref=${encoded(ref)}`] : []), ...parts,
     ...(address ? [`product=${encoded(address)}`] : [])].join("/");
   const pageText = () => lines(title, address, version, shown?.target.textContent);
-  const own = () => (typeof shown?.source === "string" ? { source: shown.source } : {});
-  const frames = () => ({ key: keyOf(), title, paramsFor: () => ({ page: pageText(), ...(params.key === "specification" ? own() : {}) }),
+  const frames = () => ({ key: keyOf(), title, paramsFor: () => ({ page: pageText() }),
     draftRoute: null, withhold: null, refuses: [] });
   if (params.key !== "specification" || !shown?.spec) return frames();
 
@@ -94,7 +67,7 @@ export function subjectOf({ title, params, context, shown }) {
   const changing = (part, names, about) => {
     const key = keyOf(part);
     return { key, title: about,
-      paramsFor: () => ({ page: lines(pageText(), `Open: ${about}`, ...names), requirements: [...names], ...own() }),
+      paramsFor: () => ({ page: lines(pageText(), `Open: ${about}`, ...names), requirements: [...names] }),
       draftRoute: `${DRAFT_ROUTE}/subject=${encoded(key)}`, withhold: null, refuses: [] };
   };
   // The current state: the default branch, or the earlier version drawn while the head's graph is stored, which alone carries latestGraph's line (`asOf`).

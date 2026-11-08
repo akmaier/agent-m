@@ -185,8 +185,8 @@ test("without a token, an opened requirement reads each register entry by its ow
 });
 
 // An opened requirement on the default branch (ITM-867): the product's main holds the released text above (ALPHA RULE naming SRC-acme-person, docs/sources.md, UC-001), and the instance's main the
-// register. Drawing the page on the default branch reads the instance already, for the prompt bar's person, and the frame reads its information, commit and tree of its own for what it shows
-// around the page; the click is counted from the moment the page is drawn.
+// register. Drawing the page reads no register for the person — no subject gives a source; the person's account is the prompt bar's (MOD-prompt-bar) —, so the opening on the default
+// branch reads the instance as the opening at the tag does; the click is counted from the moment the page is drawn.
 const MAIN_LINK = `#trace/key=specification/ref=main/product=${encodeURIComponent(PRODUCT)}`;
 const ON_MAIN = { [REPO]: { main: RELEASED }, [INSTANCE]: { main: REGISTER } };
 
@@ -195,10 +195,12 @@ const ON_MAIN = { [REPO]: { main: RELEASED }, [INSTANCE]: { main: REGISTER } };
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: this browser keeps the product and the instance, each with its own token; the address of the specification at the default branch main is opened
 // input: the requirement ALPHA RULE is opened
-// expect: the opening asks the instance for no request at all — 0 REST calls, 0 GraphQL batches, 0 files from the raw host —, since the instance's commit, its tree and the register's entries were read when the page was drawn; known positive: the Sources read "A person — version 2026-10-11" (the opening of ITM-846-SYSTEM-01 at the tag, which the instance side asks for 3 REST calls and 1 GraphQL batch, is unchanged)
-test("with tokens, an opened requirement on the default branch asks the instance for nothing more", async (t) => {
+// expect: the opening asks the instance as the opening at the tag does (TST-846201): 3 REST calls, the GraphQL batch of the two register entries beside greenToMerge's, and no file from
+//   the raw host — the drawing read none of them, since it looks up no source of the person
+test("with tokens, an opened requirement on the default branch reads the register entries in one GraphQL batch, as at a tag", async (t) => {
   const asked = await clickAlpha(t, { tokens: true, link: MAIN_LINK, repositories: ON_MAIN });
-  assert.deepEqual(counted(asked.instance), { api: 0, graphql: 0, raw: 0 });
+  assert.deepEqual(counted(asked.instance), { api: 3, graphql: 2, raw: 0 });
+  assert.deepEqual(asked.instance.filter((request) => request.kind === "graphql").map((request) => [...request.files].sort()).sort(), [[], REGISTER_FILES]);
 });
 
 // CASE ITM-867-SYSTEM-02
@@ -206,8 +208,9 @@ test("with tokens, an opened requirement on the default branch asks the instance
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same, with no token stored
 // input: the requirement ALPHA RULE is opened
-// expect: the opening asks the instance for no request at all — 0 REST calls and 0 files from the raw host
-test("without a token, an opened requirement on the default branch asks the instance for nothing more", async (t) => {
+// expect: the opening asks the instance as the opening at the tag does (TST-846202): 3 REST calls and the 2 register entries from the raw host, one request each
+test("without a token, an opened requirement on the default branch reads each register entry by its own request, as at a tag", async (t) => {
   const asked = await clickAlpha(t, { tokens: false, link: MAIN_LINK, repositories: ON_MAIN });
-  assert.deepEqual(counted(asked.instance), { api: 0, graphql: 0, raw: 0 });
+  assert.deepEqual(counted(asked.instance), { api: 3, graphql: 0, raw: 2 });
+  assert.deepEqual(asked.instance.filter((request) => request.kind === "raw").map((request) => request.file).sort(), REGISTER_FILES);
 });

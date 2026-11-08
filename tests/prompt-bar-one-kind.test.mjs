@@ -4,8 +4,9 @@
 // with its kind, what it works on and its task, and goes on at once: the person's *Send* was the request, and no further click is asked for. Where the kind's `review` is `person` and `eligible`
 // finds the participant able to do it, it runs in this tab, attended, as a message runs … its parameters are the subject's `paramsFor` less `page`, with what MOD-job-runner's `handOverParams`
 // gives for what it works on, its task as `instruction` … nothing is written, and its result is kept as the `ConversationDraft` of that kind, which *Review the draft* leads to … A finding that
-// keeps it from starting — a change of requirements without the person's own source among them — is named, and nothing runs." And MOD-trace-pages' specification subject: "context only … the
-// page and, on the default branch, the open requirement, or the group with the names it holds, as `requirements`, the person's own source where the product links one".
+// keeps it from starting — a change of requirements without a `source`, where the instance's address names no owner and so no account … — is named, and nothing runs"; "as `source`, the
+// account MOD-source-register's `personAccount` gives for the instance's snapshot it reads". And MOD-trace-pages' specification subject: "context only … the page and, … the open
+// requirement, or the group with the names it holds, as `requirements`".
 // Run: node --test tests/prompt-bar-one-kind.test.mjs
 //
 // Module: MOD-prompt-bar
@@ -77,13 +78,13 @@ const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.s
 const sha = (n) => createHash("sha1").update(`commit ${n}`).digest("hex");
 
 // One repository in memory whose default branch is `trunk`; every commit attempt is kept.
-function fakeRepo(web, files) {
+function fakeRepo(web, files, path = null) {
   const commits = new Map(), attempts = [];
   let made = 0;
   const commitOf = (tree) => { const id = sha(`${web}${++made}`); commits.set(id, tree); return id; };
   const head = commitOf(new Map(Object.entries(files)));
   const [owner, name] = web.replace("https://github.com/", "").split("/");
-  const repository = { server: "github", origin: "https://github.com", path: `${owner}/${name}`, web };
+  const repository = { server: "github", origin: "https://github.com", path: path ?? `${owner}/${name}`, web };
   return {
     attempts,
     host: {
@@ -104,7 +105,8 @@ const INSTANCE_WEB = "https://github.com/alice/agent-m";
 const PRODUCT_WEB = "https://github.com/alice/thesis-tool";
 const LOAN = "A LOAN HAS A DUE DATE", SHELF = "A BOOK IS SHELVED";
 const SPEC = `# Thesis tool — Specification\n\n## 1. Lending\n\n**${LOAN}** *(SRC-alice)*\nEvery loan states the date by which the book is returned.\n*Check:* \`tests/loan.test.mjs\`\n\n**${SHELF}** *(SRC-alice)*\nEvery book stands on a shelf.\n*Check:* \`tests/shelf.test.mjs\`\n`;
-const PERSON = "SRC-alice";
+// The account of the person who prompts: the owner of the instance alice/agent-m on GitHub (MOD-source-register's personAccount).
+const PERSON = "github.com/alice";
 
 // The strategies the kinds name: MOD-spec-changes' own, and a fixture for the book's chapters that gives no part.
 registerStrategies("tests/prompt-bar-one-kind.test.mjs:spec-changes", specStrategies);
@@ -134,8 +136,8 @@ test.afterEach(() => { globalThis.fetch = realFetch; });
 // ---------------------------------------------------------------- the pages
 
 // The subject of the requirements page as the frame gives it: MOD-trace-pages' subject of the specification view with what it kept when drawn, wrapped by MOD-site-frame's subjectOf.
-function requirementsPage({ requirements = [], groups = [], source = PERSON } = {}) {
-  const shown = { target: { textContent: "Specification — 1. Lending: A LOAN HAS A DUE DATE, A BOOK IS SHELVED" }, ref: undefined, onDefaultBranch: true, spec: parseSpec(SPEC), source,
+function requirementsPage({ requirements = [], groups = [] } = {}) {
+  const shown = { target: { textContent: "Specification — 1. Lending: A LOAN HAS A DUE DATE, A BOOK IS SHELVED" }, ref: undefined, onDefaultBranch: true, spec: parseSpec(SPEC),
     requirements, groups };
   const context = { product: { address: PRODUCT_WEB }, instance: { repository: "alice/agent-m" } };
   const route = { name: "trace", title: "Specification", entry: "requirements", subject: (params, given) => traceSubject({ title: "Specification", params, context: given, shown }) };
@@ -148,13 +150,13 @@ const useCasePage = () => ({ key: `use-case/id=UC-007/product=${encodeURICompone
 
 // A page of a product: the instance with its register, which the bar does not read for its offer, a store declaring the endpoint drafter-a — its place, context and
 // model, as the bar offers it (UC-049 1) — and the product's token, and the bar started with the subject given.
-function page(subject) {
+function page(subject, { instancePath = null } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const store = openStore("alice/agent-m");
   writeSetting(store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_FIXTURE0123456789abcdef", name: "alice", expires: "2027-01-01" });
-  const instance = fakeRepo(INSTANCE_WEB, { "docs/participants.md": REGISTER });
+  const instance = fakeRepo(INSTANCE_WEB, { "docs/participants.md": REGISTER }, instancePath);
   const product = fakeRepo(PRODUCT_WEB, { "SPEC.md": SPEC, ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" });
   const target = document.createElement("div");
   const gone = [];
@@ -198,9 +200,9 @@ test("TST-1360001: the bar sends converse on the requirements page with nothing 
 
 // TST-1360002 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-019; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A SPEC EDIT IS SAVED AS A PROPOSAL
-// given: the requirements page with nothing open, the person's own source SRC-alice linked; an endpoint that answers the conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE], task "say when it is overdue" }, and the change of requirements with one candidate that changes it
+// given: the requirements page with nothing open, the instance alice/agent-m, whose owner's account github.com/alice is the person's source; an endpoint that answers the conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE], task "say when it is overdue" }, and the change of requirements with one candidate that changes it
 // input: Send "the loan should say when it is overdue" — one click — and nothing else
-// expect: the conversation's request, then change-requirements' — as many rounds as its correction loop takes —, whose first text holds the task and the requirement —, with no button "Hand over" ever shown; a button "Review the draft"; pressing it goes to "draft/subject=<the subject's key, encoded>" and the tab keeps the draft of kind change-requirements, its parameters naming the requirement and the source SRC-alice, its draft the candidate; nothing was written to any repository
+// expect: the conversation's request, then change-requirements' — as many rounds as its correction loop takes —, whose first text holds the task and the requirement —, with no button "Hand over" ever shown; a button "Review the draft"; pressing it goes to "draft/subject=<the subject's key, encoded>" and the tab keeps the draft of kind change-requirements, its parameters naming the requirement and the source github.com/alice, its draft the candidate; nothing was written to any repository
 test("TST-1360002: a hand-over to change-requirements runs in the tab without a further click, and its draft waits for the person's Save", async () => {
   const candidate = { name: LOAN, rule: "Every loan states its due date and says when it is overdue.", check: "`tests/loan.test.mjs`", constrains: "product", passage: "the instruction", class: "change", of: LOAN };
   endpointAnswers({ answer: "I hand this to the change of requirements.", handOver: { kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue" } }, { candidates: [candidate] });
@@ -225,13 +227,13 @@ test("TST-1360002: a hand-over to change-requirements runs in the tab without a 
 
 // TST-1360003 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the requirements page, and no source of the person that the product links; the same hand-over to change-requirements
+// given: the requirements page, and an instance whose snapshot names no owner — its repository's path is empty —, so that the bar can tell no account; the same hand-over to change-requirements
 // input: Send "the loan should say when it is overdue"
-// expect: one request only, the conversation's — its answer shown —; the page names the finding under THE PERSON WHO PROMPTS IS A SOURCE (UC-019 step 4b); no draft is kept and nothing is written
-test("TST-1360003: a hand-over to change-requirements without the person's own source names the finding and runs nothing", async () => {
+// expect: one request only, the conversation's — its answer shown —; the page names the finding under THE PERSON WHO PROMPTS IS A SOURCE; no draft is kept and nothing is written
+test("TST-1360003: a hand-over to change-requirements without the person's account names the finding and runs nothing", async () => {
   endpointAnswers({ answer: "I hand this on.", handOver: { kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue" } }, { candidates: [] });
-  const subject = requirementsPage({ source: null });
-  const it = page(subject);
+  const subject = requirementsPage();
+  const it = page(subject, { instancePath: "" });
   await drawn(it);
   await sends(it, "the loan should say when it is overdue");
   await until(() => textOf(it.target).includes("THE PERSON WHO PROMPTS IS A SOURCE"), "the finding is named");
@@ -261,16 +263,18 @@ test("TST-1360004: on a page that refuses hand-over and propose-edit, an answer 
 
 // TST-1360005 · level: unit · module: MOD-trace-pages; MOD-prompt-bar
 // guards: UC-049; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the specification view kept while the head's graph is stored: the earlier version shown (onDefaultBranch false, asOf set) with the person's own source SRC-po-fixture, nothing open; known positive: the same at a released version the person chose, whose page read no source, gives none
+// given: the specification view kept while the head's graph is stored: the earlier version shown (onDefaultBranch false, asOf set), nothing open; and the same at a released version the person chose
 // input: MOD-trace-pages' subjectOf, then its paramsFor
-// expect: paramsFor gives source SRC-po-fixture — a message spawned in the read-only minutes after a push hands its change on with the person's source (JOB-20261026-2011-8761 was refused without it) —; at the released version no source
-test("TST-1360005: the person's own source is given while the earlier version is shown after a push", () => {
+// expect: neither gives a `source`: the subject is the page, and the person's account is the source the prompt bar gives every message — in the read-only minutes after a push too —; known
+//   positive: both give their page
+test("TST-1360005: the subject gives no source, at the earlier version shown after a push nor at a released one", () => {
   const spec = { requirements: new Map(), sections: [] };
   const base = { target: { textContent: "" }, spec, requirements: [], groups: [] };
   const earlier = traceSubject({ title: "Current requirements", params: { key: "specification", ref: "main" }, context: { product: null },
-    shown: { ...base, ref: "e".repeat(40), onDefaultBranch: false, asOf: "As of eeeeeee: …", source: "SRC-po-fixture" } });
-  assert.equal(earlier.paramsFor({}).source, "SRC-po-fixture");
+    shown: { ...base, ref: "e".repeat(40), onDefaultBranch: false, asOf: "As of eeeeeee: …" } });
+  assert.equal(typeof earlier.paramsFor({}).page, "string", "known positive: the page is given");
+  assert.equal(earlier.paramsFor({}).source, undefined);
   const released = traceSubject({ title: "Current requirements", params: { key: "specification", ref: "v2026.1.0" }, context: { product: null },
-    shown: { ...base, ref: "v2026.1.0", onDefaultBranch: false, asOf: null, source: null } });
+    shown: { ...base, ref: "v2026.1.0", onDefaultBranch: false, asOf: null } });
   assert.equal(released.paramsFor({}).source, undefined);
 });

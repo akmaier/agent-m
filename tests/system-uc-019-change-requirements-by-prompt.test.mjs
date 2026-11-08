@@ -25,6 +25,9 @@ import assert from "node:assert/strict";
 import { CONFLICT, CURRENT_RULE, INSTRUCTION, LOAN, SHELF, SPEC, all, assertProposal, barOf, candidate, draft, draftAddress, fromTrace, goTo, keptDraft, messageLines, onRequirementPage, one,
   proposalWrites, recordTexts, review, row, run, save, scenario, send, sentText, statusOf, targetsOf } from "./uc-019-prompt-bar-harness.mjs";
 
+// The prompting source as the saved proposal names it: the account of the instance's owner, github.com/akmaier (MOD-prompt-bar's `source`, MOD-source-register's personAccount).
+const ACCOUNT_SOURCE = /github\.com\/akmaier, make visible/;
+
 // TST-418001
 // level: system
 // module: MOD-trace-pages; MOD-site-frame; MOD-prompt-bar
@@ -62,7 +65,7 @@ test("TST-418002: one requirement traverses the bar, the route draft and Save", 
   edit.value = "Every loan displays a readable due date.";
   edit.dispatchEvent(new Event("input"));
   await save(s);
-  assert.match(assertProposal(s), /Every loan displays a readable due date\./);
+  assert.match(assertProposal(s, ACCOUNT_SOURCE), /Every loan displays a readable due date\./);
   assert.ok(messageLines(proposalWrites(s)[0]).every((line) => !line.includes(INSTRUCTION)), "no line of the commit names the instruction");
   assert.equal(recordTexts(s).length, 0, "a message of the bar runs in the tab without a job record");
 });
@@ -85,7 +88,7 @@ test("TST-418003: an ordered group reaches the participant in its order and its 
   await goTo(s, draftAddress(s, keptDraft(s).subject));
   assert.equal(all(s.target, "li", "candidate").length, 2);
   await save(s);
-  const text = assertProposal(s);
+  const text = assertProposal(s, ACCOUNT_SOURCE);
   assert.match(text, /Every book displays its shelf\./);
   assert.ok(text.indexOf(`**${LOAN}**`) < text.indexOf(`**${SHELF}**`));
 });
@@ -94,20 +97,16 @@ test("TST-418003: an ordered group reaches the participant in its order and its 
 // level: system
 // module: MOD-review-pages; MOD-prompt-bar; MOD-source-register
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the author's source exists in the instance but the product does not link it
-// input: the page of the requirement A LOAN HAS A DUE DATE, an instruction in the bar and Send
-// expect: the message is the conversation's, which hands the change on; the change of requirements is never sent and nothing is written: the bar says "Nothing was run." and names the two steps, registering the person (#library) and linking the source to the product (#sources), as the precondition person-source of change-requirements finds them; the bar offers no link, the steps are text
-test("TST-418004: a missing personal source stops the change before it is sent and names the steps", async () => {
+// given: the author's register entry exists in the instance but the product does not link it
+// input: the page of the requirement A LOAN HAS A DUE DATE, an instruction in the bar, Send, Review the draft and Save
+// expect: the change runs all the same — the person's account github.com/akmaier is its source, which needs no register entry and no link (UC-019 step 6) —: the bar names no finding under
+//   THE PERSON WHO PROMPTS IS A SOURCE, and the saved proposal names github.com/akmaier
+test("TST-418004: without a linked register entry of the author the change runs, its source the author's account", async () => {
   const s = await scenario({ linked: false });
-  await onRequirementPage(s);
-  await send(s);
-  const said = statusOf(s).textContent;
-  assert.match(said, /Nothing was run\./);
-  assert.match(said, /THE PERSON WHO PROMPTS IS A SOURCE/);
-  assert.ok(said.includes("#library") && said.includes("#sources"), said);
-  assert.equal(all(statusOf(s), "a").length, 0, "the steps are named in text, not offered as links");
-  assert.equal(s.endpointRequests.length, 0);
-  assert.equal(s.product.writes.length, 0);
+  await run(s);
+  assert.doesNotMatch(statusOf(s).textContent, /THE PERSON WHO PROMPTS IS A SOURCE/);
+  await save(s);
+  assertProposal(s, ACCOUNT_SOURCE);
 });
 
 // TST-418005
@@ -123,7 +122,7 @@ test("TST-418005: an unresolved conflict stays out of the proposal until its aut
   await run(undecided);
   assert.equal(one(row(undecided, CONFLICT), "select", "class").value, "conflict");
   await save(undecided);
-  const proposal = assertProposal(undecided);
+  const proposal = assertProposal(undecided, ACCOUNT_SOURCE);
   assert.match(proposal, /Every loan visibly displays its due date\./);
   assert.ok(!proposal.includes("Every loan may hide its due date."), "the undecided conflict is not in the proposal");
   assert.equal(all(undecided.target, "li", "candidate").length, 2, "the conflict stays in the draft");
@@ -135,7 +134,7 @@ test("TST-418005: an unresolved conflict stays out of the proposal until its aut
   choice.value = "new";
   choice.dispatchEvent(new Event("change"));
   await save(decided);
-  const decidedProposal = assertProposal(decided);
+  const decidedProposal = assertProposal(decided, ACCOUNT_SOURCE);
   assert.match(decidedProposal, new RegExp(`\\*\\*${CONFLICT}\\*\\*`));
   assert.match(decidedProposal, /Every loan may hide its due date\./);
   assert.equal(decided.endpointRequests.length, 1);
@@ -181,12 +180,13 @@ test("TST-418007: Review the draft from the specification browser shows the draf
 // level: system
 // module: MOD-trace-pages; MOD-prompt-bar; MOD-source-register
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the author's source is not linked by the product, and A LOAN HAS A DUE DATE is open in the specification browser
+// given: the author's register entry is not linked by the product, and A LOAN HAS A DUE DATE is open in the specification browser
 // input: an instruction in the bar and Send
-// expect: nothing is sent, as from the page of the requirement (TST-418004)
-test("TST-418008: a missing personal source stops a send from the specification browser", async () => {
+// expect: the message is sent and its hand-over runs, as from the page of the requirement (TST-418004): the endpoint is asked, and the bar names no finding under THE PERSON WHO PROMPTS IS A SOURCE
+test("TST-418008: without a linked register entry of the author a send from the specification browser runs", async () => {
   const s = await scenario({ linked: false });
   await fromTrace(s);
   await send(s);
-  assert.equal(s.endpointRequests.length, 0, statusOf(s).textContent);
+  assert.ok(s.endpointRequests.length > 0, statusOf(s).textContent);
+  assert.doesNotMatch(statusOf(s).textContent, /THE PERSON WHO PROMPTS IS A SOURCE/);
 });

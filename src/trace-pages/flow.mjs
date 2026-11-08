@@ -33,7 +33,7 @@ import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
 import { showTests } from "./tests.mjs";
 import { drawAudit } from "./audit.mjs";
-import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
+import { instanceSnapshot, opening, subjectOf } from "./subject.mjs";
 import { heads } from "./routes.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -97,7 +97,7 @@ async function sourcesOf(shown) {
   let holder = snapshot;
   if (context.instance?.host) holder = await instanceSnapshot(context);
   const entries = holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
-  // The files are named to Snapshot.readMany before they are read, as subject.mjs' personsSource names them: one batch where the links file and the register are
+  // The files are named to Snapshot.readMany before they are read: one batch where the links file and the register are
   // one snapshot, the register's own where they are two (the links file, a batch of one, by its read); a host that cannot batch reads nothing ahead.
   if (holder === snapshot) await snapshot.readMany?.(["docs/sources.md", ...entries]);
   else await holder.readMany?.(entries);
@@ -934,7 +934,7 @@ function modulesGaps(gaps, ref, next, snapshot, product) {
 // version choice and reads no tag: the view's versions are "branch". Where the version holds no module it says so, and where the graph cannot be read it names that.
 // While the head's graph is not stored, `earlier` ({ commit, line }) is the commit whose graph latestGraph gives: the page is drawn at it, with the line.
 async function drawModules(target, context, host, ref, descriptor, earlier = null) {
-  const shown = { target, ref: earlier?.commit ?? ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null,
+  const shown = { target, ref: earlier?.commit ?? ref, onDefaultBranch: false, spec: null, requirements: [], groups: [], context, snapshot: null, facts: null,
     asOf: earlier?.line ?? null, isDefault: earlier ? Promise.resolve(false) : onDefaultBranch(host, ref) };
   shown.earlier = (commit, line) => drawModules(target, context, host, ref, descriptor, { commit, line });
   drawn.set(context, shown);
@@ -965,7 +965,7 @@ export const route = {
 
   async render(target, context, params = {}) {
     target.replaceChildren();
-    drawn.set(context, { target, ref: params.ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [] });
+    drawn.set(context, { target, ref: params.ref, onDefaultBranch: false, spec: null, requirements: [], groups: [] });
     const descriptor = descriptorFor(params.key);
     if (!descriptor || !context.product?.host || !params.ref) {
       target.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
@@ -996,11 +996,11 @@ export const route = {
 
     // Draws the SPEC at `ref` under the choice; of two choices made in a row, the later one is what stays. A ref chosen later that cannot be
     // read is named in place of the tree; the handed one is the caller's. What the page reads that does not wait for another read is asked at once:
-    // the snapshot, the default branch and the tags; then the SPEC, the person's source, the entries waiting, the group file and the stored graph.
+    // the snapshot, the default branch and the tags; then the SPEC, the entries waiting, the group file and the stored graph.
     // While the head's graph is not stored, `earlier` ({ commit, line }) is the commit whose graph latestGraph gives: the version drawn is that commit's, read-only, with the line.
     const draw = async (ref, chosen, earlier = null) => {
       const mine = ++latest;
-      const shown = { target, ref: earlier?.commit ?? ref, chosen: ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null,
+      const shown = { target, ref: earlier?.commit ?? ref, chosen: ref, onDefaultBranch: false, spec: null, requirements: [], groups: [], context, snapshot: null, facts: null,
         tags: [], asOf: earlier?.line ?? null, isDefault: null };
       shown.earlier = (commit, line) => draw(ref, true, { commit, line });
       drawn.set(context, shown);
@@ -1028,13 +1028,10 @@ export const route = {
         shown.spec = parseSpec(text ?? "");
         shown.specText = text ?? "";
         const editable = specification && isDefault;
-        // The person's own source belongs to the person, not to the version shown: it is read wherever the page shows the current state — the default
-        // branch, or the earlier version shown while the head's graph is stored —, so that a message of the prompt bar can hand a change on (UC-049).
-        const current = specification && (isDefault || Boolean(earlier));
         // Whether a source moved on is asked now, beside the entries and the arrangement; its rows are marked once the page is drawn.
         const moved = specification ? sourceChanged(shown, movedRead) : null;
         moved?.catch(() => {});
-        const [source, open, groupText] = await Promise.all([current ? personsSource(context, snapshot) : null, editable ? waitingEntries(snapshot) : [], groupRead]);
+        const [open, groupText] = await Promise.all([editable ? waitingEntries(snapshot) : [], groupRead]);
         if (descriptor.key === "gaps") {
           const place = el("div", "gaps-body", el("p", "traces-reading", "Reading the gaps…"));
           body = el("section", "gaps head", el("h2", null, descriptor.title), place);
@@ -1046,7 +1043,6 @@ export const route = {
           body = el("section", "tests head", el("h2", null, descriptor.title), await testsViews("Browser"), ...arrange, place);
           fill = () => showTests(place, shown, params);
         } else {
-          if (current) shown.source = source;
           waiting = waitingSection(open, reviewProductOf(context));
           const arranged = await arrangement(snapshot, shown.spec, open, groupText);
           const adding = shown.onDefaultBranch ? addLinks(shown.spec, reviewProductOf(context)) : null;

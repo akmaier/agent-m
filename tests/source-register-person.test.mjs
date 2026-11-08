@@ -1,9 +1,7 @@
-// The source of the person who gives an instruction (ITM-383) — MOD-source-register's personSource(links, register, account), as
-// the accepted text of docs/architecture/MOD-source-register.md states it: the identifier of the register entry of kind `person`
-// whose `identifier` is the account `<server>/<account>` and which the product links, or null (THE PERSON WHO PROMPTS IS A
-// SOURCE; UC-019 step 6 and 4b: a requirement drafted from a person's instruction names that person's source, and a person
-// whose source the product does not link is told so) — and, in the register entry's schema, a person's `identifier`, that
-// account. The prompt route that calls it (ITM-398) is not part of this item.
+// A person's register entry (ITM-383) — in MOD-source-register's schema of a register entry, a person's `identifier`, the account `<server>/<account>` on a repository
+// server, as the accepted text of docs/architecture/MOD-source-register.md states it (Data: "`identifier` … a person's account on a repository server,
+// `<server>/<account>`"). The person's source is their account itself (personAccount, tests/source-register-person-account-552.test.mjs), which needs no entry;
+// personSource, which looked the account up among the register's entries, is withdrawn, and its tests with it.
 // Run: node --test tests/source-register-person.test.mjs
 //
 // Module: MOD-source-register
@@ -28,7 +26,7 @@ import { readFileSync } from "node:fs";
 import { documentFindings, readDocument } from "../src/documents/index.mjs";
 import * as sourceRegister from "../src/source-register/index.mjs";
 
-const { personSource, sourceSchemas } = sourceRegister;
+const { sourceSchemas } = sourceRegister;
 
 // ---------------------------------------------------------------- the instance's own files
 
@@ -76,37 +74,6 @@ const links = () => readDocument(sourceSchemas().links, "docs/sources.md", text(
   "| Source | Version | Hash | Part |", "|---|---|---|---|", ...LINKED.map(linkRow)));
 
 // ---------------------------------------------------------------- the source of a person
-
-// TST-472921 · level: unit · module: MOD-source-register
-// guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-019
-// given: this instance's register — the book and SRC-po-a-maier, kind person, identifier github.com/akmaier — and its links file docs/sources.md, which links both
-// input: personSource(links, register, "github.com/akmaier"); and, as the check that the instance's data do not answer for every account, personSource for github.com/nobody
-// expect: "SRC-po-a-maier", the identifier of that entry; null for the other account
-test("personSource — this instance's SRC-po-a-maier is the source of github.com/akmaier", () => {
-  assert.equal(personSource(INSTANCE_LINKS(), INSTANCE_REGISTER(), "github.com/akmaier"), "SRC-po-a-maier");
-
-  assert.equal(personSource(INSTANCE_LINKS(), INSTANCE_REGISTER(), "github.com/nobody"), null);
-});
-
-// TST-472922 · level: unit · module: MOD-source-register
-// guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS A REGISTERED SOURCE; UC-019
-// given: the fixture register and links above: SRC-alice (a person, github.com/alice, linked) listed after SRC-alice-old (the same account, not linked); SRC-bob (github.com/bob, not linked); SRC-acme (an organisation, github.com/acme, linked); SRC-anon (a person with no identifier, linked) and SRC-blank (an empty one, linked); SRC-carol (gitlab.example.org/carol, linked)
-// input: personSource for github.com/alice, for gitlab.example.org/carol, and then for: github.com/nobody, no entry of that account; github.com/bob, an entry the product does not link; github.com/acme, an entry of another kind; accounts that differ from an entry's by the server, by a letter at either end, or by being only the account name; and no account — undefined, null, an empty text —, which no entry without an identifier or with an empty one is the source of
-// expect: "SRC-alice", not SRC-alice-old, and "SRC-carol"; null for every other
-test("personSource — null for an account without an entry, for an entry the product does not link and for an entry of another kind", () => {
-  const found = (account) => personSource(links(), register(), account);
-  assert.equal(found("github.com/alice"), "SRC-alice", "known positive: the linked entry, not the unlinked one before it");
-  assert.equal(found("gitlab.example.org/carol"), "SRC-carol", "known positive: an account on another server");
-
-  assert.equal(found("github.com/nobody"), null, "no entry has that account");
-  assert.equal(found("github.com/bob"), null, "the entry is not linked");
-  assert.equal(found("github.com/acme"), null, "the entry is an organisation");
-  for (const account of ["carol", "github.com/carol", "gitlab.example.org/alice", "github.com/alic", "github.com/alice2",
-    "ithub.com/alice", "xgithub.com/alice"]) {
-    assert.equal(found(account), null, account);
-  }
-  for (const account of [undefined, null, ""]) assert.equal(found(account), null, `no account: ${String(account)}`);
-});
 
 // TST-472923 · level: unit · module: MOD-source-register
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-019
