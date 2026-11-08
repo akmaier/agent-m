@@ -44,27 +44,33 @@ const FLOW_EVIDENCE = {
   "main-2-shows": { uc: "The dashboard shows the current SPEC section beside the proposal", evidence: [[OLD, "TST-371001"], [READS, "TST-479101"]] },
   "main-3-check": { uc: "The reviewer checks that each rule is a single checkable statement", evidence: [[SELF, "TST-371203"]] },
   "main-4-accept": { uc: "The reviewer presses **Accept** — one click.", evidence: [[OLD, "TST-371001"]] },
-  "main-5-shas": { uc: "The dashboard checks, on the commit it writes on, that the proposal and the SPEC section still have", evidence: [[OLD, "TST-371004"], [SELF, "TST-371212"]] },
+  "main-2-places": { uc: "for each requirement the entry adds, it shows the place the entry proposes in the", evidence: [[SELF, "TST-2026110889"]] },
+  "main-5-shas": { uc: "The dashboard checks, on the commit it writes on, that the proposal, its places and the SPEC section", evidence: [[OLD, "TST-371004"], [SELF, "TST-371212"], [SELF, "TST-2026110892"]] },
   "main-6-one-commit": { uc: "In **one** commit under the reviewer's own account, it adds the approval record, replaces the SPEC", evidence: [[OLD, "TST-371001"]] },
+  "main-6-places": { uc: "section with the proposal byte for byte, writes the places of the requirements the entry adds into", evidence: [[SELF, "TST-2026110889"]] },
   "main-7-in-spec": { uc: "The dashboard shows the entry as *in SPEC*.", evidence: [[SELF, "TST-371204"]] },
   "3a-edit": { uc: "**3a. The reviewer wants different wording.**", evidence: [[OLD, "TST-371002"]] },
   "3a-shown-again": { uc: "step 2 with the new text, and **Accept** applies to that text.", evidence: [[SELF, "TST-371205"]] },
+  "3c-place": { uc: "**3c. The reviewer wants another place.**", evidence: [[SELF, "TST-2026110890"]] },
   "3b-impact": { uc: "**3b. The change touches an existing requirement.**", evidence: [[READS, "TST-479101"], [READS, "TST-479104"], [OLD, "TST-371001"]] },
-  "4a-reject": { uc: "**4a. The reviewer rejects.**", evidence: [[SELF, "TST-371206"], [SELF, "TST-371207"]] },
+  "4a-reject": { uc: "**4a. The reviewer rejects.**", evidence: [[SELF, "TST-371206"], [SELF, "TST-371207"], [SELF, "TST-2026110892"]] },
   "4b-no-token": { uc: "**4b. No token is stored.**", evidence: [[OLD, "TST-371005"], [SELF, "TST-371208"], [READS, "TST-479105"]] },
   "4c-workflow": { uc: "**4c. The instance's own SPEC, without a token.**", evidence: [[OLD, "TST-371006"], [SELF, "TST-371209"]] },
-  "4d-several": { uc: "**4d. The reviewer accepts several entries of one queue.**", evidence: [[OLD, "TST-371003"], [SELF, "TST-371210"], [SELF, "TST-371211"]] },
-  "5a-changed": { uc: "**5a. The proposal or the SPEC section changed since the reviewer opened it.**", evidence: [[OLD, "TST-371004"], [SELF, "TST-371212"]] },
+  "4c-places": { uc: "instance's workflow then writes the section and the places as the entry holds them", evidence: [[SELF, "TST-2026110894"]] },
+  "4d-several": { uc: "**4d. The reviewer accepts several entries of one queue.**", evidence: [[OLD, "TST-371003"], [SELF, "TST-371210"], [SELF, "TST-371211"], [SELF, "TST-2026110893"]] },
+  "5a-changed": { uc: "**5a. The proposal, its places or the SPEC section changed since the reviewer opened it.**", evidence: [[OLD, "TST-371004"], [SELF, "TST-371212"], [SELF, "TST-2026110892"]] },
+  "5b-groups": { uc: "**5b. `docs/groups/requirements.md` changed since the reviewer opened the entry.**", evidence: [[SELF, "TST-2026110891"]] },
   "postcondition-history": { uc: "The commit history shows who approved, when, and which text", evidence: [[SELF, "TST-371212"]] },
   "postcondition-text": { uc: "The SPEC contains exactly the approved text.", evidence: [[OLD, "TST-371001"], [SELF, "TST-371212"]] },
+  "postcondition-place": { uc: "Each requirement the entry added has one place in `docs/groups/requirements.md`", evidence: [[SELF, "TST-2026110889"], [SELF, "TST-2026110891"]] },
   "register": { uc: "**Reviewer** — has write access to the product repository.", evidence: [[REGISTER, "TST-844201"]] },
 };
 
 // TST-371201 · level: system · module: system
 // guards: UC-006
 // given: UC-006 as committed text, the executable tests named in FLOW_EVIDENCE
-// input: compare every passage of the main flow, of the alternative flows 3a, 3b, 4a, 4b, 4c, 4d and 5a and of the postcondition with its executable evidence
-// expect: every named passage stands in UC-006; every evidence file exists and declares its TST id with the level system; every alternative flow UC-006 names is among the passages; known positive: UC-006 names exactly these seven alternative flows
+// input: compare every passage of the main flow, of the alternative flows 3a, 3b, 3c, 4a, 4b, 4c, 4d, 5a and 5b and of the postcondition with its executable evidence
+// expect: every named passage stands in UC-006; every evidence file exists and declares its TST id with the level system; every alternative flow UC-006 names is among the passages; known positive: UC-006 names exactly these nine alternative flows
 test("TST-371201: UC-006 every passage of the main flow and of each alternative flow has an executable test", () => {
   const text = read(UC);
   for (const [name, { uc }] of Object.entries(FLOW_EVIDENCE)) assert.ok(text.includes(uc), `${name}: UC-006 says "${uc}"`);
@@ -78,7 +84,7 @@ test("TST-371201: UC-006 every passage of the main flow and of each alternative 
     }
   }
   const flows = [...text.matchAll(/^- \*\*(\d+[a-z])\. /gm)].map((match) => match[1]);
-  assert.deepEqual([...flows].sort(), ["3a", "3b", "4a", "4b", "4c", "4d", "5a"], "known positive: UC-006 names these alternative flows");
+  assert.deepEqual([...flows].sort(), ["3a", "3b", "3c", "4a", "4b", "4c", "4d", "5a", "5b"], "known positive: UC-006 names these alternative flows");
   for (const flow of flows) assert.ok(Object.keys(FLOW_EVIDENCE).some((name) => name.startsWith(flow)), `${flow} is among the passages`);
 });
 
@@ -424,4 +430,162 @@ test("TST-371212: UC-006 5a an entry changed after it was shown is decided anew 
   assert.equal(rows.length, 1);
   assert.match(rows[0], /alice/);
   assert.match(rows[0], /2026-11-01/);
+});
+
+// ---------------------------------------------------------------- the places of the requirements an entry adds (steps 2, 4 to 6; 3c, 4a, 4c, 4d, 5a, 5b)
+
+// Entry 08 adds three requirements to "## 2. Writing"; its places file places the first in the group Writing of docs/groups/requirements.md and the second in a
+// new group Keeping in Writing, and proposes none for the third.
+const ADDS = WRITING + "\n" + ["A NEW WRITE RULE", "A SECOND WRITE RULE", "A THIRD WRITE RULE"]
+  .map((name) => `**${name}** *(Fixture PO)*\nA writer ${name === "A NEW WRITE RULE" ? "names" : name === "A SECOND WRITE RULE" ? "keeps" : "dates"} its file.\n*Check:* no automatic check; at review\n`).join("\n");
+const E08 = entry(8, "## 2. Writing", ADDS);
+const PLACES_PATH = `${QUEUE}/08-entry-8.plaetze.md`;
+const lines = (...each) => `${each.join("\n")}\n`;
+const PLACES_FILE = lines("# Places — Writing: entry 08", "", "| Requirement | Group | New group |", "|---|---|---|", "| A NEW WRITE RULE | Writing | — |", "| A SECOND WRITE RULE | Writing | Keeping |");
+const GROUPS_PATH = "docs/groups/requirements.md";
+const GROUPS_HEAD = ["# Requirements — groups", "", "The hierarchy of the requirements, each member by its name.", ""];
+const GROUPS_FILE = lines(...GROUPS_HEAD, "- Writing", "  - A WRITE RULE");
+const placesWorld = (over = {}) => world({ entries: [E08], files: { [PLACES_PATH]: PLACES_FILE, [GROUPS_PATH]: GROUPS_FILE, ...over.files }, ...over.options });
+const placeItem = (page, name) => find(page, (node) => node.localName === "li" && node.getAttribute("data-requirement") === name)[0];
+const changeOf = (page, name) => find(page, (node) => node.localName === "select" && node.getAttribute("aria-label") === `Change place of ${name}`)[0];
+const newGroupOf = (page, name) => find(page, (node) => node.localName === "input" && node.getAttribute("aria-label") === `New group for ${name}`)[0];
+const choose = (select, value) => { select.value = value; select.dispatchEvent(new Event("change")); };
+
+// TST-2026110889 · level: system · module: system
+// guards: UC-006; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; THE APPROVED TEXT IS TAKEN VERBATIM
+// given: a product on GitHub whose queue holds entry 08, which adds A NEW WRITE RULE, A SECOND WRITE RULE and A THIRD WRITE RULE to "## 2. Writing", with its places file, and whose docs/groups/requirements.md holds the group Writing with A WRITE RULE; the reviewer's token is stored
+// input: open the page of entry 08; press Accept
+// expect: step 2: the section Places names A NEW WRITE RULE in the group "Writing", A SECOND WRITE RULE in a new group "Keeping" in "Writing", and A THIRD WRITE RULE with no place proposed, standing at the top level, not yet placed, with the folded explanation; steps 5 and 6: one commit holding the record — which names the places file's blob —, SPEC.md with the section replaced by the proposal byte for byte and no place in it, docs/groups/requirements.md with A NEW WRITE RULE in Writing and the new group Keeping holding A SECOND WRITE RULE, and the decision; postcondition: A THIRD WRITE RULE stands in no group; step 7: the entry is shown in SPEC
+test("TST-2026110889: UC-006 2 4-6 the page shows the place of each requirement the entry adds, and Accept writes them into the group file in the same commit", async () => {
+  const w = await placesWorld();
+  const page = await w.draw({ id: entryId(E08) });
+  assert.match(placeItem(page, "A NEW WRITE RULE").textContent, /in the group “Writing”/);
+  assert.match(placeItem(page, "A SECOND WRITE RULE").textContent, /in a new group “Keeping” in “Writing”/);
+  assert.match(placeItem(page, "A THIRD WRITE RULE").textContent, /none proposed — it stands at the top level, not yet placed/);
+  assert.equal(byClass(byClass(page, "section", "places")[0], "details", "explain").length, 1, "the explanation is folded beside the places");
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1);
+  const [commit] = w.writes();
+  const record = Object.keys(commit.files).find((path) => path.startsWith("docs/approvals/"));
+  assert.deepEqual(Object.keys(commit.files).sort(), [record, "SPEC.md", GROUPS_PATH, `${QUEUE}/entscheidungen.md`].sort());
+  assert.equal(commit.files["SPEC.md"], HEAD + READING + ADDS);
+  assert.doesNotMatch(commit.files["SPEC.md"], /Keeping/);
+  assert.equal(fieldsOf(commit.files[record]).places, blobOf(PLACES_FILE));
+  assert.equal(commit.files[GROUPS_PATH], lines(...GROUPS_HEAD, "- Writing", "  - A WRITE RULE", "  - A NEW WRITE RULE", "  - Keeping", "    - A SECOND WRITE RULE"));
+  assert.equal(badgeOf(page), "in SPEC");
+});
+
+// TST-2026110890 · level: system · module: system
+// guards: UC-006; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A GROUP HOLDS ONE KIND OF ARTIFACT
+// given: the product of TST-2026110889 with entry 08
+// input: on the page of entry 08, Change place of A THIRD WRITE RULE to the group Writing; Change place of A NEW WRITE RULE to the top level with the new group "Naming"; then press Accept
+// expect: 3c: the choices offer the top level and the groups of docs/groups/requirements.md only — Writing —; the choice writes nothing and changes nothing in the entry, whose places file stays as it was; Accept writes the places as shown: A THIRD WRITE RULE in Writing, A NEW WRITE RULE in the new group Naming at the top level, A SECOND WRITE RULE as the entry proposes it
+test("TST-2026110890: UC-006 3c the reviewer chooses another place, which changes nothing in the entry, and Accept writes the places as shown", async () => {
+  const w = await placesWorld();
+  const page = await w.draw({ id: entryId(E08) });
+  const third = changeOf(page, "A THIRD WRITE RULE");
+  assert.ok(third, "Change place is offered for a requirement the entry adds");
+  assert.deepEqual(find(third, (node) => node.localName === "option").map((option) => option.textContent), ["as proposed", "the top level", "Writing"]);
+  choose(third, JSON.stringify(["Writing"]));
+  choose(changeOf(page, "A NEW WRITE RULE"), JSON.stringify([]));
+  const title = newGroupOf(page, "A NEW WRITE RULE");
+  title.value = "Naming";
+  title.dispatchEvent(new Event("input"));
+  await w.quiet();
+  assert.deepEqual(w.writes(), [], "a choice writes nothing");
+  assert.equal(w.files()[PLACES_PATH], PLACES_FILE, "the entry is unchanged");
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1);
+  assert.equal(w.writes()[0].files[GROUPS_PATH], lines(...GROUPS_HEAD, "- Writing", "  - A WRITE RULE", "  - A THIRD WRITE RULE", "  - Keeping", "    - A SECOND WRITE RULE", "- Naming", "  - A NEW WRITE RULE"));
+  assert.equal(w.files()[PLACES_PATH], PLACES_FILE);
+});
+
+// TST-2026110891 · level: system · module: system
+// guards: UC-006; UC-021; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
+// given: the product of TST-2026110889; after the page of entry 08 is drawn, another commit replaces docs/groups/requirements.md by one whose only group is Reading
+// input: press Accept on the page drawn before
+// expect: 5b: the entry is written all the same — one commit with SPEC.md replaced and the decision —; neither place applies, so docs/groups/requirements.md is not in the commit and stays as the other commit left it; the page names A NEW WRITE RULE and A SECOND WRITE RULE as not placed, each standing at the top level, not yet placed; the entry is in SPEC
+test("TST-2026110891: UC-006 5b a group file changed since the entry was shown: the entry is written, and the places that no longer apply are named", async () => {
+  const w = await placesWorld();
+  const page = await w.draw({ id: entryId(E08) });
+  const changed = lines(...GROUPS_HEAD, "- Reading", "  - A SAMPLE RULE");
+  await w.land({ [GROUPS_PATH]: changed });
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1, "the acceptance");
+  const commit = w.writes().at(-1);
+  assert.equal(commit.files["SPEC.md"], HEAD + READING + ADDS);
+  assert.ok(!(GROUPS_PATH in commit.files), "no place applied: the group file is not in the commit");
+  assert.equal(w.files()[GROUPS_PATH], changed);
+  const said = resultOf(page);
+  for (const name of ["A NEW WRITE RULE", "A SECOND WRITE RULE"]) assert.match(said, new RegExp(`${name} [^.]*is not placed`));
+  assert.match(said, /not yet placed/);
+  assert.equal(badgeOf(page), "in SPEC");
+});
+
+// TST-2026110892 · level: system · module: system
+// guards: UC-006; A STALE APPROVAL IS NOT APPLIED; A REJECTION REMOVES THE PROPOSAL
+// given: the product of TST-2026110889; after the page of entry 08 is drawn, another commit changes its places file so that A NEW WRITE RULE stands in a new group "Naming" at the top level
+// input: press Accept on the page drawn before; then, on a page drawn anew, type a reason and press Reject
+// expect: 5a: the first click writes nothing and says the places changed after they were shown; the page is drawn again with the new place of A NEW WRITE RULE; 4a: Reject makes one commit that deletes the proposal, the rationale and the places file of entry 08 and leaves SPEC.md and docs/groups/requirements.md as they were
+test("TST-2026110892: UC-006 5a 4a a places file changed since it was shown writes nothing, and Reject removes the entry with its places", async () => {
+  const w = await placesWorld();
+  const page = await w.draw({ id: entryId(E08) });
+  const moved = PLACES_FILE.replace("| A NEW WRITE RULE | Writing | — |", "| A NEW WRITE RULE | — | Naming |");
+  await w.land({ [PLACES_PATH]: moved });
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.deepEqual(w.writes(), [], "nothing is written");
+  assert.match(resultOf(page), /places of its requirements changed after they were shown/);
+  assert.match(placeItem(page, "A NEW WRITE RULE").textContent, /in a new group “Naming” at the top level/);
+  const again = await w.draw({ id: entryId(E08) });
+  reasonOf(again).value = "Not needed.";
+  click(buttonOf(again, "Reject"));
+  await w.quiet();
+  const commit = w.writes().at(-1);
+  assert.deepEqual(commit.deleted.sort(), [proposalPath(E08), rationalePath(E08), PLACES_PATH, `${QUEUE}/index.md`, `${QUEUE}/entscheidungen.md`].sort(), "the queue's last entry takes its folder");
+  assert.equal(w.files()["SPEC.md"], SPEC);
+  assert.equal(w.files()[GROUPS_PATH], GROUPS_FILE);
+});
+
+// TST-2026110893 · level: system · module: system
+// guards: UC-006; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// given: the product of TST-2026110889, and its list of SPEC changes
+// input: on the list, tick entry 08 and press Accept ticked
+// expect: 4d: one commit with the record of 08, which names the places file's blob, SPEC.md, the decision and docs/groups/requirements.md with the places as the entry holds them
+test("TST-2026110893: UC-006 4d Accept ticked writes each entry with its record and its places", async () => {
+  const w = await placesWorld();
+  const list = await w.draw({});
+  tick(boxOf(list, entryId(E08)));
+  click(buttonOf(list, "Accept ticked (1)"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1);
+  const [commit] = w.writes();
+  const record = Object.keys(commit.files).find((path) => path.startsWith("docs/approvals/"));
+  assert.equal(fieldsOf(commit.files[record]).places, blobOf(PLACES_FILE));
+  assert.equal(commit.files[GROUPS_PATH], lines(...GROUPS_HEAD, "- Writing", "  - A WRITE RULE", "  - A NEW WRITE RULE", "  - Keeping", "    - A SECOND WRITE RULE"));
+});
+
+// TST-2026110894 · level: system · module: system
+// guards: UC-006; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
+// given: the instance's own SPEC with entry 08 and its places file, no token stored, the record the page offers committed on GitHub's page; the instance workflow's checkout in a temporary git repository
+// input: draw the page of entry 08 and take the record it offers; run the workflow entry onApprovalsCommitted on the files with that record
+// expect: 4c: the record the page offers names the places file's blob; the workflow ends done and writes SPEC.md, the decisions and docs/groups/requirements.md with the places as the entry holds them, and nothing else
+test("TST-2026110894: UC-006 4c without a token the workflow writes the section and the places as the entry holds them", async () => {
+  const w = await world({ mode: "instance", token: false, entries: [E08], files: { [PLACES_PATH]: PLACES_FILE, [GROUPS_PATH]: GROUPS_FILE } });
+  const page = await w.draw({ id: entryId(E08) });
+  const offered = byClass(page, "pre", "record")[0]?.textContent;
+  assert.ok(offered, "the page offers the record");
+  assert.equal(fieldsOf(offered).places, blobOf(PLACES_FILE));
+  const path = byClass(page, "code", "record-path")[0].textContent;
+  const files = { ...queueFiles({ entries: [E08] }), "docs/sources/SRC-fixture-po.md": REGISTER_ENTRY, [PLACES_PATH]: PLACES_FILE, [GROUPS_PATH]: GROUPS_FILE, [path]: offered };
+  await withGitInstance(files, async (fixture) => {
+    const status = await runEntry("onApprovalsCommitted", workflowEnv(fixture), { now: NOW });
+    assert.equal(status.outcome, "done", status.summary);
+    const after = git(fixture.origin, "rev-parse", "main");
+    assert.deepEqual(git(fixture.origin, "diff", "--name-only", fixture.head, after).split("\n").sort(), ["SPEC.md", `${QUEUE}/entscheidungen.md`, GROUPS_PATH].sort());
+    assert.equal(`${git(fixture.origin, "show", `${after}:${GROUPS_PATH}`)}\n`, lines(...GROUPS_HEAD, "- Writing", "  - A WRITE RULE", "  - A NEW WRITE RULE", "  - Keeping", "    - A SECOND WRITE RULE"));
+  });
 });

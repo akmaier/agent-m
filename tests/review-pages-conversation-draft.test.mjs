@@ -343,6 +343,27 @@ test("draft — Save writes the composed section as an entry of a queue, the con
   await assertDropped(shown, REQUIREMENTS_KEY);
 });
 
+// TST-2026110896 · level: component · module: MOD-review-pages
+// guards: UC-019; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: the draft of TST-507029 whose new candidate A MEMBER CAN RENEW ONCE names its place, a new group "Renewals" at the top level, and whose change names one too; known positive: the candidates are shown as in TST-507029
+// input: the route draft; then a click on Save
+// expect: UC-019 step 8: the new candidate stands with the line "Place: in a new group “Renewals” at the top level.", the change with none; step 9: the commit holds, beside the entry, its places file docs/spec-freigaben/lending/01-lending.plaetze.md with the one row "| A MEMBER CAN RENEW ONCE | — | Renewals |"; SPEC.md and docs/groups/requirements.md are not written
+test("TST-2026110896: draft — a new requirement stands with its place, and Save writes the places beside the entry", async () => {
+  const fake = fakeProduct();
+  const placed = { candidates: REQUIREMENTS.candidates.map((each) => (each.name === RENEW ? { ...each, place: { group: [], new: "Renewals" } } : each.name === LOAN ? { ...each, place: { group: ["Elsewhere"] } } : each)) };
+  const { target } = await showRequirements(fake, { result: resultOf(placed, { rounds: [ROUND_ONE] }) });
+  assert.deepEqual(byClass(target, "li", "candidate").map((item) => item.getAttribute("data-name")), [LOAN, RENEW, HIDE], "known positive: the candidates are shown");
+  assert.deepEqual(byClass(candidateOf(target, RENEW), "p", "candidate-place").map((node) => node.textContent), ["Place: in a new group “Renewals” at the top level."]);
+  assert.deepEqual(byClass(candidateOf(target, LOAN), "p", "candidate-place"), []);
+  click(buttonsNamed(target, "Save")[0]);
+  await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
+  const files = written(fake).flatMap((change) => change.files);
+  const places = files.find((file) => file.path === "docs/spec-freigaben/lending/01-lending.plaetze.md");
+  assert.ok(places, files.map((file) => file.path).join(", "));
+  assert.match(places.text, new RegExp(`^\\| ${RENEW} \\| — \\| Renewals \\|$`, "m"));
+  assert.ok(!files.some((file) => file.path === "SPEC.md" || file.path === "docs/groups/requirements.md"));
+});
+
 // TST-507031 · level: component · module: MOD-review-pages
 // guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
 // given: the draft of TST-507029

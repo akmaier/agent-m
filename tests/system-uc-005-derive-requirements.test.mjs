@@ -72,6 +72,12 @@ const FLOW_EVIDENCE = {
   "7b-all-duplicates": { uc: "**7b. Every candidate is a duplicate.**", evidence: [[SELF, "TST-579215"], [BESIDE, "TST-577003"]] },
   "postcondition-queue": { uc: "The product repository holds a queue of proposals; the SPEC itself is unchanged until entries are", evidence: [[SELF, "TST-579216"], [SELF, "TST-579218"]] },
   "postcondition-no-duplicate": { uc: "No proposal duplicates an existing requirement: what the source adds is new, what it alters is a", evidence: [[SELF, "TST-579218"]] },
+  "main-2-hierarchy": { uc: "and the product's requirement hierarchy from `docs/groups/requirements.md`", evidence: [["tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"]] },
+  "main-5-place": { uc: "A **new** candidate also names its **place** in the requirement hierarchy", evidence: [["tests/job-catalogue-kinds-data.test.mjs", "TST-2026110878"]] },
+  "6-3-places": { uc: "every place in a group the hierarchy does not hold and the", evidence: [["tests/job-runner-candidate-places.test.mjs", "TST-2026110875"], ["tests/job-runner-candidate-places.test.mjs", "TST-2026110876"]] },
+  "main-7-place": { uc: "refers to, a new one with its place.", evidence: [["tests/review-pages-derivation-candidates-beside-current.test.mjs", "TST-2026110895"]] },
+  "main-8-places": { uc: "An entry holds the places of its new", evidence: [["tests/spec-changes-queue-entries.test.mjs", "TST-2026110887"], ["tests/spec-changes-places.test.mjs", "TST-2026110879"]] },
+  "postcondition-place": { uc: "Each new requirement's proposed place stands in its entry; the requirement hierarchy is unchanged until the", evidence: [["tests/spec-changes-queue-entries.test.mjs", "TST-2026110887"], ["tests/spec-changes-places.test.mjs", "TST-2026110880"]] },
   "postcondition-names": { uc: "Each proposal names its source passage, the source version and the participant that produced it.", evidence: [[SELF, "TST-579218"], [SELF, "TST-579219"]] },
 };
 

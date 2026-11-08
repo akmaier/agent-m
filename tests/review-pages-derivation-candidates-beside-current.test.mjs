@@ -220,6 +220,19 @@ test("spec-entry/draft - the panel says so when every candidate is a duplicate",
   assert.deepEqual(byClass(panel, "p", "all-duplicates").map((each) => each.textContent), [MESSAGE]);
 });
 
+// TST-2026110895 · level: unit · module: MOD-review-pages
+// guards: UC-005; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// given: the endpoint returns a new candidate A LOAN IS RENEWED placed in a new group "Renewals" at the top level, beside the change of A LOAN HAS A DUE DATE, which names a place too; known positive: the panel shows both candidates
+// input: the route spec-entry/draft, drafter-a, Run
+// expect: UC-005 step 7: the new candidate's item holds the line "Place: in a new group “Renewals” at the top level."; the change's item holds no place, since it keeps the place of the requirement it changes
+test("TST-2026110895: spec-entry/draft - a new candidate is shown with its place", async () => {
+  const RENEWED = "A LOAN IS RENEWED";
+  const panel = await panelOf({ candidates: [candidate(RENEWED, { place: { group: [], new: "Renewals" } }), candidate(CHANGE, { class: "change", of: LOAN, place: { group: ["Elsewhere"] } })] });
+  assert.ok(itemOf(panel, RENEWED) && itemOf(panel, CHANGE), "known positive: both candidates are shown");
+  assert.deepEqual(byClass(itemOf(panel, RENEWED), "p", "candidate-place").map((each) => each.textContent), ["Place: in a new group “Renewals” at the top level."]);
+  assert.deepEqual(byClass(itemOf(panel, CHANGE), "p", "candidate-place"), []);
+});
+
 // TST-577004 · level: unit · module: MOD-review-pages
 // guards: UC-005; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
 // given: the change of A LOAN HAS A DUE DATE in the panel
