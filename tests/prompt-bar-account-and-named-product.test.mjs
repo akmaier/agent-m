@@ -25,6 +25,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+// Agent M's own SPEC.md, which the fixture instance holds: a kind of requirement-form takes the form its draft is checked by from it.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { latestDraft, startPromptBar } from "../src/prompt-bar/index.mjs";
@@ -142,7 +145,7 @@ function page({ alienToken = true, recording = false, instancePath = "alice/agen
   writeSetting(store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_FIXTURE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   if (alienToken) writeSetting(store, "github-token:alice/AlienInvasion", { value: "github_pat_ALIEN0123456789abcdefgh", name: "alice", expires: "2027-01-01" });
-  const instance = fakeRepo(INSTANCE_WEB, { "docs/participants.md": REGISTER, ...(recording ? { "docs/conversation-recording.md": RECORDING_ON } : {}) }, instancePath);
+  const instance = fakeRepo(INSTANCE_WEB, { "SPEC.md": INSTANCE_SPEC, "docs/participants.md": REGISTER, ...(recording ? { "docs/conversation-recording.md": RECORDING_ON } : {}) }, instancePath);
   const product = fakeRepo(PRODUCT_WEB, { "SPEC.md": SPEC });
   const alien = fakeRepo(ALIEN_WEB, { "SPEC.md": "# Alien Invasion — Specification\n" });
   const target = document.createElement("div");

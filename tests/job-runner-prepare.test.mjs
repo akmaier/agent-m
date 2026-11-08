@@ -22,6 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { kindOf } from "../src/job-catalogue/index.mjs";
 import { prepareJob, registerStrategies } from "../src/job-runner/index.mjs";
+import { readFileSync } from "node:fs";
 
 const estimate = (text) => Math.ceil(text.length / 3);
 
@@ -73,10 +74,13 @@ for (const [category, strategies] of Object.entries(STAND_INS)) {
   }
 }
 
-// A job's context, as MOD-job-runner's JobContext states it, with what these tests vary.
+// A job's context, as MOD-job-runner's JobContext states it, with what these tests vary. The instance holds Agent M's own SPEC.md, from which a kind of
+// requirement-form takes the form its draft is checked by (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY), and no AGENTS.md.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
+const INSTANCE = { read: async (path) => (path === "SPEC.md" ? INSTANCE_SPEC : null) };
 const contextOf = (kind, { params = {}, sources = {}, mailbox = null } = {}) => ({
   kind, params, product: { address: "https://github.com/alice/product", snapshot: null, host: null },
-  instance: { snapshot: null, host: null }, connect: async () => { throw new Error("no repository is opened here"); },
+  instance: { snapshot: INSTANCE, host: null }, connect: async () => { throw new Error("no repository is opened here"); },
   participants: [DRAFTER, REVIEWER, SAME_MODEL, SMALL, READER], places: { sources, mailbox }, gates: [], person: "alice",
   now: new Date("2026-10-11T08:00:00Z"), agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: null,
 });
@@ -129,7 +133,7 @@ test("prepareJob — names every destination with the parts it receives and thei
   const partsSize = parts.reduce((sum, part) => sum + part.size, 0);
   assert.deepEqual(job.destinations, [
     { participant: DRAFTER, role: "drafter", place: "this machine", parts: ["SPEC.md", "UC-001", "UC-002", "chapters 9 to 12"],
-      size: estimate(kind.prompt) + partsSize },
+      size: estimate(kind.prompt) + estimate(job.form.text) + partsSize },
     { participant: REVIEWER, role: "reviewer", place: "NHR@FAU, Erlangen", parts: ["SPEC.md", "UC-001", "UC-002", "chapters 9 to 12"],
       size: estimate(reviewing.prompt) + partsSize },
   ]);

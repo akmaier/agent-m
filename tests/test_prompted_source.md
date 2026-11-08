@@ -42,7 +42,7 @@
       {
         "anchor": "## One",
         "until": null,
-        "text": "## One\n\n**A HELD RULE** *(Fixture Source; github.com/alice, prompt)*\nChanged rule.\n*Check:* no automatic check; at review\n\n**A NEW PROMPTED RULE** *(github.com/alice, prompt)*\nNew rule.\n*Check:* no automatic check; at review\n",
+        "text": "## One\n\n**A HELD RULE** *(Fixture Source; github.com/alice)*\nChanged rule.\n*Check:* no automatic check; at review\n\n**A NEW PROMPTED RULE** *(github.com/alice)*\nNew rule.\n*Check:* no automatic check; at review\n",
         "places": []
       }
     ],

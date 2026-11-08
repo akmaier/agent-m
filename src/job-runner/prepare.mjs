@@ -15,8 +15,16 @@
 // Agent M's own AGENTS.md, at the root of the instance repository, is the job's `rules`: the part every input to a model begins with, whatever
 // repository the job works on — its text, or, where the participant works in a checkout of the instance, its path there —, counted in every
 // destination's size. It carries no source: it is the instance's own file.
+//
+// The job's `form` is the part with which the drafter's input continues after `rules`: what the kind's built-in checks of form judge a draft by,
+// chosen from its `checks` and from nothing else (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY) — for `requirement-form`
+// MOD-spec-document's requirementForm of the instance's SPEC.md, for `document-schema` MOD-documents' artifactSchemaTexts —, given as its text on
+// every route, counted in the drafter's size, and carrying no source. A reading this file takes: an instance without a SPEC.md lacks every piece
+// of the form, as one whose SPEC.md lacks a piece does, and the job is blocked the same way.
 
 import { eligible } from "../participant-list/index.mjs";
+import { artifactSchemaTexts } from "../documents/index.mjs";
+import { requirementForm } from "../spec-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { needs } from "./builtins.mjs";
@@ -24,6 +32,9 @@ import { failure, registeredAll, strategyOf } from "./registry.mjs";
 
 const REGISTER = "docs/participants.md";
 const RULES = "AGENTS.md";
+const SPEC = "SPEC.md";
+const FORM_RULE = "A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY";
+const FORM_HEADING = "## The form your draft is checked by";
 // estimate(text) -> number — a text's size in tokens as the runner estimates it: its characters divided by three, rounded up (MOD-job-runner, Data).
 export const estimate = (text) => Math.ceil(text.length / 3);
 
@@ -66,9 +77,32 @@ async function rulesOf(context) {
   return { name: RULES, text: given, size: estimate(given), sources: [], required: true, recipe: null, artifacts: [] };
 }
 
-const destinationOf = (participant, role, kind, parts, rules) => ({
+// formOf(kind, context) -> { form: Part | null, lacking: Finding | null } — the job's form, as the head of this file states it: the heading, then
+// each piece under its own heading, in the order requirement-form, document-schema; null for a kind that names neither. Where the instance's
+// SPEC.md lacks a piece of the form of a requirement (FormMissing), no form and the error that names what it lacks, under FORM_RULE.
+async function formOf(kind, context) {
+  const pieces = [];
+  if (kind.checks.includes("requirement-form")) {
+    const text = await context.instance.snapshot?.read?.(SPEC);
+    try {
+      pieces.push(`### The form of a requirement\n\n${requirementForm(typeof text === "string" ? text : "")}`);
+    } catch (error) {
+      if (error.name !== "FormMissing") throw error;
+      return { form: null, lacking: finding({ artifact: SPEC, line: 1, kind: "error", rule: FORM_RULE,
+        what: `the instance's ${SPEC} lacks ${error.missing.join(", ")}, which the job of ${kind.name} gives its drafter as the form its draft is checked by`,
+        fix: `restore ${error.missing.join(", ")} in the ${SPEC} at the root of the instance repository` }) };
+    }
+  }
+  if (kind.checks.includes("document-schema")) pieces.push(...artifactSchemaTexts().map(({ path, text }) => `### ${path}\n\n${text}`));
+  if (!pieces.length) return { form: null, lacking: null };
+  const text = [FORM_HEADING, ...pieces].join("\n\n");
+  return { form: { name: "The form your draft is checked by", text, size: estimate(text), sources: [], required: true, recipe: null, artifacts: [] }, lacking: null };
+}
+
+// A destination's size: the kind's prompt, the job's rules, for the drafter its form, and every part it receives.
+const destinationOf = (participant, role, kind, parts, rules, form = null) => ({
   participant, role, place: participant.place ?? "", parts: parts.map((part) => part.name),
-  size: estimate(kind.prompt) + (rules?.size ?? 0) + parts.reduce((sum, part) => sum + part.size, 0),
+  size: estimate(kind.prompt) + (rules?.size ?? 0) + (form?.size ?? 0) + parts.reduce((sum, part) => sum + part.size, 0),
 });
 
 // The findings of one need judged by eligible, each reason of the participant left out under `rule`.
@@ -109,7 +143,8 @@ const notDrafterAlone = ({ drafter, reviewers }, kindName) => finding({ artifact
  * and the mailbox allow, the context against the size, and for a reviewing participant that it differs from the drafter
  * and from each other — except with selfReview, for a change described in the prompt bar: the reviewers are then the drafter
  * alone, not asked to differ, and any other reviewers are refused under NO REVIEWER IS THE DRAFTER —, and asks each check the kind names what it needs of the context. Nothing is cut: what does not fit
- * is named in notFitting. Agent M's AGENTS.md, read from the instance, is the job's `rules` and is counted in every destination's size. The limit is fixed here: the caller's, else the kind's. Throws CheckoutAtOtherCommit { checkout, expected, found } for a checkout of the instance at another commit than the one
+ * is named in notFitting. Agent M's AGENTS.md, read from the instance, is the job's `rules` and is counted in every destination's size; the job's `form`,
+ * chosen from the kind's checks, is counted in the drafter's, and an instance's SPEC.md that lacks a piece of it blocks the job (FormMissing). The limit is fixed here: the caller's, else the kind's. Throws CheckoutAtOtherCommit { checkout, expected, found } for a checkout of the instance at another commit than the one
  * `context.agentM.commit` names, before anything runs; UnknownKind and InvalidKind as kindOf does, UnknownStrategy { strategy } for a strategy no module registered, and whatever a recipe throws by name.
  */
 export async function prepareJob(name, context, choice) {
@@ -132,6 +167,8 @@ export async function prepareJob(name, context, choice) {
     if (found) blocking.push(found);
   }
   const rules = await rulesOf(context);
+  const { form, lacking: formLacking } = await formOf(kind, context);
+  if (formLacking) blocking.push(formLacking);
   const leftOut = [];
   const parts = await partsOf(kind, context, leftOut);
   const reviewerParts = reviewing && choice.reviewers.length ? await partsOf(reviewing, context, leftOut) : [];
@@ -139,7 +176,7 @@ export async function prepareJob(name, context, choice) {
 
   const destinations = [];
   if (choice.drafter) {
-    const destination = destinationOf(choice.drafter, "drafter", kind, parts, rules);
+    const destination = destinationOf(choice.drafter, "drafter", kind, parts, rules, form);
     destinations.push(destination);
     blocking.push(...blockingOf(destination, kind, parts, context, [], kind.name));
   }
@@ -159,7 +196,7 @@ export async function prepareJob(name, context, choice) {
     .filter((destination) => eligible([destination.participant], { capabilities: [], size: destination.size }).leftOut.length)
     .map(({ participant, size }) => ({ participant, size, context: participant.context }));
 
-  return { kind, params: context.params, drafter: choice.drafter, reviewers: choice.reviewers, rules,
+  return { kind, params: context.params, drafter: choice.drafter, reviewers: choice.reviewers, rules, form,
     parts: [...parts, ...reviewerParts.filter((part) => !shared(part, parts))], destinations,
     fits: notFitting.length === 0, notFitting, leftOut, blocking, limit: choice.limit ?? kind.limit };
 }

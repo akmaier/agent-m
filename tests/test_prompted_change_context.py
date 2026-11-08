@@ -27,7 +27,10 @@ import json
 import re
 import unittest
 
-from jsrun import js
+from jsrun import js, ROOT
+
+# The path of Agent M's own SPEC.md, which the fixture instance holds (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY).
+AGENT_M_SPEC = str(ROOT / "SPEC.md")
 
 RULE = "A LOAN HAS A DUE DATE"
 OTHER = "A BOOK IS SHELVED"
@@ -141,10 +144,15 @@ function fixtureHost(files) {
   };
 }
 
+// The instance: the fixture's files, with Agent M's own SPEC.md, from which a kind of requirement-form takes the form its draft is checked by
+// (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY).
+const AGENT_M_SPEC = process.getBuiltinModule("node:fs").readFileSync(given.agentMSpec, "utf8");
+const withAgentMSpec = (snapshot) => ({ ...snapshot, read: async (path) => (path === "SPEC.md" ? AGENT_M_SPEC : snapshot.read(path)) });
+
 async function contextOf(fixture, kindName, params) {
   const snapshot = fixture.snapshot();
   return { kind: await jobCatalogue.kindOf(kindName), params,
-    product: { address: ON.web, snapshot, host: fixture.host }, instance: { snapshot, host: null, checkout: null },
+    product: { address: ON.web, snapshot, host: fixture.host }, instance: { snapshot: withAgentMSpec(snapshot), host: null, checkout: null },
     connect: async () => fixture.host, participants: [CI, SMALL], places: { sources: {}, mailbox: null }, gates: [], person: "alice",
     now: new Date("2026-10-16T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc123def456" },
     jobId: "JOB-20261016-0900-a1b2" };
@@ -194,7 +202,7 @@ async function job(kindName, params, drafter, files, draft, run) {
 
 def ask(call, files=None, **given):
     """Run `job(...)` in node over a fixture product; `call` is its arguments after the files, as JavaScript."""
-    args = json.dumps({"files": PRODUCT if files is None else files, **given})
+    args = json.dumps({"files": PRODUCT if files is None else files, "agentMSpec": AGENT_M_SPEC, **given})
     return js(f"const given = {args};\n{WORLD}\nreturn await job({call});")
 
 

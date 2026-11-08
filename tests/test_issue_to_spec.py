@@ -126,7 +126,7 @@ function gitlabServer(files, held) {
 
 const issues = input.issues.map(({ number, labels }) => ({ number, title: `Export loses pages ${number}`, body: ISSUE_BODY, state: "open", labels, comments: [] }));
 const w = worldOf.world({ mails: [], issues, answer: () => ({ draft: { candidates: input.candidates }, answers: [] }),
-  product: { "docs/sources.md": LINKS }, instance: { ...BOOK, [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE } });
+  product: { "docs/sources.md": LINKS }, instance: { ...BOOK, "SPEC.md": onDisk("SPEC.md"), [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE } });
 w.context.product = { address: harness.PRODUCT_URL, kind: "github", host: hosts.connect(hosts.parseAddress(harness.PRODUCT_URL), { token: PRODUCT_TOKEN }), tokenStored: true };
 const gitlab = input.server === "gitlab" ? gitlabServer({ ...harness.smallProduct(), "docs/sources.md": LINKS }, issues.find((each) => each.number === input.issue)) : null;
 if (gitlab) w.context.product = { address: gitlab.web, kind: "gitlab", host: hosts.connect(hosts.parseAddress(gitlab.web), { token: GITLAB_TOKEN }), tokenStored: true };

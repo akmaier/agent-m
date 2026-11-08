@@ -13,8 +13,9 @@
 //     candidate's rule and check, each on one line; a `duplicate` adds the job's sources to the head line and touches no other byte. A
 //     `change` or a `duplicate` of a requirement the SPEC does not hold is RequirementNotFound { requirements }, naming every such name
 //     in the order of the classes. The sources of the rule a candidate points to are those the requirement states: they are kept.
-//   - The job's source is one item for each passage of the class, `<source>, <passage>`, or the source alone for none; an item the
-//     requirement names already is not added again.
+//   - The job's source is one item for each passage of the class, `<source>, <passage>`, or the source alone for none; a person's account,
+//     as MOD-source-register's namesAccount tells it, stands alone whatever passage the class names. An item the requirement names already
+//     is not added again.
 //   - A candidate without a class, and a `conflict`, are not composed: a conflict is composed as the person resolved it, that is, as the
 //     class they gave it. A section whose text the draft leaves as it is is not returned; the sections come in the order of the SPEC.
 //   - Two candidates change one requirement when two of the classes composed are `change` with one `of`. That is TwoChanges, thrown after
@@ -25,7 +26,7 @@
 
 import { classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
-import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
+import { linkedVersion, namesAccount, sourceSchemas } from "../source-register/index.mjs";
 import { fallbackEditLinks } from "../artifact-edits/fallback.mjs";
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
@@ -109,7 +110,8 @@ export function entrySections(spec, draft, classes, source) {
     if (heading === undefined || heading === null) throw new RangeError("the SPEC has no section to add a requirement to");
     const section = current(heading);
     const eol = /\r\n/.test(section.split(/(?<=\n)/)[0] ?? "") ? "\r\n" : "\n";
-    const items = (each.from.length > 0 ? each.from : [null]).map((passage) => (passage === null ? source : `${source}, ${passage}`));
+    // A passage is only a locator into a registered source; a person's account stands alone, whatever passage the draft holds.
+    const items = (each.from.length > 0 && !namesAccount(source) ? each.from : [null]).map((passage) => (passage === null ? source : `${source}, ${passage}`));
     if (each.class === "new") {
       const block = `**${folded(candidate.name)}** ${SOURCE_START}${[...new Set(items)].join("; ")}${SOURCE_END}${eol}${folded(candidate.rule)}${eol}*Check:* ${folded(candidate.check)}`;
       const next = section.endsWith(`${eol}${eol}`) ? `${section}${block}${eol}${eol}`
@@ -238,7 +240,8 @@ function rationaleOf(section, changes, graph, job) {
     const names = requirementImpact(graph, change.name).map((entry) => `${entry.id} (${entry.via})`);
     return `- ${change.name}: ${names.length ? `named by ${names.join(", ")}` : "nothing names it"}.`;
   });
-  const passages = [...new Set(changes.flatMap((change) => change.each.from))];
+  // The origin names no passage of a person's instruction: what an account draws on is a message of the conversation.
+  const passages = namesAccount(job.source) ? [] : [...new Set(changes.flatMap((change) => change.each.from))];
   const candidates = changes.map((change) => `${change.name}: ${change.candidate.rule}`);
   return [`# ${headingText(section.anchor)}: ${changes.map(describeChange).join("; ")}`, "",
     `**The change.** ${changes.map(describeChange).join("; ")}. The rest of the section is carried over byte for byte.`, "",

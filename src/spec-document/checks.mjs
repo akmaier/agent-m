@@ -1,5 +1,6 @@
 // The findings of a requirement (docs/architecture/MOD-spec-document.md, Interfaces: requirementFindings). ITM-301 builds it,
-// ITM-379 adds the finding for a name that is no requirement's name; index.mjs offers it as requirementFindings.
+// ITM-379 adds the finding for a name that is no requirement's name; index.mjs offers it as requirementFindings. With it, requirementForm (Interfaces:
+// requirementForm): the form those findings judge a requirement by, cut from Agent M's SPEC.md, the names they cite kept once here.
 //
 // Module: MOD-spec-document
 //
@@ -25,6 +26,7 @@
 
 import { kindOfIdentifier } from "../identifiers/index.mjs";
 import { finding, historyMarks } from "../text-tools/index.mjs";
+import { parseSpec } from "./parse.mjs";
 
 const FOUR_FIELDS = "A REQUIREMENT HAS FOUR FIELDS";
 const NAMES_ITS_CHECK = "A REQUIREMENT NAMES ITS CHECK";
@@ -82,7 +84,7 @@ export function requirementFindings(spec) {
 
     if (kindOfIdentifier(r.name) !== "requirement") {
       add("error", HAS_IDENTIFIER, "the name is not a requirement's name by the scheme of identifiers",
-        "write the name in capitals, with digits, spaces, apostrophes, commas and hyphens only");
+        "write the name in capitals, as EVERY ARTIFACT HAS AN IDENTIFIER gives it: words of capital letters, digits, apostrophes, commas, hyphens and dots, separated by single spaces");
     }
 
     for (const [part, text] of [["source", r.source], ["rule", r.rule], ["check", r.check]]) {
@@ -93,4 +95,48 @@ export function requirementFindings(spec) {
     }
   }
   return found;
+}
+
+// ---------------------------------------------------------------- the form a requirement is judged by
+
+// The requirements requirementFindings cites, in the order its findings list them: the names above, kept once here.
+const CITED = [FOUR_FIELDS, NAMES_ITS_CHECK, ONE_STATEMENT, NAME_SURVIVES, HAS_IDENTIFIER, NO_HISTORY];
+const FORM_PARAGRAPH = "**Form of a requirement:**";
+const PARAGRAPH_NAMED = "the paragraph *Form of a requirement*";
+
+// requirementForm(specText: string) -> string — what requirementFindings judges a requirement by, cut from the text of Agent M's
+// own SPEC.md, for a drafter to read (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY): the paragraph that begins
+// `**Form of a requirement:**`, from its first line to the line before the next empty line, then the block of each cited
+// requirement, from its head line to the end of its check — the line before an empty line, a heading or another requirement's
+// head line, as parseSpec ends a requirement —, in the order above, each byte for byte without its last line end, separated by one
+// empty line. Throws FormMissing { missing }, naming the paragraph and each requirement the text does not hold, in that order, so
+// that no drafter receives part of the form. Pure.
+export function requirementForm(specText) {
+  const text = String(specText ?? "");
+  const starts = [0];
+  for (let at = text.indexOf("\n"); at >= 0; at = text.indexOf("\n", at + 1)) starts.push(at + 1);
+  const lineAt = (i) => text.slice(starts[i], i + 1 < starts.length ? starts[i + 1] - 1 : text.length).replace(/\r$/, "");
+  const parsed = parseSpec(text);
+  const heads = new Set([...parsed.requirements.values()].map((r) => r.line - 1));
+  // The block from line `first` to the line before the first that ends it, without its last line end.
+  const blockFrom = (first, ends) => {
+    let last = first;
+    while (last + 1 < starts.length && !ends(last + 1)) last++;
+    return text.slice(starts[first], starts[last] + lineAt(last).length);
+  };
+  const blank = (i) => lineAt(i).trim() === "";
+
+  const pieces = [], missing = [];
+  const paragraph = [...starts.keys()].find((i) => lineAt(i).startsWith(FORM_PARAGRAPH));
+  if (paragraph === undefined) missing.push(PARAGRAPH_NAMED);
+  else pieces.push(blockFrom(paragraph, blank));
+  for (const name of CITED) {
+    const held = parsed.requirements.get(name);
+    if (!held) missing.push(name);
+    else pieces.push(blockFrom(held.line - 1, (i) => blank(i) || /^#{1,6}(?:[ \t]|$)/.test(lineAt(i)) || heads.has(i)));
+  }
+  if (missing.length) {
+    throw Object.assign(new Error(`the SPEC.md holds not all of the form of a requirement: it lacks ${missing.join(", ")}`), { name: "FormMissing", missing });
+  }
+  return pieces.join("\n\n");
 }

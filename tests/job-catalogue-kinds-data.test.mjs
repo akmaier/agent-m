@@ -78,14 +78,18 @@ test("derive-requirements — a candidate may name the source of the rule it poi
 
 // TST-472278 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE PERSON WHO PROMPTS IS A SOURCE; UC-019
-// given: the table's cell "Draft it expects" of `change-requirements`, "the same"; and the sentence under the table, "A job of `change-requirements` takes as its parameter `source` the account `<server>/<account>` of the person who starts it"
+// given: the table's cell "Draft it expects" of `change-requirements`, "the same, without a source passage"; and the sentence under the table, "A job of `change-requirements` takes as its parameter `source` the account `<server>/<account>` of the person who starts it"
 // input: the draft's schema of both kinds; the purpose of both kinds
-// expect: the two schemas equal; the purpose of `change-requirements` names the parameter `source` as the account `<server>/<account>` of the person who starts the job; the purpose of `derive-requirements` names no such parameter
-test("change-requirements — the same candidates as a derivation, and the parameter source is the account of the person who starts it", async () => {
-  assert.equal(expects("change-requirements"), "the same");
+// expect: the two schemas equal but for the candidate's `passage`, which change-requirements neither holds nor requires; the purpose of `change-requirements` names the parameter `source` as the account `<server>/<account>` of the person who starts the job; the purpose of `derive-requirements` names no such parameter
+test("change-requirements — the same candidates as a derivation, without a source passage, and the parameter source is the account of the person who starts it", async () => {
+  assert.equal(expects("change-requirements"), "the same, without a source passage");
   assert.match(CATALOGUE, /A job of `change-requirements` takes as its parameter `source` the account `<server>\/<account>` of the person who\s+starts/);
   const [derive, change] = [await kindOf("derive-requirements"), await kindOf("change-requirements")];
-  assert.deepEqual(change.answer, derive.answer);
+  const withoutPassage = structuredClone(derive.answer);
+  delete withoutPassage.properties.candidates.items.properties.passage;
+  withoutPassage.properties.candidates.items.required = withoutPassage.properties.candidates.items.required.filter((key) => key !== "passage");
+  assert.ok("passage" in derive.answer.properties.candidates.items.properties, "known positive: the derivation's candidate holds a passage");
+  assert.deepEqual(change.answer, withoutPassage);
   assert.match(change.purpose, /parameter `source`/);
   assert.match(change.purpose, /the account `<server>\/<account>` of the\s+person who starts/);
   assert.doesNotMatch(derive.purpose, /parameter `source`/);

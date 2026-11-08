@@ -85,6 +85,8 @@ const BOOK_ENTRY = text("---", "id: SRC-vibe-coding", "title: Vibe Coding", "kin
   "", "### Files of 2026-10-05", "", "| File | SHA-256 |", "|---|---|", ...CHAPTERS.map(([name, body]) => `| \`${name}\` | \`${sha256(body)}\` |`));
 const LINKS = text("# The sources this product meets", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| ${PO} | 2026-10-05 | ${"1".repeat(64)} | |`);
 
+// Agent M's own SPEC.md, which the fixture instance holds: a kind of requirement-form takes the form its draft is checked by from it.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
 const PARTICIPANTS = text("# Participants of this instance", "",
   "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
   "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
@@ -136,7 +138,7 @@ async function withWorkspace(params, run, { extraBin = null, files = {} } = {}) 
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-converse-")));
   const workspace = join(root, "ws");
   try {
-    const instance = repository(root, "instance", { "README.md": "# Instance\n", "AGENTS.md": RULES_TEXT, "docs/participants.md": PARTICIPANTS, [`docs/sources/${PO}.md`]: PO_ENTRY,
+    const instance = repository(root, "instance", { "README.md": "# Instance\n", "SPEC.md": INSTANCE_SPEC, "AGENTS.md": RULES_TEXT, "docs/participants.md": PARTICIPANTS, [`docs/sources/${PO}.md`]: PO_ENTRY,
       "docs/sources/SRC-vibe-coding.md": BOOK_ENTRY, ...Object.fromEntries(CHAPTERS.map(([name, body]) => [`docs/sources/SRC-vibe-coding/2026-10-05/${name}`, body])) },
     join(workspace, "instance"));
     const agentM = { version: "2026.10.0", commit: git(join(workspace, "instance"), "rev-parse", "HEAD") };

@@ -15,6 +15,7 @@
 import "./review-pages-harness.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { requirementForm } from "../src/spec-document/index.mjs";
 import { byClass, until } from "./review-pages-draft-world.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
@@ -137,12 +138,15 @@ export function fakeProduct(files = PRODUCT_FILES) {
 }
 
 export const INSTANCE_COMMIT = "abc123def4567890abc123def4567890abc123de";
-export const INSTANCE_SPEC = text("# Agent M - Specification", "", "## Process", "", "**EVERY GATE NAMES WHO DECIDES IT** *(PO A. Maier)*", "Every gate names who decides it.", "*Check:* `tests/gate.test.mjs`");
-/** The instance: the register of participants and of sources, read-only; with `spec`, its own SPEC and a host that takes commits — the repository a candidate that constrains the process is written to. */
+// The instance's own SPEC holds the form of a requirement as Agent M's SPEC.md states it — the paragraph and the requirements its check cites —, which a
+// requirements job gives its drafter (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY), in a section before the one a process candidate goes to.
+export const INSTANCE_SPEC = text("# Agent M - Specification", "", "## Form", "", requirementForm(onDisk("SPEC.md")), "", "## Process", "",
+  "**EVERY GATE NAMES WHO DECIDES IT** *(PO A. Maier)*", "Every gate names who decides it.", "*Check:* `tests/gate.test.mjs`");
+/** The instance: the register of participants and of sources, read-only; with `spec`, its own SPEC and a host that takes commits — the repository a candidate that constrains the process is written to; without it, Agent M's SPEC.md from the disk, read-only. */
 export function fakeInstance({ register = registerOf(DRAFTER), entries = sourceFiles(), spec = null } = {}) {
   const calls = [];
   const snapshot = { repository: INSTANCE_ON_GITHUB, ref: "main", commit: INSTANCE_COMMIT, paths: [...Object.keys(entries), ...(spec ? ["SPEC.md"] : [])].sort(),
-    read: async (path) => (path === "docs/participants.md" ? register : path === "SPEC.md" ? spec : path in entries ? entries[path] : onDisk(path)), blob: () => null };
+    read: async (path) => (path === "docs/participants.md" ? register : path === "SPEC.md" ? spec ?? onDisk(path) : path in entries ? entries[path] : onDisk(path)), blob: () => null };
   return { writes: () => calls.map((change) => change), host: {
     async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: Boolean(spec), archived: false, description: "" }; },
     async readSnapshot() { return snapshot; },

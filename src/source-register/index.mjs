@@ -371,6 +371,14 @@ const TERMS_ENTER_AS_SOURCE = "A RESOURCE'S TERMS ENTER AS A SOURCE";
 // writes it. An account is a source of every product without a register entry or a link.
 const ACCOUNT_ITEM = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?::[0-9]+)?\/[A-Za-z0-9._-]+(?:$|, )/;
 
+/**
+ * namesAccount(item: string) -> boolean — whether an item of a requirement's source names an account `<server>/<account>`, alone or
+ * followed by `, ` and the part it draws on: the one reading (ACCOUNT_ITEM) sourceFindings applies too. Pure.
+ * @param {string} item
+ * @returns {boolean}
+ */
+export const namesAccount = (item) => ACCOUNT_ITEM.test(String(item ?? ""));
+
 // A resource entry's identifier at the start of a source item, followed by the end of the item or by `, ` and the part, as an
 // item names a register entry (namesSource): a resource entry is never a source, whatever the other items name.
 const RESOURCE_ITEM = /^(RES-[a-z0-9]+(?:-[a-z0-9]+)*)(?:$|, )/;
@@ -390,7 +398,7 @@ export function sourceFindings(requirements, links, register) {
   return requirements.flatMap((requirement) => {
     const items = requirement.sources ?? [];
     const linked = items.some((item) => {
-      if (ACCOUNT_ITEM.test(item)) return true;
+      if (namesAccount(item)) return true;
       const entry = entryNamed(register, item);
       return entry !== null && linkOf(links, entry) !== undefined;
     });

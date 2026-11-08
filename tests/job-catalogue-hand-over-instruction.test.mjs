@@ -14,6 +14,11 @@
 // it is sent is the one the runner composed. Nothing reaches the network.
 
 import test from "node:test";
+import { readFileSync } from "node:fs";
+// The instance holds Agent M's own SPEC.md, from which a kind of requirement-form takes the form its draft is checked by (A DRAFTING JOB RECEIVES THE FORM
+// ITS DRAFT IS CHECKED BY), and no AGENTS.md.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
+const INSTANCE_WITH_SPEC = { read: async (path) => (path === "SPEC.md" ? INSTANCE_SPEC : null) };
 import assert from "node:assert/strict";
 import { kindOf } from "../src/job-catalogue/index.mjs";
 import { prepareJob, registerStrategies, runJob } from "../src/job-runner/index.mjs";
@@ -39,7 +44,7 @@ for (const [category, name] of [["preconditions", "rests-on-accepted"], ["precon
 const DRAFTER = { name: "drafter-a", type: "CLI agent", model: "example-model", context: 200000, price: null,
   capabilities: ["draft text", "write to the repository", "run code and tests", "read the repository"], place: "this machine", route: "bridge lab-pc agent claude" };
 const contextOf = (params) => ({ kind: null, params, product: { address: "https://github.com/alice/product", snapshot: null, host: null },
-  instance: { snapshot: null, host: null }, connect: async () => null, participants: [DRAFTER], places: { sources: {}, mailbox: null }, gates: [],
+  instance: { snapshot: INSTANCE_WITH_SPEC, host: null }, connect: async () => null, participants: [DRAFTER], places: { sources: {}, mailbox: null }, gates: [],
   person: "alice", now: new Date("2026-10-27T15:29:00Z"), agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: null });
 
 // The prompt the runner sends the drafter of a job of `kind` with the parameters `params`: the first exchange's input, kept by a driver that then fails.

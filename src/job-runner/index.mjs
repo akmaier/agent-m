@@ -70,7 +70,8 @@ export { taskRefusal } from "./builtins.mjs";
  */
 
 /**
- * What a driver sends: the kind's prompt with each recipe's parts in its named place, the parts, the output schema the
+ * What a driver sends: Agent M's AGENTS.md, then, for the drafter, the job's form where it has one, then the kind's prompt
+ * with each recipe's parts in its named place, the parts, the output schema the
  * answer must follow, the findings of the last round with the draft they concern, and for an agent that works in a
  * folder, that folder.
  * @typedef {{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
@@ -117,8 +118,10 @@ export { taskRefusal } from "./builtins.mjs";
  * What a run panel shows before the person's click: blocking holds the findings of preconditions, of eligibility and of a
  * check that needs what the context lacks — test-declarations without the product's host — that keep the job from starting.
  * rules is Agent M's AGENTS.md, from the instance — its text, or its path in a checkout of the instance —, with which every input to a model
- * begins; null where the instance has none.
- * @typedef {{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers: Participant[], rules: Part | null,
+ * begins; null where the instance has none. form is the form the draft is checked by, chosen from the kind's checks, with which the
+ * drafter's input continues after rules; null for a kind without a check of form. blocking also holds the error under A DRAFTING JOB
+ * RECEIVES THE FORM ITS DRAFT IS CHECKED BY where the instance's SPEC.md lacks a piece of the form.
+ * @typedef {{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers: Participant[], rules: Part | null, form: Part | null,
  *   parts: Part[], destinations: Destination[], fits: boolean, notFitting: Array<{ participant: Participant, size: number,
  *   context: number | null }>, leftOut: Array<{ part: string, reason: string }>, blocking: Finding[], limit: number }} Prepared
  */

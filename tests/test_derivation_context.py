@@ -14,6 +14,9 @@ from pathlib import Path
 from jsrun import js
 
 DATA = Path(__file__).with_suffix(".md")
+# Agent M's own SPEC.md, which the fixture instance holds (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY).
+AGENT_M_SPEC_JS = 'const AGENT_M_SPEC = process.getBuiltinModule("node:fs").readFileSync(%s, "utf8");\n' % json.dumps(
+    str(Path(__file__).resolve().parent.parent / "SPEC.md"))
 
 JS_CHECK = """
 const { createHash } = process.getBuiltinModule("node:crypto");
@@ -84,11 +87,15 @@ function snapshotOf(input) {
     read: async (path) => (Object.hasOwn(files, path) ? files[path] : null), commit: "0".repeat(40) };
 }
 
+// The instance: the fixture's files, with Agent M's own SPEC.md, from which a kind of requirement-form takes the form its draft is checked by
+// (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY).
+const withAgentMSpec = (snapshot) => ({ ...snapshot, read: async (path) => (path === "SPEC.md" ? AGENT_M_SPEC : snapshot.read(path)) });
+
 async function contextOf(kindName, input) {
   const snapshot = snapshotOf(input);
   return { kind: await jobCatalogue.kindOf(kindName), params: input.params ?? {},
     product: { address: "https://github.com/alice/product", snapshot, host: null },
-    instance: { snapshot, host: null, checkout: null }, connect: async () => null,
+    instance: { snapshot: withAgentMSpec(snapshot), host: null, checkout: null }, connect: async () => null,
     participants: [DRAFTER, REVIEWER, SMALL], places: { sources: {}, mailbox: null }, gates: [], person: "alice",
     now: new Date("2026-10-13T09:00:00Z"), agentM: { version: "unreleased", commit: "0".repeat(40) },
     jobId: "JOB-20261013-0900-itm414" };
@@ -239,7 +246,7 @@ def cases() -> list[dict]:
 
 
 def result(case: dict) -> dict:
-    return js(JS_CHECK + "return await derivationContextResult(%s);" % json.dumps(case["input"]))
+    return js(AGENT_M_SPEC_JS + JS_CHECK + "return await derivationContextResult(%s);" % json.dumps(case["input"]))
 
 
 class TestDerivationContext(unittest.TestCase):

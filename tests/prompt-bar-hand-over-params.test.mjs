@@ -20,6 +20,9 @@
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+// Agent M's own SPEC.md, which the fixture instance holds: a kind of requirement-form takes the form its draft is checked by from it.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { loadHandOverStrategies } from "../src/prompt-bar/index.mjs";
@@ -158,7 +161,7 @@ async function handsOver(handOver, files = scrumFiles()) {
   writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-ci", key: "sk-fixture-KEY" });
   writeSetting(store, "github-token", { value: "github_pat_INSTANCE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
-  const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": register(ALICE, DEV_CI) });
+  const instance = repoOf(INSTANCE_WEB, { "SPEC.md": INSTANCE_SPEC, "docs/participants.md": register(ALICE, DEV_CI) });
   const product = repoOf(PRODUCT_WEB, files);
   const page = { address: PRODUCT_WEB, host: product.host };
   const instanceSetup = { repository: "alice/agent-m", host: instance.host };

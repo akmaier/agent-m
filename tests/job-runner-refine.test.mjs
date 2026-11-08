@@ -18,6 +18,11 @@
 // recorded in the pull request.
 
 import test from "node:test";
+import { readFileSync } from "node:fs";
+// The instance holds Agent M's own SPEC.md, from which a kind of requirement-form takes the form its draft is checked by (A DRAFTING JOB RECEIVES THE FORM
+// ITS DRAFT IS CHECKED BY), and no AGENTS.md.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
+const INSTANCE_WITH_SPEC = { read: async (path) => (path === "SPEC.md" ? INSTANCE_SPEC : null) };
 import assert from "node:assert/strict";
 import { formatFinding } from "../src/text-tools/index.mjs";
 import { kindOf } from "../src/job-catalogue/index.mjs";
@@ -52,7 +57,7 @@ for (const [category, strategies] of Object.entries(STAND_INS)) {
 
 const INSTRUCTION = "Make the second requirement shorter.";
 const contextOf = (kind) => ({ kind, params: { instruction: INSTRUCTION }, product: { address: "https://github.com/alice/product", snapshot: null, host: null },
-  instance: { snapshot: null, host: null }, connect: async () => null, participants: [DRAFTER], places: { sources: {}, mailbox: null }, gates: [],
+  instance: { snapshot: INSTANCE_WITH_SPEC, host: null }, connect: async () => null, participants: [DRAFTER], places: { sources: {}, mailbox: null }, gates: [],
   person: "alice", now: new Date("2026-10-11T08:00:00Z"), agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: null });
 async function prepared() {
   const kind = await kindOf("change-requirements");
