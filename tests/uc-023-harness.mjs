@@ -134,8 +134,8 @@ export async function scenario({ now = {}, remove = [], extra = {}, answers = []
   const nextAnswer = () => answers[Math.min(answerNumber, answers.length - 1)];
   // A message of the bar is the conversation: where the scenario scripts a change, the participant first hands it on to the kind that owns it (UC-049 4a).
   const handsOn = (body) => strings(body).join("\n").includes(CONVERSE_PROMPT) && answers.length > 0 && !conversational(nextAnswer());
-  const handOverOf = (body) => ({ answer: "Handed on to change-architecture.", handOver: { kind: "change-architecture", works_on: [],
-    task: /## The person's message\n\n(?:### [^\n]*\n\n)?([^]*?)\n\n## /.exec(strings(body).join("\n"))?.[1] ?? "" } });
+  const handOverOf = (body) => ({ answer: "Handed on to change-architecture.", handOver: [{ kind: "change-architecture", works_on: [], after: [],
+    task: /## The person's message\n\n(?:### [^\n]*\n\n)?([^]*?)\n\n## /.exec(strings(body).join("\n"))?.[1] ?? "" }] });
   const handler = async (url, init) => {
     if (url.origin === "https://fixture-endpoint.example.test") {
       const body = JSON.parse(init.body);
@@ -273,6 +273,10 @@ export async function press(s, node) {
 }
 /** A click the browser marks as a person's (isTrusted), which *Send* takes (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK). */
 export const trustedClick = () => Object.defineProperty(new Event("click"), "isTrusted", { value: true });
+// The product's commits other than those of the record of a piece of a plan run in this tab — its start with its taking, and its end —, which MOD-prompt-bar writes for every
+// such piece ("its record is queued on the tab's route with MOD-runtimes' `queueJob` … and it runs with `runOnTab` and that record, which gains its end"); a record holds no word of the
+// conversation.
+export const writesBeyondRecords = (s) => s.product.writes.filter((write) => !Object.keys(write.files).every((path) => /^docs\/jobs\/JOB-[^/]+\.md$/.test(path)));
 // The person writes `text` in the bar, chooses `participant` where the bar offers several, and presses Send; resolves once the bar is free again.
 export async function send(s, text, { participant = null } = {}) {
   const bar = barOf(s);

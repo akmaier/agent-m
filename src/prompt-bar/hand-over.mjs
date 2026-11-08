@@ -117,10 +117,11 @@ export async function actionsLack({ participant, page, instance, store, snapshot
 /**
  * queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation }) -> Promise<{ id: string, path: string, commit: string, person: string }> — prepares the job of
  * the kind the participant named, with the task as its instruction, and hands it over on the route `assessment` found, as the person's commit on the head `assessment` read
- * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. `source` is the bar's source, the person's account, or undefined where it has none. Throws NoToken when no token that writes to the page's repository is stored,
+ * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. `source` is the bar's source, the person's account, or undefined where it has none.
+ * A piece of a plan (`piece`, the default) is prepared with `refuses` naming hand-over, so that its job hands nothing on; the endpoint's own job that Spawn job spawns is none. Throws NoToken when no token that writes to the page's repository is stored,
  * what prepareJob throws, and what handOverJob throws — NotStartable { findings } among it, with nothing written.
  */
-export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source }) {
+export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source, piece = true }) {
   const { snapshot, route, instanceSnapshot, participants } = assessment;
   const person = personOf(store, snapshot, ofProduct, instanceSnapshot);
   if (person === null) throw Object.assign(new Error("no token that writes to this repository is stored in this browser"), { name: "NoToken" });
@@ -129,12 +130,14 @@ export async function queue({ handOver, participant, assessment, store, instance
   const commit = instanceSnapshot.commit ?? "unknown";
   const agentM = { version: commit, commit };
   const worksOn = worksOnOf(handOver);
-  // `source` is the bar's, the person's account: the one parameter beside what the hand-over works on, so that no message and no page text enters the job's record.
-  const params = { ...(source === undefined ? {} : { source }), ...handOverParams(worksOn, snapshot) };
+  // `source` is the bar's, the person's account, and, for a piece of a plan, `refuses` naming hand-over, so that a piece's job hands nothing on: the only parameters beside what it
+  // works on, so that no message and no page text enters the job's record.
+  const params = { ...(source === undefined ? {} : { source }), ...handOverParams(worksOn, snapshot), ...(piece ? { refuses: ["hand-over"] } : {}) };
   const inputs = { product: { address: page.address, snapshot, host: page.host }, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
     places: { ...(await placesOf(instanceSnapshot, page.address)), mailbox: null }, gates: [], person, agentM, jobId: id };
   const prepared = await prepareJob(handOver.kind, tabContext({ kind: null, params: { ...params, instruction: handOver.task }, ...inputs }), { drafter: participant, reviewers: [] });
-  const start = { id, kind: handOver.kind, worksOn, participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null, retries: null, startedBy: person,
+  // A piece that works on nothing yet — something new, whose place its task names — is a job that works on the repository the page is held on, by its web address.
+  const start = { id, kind: handOver.kind, worksOn: worksOn.length ? worksOn : [snapshot.repository.web], participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null, retries: null, startedBy: person,
     start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "with the hand-over", conversation: conversation ?? null,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })), params,
     // A job that is an endpoint's own, which the instance does not list: its record declares the endpoint's context and capabilities (MOD-job-ledger's `declares`).
@@ -162,5 +165,5 @@ export async function spawnEndpointJob({ kind, task, participant, store, instanc
   }
   // It works on the repository the page is held on, by its web address as the snapshot that was read names it.
   const handOver = { kind, works_on: [assessment.snapshot.repository.web], task };
-  return queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source });
+  return queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source, piece: false });
 }

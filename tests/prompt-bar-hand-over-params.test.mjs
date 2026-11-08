@@ -174,13 +174,16 @@ async function handsOver(handOver, files = scrumFiles()) {
   return { ...outcome, assessment, product, instance };
 }
 
-// The parameters of the job record that the hand-over queued: the one fenced json block of its section "## Parameters".
+// The parameters of the job record that the hand-over queued: the one fenced json block of its section "## Parameters", less `refuses`, which names hand-over for every piece of a
+// plan (MOD-prompt-bar: "Such a job takes, beside what its piece works on, only the bar's `source` and `refuses` naming `hand-over`") and is asserted here.
 function paramsOfRecord(it) {
   assert.equal(it.product.attempts.length, 1, "exactly one commit queued the job");
   const text = it.product.attempts[0].files[0].text;
   const section = /\n## Parameters\n\n```json\n([\s\S]*?)\n```/.exec(text);
   assert.ok(section, `the record has its Parameters: ${text}`);
-  return JSON.parse(section[1]);
+  const { refuses, ...params } = JSON.parse(section[1]);
+  assert.deepEqual(refuses, ["hand-over"], "the piece's job hands nothing on");
+  return params;
 }
 const NEVER_GIVEN = ["source", "resource", "kind", "entry", "part"];
 const NOTHING_WRITTEN = "no commit was attempted and no workflow was started";

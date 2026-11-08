@@ -38,9 +38,10 @@ const MAIN_CHANGED_PATH = { github: ".github/workflows/agent-m-main-changed.yml"
 // that was read, in one commit, as the person's commit — the host's commitFiles, on the branch its repositoryInfo names,
 // with expectedHead the head given —; with it that branch and the server's job workflow file, for a caller that starts the
 // workflow itself (hand-over.mjs). Refused with WorkflowMissing, naming the job workflow's file, while the snapshot at the
-// head read does not hold it: nothing is committed then. Crosses the network through the host; fails as it fails — Moved,
+// head read does not hold it: nothing is committed then. `also` are further files the same commit holds — the `Job started` part of
+// the job a hand-over's start names (hand-over.mjs). Crosses the network through the host; fails as it fails — Moved,
 // TokenRefused, PermissionMissing, RateLimited, Unreachable — unchanged, and with WorkflowMissing of its own.
-export async function commitStart(host, start, head) {
+export async function commitStart(host, start, head, also = []) {
   const [{ defaultBranch }, snapshot] = await Promise.all([host.repositoryInfo(), host.readSnapshot(head)]);
   const workflow = WORKFLOW_PATH[snapshot.repository.server];
   if (!snapshot.paths.includes(workflow)) {
@@ -52,7 +53,7 @@ export async function commitStart(host, start, head) {
   const pinned = pinnedInstance(await snapshot.read(workflow));
   const { path, text } = startRecord(pinned ? { ...start, agentM: { ...start.agentM, version: pinned, commit: pinned } } : start);
   const { commit } = await host.commitFiles({
-    branch: defaultBranch, expectedHead: head, files: [{ path, text }],
+    branch: defaultBranch, expectedHead: head, files: [{ path, text }, ...also],
     message: `Queue job ${start.id}: ${start.kind}`,
   });
   // GitHub's dispatch call names a workflow by its file name alone (repository-hosts' github adapter encodes the name into the URL path); GitLab's is left as the path.

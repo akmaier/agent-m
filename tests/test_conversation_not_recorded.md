@@ -44,13 +44,16 @@ the conversation records of that repository hold it), `commits` and `strayReques
       },
       {
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
-        "handOver": {
-          "kind": "converse",
-          "works_on": [
-            "A LOAN HAS A DUE DATE"
-          ],
-          "task": "run the tests of the notes"
-        }
+        "handOver": [
+          {
+            "kind": "converse",
+            "works_on": [
+              "A LOAN HAS A DUE DATE"
+            ],
+            "task": "run the tests of the notes",
+            "after": []
+          }
+        ]
       }
     ],
     "steps": [
@@ -133,13 +136,16 @@ the conversation records of that repository hold it), `commits` and `strayReques
       },
       {
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
-        "handOver": {
-          "kind": "converse",
-          "works_on": [
-            "A LOAN HAS A DUE DATE"
-          ],
-          "task": "run the tests of the notes"
-        }
+        "handOver": [
+          {
+            "kind": "converse",
+            "works_on": [
+              "A LOAN HAS A DUE DATE"
+            ],
+            "task": "run the tests of the notes",
+            "after": []
+          }
+        ]
       }
     ],
     "steps": [

@@ -15,7 +15,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onRequirementPage, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
+import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onRequirementPage, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases, writesBeyondRecords } from "./uc-019-prompt-bar-harness.mjs";
 import { AGENT, DRAFTER, HANDY, LISTED_CI_AGENT, LISTED_SUBAGENT, RUN_URL, TOOLER, answer, barText, calls, conversationOf, declared, endpointOf, followClock, free, registerOf, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { byClass, until } from "./review-pages-draft-world.mjs";
@@ -222,7 +222,7 @@ const ROW_SMALL = (name, context) => ({ settings: { [`endpoint:${name}`]: endpoi
 
 // ---------------------------------------------------------------- the hand-over to GitHub Actions (4a, 4b, 4c, 4d) and Stop (5a)
 
-const HAND_OVER = { kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page and tell me which fail" };
+const HAND_OVER = [{ kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page and tell me which fail", after: [] }];
 const proposalOf = (s) => one(barOf(s), "section", "hand-over");
 const followingOf = (s) => all(barOf(s), "section", "following").map((node) => node.textContent).join(" ");
 const queuedRecord = (s) => Object.entries(s.product.files).find(([path]) => path.startsWith("docs/jobs/JOB-"));
@@ -250,18 +250,18 @@ const handedOver = async (options = {}) => {
 test("alternative 4a: the participant proposes a hand-over, which is queued without a further click and starts the workflow with the task, and the run's end is shown", async () => {
   const { s, w, clock, done } = await handedOver();
   const text = proposalOf(s).textContent;
-  for (const part of ["Kind: converse", `Works on: ${LOAN}`, `Task: ${HAND_OVER.task}`, "Participant: handy — GitHub Actions in the USA", "Route: ci hosted"]) assert.ok(text.includes(part), `${part} in ${text}`);
+  for (const part of ["Kind: converse", `Works on: ${LOAN}`, `Task: ${HAND_OVER[0].task}`, "Participant: handy — GitHub Actions in the USA", "Route: ci hosted"]) assert.ok(text.includes(part), `${part} in ${text}`);
   assert.equal(handOverButton(s), undefined, "no click is asked for");
   await until(() => s.product.writes.length === 1, "the hand-over is queued at once");
   assert.equal(s.product.writes.length, 1, "one commit");
   const [path, record] = queuedRecord(s);
   assert.deepEqual(Object.keys(s.product.writes[0].files), [path], "the record of the job is the one file");
   for (const part of ["participant: handy", "model: handy-model", "route: ci hosted", `- ${LOAN}`, "kind: converse", "task: with the hand-over"]) assert.ok(record.includes(part), `${part} in the record`);
-  for (const secret of ["Please run the tests of this page.", "I will hand this on.", HAND_OVER.task, "CI_KEY=", "fixture-model-key"]) assert.ok(!record.includes(secret), `the record holds nothing of ${secret}`);
+  for (const secret of ["Please run the tests of this page.", "I will hand this on.", HAND_OVER[0].task, "CI_KEY=", "fixture-model-key"]) assert.ok(!record.includes(secret), `the record holds nothing of ${secret}`);
   assert.equal(w.dispatches.length, 1);
   assert.deepEqual(Object.keys(w.dispatches[0].inputs).sort(), ["endpoint", "job", "secret", "task"]);
   assert.equal(w.dispatches[0].inputs.secret, "CI_KEY", "the input secret is the name of the endpoint's CI secret, never its value");
-  assert.equal(w.dispatches[0].inputs.task, HAND_OVER.task);
+  assert.equal(w.dispatches[0].inputs.task, HAND_OVER[0].task);
   assert.ok(followingOf(s).includes("waiting for GitHub Actions") && followingOf(s).includes("State: queued"), followingOf(s));
   // The runner takes the job (the run is listed), and the next poll shows its address.
   s.product.change(path, appendToRecord(record, { part: "taken", at: new Date("2026-10-19T12:00:30Z"), by: RUN_URL }));
@@ -278,8 +278,8 @@ test("alternative 4a: the participant proposes a hand-over, which is queued with
     const after = git(product.origin, "show", `main:${path}`);
     assert.match(after, /## End[\s\S]*state: done/);
     const messages = git(product.origin, "log", "--format=%B", "main");
-    assert.ok(!messages.includes(HAND_OVER.task), "no commit message holds the task");
-    assert.ok(!git(product.origin, "show", `main:${path}`).includes(HAND_OVER.task), "the record still holds no task");
+    assert.ok(!messages.includes(HAND_OVER[0].task), "no commit message holds the task");
+    assert.ok(!git(product.origin, "show", `main:${path}`).includes(HAND_OVER[0].task), "the record still holds no task");
     s.product.change(path, after);
     w.runs[0].status = "completed";
     w.runs[0].conclusion = "success";
@@ -427,10 +427,10 @@ test("main flow (5, 6) and alternative 6a: a proposed edit opens as a difference
   await review(s);
   assert.equal(all(s.target, "div", "draft").length, 2, "one draft per file");
   assert.match(draftOf(s).textContent, /2b\. The service fails\./, "the difference shows the added line");
-  assert.equal(s.product.writes.length, 0, "a draft alone writes nothing");
+  assert.equal(writesBeyondRecords(s).length, 0, "a draft alone writes nothing but the piece's record");
   await press(s, namedButton(s.target, "Discard"));
-  assert.equal(s.product.writes.length, 0, "Discard writes nothing");
-  assert.equal(recordTexts(s).length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0, "Discard writes nothing");
+  assert.ok(recordTexts(s).every((text) => /^route: tab$/m.test(text) && !text.includes(ALIGN)), "the one record is the piece's own, and holds no word of the conversation");
   assert.equal(conversationRecords(s).length, 0);
   assert.equal(keptDraft(s) ?? null, null, "the draft is dropped from the tab");
 });
@@ -448,7 +448,7 @@ test("alternative 6b: when the file changed while the participant worked nothing
   const newer = UC7.replace("1. The author starts.", "1. The author starts the lending.");
   await s.product.change(UC7_PATH, newer);
   await press(s, namedButton(draftOf(s), "Save"));
-  assert.equal(s.product.writes.length, 0, "nothing is written");
+  assert.equal(writesBeyondRecords(s).length, 0, "nothing is written but the piece's record");
   assert.match(s.target.textContent, /changed|newer|meanwhile/i, "the page says the text changed");
   assert.ok(s.target.textContent.includes("The service fails.") && s.target.textContent.includes("The author starts the lending."), "the edit stays beside the newer version");
 });
@@ -493,7 +493,7 @@ test("postcondition: with recording off only what the author saved is written, a
   const s = await scenario({ answers: [draft(), draft()] });
   assert.equal(one(barOf(s), "p", "recording").hidden, true, "the bar says nothing of recording");
   await run(s);
-  assert.equal(s.product.writes.length, 0, "no write before Save");
+  assert.equal(writesBeyondRecords(s).length, 0, "no write before Save but the piece's record");
   await save(s);
   assert.equal(proposalWrites(s).length, 1, "the saved proposal");
   assert.equal(conversationRecords(s).length, 0);
@@ -543,13 +543,14 @@ test("alternative 6c: a conversation held on a page of the instance is recorded 
 // expect: UC-049 4a.1: the change runs in this tab at once, its draft is shown for review, nothing is written before Save and no job is queued; Save commits the change as an open proposal — a queue entry with its rationale —, SPEC.md stays as it was and no approval record is written (flow: UC-049 alternative 4a)
 test("alternative 4a: a hand-over of a change of requirements runs in the tab without a click, and Save commits an open proposal", async () => {
   const s = await scenario({ ...register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
-  const w = watch(s, { script: [answer("Handing on.", { handOver: { kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible." } }), { envelope: { draft: draft(), answers: [] } }] });
+  const w = watch(s, { script: [answer("Handing on.", { handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible.", after: [] }] }), { envelope: { draft: draft(), answers: [] } }] });
   await onRequirementPage(s); // the page of the requirement, whose subject gives the person's own source
   await sendNow(s, "Please change this rule.", { participant: "handy" });
   await free(s);
   await until(() => all(barOf(s), "button", "review").length > 0, "the draft of the hand-over is ready");
   assert.equal(all(barOf(s), "button", "queue").length, 0, "no click is asked for");
-  assert.equal(s.product.writes.length, 0, "nothing is written before Save");
+  assert.equal(writesBeyondRecords(s).length, 0, "nothing is written before Save but the piece's record, on the tab's route");
+  assert.ok(recordTexts(s).length === 1 && /^route: tab$/m.test(recordTexts(s)[0]), recordTexts(s).join("\n"));
   assert.equal(w.dispatches.length, 0, "no job is queued");
   await review(s);
   await until(() => all(s.target, "section", "requirements-result").length === 1, `the draft of the requirements: ${s.target.textContent}`);
