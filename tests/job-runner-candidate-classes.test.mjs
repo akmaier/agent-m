@@ -216,9 +216,9 @@ test("candidate-classes — a draft fixed as the findings say passes, and its cl
 
 // TST-472309 · level: unit · module: MOD-job-runner
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-// given: the same part, and a draft whose EXPORT AS PDF is an exact duplicate classed new; a kind that names no check, and — the known positive — the same kind naming candidate-classes; and the same kind with a job whose parts carry no artifact
+// given: the same part, and a draft whose EXPORT AS PDF is an exact duplicate classed new; a kind that names no check, and — the known positive — the same kind naming candidate-classes; and the same kind with a job whose parts carry no artifact, once with that draft and once — the counter-proof — with a draft holding PRINT TWO COPIES, a change of PRINT IS DOUBLE-SIDED
 // input: runJob of each, the draft given as `from` and no drafter: the draft is checked once
-// expect: the kind without the check: no finding, the loop stopped because passed, and the result's classes null — not an empty list; the kind with it: the finding of the exact duplicate, and the result's classes a list; the job whose parts carry no artifact: nothing to classify, so no finding and no class — an empty list, not null
+// expect: the kind without the check: no finding, the loop stopped because passed, and the result's classes null — not an empty list; the kind with it: the finding of the exact duplicate, and the result's classes a list; the job whose parts carry no artifact is classified as any other, against none: EXPORT AS CSV and EXPORT AS PDF each keep the class new their drafter gave, decided by the participant, with no finding; the change of PRINT IS DOUBLE-SIDED, which no part carries there, is an error under A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT and keeps its class
 test("candidate-classes — a kind without the check has no classes, a kind with it has a list", async () => {
   const draft = { candidates: [CSV, AS_PDF] };
 
@@ -231,5 +231,34 @@ test("candidate-classes — a kind without the check has no classes, a kind with
   assert.ok(Array.isArray(checked.classes) && checked.classes.length > 0, `classes are ${JSON.stringify(checked.classes)}`);
 
   const bare = await run(["candidate-classes"], { from: draft, parts: [] });
-  assert.deepEqual([bare.remaining, bare.classes, bare.stoppedBecause], [[], [], "passed"]);
+  assert.deepEqual([bare.remaining, bare.stoppedBecause], [[], "passed"]);
+  assert.deepEqual(bare.classes, [
+    { refs: ["EXPORT AS CSV"], from: [CSV.passage], class: "new", of: null, decidedBy: "participant" },
+    { refs: ["EXPORT AS PDF"], from: [AS_PDF.passage], class: "new", of: null, decidedBy: "participant" },
+  ]);
+
+  const changed = await run(["candidate-classes"], { from: { candidates: [TWO_COPIES] }, parts: [] });
+  assert.deepEqual(kindsOf(changed.remaining), [["error", NAMED]], "a change names no artifact a part carries where the parts carry none");
+  assert.deepEqual(changed.classes.map((each) => [each.refs, each.class, each.of]), [[["PRINT TWO COPIES"], "change", "PRINT IS DOUBLE-SIDED"]]);
+});
+
+// TST-2026111101 · level: unit · module: MOD-job-runner
+// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-005; UC-019
+// given: a kind that names candidate-classes, for a job on a product without a requirement — its one part shows no artifact —; a drafter that first drafts EXPORT AS CSV classed new and PRINT TWO COPIES classed a change of PRINT IS DOUBLE-SIDED, and then, told of the finding, the same with PRINT TWO COPIES classed new, answering the finding fixed
+// input: runJob of it, a person attending
+// expect: the drafter asked twice, the second time with one finding, an error under A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT naming PRINT TWO COPIES; the loop stops because passed with nothing remaining; the result's classes hold both candidates, each classed new by its participant — none is left without a class
+test("candidate-classes — on a product without a requirement every candidate the loop passes is classed new", async () => {
+  const empty = [{ ...PARTS[0], text: "(no requirement yet)", artifacts: [] }];
+  const { of, ...asNew } = TWO_COPIES;
+  const fixed = { candidates: [CSV, { ...asNew, class: "new" }] };
+  const drafter = driver([{ draft: { candidates: [CSV, TWO_COPIES] } }, correcting(fixed)]);
+
+  const result = await run(["candidate-classes"], { drafter, parts: empty });
+
+  assert.equal(drafter.inputs.length, 2, "the change that names no artifact goes back to the drafter");
+  assert.deepEqual(kindsOf(drafter.inputs[1].findings), [["error", NAMED]]);
+  assert.equal(naming(linesOf(drafter.inputs[1].findings), "PRINT TWO COPIES").length, 1);
+  assert.deepEqual([result.stoppedBecause, result.remaining], ["passed", []]);
+  assert.deepEqual(result.classes.map((each) => [each.refs, each.class, each.of, each.decidedBy]), [
+    [["EXPORT AS CSV"], "new", null, "participant"], [["PRINT TWO COPIES"], "new", null, "participant"]]);
 });

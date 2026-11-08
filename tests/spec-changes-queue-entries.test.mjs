@@ -658,3 +658,37 @@ test("queue-entries — a source the product links at no version is named withou
   assert.ok(rationales.length > 0);
   for (const [path, body] of rationales) assert.equal(originOf(body), "Source SRC-fixture-book, passages: ch. 8.", path);
 });
+
+// ---------------------------------------------------------------- a run that writes nothing names why
+
+// TST-2026111102 · level: unit · module: MOD-spec-changes
+// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; UC-005; UC-019
+// given: a result with two candidates of the product's SPEC, NEW (A WRITER NAMES ITS FILE) and UNCLASSED A NEW RULE, for which the result's classes hold NEW's class only
+// input: the writer
+// expect: the known positive NEW is written in one commit; UNCLASSED A NEW RULE is in no file written, and the outcome's notes hold the one line "UNCLASSED A NEW RULE has no class; it is not written."
+test("queue-entries — a candidate of the product's SPEC without a class is not written, and a note names it", async () => {
+  const f = fixture();
+  const unclassed = candidate("UNCLASSED A NEW RULE");
+  const outcome = await writer(resultOf([NEW, unclassed], [classOf(NEW)]), f.context);
+  assert.equal(f.product.host.commits.length, 1, "known positive: the classed candidate is written");
+  const bodies = Object.values(filesOf(f.product.host.commits[0])).join("\n");
+  assert.ok(bodies.includes("A WRITER NAMES ITS FILE"), "the classed candidate is in the entry");
+  assert.ok(!bodies.includes("UNCLASSED A NEW RULE"), "the candidate without a class is in no file");
+  assert.deepEqual(outcome.notes, ["UNCLASSED A NEW RULE has no class; it is not written."]);
+});
+
+// TST-2026111103 · level: unit · module: MOD-spec-changes
+// guards: UC-005; UC-019
+// given: a result whose draft holds no candidate — `{ candidates: [] }` —; and, as the known positive, a result whose one candidate is written
+// input: the writer on each
+// expect: the first: no commit to either repository, no file, and the notes exactly ["the draft holds no requirement; nothing is written."]; the second: one commit, and no note says that the draft holds no requirement
+test("queue-entries — a draft that holds no candidate writes nothing, and its one note says so", async () => {
+  const f = fixture();
+  const outcome = await writer(resultOf([]), f.context);
+  assert.deepEqual([f.product.host.commits, f.instance.host.commits, outcome.commits, outcome.files], [[], [], [], []]);
+  assert.deepEqual(outcome.notes, ["the draft holds no requirement; nothing is written."]);
+  const known = fixture();
+  const written = await writer(resultOf([NEW]), known.context);
+  assert.equal(known.product.host.commits.length, 1);
+  assert.ok(!written.notes.some((note) => note.includes("holds no requirement")), written.notes.join("\n"));
+});
