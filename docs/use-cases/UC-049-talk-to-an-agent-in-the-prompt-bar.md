@@ -151,6 +151,11 @@ sequenceDiagram
   identifier only.
 - **3c. The page shows settings.** The context names the settings and whether each is stored; it never carries a stored
   token, key or password.
+- **3d. The message names another product.** Where the author's message names, by its name or its repository's,
+  exactly one product the instance manages — "a specification in the Alien Invasion repo" — and the page shows
+  another, or the instance's own, the message is about the product it names: Agent M gives that product as the context
+  in place of the page, says above the answer which product it took, and its work and any hand-over (4a) go to that
+  product's repository. A message that names none, or several, is about the page.
 - **4a. The work belongs to another kind of job, or needs what the tab cannot do.** A change of requirements, of a use
   case or of the architecture belongs to the kind that owns it, with its checks and its impact list (UC-019, UC-023);
   running code or tests, changing code and reaching the web need what the tab cannot do. The endpoint or CLI session

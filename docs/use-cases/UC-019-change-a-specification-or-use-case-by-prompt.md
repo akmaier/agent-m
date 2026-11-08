@@ -86,8 +86,8 @@ same Markdown the author does.
 6. Agent M sends the instruction and the context with the change prompt from the repository's single
    definition. The drafter returns the changed text; for requirements, each resulting requirement
    is classified as new, a change to a named requirement, a duplicate of one, or a conflict with one,
-   and names among its sources the author's own source — the register entry of the author's account,
-   which the product links (UC-004, UC-015).
+   and names among its sources the author's account `<server>/<account>` — `github.com/akmaier` —, which needs no
+   register entry (UC-004) and no link (UC-015).
 7. **The correction loop.** Before showing anything, Agent M checks the draft without a model and
    sends every finding back to the drafter, which returns a corrected draft; this repeats until the
    draft passes, or until the limit of rounds fixed before the first round and named in the conversation (default 5), or until a round
@@ -140,9 +140,6 @@ sequenceDiagram
 - **4a. The context does not fit into the chosen drafter.** Nothing is sent. Agent M says how
   many requirements or use cases there are and how much fits, and offers a drafter with a larger
   context; it never leaves any of them out silently.
-- **4b. A change of requirements, and the author has no source of their own that the product links.**
-  Nothing is sent. Agent M says so and links registering the author as a source (UC-004) and linking
-  it to the product (UC-015).
 - **5a. The author does not press Send.** Nothing is sent.
 - **6a. The drafter is a CLI session** (UC-011). The request goes through the local
   bridge; the agent returns the draft to the dashboard and the flow continues at step 7.
