@@ -256,7 +256,8 @@ and sends nothing while the job does not
   request, and no further click is asked for. Each piece whose `after` is empty becomes a job of its own, with its record
   (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`), prepared with `prepareJob` for its kind and with `hand-over` among its
   `refuses` (MOD-job-runner's `hand-over`); a piece whose `after` names another is not handed over, and is shown as
-  waiting for the acceptance of that piece, by its number. Where a piece's kind is not `converse` itself, its
+  `waits for <n> to be accepted: it can start only once that is accepted — tell me here when it is`, `<n>` that piece's
+  number; the person's message that says so is a message like any other, whose round plans it again. Where a piece's kind is not `converse` itself, its
   `review` is `person` and `eligible` finds the participant able to do it, it runs in this tab, attended, as a message
   runs — for a kind with reviewers, with the participant itself as its one reviewer and `selfReview`
   set, since the change is described in the prompt bar (`NO REVIEWER IS THE DRAFTER`) —: its parameters are the subject's `paramsFor` less `page`, with what MOD-job-runner's

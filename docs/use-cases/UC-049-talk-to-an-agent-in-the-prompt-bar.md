@@ -170,7 +170,8 @@ sequenceDiagram
   The prompt bar shows the plan, one line per piece in its order — its kind, what it works on, its task — and beside
   each where it stands: *runs here*, *after the draft before it*, *waiting for GitHub Actions* or *on <Bridge>* with
   its job, *waits for 1 to be accepted*, or *not handed over* with why. A piece that rests on an earlier one is not
-  handed over: it waits until a person has accepted that piece's result, and the author then asks again (5).
+  handed over: it waits until a person has accepted that piece's result. Its line says that it can start only once
+  that result is accepted, and asks the author to say so in the bar when it is; the author's message then starts it (5).
   1. Where a piece's kind leaves its result to the author and the endpoint or CLI session can do the kind — a kind
      other than the conversation itself —, it runs in this tab at once, on the page's context, with its record. Its
      draft is shown as UC-019 describes, and the author saves it (step 6). Of several such pieces, each runs once the
