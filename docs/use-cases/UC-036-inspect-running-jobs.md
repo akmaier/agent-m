@@ -88,6 +88,8 @@ agents run on their own, and a person watches the whole and can step in.
 3. The author filters by product, state, participant or runtime.
 4. The author opens a job. Agent M shows:
    - the job's inputs, as announced in its run panel;
+   - the run or job that started it, and the jobs it started — a run's, or the pieces of the plan of a conversation that
+     runs on GitHub Actions (UC-049 4f) —, each linked;
    - its commits and pull request so far;
    - its CI runs;
    - its log, streamed while it runs, read from the runtime that holds it;

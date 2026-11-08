@@ -116,7 +116,7 @@ Agent M prepares no job of the kind.
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
 | `draft-replies` | UC-039 | draft text | | `reply-inputs` | | | | `none` · `mail-drafts` | one reply per mail of a closed issue; or, with the parameter `question` — the person's point to ask —, one question to the reporter of a listed mail of an open issue (UC-039 1a) |
 | `check-resource` | UC-040 | run code and tests | | `instruction?`, `resource-check` | | | | `none` · `return-draft` | what answered |
-| `converse` | UC-049 | draft text | | `page`, `conversation`, `instruction`, `chapters-for-page?` | `document-schema`, `graph-checks` | | | `person` · `proposed-edits` | the answer, the edits the participant proposed, and the hand-over it proposes |
+| `converse` | UC-049 | draft text | | `page`, `conversation`, `instruction`, `chapters-for-page?` | `document-schema`, `graph-checks` | | | `person` · `proposed-edits` | the answer, the edits the participant proposed, and the plan of the pieces it hands on |
 
 **The tools**, `tools.md`, a register read with MOD-documents. A tool's description and the schema of its arguments are
 data, kept here once like a kind's prompt; the module that owns what a tool does offers its strategy (MOD-job-runner's
@@ -128,12 +128,15 @@ data, kept here once like a kind's prompt; the module that owns what a tool does
 | `read-file` | read the repository | read one file of the product | MOD-job-runner |
 | `search-files` | read the repository | find the lines that hold a text in the product's files below a path — a file, or a folder —, at most 200 files a search | MOD-job-runner |
 | `propose-edit` | draft text | propose the new text of one document below `docs/`, held for a person | MOD-job-runner |
-| `hand-over` | draft text | hand work on to the kind of the catalogue that owns it — a change of requirements, a use case or the architecture — or that does what the tab cannot — running code or tests, changing code, reaching the web —, naming what it works on, with the task in its words; it goes on without a further click, and what it drafts is a proposal (UC-049 4a) | MOD-job-runner |
+| `hand-over` | draft text | add one piece to the plan of the work: hand it on to the kind of the catalogue that owns it — a change of requirements, a use case or the architecture — or that does what the tab cannot — running code or tests, changing code, reaching the web —, naming what it works on, the task in its words, and the earlier pieces whose accepted result it rests on; each piece goes on without a further click as a job of its own, a piece that rests on another once that one is accepted, and what it drafts is a proposal (UC-049 4a) | MOD-job-runner |
 
 Each row also holds the description the drafter reads and the JSON schema of its arguments. `converse` names all five,
-with a `tool_limit` of 30, and its draft may hold, beside `answer` and `edits`, a `handOver` of the tool's arguments,
-`{ kind, works_on, task }`, so that a drafter offered no tools — a coding agent, or an endpoint without *use tools* —
-proposes a hand-over in its answer as the tool would hold it; `change-requirements`, `change-use-case` and `change-architecture` name the three that read
+with a `tool_limit` of 30, and its draft may hold, beside `answer` and `edits`, a `handOver`, the plan: a list of at most
+five of the tool's arguments, `{ kind, works_on, task, after }`, the five stated once as the list's `maxItems` in its
+answer schema, so that a drafter offered no tools — a coding agent, or an endpoint without *use tools* —
+proposes its plan in its answer as the tool would hold it; its prompt asks it to plan in the round that answers the
+message — the pieces the request needs, the requirements before the use cases that realise them and those before the
+architecture, each with what it rests on —; `change-requirements`, `change-use-case` and `change-architecture` name the three that read
 and `hand-over`, since their draft is their answer and a change of them may still be handed to CI (UC-019 6b). The kinds
 that change code or run tests — `implement`, `refactor`, `fix-bug`, `write-tests`, `propose-tests`, `run-tests` and
 `check-resource` — name the seven tools of MOD-checkout-tools, `read`, `write`, `edit`, `bash`, `grep`, `glob` and

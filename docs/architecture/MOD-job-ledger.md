@@ -73,7 +73,7 @@ Its start: the front matter, the destinations and the parameters.
 | `route` | `tab`, `ci hosted`, `ci runner:<label>` or `bridge <name>` |
 | `run` | the run it belongs to, if any |
 | `retries` | the job it retries, if any |
-| `started_by` | the account whose click started it, or the run that started it |
+| `started_by` | the account whose click started it, or the run or the job that started it — a conversation's job that planned it (UC-049 4f) |
 | `start` | the date and time of the start |
 | `agent_m` | the Agent M version and the commit of the instance it runs |
 | `inputs` | each input with its pin: a file with its blob SHA, a source version with its hash, a commit, a resource's pin |
@@ -93,7 +93,7 @@ happen, each with `at:` and its own lines:
 | `## Taken` | `by:` the route that took it — a CI run's address, a Bridge's name, or `tab <browser>` for a tab, `<browser>` the identifier of the browser or tab that took it (MOD-runtimes, Data) |
 | `## Gate reached` | `gate:` its name, `decider:` the role, agent or check that decides it — or `question:` for a question to the author |
 | `## Resumed` | `gate record:` the record whose decision resumed it |
-| `## Job started` | in a run's record: `job:` the identifier of a job the run started, `kind:`, `works on:` — one part per job, committed together with that job's start record |
+| `## Job started` | in the record of a run, or of a conversation's job that planned pieces (UC-049 4f): `job:` the identifier of a job it started, `kind:`, `works on:` — one part per job, committed together with that job's start record |
 | `## Limits raised` | in a run's record: `by:` the person, and `jobs at once:`, `cost:`, `rounds:` — the limits in force from then on; the start's limits and every earlier part stay as they were |
 | `## End` | `state:` `done`, `failed` or `cancelled`; `results:` commits, files, pull request, issues — or `waits for a person` for a draft its kind leaves to a person's click, whose commit names this job in its provenance lines; `draft:` for a job whose kind hands its draft back and that ran away from the page — on CI, on a Bridge that runs it, in a run —, that draft as one fenced JSON block, from which the page shows it and a run starts the job that follows, such as `write-tests` with the cases of `propose-tests`; the round record of MOD-job-runner — a job whose task travels with the hand-over holds no `draft:`, since its answer is a
 message of the conversation —; `usage:` as reported; `cost:`; `reason:` for a failed or cancelled job; `log:` the runtime's address of its log, where it keeps one |

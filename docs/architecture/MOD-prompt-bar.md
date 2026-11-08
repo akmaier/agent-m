@@ -59,6 +59,7 @@ uses:
   - MOD-runtimes.runOnTab
   - MOD-runtimes.routesFor
   - MOD-runtimes.handOverJob
+  - MOD-runtimes.queueJob
   - MOD-runtimes.liveState
   - MOD-runtimes.jobLog
   - MOD-runtimes.cancelJob
@@ -96,8 +97,9 @@ what this browser's configuration reaches — its model endpoints, and the CLI s
 with the place where it processes data (`THE PAGE NAMES WHERE IT SENDS`); it holds the conversation in the browser tab;
 it sends each message as a job of its one kind, `converse`, on every page, with the page as its context only, run in
 this tab without a job record; it shows the answer, and leads a draft to the review page that shows it; it carries out
-a hand-over the participant proposes without a further click — in this tab where the kind's result waits for the person,
-else queued as a job of the endpoint or CLI session itself — and follows a queued one until it has ended; and, where the instance switches recording on, it appends every message to a conversation
+the plan the participant proposes without a further click — each piece a job of its own, in this tab where the kind's
+result waits for the person, else queued as a job of the endpoint or CLI session itself — and follows each queued one
+until it has ended; and, where the instance switches recording on, it appends every message to a conversation
 record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`, `A RECORDED CONVERSATION IS KEPT WHERE IT
 WAS HELD`).
 
@@ -109,12 +111,12 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 ## Parts
 
 - `index.mjs` — the interface.
-- `bar.mjs` — the bar: the selector, the input, *Send* — *Spawn job* for an endpoint that runs through GitHub Actions — and *Stop*, the conversation, a hand-over carried out, the waiting for a queued one.
+- `bar.mjs` — the bar: the selector, the input, *Send* — *Spawn job* for an endpoint that runs through GitHub Actions — and *Stop*, the conversation, the plan carried out, the waiting for its queued jobs.
 - `offer.mjs` — the endpoints and CLI sessions offered, read from this browser's configuration, and the place each is
   named with.
-- `send.mjs` — preparing and running a message, or a hand-over of a kind whose result waits for the person, as a job in
-  this tab.
-- `hand-over.mjs` — a proposed hand-over assessed for its route, and queued.
+- `send.mjs` — preparing and running a message, or a piece of a plan of a kind whose result waits for the person, as a
+  job in this tab.
+- `hand-over.mjs` — each piece of a proposed plan assessed for its route, and queued.
 - `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
 - `record.mjs` — the conversation record and the recording switch.
 - `conversation.schema.md`, `recording.schema.md` — the schemas of the two files it owns, in the schema language of
@@ -124,7 +126,7 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 
 **The conversation** is held in the browser tab, through MOD-browser-store's tab values, so that it goes on when the
 person moves between the main page and the review pages in the same tab and ends with the tab. It holds the messages, the
-participant talked to, the latest draft, the job handed over while it runs, and the height the person set with the
+participant talked to, the latest draft, the plan handed over with the job of each piece while it runs, and the height the person set with the
 bar's grip. Nothing of it is written to a repository
 unless recording is on, and nothing of it is kept in `localStorage` or exported with the settings. It holds no state of a
 job: while a message runs, the job is this tab's running job; a handed-over job's state is derived from its record and
@@ -153,7 +155,7 @@ folder holds it.
 |---|---|
 | front matter | `started` — the date and time of the first message; `started_by` — the person's account |
 | `## <date and time> — <account or participant>` | one per message: `page:` the subject's title, for a participant `model:`, then the message as written; or, instead of the text, `withheld:` with the reason |
-| `## <date and time> — handed over` | `job:` the job a message handed over (UC-049 4a) |
+| `## <date and time> — handed over` | `job:` each job a message's plan handed over, one line per job (UC-049 4a) |
 
 A message is withheld — its section names that and why, and nothing of its text — when the page's subject withholds it,
 as a page of mail does for a name, address, phone number or account found in that mail (`NO PERSONAL DATA FROM A MAIL
@@ -249,20 +251,30 @@ and sends nothing while the job does not
   participant proposed —, *Review the draft*, which keeps the `ConversationDraft` and goes to the subject's
   `draftRoute`, or, where the subject gives none, to the review pages' `draft` for the subject's `key`; with recording on, the
   participant's answer is appended as the result of the same *Send*. *Stop* aborts the job in the tab (UC-049 5a). A
-  hand-over the participant proposed (UC-049 4a) is shown with its kind, what it works on and its task, and goes on at
-  once: the person's *Send* was the request, and no further click is asked for. Where the kind is not `converse` itself, its
-  `review` is `person` and `eligible` finds the participant able to do it, it runs in this tab, attended, as a message runs, prepared with
-  `prepareJob` for that kind — for a kind with reviewers, with the participant itself as its one reviewer and `selfReview`
+  plan the participant proposed (UC-049 4a), the draft's `handOver`, is shown as a numbered list, each piece with its
+  kind, what it works on and its task and, beside it, where it stands, and goes on at once: the person's *Send* was the
+  request, and no further click is asked for. Each piece whose `after` is empty becomes a job of its own, with its record
+  (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`), prepared with `prepareJob` for its kind and with `hand-over` among its
+  `refuses` (MOD-job-runner's `hand-over`); a piece whose `after` names another is not handed over, and is shown as
+  waiting for the acceptance of that piece, by its number. Where a piece's kind is not `converse` itself, its
+  `review` is `person` and `eligible` finds the participant able to do it, it runs in this tab, attended, as a message
+  runs — for a kind with reviewers, with the participant itself as its one reviewer and `selfReview`
   set, since the change is described in the prompt bar (`NO REVIEWER IS THE DRAFTER`) —: its parameters are the subject's `paramsFor` less `page`, with what MOD-job-runner's
   `handOverParams` gives for what it works on, its task as `instruction`, the conversation so far, the subject's
-  `entry` and `refuses`, and the bar's `source`; nothing is written, and its result is kept as the `ConversationDraft` of that kind, which
-  *Review the draft* leads to (UC-049 4a.1); the person saves it there (UC-019 steps 8, 9). A finding that keeps it from
+  `entry` and `refuses`, and the bar's `source`; its record is queued on the tab's route with MOD-runtimes' `queueJob`
+  — the start and its taking one commit, which says that its task travels with the hand-over and holds none of its words
+  —, and it runs with `runOnTab` and that record, which gains its end, `waits for a person` for its draft; nothing else
+  is written, and its result is kept as the `ConversationDraft` of that kind, which
+  *Review the draft* leads to (UC-049 4a.1); the person saves it there (UC-019 steps 8, 9). Of several such pieces, the
+  next runs once the person has saved or discarded the draft of the one before, since the conversation keeps one
+  `ConversationDraft`, and is shown meanwhile as *after the draft before it*. A finding that keeps a piece from
   starting — a change of requirements without a `source`, where the instance's address names no owner and so no account
   (`THE PERSON WHO PROMPTS IS A SOURCE`), or a kind that takes no instruction, which MOD-job-runner's `taskRefusal` refuses since the task would reach
-  no prompt — is named, and nothing runs. Any other hand-over — the conversation itself handed on among them — is shown
-  with the participant, its processing place and the route it would take, which `routesFor` gives, and queued at once as
-  a job of the endpoint or CLI session itself where nothing keeps it from starting (UC-049 4a.2).
-  Its job takes, beside what the hand-over works on, only the bar's `source` — no other
+  no prompt — is named beside it, and that piece does not run. Any other piece — the conversation itself handed on
+  among them — is shown with the participant, its processing place and the route it would take, which `routesFor`
+  gives, and queued at once as a job of the endpoint or CLI session itself where nothing keeps it from starting (UC-049
+  4a.2), each piece a job of its own.
+  Such a job takes, beside what its piece works on, only the bar's `source` and `refuses` naming `hand-over` — no other
   parameter, so that no message and no page text enters the job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY
   ONLY WHEN RECORDING IS ON`). No start rule of the product's process applies to it: its kind's own preconditions
   decide when it is prepared — for a hand-over that works on an item of the backlog or a step of the plan (`ITM-<n>`),
@@ -270,14 +282,15 @@ and sends nothing while the job does not
   IS IMPLEMENTED BEFORE IT IS ACCEPTED`) —, and of the product it reads only the default branch: its head,
   on which the job's record is committed, its paths — whether it holds the job workflow, and the records under
   `docs/jobs/`, against whose identifiers the job's identifier is new, without reading a record — and its visibility,
-  for `routesFor`. It queues and starts the job with
+  for `routesFor`. It queues and starts each such job with
   MOD-runtimes' `handOverJob` — for a job that is the endpoint's own, with a start whose `participant` and `model` name
   the endpoint, whose destinations name its place, and whose `declares` holds its context and capabilities
-  (MOD-job-ledger) —, then follows it by its record and
-  `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows
-  its log's answer and every result its end record lists, a hand-over not run with why and what it requires among them
-  (UC-049 4a.5), and, folded below them, the answer of the job handed on in the run as the run received it, which does
-  not join the conversation; *Stop* then cancels it with `cancelJob`. It says above the
+  (MOD-job-ledger) —, then follows each by its record and
+  `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows,
+  as each ends, its log's answer and every result its end record lists, a piece not run with why and what it requires
+  among them (UC-049 4a.5); for a job that is the endpoint's own (UC-049 4f), also each job its end lists as handed
+  over, followed the same way, and each piece it did not hand over; *Stop* then cancels every one still queued or
+  running with `cancelJob`. It says above the
   selector when the conversation is recorded (UC-049 6c). Crosses the network: to the participant through its route, and
   to the repository servers to read the subject, the participants and the switch, to append the record, and to queue
   and start a hand-over. A failure of the participant's route is shown in the conversation by name.
@@ -329,9 +342,8 @@ and sends nothing while the job does not
   `products`, so a message never names it this way. Pure.
 - `followJob({ id, address, host, store, show }) -> { stop, cancel }` — a handed-over job followed every 15 seconds until
   its record has its end, `show` given its state, its run's address, its end and, for a run on CI, the answer the run
-  left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), and
-  the answer of the job handed on from it, between `--- answer handed on in <id> ---` and `--- end of the answer handed
-  on in <id> ---`, both read from the one log read once with `listCiRuns` and `ciRunLog` when its end is read.
+  left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), read
+  from its run's log, read once with `listCiRuns` and `ciRunLog` when its end is read.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
@@ -354,8 +366,8 @@ and sends nothing while the job does not
 ## Files
 
 It reads the instance's `docs/participants.md` and `docs/conversation-recording.md`, and the files `converse` and a
-kind run in the tab by a hand-over read, through the job runner. With recording on, it writes, through the host of the page's repository, the conversation
-records under `docs/conversations/`. It keeps the conversation in the tab's values of MOD-browser-store.
+kind run in the tab by a hand-over read, through the job runner. Through MOD-runtimes, it writes the record of each job a plan hands over, in this tab as on a route. With recording
+on, it writes, through the host of the page's repository, the conversation records under `docs/conversations/`. It keeps the conversation in the tab's values of MOD-browser-store.
 
 ## Uses
 
@@ -389,7 +401,8 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   and the paths of the product that hold their content, so that the job's `read-file` refuses that content to a participant
   at another place (UC-049 4e). The module keeps no copy of that rule.
 - MOD-runtimes.tabContext, MOD-runtimes.runOnTab — the job's context and its run in this tab without a record;
-  MOD-runtimes.routesFor, MOD-runtimes.handOverJob — the route of a hand-over, and its job queued and started;
+  MOD-runtimes.routesFor, MOD-runtimes.handOverJob — the route of a piece of a plan, and its job queued and started;
+  MOD-runtimes.queueJob — the record of a piece that runs in this tab;
   MOD-runtimes.actionsSetup — what the product lacks for the CI route, and its setup on the person's click;
   MOD-runtimes.liveState, MOD-runtimes.jobLog, MOD-runtimes.cancelJob, MOD-job-ledger.listJobs,
   MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*; MOD-job-ledger.newJobId,

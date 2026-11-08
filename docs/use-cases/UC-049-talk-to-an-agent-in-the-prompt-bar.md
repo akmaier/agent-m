@@ -99,7 +99,7 @@ enters the repository the way every proposal does.
    | *run code and tests* | run a command | CI, a Bridge |
    | *reach the web* | fetch a web page | CI, a Bridge |
    | always | give the answer | everywhere |
-   | always | hand a change of requirements, a use case or the architecture, or work the tab cannot do, to the kind of job that owns it (4a) | everywhere |
+   | always | plan a change of requirements, a use case or the architecture, or work the tab cannot do, as pieces, and hand each to the kind of job that owns it (4a) | everywhere |
 
    - **A model endpoint that can use tools** works in a loop that runs in this tab: it asks for a tool, Agent M carries
      the call out and returns its result, until the endpoint gives its answer. The tab reads the product through the
@@ -158,25 +158,37 @@ sequenceDiagram
   product's repository. A message that names none, or several, is about the page. Where that product cannot take the
   work — this browser keeps no token for it, or it lacks the job workflow or a CI secret the route needs —, nothing is
   sent; the bar names the product, what it requires, and links where that is set up (4c).
-- **4a. The work belongs to another kind of job, or needs what the tab cannot do.** A change of requirements, of a use
+- **4a. The work belongs to other kinds of job, or needs what the tab cannot do.** A change of requirements, of a use
   case or of the architecture belongs to the kind that owns it, with its checks and its impact list (UC-019, UC-023);
   running code or tests, changing code and reaching the web need what the tab cannot do. The endpoint or CLI session
-  hands the work on, naming the kind, what it works on and the task in its words. The author's message is the request:
-  the hand-over goes on without a further click. Nothing it starts accepts anything; only an approval record accepts.
-  1. Where the kind's result waits for the author and the endpoint or CLI session can do the kind — a kind other than
-     the conversation itself —, it runs in this tab at once, on the page's context. Its draft is shown as UC-019 describes, and the author saves it (step 6).
-  2. Any other kind is spawned as a job of the endpoint or CLI session itself, the conversation itself handed on among
-     them. An endpoint's configuration names the CI secret that holds its key (UC-003).
-  3. Agent M commits the record of a job in the product repository that names who does it, the page and the commit it
-     read, and none of the conversation's messages; it starts the product's job workflow (UC-010) with the task as the
-     workflow's input. The agent in the workflow reaches the endpoint with the key from that CI secret, and writes with
-     the author's token from a CI secret.
-  4. The prompt bar says *waiting for GitHub Actions* with the run's address and its state, until the run has ended.
-  5. The run's answer appears in the conversation, with what it wrote, as the job's record lists it: a change of
+  plans the work in the round that answers the message: it selects the pieces the request needs, at most five, each
+  naming the kind, what it works on and the task in its words, and, for a piece that rests on the result of an earlier
+  one — a use case on the requirements it realises, an architecture on the use cases it serves —, that earlier piece.
+  Each piece becomes a job of its own, of its kind, run by that kind's definition and recorded (UC-036); a piece's job
+  hands nothing on. The author's message is the request: the plan goes on without a further click. Nothing it starts accepts anything; only an
+  approval record accepts.
+  The prompt bar shows the plan, one line per piece in its order — its kind, what it works on, its task — and beside
+  each where it stands: *runs here*, *after the draft before it*, *waiting for GitHub Actions* or *on <Bridge>* with
+  its job, *waits for 1 to be accepted*, or *not handed over* with why. A piece that rests on an earlier one is not
+  handed over: it waits until a person has accepted that piece's result, and the author then asks again (5).
+  1. Where a piece's kind leaves its result to the author and the endpoint or CLI session can do the kind — a kind
+     other than the conversation itself —, it runs in this tab at once, on the page's context, with its record. Its
+     draft is shown as UC-019 describes, and the author saves it (step 6). Of several such pieces, each runs once the
+     draft before it is saved or discarded.
+  2. Any other piece is spawned as a job of the endpoint or CLI session itself, the conversation itself handed on
+     among them; several are spawned at once, each a job of its own. An endpoint's configuration names the CI secret
+     that holds its key (UC-003).
+  3. Agent M commits the record of each job in the product repository that names who does it, the page and the commit
+     it read, and none of the conversation's messages; it starts the product's job workflow (UC-010) for each, with its
+     task as the workflow's input, or hands it to the Bridge with its task (UC-011). The agent in the workflow reaches
+     the endpoint with the key from that CI secret, and writes with the author's token from a CI secret.
+  4. The prompt bar says, for each such job, *waiting for GitHub Actions* with the run's address and its state, or for
+     the Bridge, until it has ended.
+  5. Each job's answer appears in the conversation as it ends, with what it wrote, as its record lists it: a change of
      requirements as an open entry of a SPEC change queue, a use case or an architecture file committed as open, an
-     edit of another document or a change of code as a pull request; a hand-over that was not run, with why and what it
-     requires to run — "register the person as a source" —, so that the author can supply it and ask again. In most
-     cases that ends the conversation.
+     edit of another document or a change of code as a pull request; a piece that was not handed over or not run, with
+     why and what it requires to run — "register the person as a source", "accept the change of requirements of 1" —,
+     so that the author can supply it and ask again. In most cases that ends the conversation.
 - **4b. The tab is closed or loses its connection** while the endpoint or CLI session works. The conversation is gone. A
   run in GitHub Actions, or an agent on a Bridge, ends with what it has committed; the job's record shows it (UC-036).
 - **4c. The product has no job workflow, one of another commit of Agent M than this instance's, or no CI secrets yet**
@@ -189,11 +201,13 @@ sequenceDiagram
   processing place. The tool refuses and says why; it continues without it.
 - **4f. The conversation runs on GitHub Actions** — the endpoint's own job, which the bar spawns for an endpoint that
   runs only there. Nobody attends the run, so what the endpoint proposes is written at once, as proposals: an edit of a
-  document as a pull request; a hand-over of a kind other than the conversation itself runs in the same run, by that
-  kind's definition, and its writer writes as 4a.5 says. The job's record lists every result. The review pages show what was written for acceptance
+  document as a pull request; each piece of its plan of a kind other than the conversation itself that rests on no
+  other piece is spawned as a job of its own on GitHub Actions, as 4a.2 and 4a.3 say, which names the conversation's
+  job, and its writer writes as 4a.5 says; a piece that rests on another is not handed over. The conversation's job
+  record names every job it started and every piece not handed over, with why; each job's record lists its results. The review pages show what was written for acceptance
   (UC-006, UC-008), each architecture file with its impact list.
-- **5a. The author presses Stop.** The loop in the tab ends and nothing is written; a run in GitHub Actions is cancelled
-  and commits nothing more (UC-036).
+- **5a. The author presses Stop.** The loop in the tab ends and nothing is written; every job of the plan still queued
+  or running is cancelled and commits nothing more (UC-036).
 - **6a. The author discards a proposed edit.** Nothing is written.
 - **6b. The file changed while the endpoint or CLI session worked.** UC-018 5a: nothing is written, the edit stays in
   the editor beside the newer version.
