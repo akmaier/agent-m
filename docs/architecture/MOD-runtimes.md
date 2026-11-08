@@ -30,6 +30,8 @@ uses:
   - MOD-participant-list.Participant
   - MOD-participant-list.reachedThrough
   - MOD-participant-list.eligible
+  - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-job-catalogue.KindDefinition
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.Host
@@ -47,12 +49,15 @@ uses:
   - MOD-repository-hosts.PullRequest
   - MOD-repository-hosts.CiRun
   - MOD-repository-hosts.repositoryInfo
+  - MOD-repository-hosts.setCiSecret
+  - MOD-repository-hosts.ciSecretNames
   - MOD-work-plans.targetBranch
   - MOD-work-plans.planSchemas
   - MOD-product-process.declarationSchema
   - MOD-product-process.branchesOf
   - MOD-product-process.gateSchema
   - MOD-documents.readDocument
+  - MOD-documents.readRegister
   - MOD-documents.artifactSchemas
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.ask
@@ -62,9 +67,11 @@ uses:
   - MOD-bridge-client.cancelOnBridge
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.traceGraph
+  - MOD-browser-store.Store
   - MOD-browser-store.openStore
   - MOD-browser-store.readSetting
   - MOD-browser-store.writeSetting
+  - MOD-browser-store.listSettings
   - MOD-identifiers.instanceOfPagesAddress
 provides:
   - Route
@@ -85,6 +92,7 @@ provides:
   - jobTrail
   - revertAfterCancel
   - jobWorkflowFiles
+  - actionsSetup
   - gitlabVariableScopes
   - routeStrategies
 ---
@@ -100,7 +108,8 @@ asking its runtime for its live state and log; cancelling and retrying it. A con
 tab as a job without a record (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`); the work it hands over is queued here as a
 job of its own, whose record names its inputs and whose task travels with the hand-over, never in the record (`A
 CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`). It also gives a product the files of Agent M's
-job workflow, and offers the writer that checks and records a coding participant's branch and pull request. The page uses
+job workflow, and what the product lacks of the CI route — those files and the CI secrets they read —, set up on a
+person's click; and it offers the writer that checks and records a coding participant's branch and pull request. The page uses
 it in a browser; its writer and its workflow files are used in Node as well.
 
 ## Parts
@@ -111,6 +120,7 @@ it in a browser; its writer and its workflow files are used in Node as well.
 - `ci.mjs` — the CI route: queueing, live state, log and cancel through the repository host.
 - `bridge.mjs` — the Bridge route through the Bridge client, and the driver of an agent or an endpoint on a Bridge.
 - `workflow/github.yml`, `workflow/gitlab.yml` — the templates of the job workflow.
+- `actions-setup.mjs` — what a product lacks of the CI route, and its setup: `actionsSetup`.
 - `workflow/github-main-changed.yml`, `workflow/gitlab-main-changed.yml` — the templates of the file beside it that runs
   `onMainChanged`.
 - `pull-request.mjs` — the writer `branch-and-pull-request`.
@@ -150,8 +160,8 @@ task in the participant's words, `endpoint`, the address and model of a model en
 secret of that endpoint's key; the task is given to the job and written to no file, and the run's answer is left in the
 run's own log and summary, never in the job's record. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
 an agent's key from the secret the participant's route names; the file names each secret it reads by its literal name,
-never by a name computed while it runs; the dashboard names them and opens the server's page for secrets, and never asks
-for a value. Each job checks out the instance repository at the commit the file names and runs an entry of
+never by a name computed while it runs; the dashboard names them, stores on a person's click each one whose value this
+browser keeps (`actionsSetup`), opens the server's page for secrets for the rest, and never asks for a value. Each job checks out the instance repository at the commit the file names and runs an entry of
 MOD-workflow-entries with Node.
 
 A run has two machines (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`, `A HOSTED JOB WRITES WITH THE PERSON'S
@@ -348,6 +358,29 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   the environment scopes each CI/CD variable the job workflow reads must have, and no other: the token `agent-m-write`
   alone, each key `agent-m-key-<its name>` and `agent-m-write`, one variable for each scope; the token first, then the
   keys in their order. Pure.
+- `actionsSetup({ product: { address: string, host: Host, tokenKey: string }, instance: { host: Host }, store: Store }) ->
+  Promise<{ missing: { workflow: boolean, secrets: string[] }, outdated: string[], unknown: string[], named: { token:
+  string, keys: string[] }, setUp: () -> Promise<{ commit: string | null, stored: string[] }> }>` — what the product
+  lacks for the CI route, and its setup (UC-010, UC-049 4c); the one place the settings page and the prompt bar learn
+  it. `tokenKey` is the key of the product's own token in `store`, which the caller hands, since this module reads no
+  rule of the frame. It reads the instance's default branch — its repository and commit, and its participants
+  (`docs/participants.md`, through `readRegister`, `participantSchema` and `participantsOf`) — and the product's:
+  `named` is what the job workflow reads, `token` `AGENT_M_TOKEN` and `keys`, in their order without a name twice, the
+  CI secret of each participant's route of the form `ci … secret <NAME>` and the `secret` each `endpoint:*` setting of
+  `store` names; the runners are the labels of those routes. It compares `jobWorkflowFiles` for them — on GitLab with
+  the product's `.gitlab-ci.yml` at that head — with the product's default branch: `missing.workflow` is true where a
+  file is absent, `outdated` names each file that stands with another text. On GitHub it compares the secrets `named`
+  with `ciSecretNames`: `missing.secrets` names each that the repository lacks, the token first, and `unknown` those of
+  them for which this browser keeps no value. On GitLab, which lists no secret this way, both are empty, and the
+  variables' scopes are the caller's to check (`gitlabVariableScopes`). `setUp`, called only on a person's click
+  (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`), commits every file that is absent or outdated in one commit on the
+  default branch, on the head that was read, as the person's commit, and then stores, through the product's host with
+  `setCiSecret`, each missing secret it has a value for: `AGENT_M_TOKEN` the `value` of the setting `tokenKey`, a key
+  the `key` of the endpoint setting whose `secret` names it. It returns the commit, `null` where no file was written, and
+  the names stored. No value is returned, logged, shown or written to a file: a value leaves the browser only sealed in
+  the request that stores it (`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). Crosses the network; fails as
+  `readSnapshot` and `ciSecretNames` fail, and `setUp` as `commitFiles` — `Moved` among them — and `setCiSecret` fail;
+  what it wrote before a failure stays written.
 - `handOverJob(prepared: Prepared, route: Route, start: JobStart, host: Host, head: string, task: string, target: {
   endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null }) -> Promise<{ path: string,
   commit: string }>` — queues the work a conversation of the prompt bar handed over, on the person's click *Hand over*
@@ -380,9 +413,10 @@ pins — the commit the run's checkout of the instance is at —, not the commit
 ## Files
 
 It writes, through the host, the start records of jobs, the parts it appends, and pull requests; it returns the job
-workflow's files for its caller to commit. It reads the job's branch and its test files. In this browser's store,
+workflow's files for its caller to commit, and, in `actionsSetup`'s `setUp`, commits them on the product's default
+branch and stores its missing CI secrets. It reads the job's branch and its test files. In this browser's store,
 through MOD-browser-store, it reads `browser`, and writes it where it is not set, when the tab takes a job
-(Data).
+(Data); for `actionsSetup` it reads the endpoint settings and the product's token, and writes nothing there.
 
 ## Uses
 
@@ -415,6 +449,11 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
   given;
   `MOD-repository-hosts.startWorkflow` — the start of a handed-over job, with its task.
 - `MOD-participant-list.reachedThrough` — a subagent's route through the participant that starts it.
+- `MOD-documents.readRegister`, `MOD-participant-list.participantSchema`, `MOD-participant-list.participantsOf` — the
+  instance's participants, whose CI routes name the keys the job workflow reads (`actionsSetup`);
+  `MOD-repository-hosts.ciSecretNames`, `MOD-repository-hosts.setCiSecret` — the product's Actions secrets, compared by
+  name and stored on the person's click; `MOD-browser-store.Store`, `MOD-browser-store.listSettings` — the endpoint
+  settings, whose `secret` and `key` it reads with `readSetting`, and the product's token.
 - `MOD-bridge-client.Bridge`, `MOD-bridge-client.ask`, `MOD-bridge-client.handOver`, `MOD-bridge-client.bridgeJobs`,
   `MOD-bridge-client.bridgeJobLog`, `MOD-bridge-client.cancelOnBridge` — the Bridge route, on the Bridges its callers
   hand in.

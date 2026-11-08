@@ -38,6 +38,7 @@ provides:
   - listCiRuns
   - startWorkflow
   - setCiSecret
+  - ciSecretNames
   - cancelCiRun
   - ciRunLog
   - ciRunLabels
@@ -262,6 +263,11 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   that is no plain name, or begins with `GITHUB_`, is a `TypeError`. Crosses the network; fails with `PermissionMissing`
   naming the permission *Secrets*, `TokenRefused`, `RateLimited`, `Unreachable`, and `NotSupported` on a GitLab server
   and without a token, before any request.
+- `ciSecretNames() -> Promise<string[]>` — on GitHub, the names of the repository's Actions secrets, each once, never a
+  value: GitHub's listing of them (`GET /repos/{owner}/{repo}/actions/secrets`), page after page, of which only each
+  secret's `name` is taken. Crosses the network; fails with `PermissionMissing` naming the permission *Secrets* — the
+  token may not read them —, `TokenRefused`, `RateLimited`, `Unreachable`, and `NotSupported` on a GitLab server and
+  without a token, before any request.
 - `cancelCiRun(id: string) -> Promise<void>` — asks the server to cancel a run; the run's state shows when it has.
   Crosses the network; fails as `startWorkflow`.
 - `ciRunLog(id: string) -> Promise<string | null>` — the run's log, or `null` when the server no longer keeps it. Crosses

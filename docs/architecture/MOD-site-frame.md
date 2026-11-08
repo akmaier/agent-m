@@ -85,8 +85,9 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   `start.mjs` and the live page's app (`dashboard-app.mjs`) both register with it.
 - `attachPromptBar` (index.mjs) — MOD-prompt-bar's bar started in a footer fixed to the bottom of the window, which takes the
   bar's height: `startPage` attaches it on the main page, and `dashboard-app.mjs` on every review page once its load has read
-  the instance, with the subject of what the page shows (`subjectOf`) (UC-049 step 1), and on both with the products this
-  browser manages, each entry of `products` with the host `productHostFollowingStore` gives for it (UC-049 3d).
+  the instance, with the subject of what the page shows (`subjectOf`) (UC-049 step 1), and on both with the chosen product
+  and the products this browser manages, each entry of `products` with the host `productHostFollowingStore` gives for it
+  (UC-049 3d), and each with `tokenKey`, the key `tokenKeyOf` gives for its token.
 - `preloads.mjs` — the block of preloads in the `<head>` of each entry page, `index.html` and `docs/index.html`, so that a
   browser asks for every file the page loads as it starts at once, not level by level as it finds the imports: a
   `<link rel="modulepreload">` for each module of the static import closure of the page's module script and of the views its
@@ -213,7 +214,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   `chosenProduct` read back. On the same pages it draws the footer after the route and before the page's foot. In
   the page's foot it starts MOD-prompt-bar's `startPromptBar`, handing it
   the store, the instance, the chosen product, the products this browser manages — each entry of `products` with the host
-  `productHostFollowingStore` gives for it, read at each call —, the subject of the route shown at each moment, its own
+  `productHostFollowingStore` gives for it, read at each call —, each product with the key `tokenKeyOf` gives for its
+  token as `tokenKey`, the subject of the route shown at each moment, its own
   `explain` and its navigation, so that the prompt bar uses neither the frame nor a view. Called by `start.mjs`, and by the Bridge's
   window with its own routes, where no prompt bar is drawn.
 - `embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void>` — renders a route of
@@ -248,7 +250,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   each product, however often it is asked for. Errors: the `TypeError` of MOD-repository-hosts' `parseAddress` for an entry that is no repository address.
 - `tokenKeyOf(address: RepositoryAddress) -> string` — the key a product's own token is kept under in the browser's store: `github-token:<owner>/<repository>` for a GitHub product,
   `gitlab-token:<server>/<project>` for a GitLab product (MOD-browser-store, Data). It reads nothing and is the one place that rule stands, for the frame and for the pages that
-  read a product's token setting, such as the name it is stored under.
+  read a product's token setting, such as the name it is stored under; the frame hands it to the prompt bar as each
+  product's `tokenKey`.
 - `explain(topic: string, label?: string) -> Element` — the folded *What is this?* of a topic, or the fold under the
   label a use case names for it (such as *Why these?*), from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a

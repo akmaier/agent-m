@@ -62,6 +62,7 @@ uses:
   - MOD-runtimes.liveState
   - MOD-runtimes.jobLog
   - MOD-runtimes.cancelJob
+  - MOD-runtimes.actionsSetup
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.settingsOf
   - MOD-bridge-client.bridgeAt
@@ -185,9 +186,11 @@ IN THE REPOSITORY`).
   JobResult }`: the latest draft of the conversation, kept in the tab until the person saves or discards it or a newer
   draft replaces it.
 - `startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host:
-  Host }, product: () -> { address: string, host: Host } | null, products: () -> { address: string, host: Host }[],
+  Host }, product: () -> { address: string, host: Host, tokenKey: string } | null, products: () -> { address: string,
+  host: Host, tokenKey: string }[],
   subject: () -> Subject, explain: (topic: string) -> Element, go: (route: string, params?: Record<string, string>) ->
-  void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void }` — draws the bar into
+  void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void }` — `tokenKey` is the key under which `store`
+  keeps that product's own token, as the frame gives it. It draws the bar into
   `target`, fixed to the bottom of the window, and keeps it for the life of the page. Where the page hands `instanceSnapshot`
   and it gives the instance's default branch as the page's own load read it, the bar reads through it and asks the host for no
   commit and no tree again (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); else it reads the default branch itself. It first reads this browser's
@@ -227,7 +230,7 @@ and sends nothing while the job does not
   the `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size.
   **A message that names another product** (UC-049 3d): on *Send* the bar asks `namedProduct` for the person's words
   over `products`, less an entry that is the instance's own repository. Where it gives a product other than the page's —
-  `product()`, or the instance for a page of the instance —, that product, with its host from `products`, is the
+  `product()`, or the instance for a page of the instance —, that product, with its host and `tokenKey` from `products`, is the
   message's page in place of the page shown: the job's context is that product, and the subject's parameters are
   replaced by `page`, naming that product's address and that the message named it, with none of the shown page's
   artifact parameters (`requirements`, `useCase`, `target`, `version`, `draft`), while the subject's `entry`, `refuses`
@@ -276,11 +279,24 @@ and sends nothing while the job does not
   (UC-049 4a.5); *Stop* then cancels it with `cancelJob`. It says above the
   selector when the conversation is recorded (UC-049 6c). Crosses the network: to the participant through its route, and
   to the repository servers to read the subject, the participants and the switch, to append the record, and to queue
-  and start a hand-over. A failure of the participant's route is shown in the conversation by name. A hand-over
-  the product cannot take yet says what is missing and links where it is set up (UC-049 4c): while the product has no
-  job workflow — the CI route unavailable, `routesFor` naming its files — the route `settings` through `go`, whose
-  product section installs it; for a run ended `not run` for a missing secret, the server's page of the repository's
-  secrets (MOD-repository-hosts' `webLinks`, `secrets`), naming the secret. Such a run writes neither `## Taken` nor
+  and start a hand-over. A failure of the participant's route is shown in the conversation by name.
+  **A product not set up for GitHub Actions** (UC-049 4c, UC-010): for a repository on GitHub — the server the snapshot
+  of the message's page names —, before a hand-over is queued on the CI route, or is held back only because the job
+  workflow is missing (`routesFor` naming its files), and before *Spawn job* spawns, the bar asks MOD-runtimes'
+  `actionsSetup` for the message's page — the product the message names where there is one (UC-049 3d), else the
+  page's product, each with its `tokenKey`, else the instance, whose token the store keeps under `github-token`. Where
+  the job workflow is missing, or a secret the run reads — `AGENT_M_TOKEN`, or the one the participant's route names —,
+  nothing is handed over and the bar shows `Nothing was handed over: <owner/repo> is not set up for GitHub Actions.
+  Missing: <the job workflow · SECRET · …>`; while anything `setUp` can set up is missing, it offers **Set up GitHub
+  Actions**, whose one click, the person's, runs `setUp`, assesses the hand-over again on the head the setup left, and
+  hands it over, or spawns the job, as the person's *Send* asked, with no further click. A missing secret this browser
+  keeps no value for is named with the server's page of the repository's secrets (MOD-repository-hosts' `webLinks`,
+  `secrets`); while such a secret the run reads stays missing, nothing is handed over. A file that stands outdated, or a
+  missing secret the run does not read, holds nothing back. The cost is the reads of `actionsSetup` — the instance's and
+  the product's default branch and one `ciSecretNames` listing — once per hand-over and per *Spawn job*. For a
+  repository on GitLab, while it has no job workflow, the bar links the route `settings` through `go`, whose product
+  section installs it. For a run ended `not run` for a missing secret, the bar names the secret with the server's page
+  of the repository's secrets. Such a run writes neither `## Taken` nor
   `## End` (MOD-workflow-entries), so `liveState` and `jobLog` cannot report it; while a followed hand-over stays queued
   and untaken on the CI route, each poll lists the runs of the job workflow with `listCiRuns`, and when a failed run no
   older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's
@@ -369,6 +385,7 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   at another place (UC-049 4e). The module keeps no copy of that rule.
 - MOD-runtimes.tabContext, MOD-runtimes.runOnTab — the job's context and its run in this tab without a record;
   MOD-runtimes.routesFor, MOD-runtimes.handOverJob — the route of a hand-over, and its job queued and started;
+  MOD-runtimes.actionsSetup — what the product lacks for the CI route, and its setup on the person's click;
   MOD-runtimes.liveState, MOD-runtimes.jobLog, MOD-runtimes.cancelJob, MOD-job-ledger.listJobs,
   MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*; MOD-job-ledger.newJobId,
   MOD-job-ledger.JobStart — the identifier and the start of the job a hand-over queues.
