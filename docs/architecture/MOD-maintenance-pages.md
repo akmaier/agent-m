@@ -63,8 +63,6 @@ uses:
   - MOD-spec-changes.queues
   - MOD-spec-changes.entryView
   - MOD-spec-changes.specStrategies
-  - MOD-source-register.sourceSchemas
-  - MOD-source-register.personSource
   - MOD-source-register.personAccount
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
@@ -122,9 +120,8 @@ person reviews it. Its formats are those of the modules it uses.
     change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates
     shown by class beside the requirements they refer to and every conflict decided by the person, then *Save*, which
     writes them as queue entries naming the issue — the job of `change-requirements` given the issue's number as its
-    parameter `issue` and the person's own source as its parameter `source`, which `personSource` names for
-    `personAccount`'s account among the product's links and the instance's register, or, without one, the steps its
-    precondition names —; *Move to backlog* with the item prefilled — its fields checked in a
+    parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
+    instance's snapshot, or, where it gives none, what its precondition names as required —; *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
     `moveToBacklog`, or names the comment to copy
     when the token may not comment; closing an issue with links once its pull request is merged. The list reads the open
@@ -165,8 +162,8 @@ person reviews it. Its formats are those of the modules it uses.
 
 It writes nothing in a repository itself: every decision is one call of Issues and mail, of the writer of a kind
 through MOD-job-runner, or of the host — an issue's state, its labels, a note offered again. It writes a job's start
-record through MOD-runtimes. It reads the product's issues, snapshot, resources and links, the mailbox through its route, and the
-instance's participants and source register.
+record through MOD-runtimes. It reads the product's issues, snapshot and resources, the mailbox through its route, and the
+instance's participants.
 
 ## Uses
 
@@ -211,8 +208,7 @@ instance's participants and source register.
   entries, those whose `issue` names the number of the issue shown and the address of the product the frame has chosen;
   MOD-spec-changes.entryView — the requirements each of them changes or adds, its `impact`, given to
   `backlogItemFrom` as `changed`, since an entry's anchor is the heading of a whole section, not a requirement's name.
-- MOD-source-register.sourceSchemas, MOD-source-register.personSource, MOD-source-register.personAccount — the product's
-  links file and the instance's register, and in them the person's own source, the parameter `source` of a change.
+- MOD-source-register.personAccount — the person's account, the parameter `source` of a change.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
   participants of the register, and who may analyse, fix, propose, rewrite, check or draft.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-runner.writeResult — the drafted change

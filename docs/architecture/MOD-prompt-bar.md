@@ -42,6 +42,7 @@ uses:
   - MOD-source-register.sourceSchemas
   - MOD-source-register.registerPaths
   - MOD-source-register.restrictedPlaces
+  - MOD-source-register.personAccount
   - MOD-reuse-facts.reuseStrategies
   - MOD-resource-list.resourceStrategies
   - MOD-work-plans.workStrategies
@@ -82,6 +83,7 @@ provides:
   - endpointsOffered
   - spawnEndpointJob
   - followJob
+  - namedProduct
 ---
 # MOD-prompt-bar The prompt bar, where a person talks to an agent about the page
 
@@ -99,7 +101,8 @@ record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`, `
 WAS HELD`).
 
 It is no view: the frame starts it on the main and the review pages, never in the Bridge's window, and hands it what it
-needs from the frame — the subject of the route shown, the folded explanations, and the frame's navigation — so that it
+needs from the frame — the subject of the route shown, the products this browser manages with their hosts, the folded
+explanations, and the frame's navigation — so that it
 uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`). It runs in a browser.
 
 ## Parts
@@ -171,9 +174,8 @@ IN THE REPOSITORY`).
   page of mail gives a mail's text only to a participant the mailbox allows and that does not write to the repository,
   and its `MAIL-` identifier to any other (UC-049 3b), and a page of settings names each setting and whether it is stored,
   never its value (UC-049 3c); where an artifact is open, the parameters by which a kind names it — `requirements`,
-  `useCase`, `target` — and its `version`; `source`, the person's own source, where the product links one; and, on the
-  review pages' `draft`, the conversation's draft as `draft`. It throws nothing for a missing source: a kind that
-  needs one refuses by its own precondition. `draftRoute` the route of the review pages that shows a draft of this
+  `useCase`, `target` — and its `version`; and, on the review pages' `draft`, the conversation's draft as `draft`.
+  `draftRoute` the route of the review pages that shows a draft of this
   subject, or `null` where the subject gives none, and the bar then leads to the review pages' `draft` for its `key`;
   `withhold` what a message on this page must not be recorded for, with the reason;
   `refuses` the tools that are not offered on this page — on a page of mail, `propose-edit` and
@@ -183,8 +185,9 @@ IN THE REPOSITORY`).
   JobResult }`: the latest draft of the conversation, kept in the tab until the person saves or discards it or a newer
   draft replaces it.
 - `startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host:
-  Host }, product: () -> { address: string, host: Host } | null, subject: () -> Subject, explain: (topic: string) ->
-  Element, go: (route: string, params?: Record<string, string>) -> void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void }` — draws the bar into
+  Host }, product: () -> { address: string, host: Host } | null, products: () -> { address: string, host: Host }[],
+  subject: () -> Subject, explain: (topic: string) -> Element, go: (route: string, params?: Record<string, string>) ->
+  void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void }` — draws the bar into
   `target`, fixed to the bottom of the window, and keeps it for the life of the page. Where the page hands `instanceSnapshot`
   and it gives the instance's default branch as the page's own load read it, the bar reads through it and asks the host for no
   commit and no tree again (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); else it reads the default branch itself. It first reads this browser's
@@ -213,13 +216,26 @@ IN THE REPOSITORY`).
   a queued hand-over is; nothing is sent from the tab, and what the job proposes is written in its run
   (MOD-workflow-entries). For every other one it reads *Send*. On *Send* — the decision to
   send — it asks the subject for the parameters, adds the person's words as `instruction`, the conversation
-  so far as `conversation`, the subject's `entry` as `entry` and its `refuses` as `refuses`, prepares the job with
+  so far as `conversation`, the subject's `entry` as `entry` and its `refuses` as `refuses`, and, as `source`, the
+  account MOD-source-register's `personAccount` gives for the instance's snapshot it reads — on every page, the frame's
+  default subject included, and in this one place (`THE PERSON WHO PROMPTS IS A SOURCE`) —, prepares the job with
   MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext` — so that the message reaches the participant
 after Agent M's `AGENTS.md`, as MOD-job-runner composes every input (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`) —,
 and sends nothing while the job does not
-  fit or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b): for a participant the job does not
+  fit or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a): for a participant the job does not
   fit, it names the participant, how many requirements and use cases the job holds for it and how many of them fit, from
-  the `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size. It names
+  the `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size.
+  **A message that names another product** (UC-049 3d): on *Send* the bar asks `namedProduct` for the person's words
+  over `products`, less an entry that is the instance's own repository. Where it gives a product other than the page's —
+  `product()`, or the instance for a page of the instance —, that product, with its host from `products`, is the
+  message's page in place of the page shown: the job's context is that product, and the subject's parameters are
+  replaced by `page`, naming that product's address and that the message named it, with none of the shown page's
+  artifact parameters (`requirements`, `useCase`, `target`, `version`, `draft`), while the subject's `entry`, `refuses`
+  and `withhold` stay; with recording on, the record appended is that product's; a hand-over and a job spawned with
+  *Spawn job* go to that product's repository, and *Review the draft* to the review pages' `draft` with that product
+  named in `go`'s `product`; and the bar says above the answer `About <owner/repo> — named in your message.` Where this
+  browser keeps no token for that product, nothing is sent: the bar names the product and links the route `add-product`
+  through `go`, where its token is stored (UC-001). Where it gives the page's own product, or none, nothing changes. It names
   every destination before it sends — the drafter and, for a kind with reviewers, each reviewer, with its processing
   place. With recording on — read from the instance at that moment —, it first appends the person's message to the
   conversation record of the page's repository, as a commit with the token of that repository on the head that was read,
@@ -236,14 +252,14 @@ and sends nothing while the job does not
   `prepareJob` for that kind — for a kind with reviewers, with the participant itself as its one reviewer and `selfReview`
   set, since the change is described in the prompt bar (`NO REVIEWER IS THE DRAFTER`) —: its parameters are the subject's `paramsFor` less `page`, with what MOD-job-runner's
   `handOverParams` gives for what it works on, its task as `instruction`, the conversation so far, the subject's
-  `entry` and `refuses`; nothing is written, and its result is kept as the `ConversationDraft` of that kind, which
+  `entry` and `refuses`, and the bar's `source`; nothing is written, and its result is kept as the `ConversationDraft` of that kind, which
   *Review the draft* leads to (UC-049 4a.1); the person saves it there (UC-019 steps 8, 9). A finding that keeps it from
-  starting — a change of requirements without the person's own source among them (`THE PERSON WHO PROMPTS IS A
-  SOURCE`), or a kind that takes no instruction, which MOD-job-runner's `taskRefusal` refuses since the task would reach
+  starting — a change of requirements without a `source`, where the instance's address names no owner and so no account
+  (`THE PERSON WHO PROMPTS IS A SOURCE`), or a kind that takes no instruction, which MOD-job-runner's `taskRefusal` refuses since the task would reach
   no prompt — is named, and nothing runs. Any other hand-over — the conversation itself handed on among them — is shown
   with the participant, its processing place and the route it would take, which `routesFor` gives, and queued at once as
   a job of the endpoint or CLI session itself where nothing keeps it from starting (UC-049 4a.2).
-  Its job takes, beside what the hand-over works on, only the `source` that the subject's `paramsFor` gives — no other
+  Its job takes, beside what the hand-over works on, only the bar's `source` — no other
   parameter, so that no message and no page text enters the job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY
   ONLY WHEN RECORDING IS ON`). No start rule of the product's process applies to it: its kind's own preconditions
   decide when it is prepared — for a hand-over that works on an item of the backlog or a step of the plan (`ITM-<n>`),
@@ -256,7 +272,8 @@ and sends nothing while the job does not
   the endpoint, whose destinations name its place, and whose `declares` holds its context and capabilities
   (MOD-job-ledger) —, then follows it by its record and
   `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows
-  its log's answer and the commits its end record names; *Stop* then cancels it with `cancelJob`. It says above the
+  its log's answer and every result its end record lists, a hand-over not run with why and what it requires among them
+  (UC-049 4a.5); *Stop* then cancels it with `cancelJob`. It says above the
   selector when the conversation is recorded (UC-049 6c). Crosses the network: to the participant through its route, and
   to the repository servers to read the subject, the participants and the switch, to append the record, and to queue
   and start a hand-over. A failure of the participant's route is shown in the conversation by name. A hand-over
@@ -277,12 +294,19 @@ and sends nothing while the job does not
 - `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot?
   }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
   endpoint's own, on GitHub Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the
-  repository of `page`, with `task` travelling in the workflow's inputs, on the server's own runners. It reads none of
+  repository of `page`, with `task` travelling in the workflow's inputs and `source` the bar's, on the server's own runners. It reads none of
   the product's facts: of the product, its default branch — its head, its
   paths, its visibility —, and of the instance its participant list and the restricted sources' places, which the job's
   preparation takes; `instanceSnapshot` is the instance's default branch where the bar read it already, for the
   recording switch, so that it is not read again. Where no CI route can be taken — no job workflow, or an endpoint
   naming no CI secret — nothing is written and `refused` says why.
+- `namedProduct(text: string, products: { address: string }[]) -> string | null` — the address of the one product among
+  `products` whose repository name `text` names, or `null` where none or more than one does (UC-049 3d). A repository
+  name — the last part of the address's path — is split into words at each change from a lower-case letter or a digit
+  to an upper-case letter and at `-`, `_` and `.`, and lowered: `AlienInvasion` and `alien-invasion` both give `alien
+  invasion`. The text names it where, read without regard to case, it holds those words in their order, separated by
+  spaces, or joined into one word (`alieninvasion`), beginning and ending at word boundaries. The instance is not among
+  `products`, so a message never names it this way. Pure.
 - `followJob({ id, address, host, store, show }) -> { stop, cancel }` — a handed-over job followed every 15 seconds until
   its record has its end, `show` given its state, its run's address, its end and, for a run on CI, the answer the run
   left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), read
@@ -337,6 +361,7 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   MOD-work-plans.workStrategies, MOD-run-planner.runStrategies,
   MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-issue-handling.issueStrategies,
   MOD-runtimes.routeStrategies — the sets `loadHandOverStrategies` gives.
+- MOD-source-register.personAccount — the person's account, the `source` of every message and hand-over.
 - MOD-source-register.registerPaths, MOD-source-register.sourceSchemas — the entries of the instance's register, read from
   its snapshot; MOD-source-register.restrictedPlaces — over every one of them, whether or not the product links it, the
   places of the restricted sources that a message's or a hand-over's job is given (MOD-job-runner's `JobContext.places`),
