@@ -39,6 +39,23 @@
           },
           "source": {
             "type": "string"
+          },
+          "place": {
+            "type": "object",
+            "properties": {
+              "group": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "new": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "group"
+            ]
           }
         },
         "required": [

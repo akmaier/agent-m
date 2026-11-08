@@ -24,7 +24,7 @@ let find = () => [];
 const standIns = {
   preconditions: { "rests-on-accepted": async () => null, "architecture-ready": async () => null },
   recipes: Object.fromEntries(["chosen-requirements", "use-cases", "chapters-for-requirements", "source-excerpt",
-    "spec-with-queues", "whole-spec", "accepted-use-cases", "whole-architecture", "chapters-for-architecture"]
+    "spec-with-queues", "requirement-hierarchy", "whole-spec", "accepted-use-cases", "whole-architecture", "chapters-for-architecture"]
     .map((name) => [name, async () => [{ name, text: `the text of ${name}`, size: 0, sources: [], required: true }]])),
   checks: Object.fromEntries(["document-schema", "graph-checks stand-in", "candidate-classes", "requirement-form"]
     .map((name) => [name, (draft) => (name === "graph-checks stand-in" ? find(draft) : [])])),
@@ -108,7 +108,7 @@ CONFLICT = r"""
 const conflict = { artifact: "SPEC.md", line: 9, kind: "error", rule: "A CONFLICT IS DECIDED BY A PERSON",
   what: "\"EXPORT AS CSV\" contradicts EXPORT IS A PDF", fix: "decide which holds" };
 const standIns = {
-  recipes: Object.fromEntries(["source-excerpt", "spec-with-queues", "chapters-for-requirements"]
+  recipes: Object.fromEntries(["source-excerpt", "spec-with-queues", "requirement-hierarchy", "chapters-for-requirements"]
     .map((name) => [name, async () => [{ name, text: `the text of ${name}`, size: 0, sources: [], required: true }]])),
   checks: { "requirement-form": () => [], "candidate-classes stand-in": () => [conflict] },
   writers: { "queue-entries": async () => ({ commits: [], files: [], pullRequest: null, shown: null }) },

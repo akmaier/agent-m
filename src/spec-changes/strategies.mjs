@@ -88,6 +88,14 @@ async function withQueues(context) {
     artifacts: listed.map(({ requirement }) => ({ id: requirement.name, keys: [requirement.name, requirement.rule ?? ""] })) }];
 }
 
+// The product's group file of requirements as it stands, as one part that carries no artifact — its requirements are those of spec-with-queues —;
+// no part where the product has none, every requirement then standing at the top level.
+const GROUPS_PATH = "docs/groups/requirements.md";
+async function requirementHierarchy(context) {
+  const text = await context.product.snapshot.read(GROUPS_PATH);
+  return typeof text === "string" ? [partOf(GROUPS_PATH, text)] : [];
+}
+
 // The SPEC as it stands, as one part: its bytes, untouched. The job runner sets the part's size. A product without a SPEC.md is
 // SpecNotFound { path }: a recipe never gives a part from less than the SPEC.
 async function wholeSpec(context) {
@@ -106,6 +114,8 @@ async function wholeSpec(context) {
  * - recipe `spec-with-queues`: every requirement of the SPEC and of every open entry of every queue, each with its section and state, as
  *   one part, which carries each of them as an artifact — its name as the identifier, its name and its rule as the key — against which
  *   `candidate-classes` classifies a draft; no part for a product without a requirement;
+ * - recipe `requirement-hierarchy`: the product's docs/groups/requirements.md as it stands, as one part named by its path that carries no
+ *   artifact; no part for a product without it;
  * - recipe `whole-spec`: the SPEC as it stands, byte for byte, as one part named SPEC.md. Throws SpecNotFound { path } for a product without one.
  */
 // The precondition `person-source`: an error under THE PERSON WHO PROMPTS IS A SOURCE where the job's parameter `source` is missing or blank — the person's
@@ -127,6 +137,7 @@ export const specStrategies = {
     "chosen-requirements": chosen,
     "named-requirements": sectionsOfNamed,
     "spec-with-queues": withQueues,
+    "requirement-hierarchy": requirementHierarchy,
     "whole-spec": wholeSpec,
   },
   writers: {
