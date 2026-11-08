@@ -286,18 +286,21 @@ and sends nothing while the job does not
   workflow is missing (`routesFor` naming its files), and before *Spawn job* spawns, the bar asks MOD-runtimes'
   `actionsSetup` for the message's page — the product the message names where there is one (UC-049 3d), else the
   page's product, each with its `tokenKey`, else the instance, whose token the store keeps under `github-token`. Where
-  the job workflow is missing, or a secret the run reads — `AGENT_M_TOKEN`, or the one the participant's route names —,
-  nothing is handed over and the bar shows `Nothing was handed over: <owner/repo> is not set up for GitHub Actions.
-  Missing: <the job workflow · SECRET · …>`; while anything `setUp` can set up is missing, it offers **Set up GitHub
-  Actions**, whose one click, the person's, runs `setUp`, assesses the hand-over again on the head the setup left, and
-  hands it over, or spawns the job, as the person's *Send* asked, with no further click. A missing secret this browser
-  keeps no value for is named with the server's page of the repository's secrets (MOD-repository-hosts' `webLinks`,
-  `secrets`); while such a secret the run reads stays missing, nothing is handed over. A file that stands outdated, or a
-  missing secret the run does not read, holds nothing back. The cost is the reads of `actionsSetup` — the instance's and
-  the product's default branch and one `ciSecretNames` listing — once per hand-over and per *Spawn job*. For a
-  repository on GitLab, while it has no job workflow, the bar links the route `settings` through `go`, whose product
-  section installs it. For a run ended `not run` for a missing secret, the bar names the secret with the server's page
-  of the repository's secrets. Such a run writes neither `## Taken` nor
+  the job workflow is missing, a file of it stands outdated (`outdated`), or a secret the run reads — `AGENT_M_TOKEN`,
+  or the one the participant's route names — is missing, nothing is handed over and the bar shows `Nothing was handed
+  over: <owner/repo> is not set up for GitHub Actions.`, then `Missing: <the job workflow · SECRET · …>` where anything
+  is missing, and `Outdated: <file, …>: the job workflow pins <pins.product>, this instance is <pins.instance>` where a
+  file stands outdated, each commit by its first seven digits — `Outdated: <file, …>: it stands with another text than
+  this instance gives` where `pins.product` is `pins.instance` or `null`; while anything `setUp` can set up is missing
+  or outdated, it offers **Set up GitHub Actions**, whose one click, the person's, runs `setUp`, which writes the
+  outdated files again, assesses the hand-over again on the head the setup left, and hands it over, or spawns the job,
+  as the person's *Send* asked, with no further click. A missing secret this browser keeps no value for is named with
+  the server's page of the repository's secrets (MOD-repository-hosts' `webLinks`, `secrets`); while such a secret the
+  run reads stays missing, nothing is handed over. A missing secret the run does not read holds nothing back. The cost
+  is the reads of `actionsSetup` — the instance's and the product's default branch and one `ciSecretNames` listing —
+  once per hand-over and per *Spawn job*. For a repository on GitLab, while it has no job workflow, the bar links the
+  route `settings` through `go`, whose product section installs it. For a run ended `not run` for a missing secret, the
+  bar names the secret with the server's page of the repository's secrets. Such a run writes neither `## Taken` nor
   `## End` (MOD-workflow-entries), so `liveState` and `jobLog` cannot report it; while a followed hand-over stays queued
   and untaken on the CI route, each poll lists the runs of the job workflow with `listCiRuns`, and when a failed run no
   older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's

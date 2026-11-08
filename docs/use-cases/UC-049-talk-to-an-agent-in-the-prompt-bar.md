@@ -179,9 +179,10 @@ sequenceDiagram
      cases that ends the conversation.
 - **4b. The tab is closed or loses its connection** while the endpoint or CLI session works. The conversation is gone. A
   run in GitHub Actions, or an agent on a Bridge, ends with what it has committed; the job's record shows it (UC-036).
-- **4c. The product has no job workflow or no CI secrets yet.** Nothing is handed over; the conversation says what is
-  missing and offers **Set up GitHub Actions** (UC-010) right there. That one click sets it up and then hands the work
-  over, as the author's *Send* asked; nothing else is clicked.
+- **4c. The product has no job workflow, one of another commit of Agent M than this instance's, or no CI secrets yet**
+  (UC-010, Precondition). Nothing is handed over; the conversation says what is missing — of a job workflow of another
+  commit, the commit it pins and this instance's — and offers **Set up GitHub Actions** (UC-010) right there. That one
+  click sets it up and then hands the work over, as the author's *Send* asked; nothing else is clicked.
 - **4d. GitHub's runners cannot reach the endpoint** — a model server in the author's network, or one that refuses them.
   The run fails and names the reason and the routes that would work: a self-hosted runner, or a Bridge (UC-011).
 - **4e. The endpoint or CLI session asks for content it may not have** — a source whose licence does not allow its
