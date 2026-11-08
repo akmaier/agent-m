@@ -152,7 +152,8 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
   };
   const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS,
     "docs/sources.md": linked ? LINKS : LINKS.split("\n").filter((line) => !line.startsWith(`| ${SOURCE} |`)).join("\n"),
-    ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n", ...extraFiles } });
+    // Both files of Agent M's job workflow on GitHub: the bar holds a hand-over on the CI route back while one is absent (UC-049 4c); their texts may stand outdated.
+    ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n", ".github/workflows/agent-m-main-changed.yml": "name: Agent M main changed\n", ...extraFiles } });
   const chapterFolder = "docs/sources/SRC-vibe-coding/2026-10-05/";
   const chapters = Object.fromEntries(readdirSync(new URL(chapterFolder, ROOT)).filter((path) => path.endsWith(".md"))
     .map((path) => [chapterFolder + path, readOriginal(chapterFolder + path)]));

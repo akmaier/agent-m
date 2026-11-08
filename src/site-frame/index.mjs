@@ -17,7 +17,7 @@ import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs"
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { menuOf, labelOf, linkOf, foldMenu } from "./menu.mjs";
 import { siteFooter } from "./footer.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, managedProducts, loadRoute } from "./routing.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, managedProducts, loadRoute, tokenKeyOf } from "./routing.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
@@ -447,7 +447,9 @@ async function startSite({ page, views }) {
     addressOf: (route, given, forRepository) =>
       writeAddress(route, given, forRepository) });
   await attachPromptBar(foot, { page, store, instance,
-    product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host },
+    // The chosen product with the key tokenKeyOf gives for its token, which the bar hands MOD-runtimes' actionsSetup (UC-049 4c).
+    product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host,
+      tokenKey: tokenKeyOf(parseAddress(shown.context.product.address)) },
     // The products this browser manages, each with the host productHostFollowingStore gives for it, read at each call (UC-049 3d).
     products: managedProducts({ store }),
     subject: () => subjectOf({ ...shown, drawn: () => target.textContent }),

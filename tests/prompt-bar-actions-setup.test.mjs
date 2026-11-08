@@ -199,7 +199,7 @@ function open({ product, instance, store: storeOptions = {}, extraEndpoints = {}
     product: () => (product === null ? null : { address: product.web, host: product.host, tokenKey }), products: () => [], subject,
     explain: () => document.createElement("details"), go: (...where) => went.push(where) });
   bars.push(bar);
-  return { target, net, store, went, bar };
+  return { target, net, store, went, bar, web: product?.web ?? INSTANCE_WEB };
 }
 
 const status = (it) => textOf(one(it.target, "status"));
@@ -390,7 +390,7 @@ const RELAY = { relay: { kind: "openai-compatible", url: `${MODELS}/v1`, model: 
 // Sends a message to relay, whose answer proposes handing the conversation itself on, and waits until the proposal is checked.
 async function proposesHandOver(it) {
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
-  it.net.handOver = { kind: "converse", works_on: [], task: TASK };
+  it.net.handOver = { kind: "converse", works_on: [it.web], task: TASK };
   choose(it, "relay");
   assert.equal(textOf(one(it.target, "send")), "Send", "known positive: relay is called by this tab");
   one(it.target, "instruction").value = "hand this on";
@@ -403,7 +403,7 @@ async function proposesHandOver(it) {
 // TST-2026111008 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the GitHub product without the job workflow, holding the Actions secret NVIDIA_API_KEY and not AGENT_M_TOKEN; the endpoint relay — called through the Bridge lab, naming the CI secret
-//   NVIDIA_API_KEY of its key — whose answer hands the conversation itself on ({ kind: "converse", works_on: [], task: TASK }), which takes GitHub Actions
+//   NVIDIA_API_KEY of its key — whose answer hands the conversation itself on ({ kind: "converse", works_on: [the product's address], task: TASK }), which takes GitHub Actions
 // input: the person's Send; then one person's click on Set up GitHub Actions
 // expect: after Send the hand-over shows "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN", the button, and no link
 //   "Set up the job workflow"; nothing is queued; after the click the setup commits the job workflow and stores AGENT_M_TOKEN, and the hand-over is assessed again and queued at once — one
@@ -419,7 +419,7 @@ test("TST-2026111008: a hand-over on the CI route toward a product not set up is
   assert.equal(product.attempts.length + product.starts.length + product.stored.length, 0, "nothing is queued");
   setUpButtons(it)[0].dispatchEvent(personal());
   await until(() => product.starts.length > 0 || /Nothing was queued/.test(textOf(one(it.target, "hand-over"))), "the hand-over is queued after the setup");
-  assert.equal(product.attempts.length, 2);
+  assert.equal(product.attempts.length, 2, textOf(one(it.target, "hand-over")));
   assert.deepEqual(product.attempts[0].files.map((file) => file.path).sort(), [".github/workflows/agent-m-jobs.yml", ".github/workflows/agent-m-main-changed.yml"]);
   assert.deepEqual(product.stored, [["AGENT_M_TOKEN", PRODUCT_TOKEN]]);
   assert.match(product.attempts[1].files[0].text, /^route: ci hosted$/m);

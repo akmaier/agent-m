@@ -1106,7 +1106,8 @@ function startBar() {
   attachPromptBar(foot, { page: "review", store: barStore,
     // The instance shown is read through the app's own host, which holds what this load read; another instance through the host that follows the store.
     instance: { repository: T.instance, host: isInstance() ? pagesHost() : instanceHostFollowingStore({ store: barStore, address: parseAddress(`https://github.com/${T.instance}`) }) },
-    product: () => (isInstance() ? null : { address: T.product.address, host: pagesHost() }),
+    // The product shown with the key tokenKeyOf gives for its token, which the bar hands MOD-runtimes' actionsSetup (UC-049 4c).
+    product: () => (isInstance() ? null : { address: T.product.address, host: pagesHost(), tokenKey: tokenKeyOf(parseAddress(T.product.address)) }),
     // The products this browser manages, each with the host productHostFollowingStore gives for it, read at each call (UC-049 3d).
     products: managedProducts({ store: barStore }),
     subject: barSubject,

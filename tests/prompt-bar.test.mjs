@@ -81,7 +81,8 @@ const DRAFTER = endpoint("drafter-a");
 const OTHER = endpoint("drafter-b", { place: "this machine" });
 // drafter-a called through the Bridge mac, naming the CI secret of its key: a message goes through the Bridge, and a hand-over may take GitHub Actions (UC-049 4a.2).
 const DRAFTER_CI = endpoint("drafter-a", { secret: "KEY_A", bridge: "mac" });
-const JOB_WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" };
+// Agent M's job workflow: both files of it on GitHub, since the bar holds a hand-over on the CI route back while one is absent (UC-049 4c); their texts may stand outdated.
+const JOB_WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n", ".github/workflows/agent-m-main-changed.yml": "name: agent-m-main-changed\n" };
 
 const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.stringify(fields)}`), { name }, fields);
 const sha = (n) => createHash("sha1").update(`commit ${n}`).digest("hex");
@@ -113,6 +114,9 @@ function fakeRepo(web, files) {
         head = commitOf(new Map([...commits.get(head), ...change.files.map((file) => [file.path, file.text])]));
         return { commit: head, url: `${web}/commit/${head}` };
       },
+      // The repository's Actions secrets by name: AGENT_M_TOKEN and drafter-a's KEY_A, what a run on GitHub Actions reads, so that the bar's check before a hand-over on the CI route
+      // (UC-049 4c) finds nothing missing.
+      async ciSecretNames() { return ["AGENT_M_TOKEN", "KEY_A"]; },
     },
   };
 }

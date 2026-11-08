@@ -506,6 +506,11 @@ test("TST-377013: UC-019 6b the work the tab does not run is handed to GitHub Ac
   s.product.fetch = async (url, init = {}) => {
     const method = (init.method ?? "GET").toUpperCase();
     if (method === "GET" && url.pathname === `/repos/${s.repo}/pulls`) return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    // What changed: before a hand-over on the CI route the bar now asks MOD-runtimes' actionsSetup what the run reads (UC-049 4c), which lists the repository's Actions secrets; the
+    // product holds AGENT_M_TOKEN and drafter's FIXTURE_KEY, so that nothing holds the hand-over back.
+    if (method === "GET" && url.pathname === `/repos/${s.repo}/actions/secrets`) {
+      return new Response(JSON.stringify({ total_count: 2, secrets: [{ name: "AGENT_M_TOKEN" }, { name: "FIXTURE_KEY" }] }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     if (method === "POST" && url.pathname === `/repos/${s.repo}/actions/workflows/agent-m-jobs.yml/dispatches`) { starts.push(JSON.parse(init.body)); return new Response(null, { status: 204 }); }
     return served(url, init);
   };

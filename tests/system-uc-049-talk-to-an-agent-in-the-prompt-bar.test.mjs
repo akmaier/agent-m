@@ -311,20 +311,32 @@ test("alternative 4b: when the tab is closed the conversation is gone and the jo
 // guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: a product that holds no job workflow
 // input: the participant proposes a hand-over
-// expect: nothing is handed over — no Hand over, no write, no workflow started —; the conversation says what is missing (the job workflow) and links the route that sets it up (settings); following the link goes there (flow: UC-049 alternative 4c)
-test("alternative 4c: a product without the job workflow gets nothing handed over, and the bar says what is missing and links setting it up", async () => {
+// expect: nothing is handed over — no Hand over, no write, no workflow started —; the conversation says what is missing ("Nothing was handed over: akmaier/lending-tool is not set up for
+//   GitHub Actions. Missing: the job workflow") and offers Set up GitHub Actions right there, not a link to settings; its one click commits the job workflow and then hands the work over as
+//   the Send asked — the job's record committed, the job workflow started once — with no further click (flow: UC-049 alternative 4c)
+// What changed: the bar linked the route settings ("Set up the job workflow"); on GitHub it now offers Set up GitHub Actions, which sets up and hands over in one click (UC-049 4c, as
+//   accepted in MOD-prompt-bar).
+test("alternative 4c: a product without the job workflow gets nothing handed over, and Set up GitHub Actions sets it up and hands over in one click", async () => {
   const s = await scenario({ ...register(DRAFTER, HANDY) });
   delete s.product.files[".github/workflows/agent-m-jobs.yml"];
   const w = watch(s, { script: [answer("I will hand this on.", { handOver: HAND_OVER })] });
+  const clock = followClock();
   await proposes(s, w);
+  await until(() => /Nothing was handed over/.test(proposalOf(s).textContent), "what is missing is shown");
   const text = proposalOf(s).textContent;
   assert.equal(all(proposalOf(s), "button", "queue").length, 0, "no Hand over is offered");
-  assert.match(text, /job workflow/i, "it says the job workflow is missing");
+  assert.ok(text.includes("Nothing was handed over: akmaier/lending-tool is not set up for GitHub Actions. Missing: the job workflow"), text);
   assert.deepEqual([s.product.writes.length, w.dispatches.length], [0, 0]);
-  const link = all(proposalOf(s), "a").concat(all(proposalOf(s), "button")).find((node) => /Set up the job workflow/.test(node.textContent));
-  assert.ok(link, `a link to the settings: ${text}`);
-  await press(s, link);
-  assert.match(s.location.hash, /^#settings/, "the link goes to the route that sets it up");
+  assert.equal(all(proposalOf(s), "a").concat(all(proposalOf(s), "button")).filter((node) => /Set up the job workflow/.test(node.textContent)).length, 0, "no link to settings");
+  const setUp = all(proposalOf(s), "button").find((node) => node.textContent === "Set up GitHub Actions");
+  assert.ok(setUp, `Set up GitHub Actions is offered: ${text}`);
+  await press(s, setUp);
+  await until(() => w.dispatches.length > 0 || /Nothing was queued|could not/.test(proposalOf(s).textContent), "the work is handed over after the setup");
+  assert.equal(s.product.writes.length, 2, "the setup's commit, then the job's record");
+  assert.ok(Object.keys(s.product.writes[0].files).includes(".github/workflows/agent-m-jobs.yml"), "the setup commits the job workflow");
+  assert.ok(queuedRecord(s), "the job's record is committed");
+  assert.equal(w.dispatches.length, 1, "the job workflow is started once");
+  clock.stop();
   w.stop();
 });
 

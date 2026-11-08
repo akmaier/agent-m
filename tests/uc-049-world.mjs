@@ -94,6 +94,11 @@ export function watch(s, { script = [answer("Understood.")], hold = null } = {})
     // The product's pull requests and its job workflow: the fixture host serves neither; here the workflow is started (200 with its run), lists its runs and cancels one.
     const product = /^\/repos\/[^/]+\/lending-tool(\/.*)?$/.exec(url.pathname)?.[1] ?? null;
     if (product !== null && request.method === "GET" && product === "/pulls") return json([]);
+    // The product's Actions secrets by name: AGENT_M_TOKEN and handy's CI_KEY, what a run on GitHub Actions reads, so that the bar's check before a hand-over on the CI route
+    // (UC-049 4c, MOD-runtimes' actionsSetup) finds no secret missing; no value is ever listed.
+    if (product !== null && request.method === "GET" && product.startsWith("/actions/secrets")) {
+      return json({ total_count: 2, secrets: [{ name: "AGENT_M_TOKEN" }, { name: "CI_KEY" }] });
+    }
     // A release: the tag v1.0.0 names the commit the default branch stands at.
     if (product === "/tags" && request.method === "GET") return json([{ name: "v1.0.0", commit: { sha: "c0ffee0000000000000000000000000000000000" } }]);
     if (product === "/commits/v1.0.0" && request.method === "GET") return below(String(input).replace("/commits/v1.0.0", "/commits/main"), init);

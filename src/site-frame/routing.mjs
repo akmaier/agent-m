@@ -123,13 +123,16 @@ export function productHostFollowingStore({ store }) {
   };
 }
 
-// managedProducts({ store }) -> () -> { address: string, host: Host }[] — the products this browser manages, read from `products` at each call, each by its web
-// address with the host productHostFollowingStore gives for it, for the prompt bar (MOD-prompt-bar's setup.products, UC-049 3d); an entry that is no repository
-// address is left out.
+// managedProducts({ store }) -> () -> { address: string, host: Host, tokenKey: string }[] — the products this browser manages, read from `products` at each call, each by
+// its web address with the host productHostFollowingStore gives for it and, as `tokenKey`, the key tokenKeyOf gives for its token, for the prompt bar (MOD-prompt-bar's
+// setup.products, UC-049 3d, 4c); an entry that is no repository address is left out.
 export function managedProducts({ store }) {
   const hostFor = productHostFollowingStore({ store });
   return () => (readSetting(store, "products") ?? []).flatMap((entry) => {
-    try { return [{ address: parseAddress(entry).web, host: hostFor(entry) }]; } catch { return []; }
+    try {
+      const address = parseAddress(entry);
+      return [{ address: address.web, host: hostFor(entry), tokenKey: tokenKeyOf(address) }];
+    } catch { return []; }
   });
 }
 

@@ -61,7 +61,7 @@ const FILES = {
 };
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-// Answers the API of github.com for the two repositories (one commit each, "c-<name>", on the branch main) and the model endpoint drafter-a
+// Answers the API of github.com for the two repositories (one commit each, the hex of "c-<name>" padded to 40 digits, on the branch main) and the model endpoint drafter-a
 // with the draft `{ answer: "ok", edits: [docs/notes.md] }` — an edit, so that the answer is a draft to review. Every request is kept with its Authorization header.
 let requests = [];
 const seen = [];
@@ -81,7 +81,8 @@ function installNetwork() {
     if (!files) return reply({ message: "Not Found" }, 404);
     const rest = api[2] ?? "";
     if (rest === "") return reply({ default_branch: "main", visibility: "public", private: false, permissions: { push: true }, archived: false, description: "" });
-    if (rest.startsWith("/commits/")) return reply({ sha: `c-${api[1].split("/")[1]}` });
+    // A commit of 40 hexadecimal digits, as GitHub names one: the hex of "c-<name>", padded with zeros (the job workflow's files pin the instance at such a commit).
+    if (rest.startsWith("/commits/")) return reply({ sha: Buffer.from(`c-${api[1].split("/")[1]}`).toString("hex").padEnd(40, "0").slice(0, 40) });
     if (rest.startsWith("/actions/secrets")) return reply({ total_count: 0, secrets: [] });
     if (rest.startsWith("/git/trees/")) return reply({ tree: Object.keys(files).map((path) => ({ type: "blob", path, sha: `b-${path}` })) });
     const file = /^\/contents\/([^?]+)/.exec(rest)?.[1];
@@ -369,7 +370,7 @@ test("TST-2026110822 the bar is handed the products this browser manages, each w
 // input: the review page at #alpha/product=<the widget>; nvidia chosen; a person's click on Spawn job with the message "look at it"
 // expect: startPage hands the bar the chosen product with its tokenKey, so that the bar knows this browser keeps the value of AGENT_M_TOKEN: it says "Nothing was handed over:
 //   acme/widget is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY", offers Set up GitHub Actions, and names no secret as kept no value for;
-//   no request carried a body (nothing was written); counter-proof: with the product handed without its tokenKey, AGENT_M_TOKEN is named as kept no value for
+//   no request to a repository carried a body (nothing was written; GraphQL queries read); counter-proof: with the product handed without its tokenKey, AGENT_M_TOKEN is named as kept no value for
 test("TST-2026111010 startPage hands the bar the chosen product's tokenKey, by which the bar finds the product's own token for AGENT_M_TOKEN", async () => {
   const page = await start({ fragment: `#alpha/product=${encoded(WIDGET)}`, views: [route("alpha", "requirements")], settings: {
     "endpoint:nvidia": { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nvidia/nemotron", key: "nvapi-FIXTURE-0123", place: "NVIDIA, USA",
@@ -386,5 +387,5 @@ test("TST-2026111010 startPage hands the bar the chosen product's tokenKey, by w
   assert.ok(said.includes("Nothing was handed over: acme/widget is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY"), said);
   assert.equal(byClass(page.footer, "unknown-secrets").length, 0, said);
   assert.ok(walk(page.footer).some((node) => node.localName === "button" && node.textContent === "Set up GitHub Actions"), said);
-  assert.deepEqual(requests.filter((request) => request.url.startsWith("https://api.github.com/") && request.body !== ""), [], "nothing was written");
+  assert.deepEqual(requests.filter((request) => request.url.startsWith("https://api.github.com/repos/") && request.body !== ""), [], "nothing was written");
 });

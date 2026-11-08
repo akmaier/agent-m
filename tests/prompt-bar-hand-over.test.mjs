@@ -73,7 +73,7 @@ const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.s
 // One repository in memory whose default branch is `trunk`. `attempts` keeps every commit attempt, `starts` every startWorkflow, `cancels` every cancelled CI run, `calls` every read of a
 // snapshot or a record and every call that lists CI runs. `runs` are the CI runs the server lists. `edit` changes a file as another writer would (a runtime taking a job).
 function repoOf(web, files) {
-  const commits = new Map(), attempts = [], starts = [], cancels = [], calls = [], runs = [], logs = new Map();
+  const commits = new Map(), attempts = [], starts = [], cancels = [], calls = [], runs = [], logs = new Map(), stored = [];
   let made = 0, cancelWorks = true;
   const commitOf = (tree) => { const id = createHash("sha1").update(`${web}#${++made}`).digest("hex"); commits.set(id, tree); return id; };
   let head = commitOf(new Map(Object.entries(files)));
@@ -85,7 +85,7 @@ function repoOf(web, files) {
       read: async (path) => { calls.push(`read ${path}`); return tree.has(path) ? tree.get(path) : null; } };
   };
   return {
-    attempts, starts, cancels, calls, runs, logs, head: () => head, file: (path) => commits.get(head).get(path) ?? null, paths: () => [...commits.get(head).keys()],
+    attempts, starts, cancels, calls, runs, logs, stored, head: () => head, file: (path) => commits.get(head).get(path) ?? null, paths: () => [...commits.get(head).keys()],
     edit(path, change) { head = commitOf(new Map([...commits.get(head), [path, change(commits.get(head).get(path) ?? null)]])); },
     cancelDoesNotWork() { cancelWorks = false; },
     jobPath: () => [...commits.get(head).keys()].find((path) => /^docs\/jobs\/JOB-.*\.md$/.test(path) && attempts.some((attempt) => attempt.files.some((file) => file.path === path))),
@@ -104,6 +104,10 @@ function repoOf(web, files) {
       async listCiRuns() { calls.push("listCiRuns"); return runs.map((run) => ({ ...run })); },
       async ciRunLog(id) { return logs.get(id) ?? null; },
       webLinks: () => ({ secrets: `${web}/settings/secrets/actions` }),
+      // The repository's Actions secrets by name: AGENT_M_TOKEN and the keys of dev-ci (KEY_A) and nvidia (NVIDIA_API_KEY), what a run on GitHub Actions reads, so that the bar's check
+      // before a hand-over on the CI route and before Spawn job (UC-049 4c) finds nothing missing; a secret stored is kept in `stored`.
+      async ciSecretNames() { return ["AGENT_M_TOKEN", "KEY_A", "NVIDIA_API_KEY"]; },
+      async setCiSecret(name, value) { stored.push([name, value]); },
       async cancelCiRun(id) { cancels.push(id); const run = runs.find((each) => each.id === id); if (run && cancelWorks) run.state = "cancelled"; },
     },
   };
@@ -112,6 +116,7 @@ function repoOf(web, files) {
 const INSTANCE_WEB = "https://github.com/alice/agent-m";
 const PRODUCT_WEB = "https://github.com/alice/thesis-tool";
 const WORKFLOW_FILE = ".github/workflows/agent-m-jobs.yml";
+const MAIN_CHANGED_FILE = ".github/workflows/agent-m-main-changed.yml";
 const MODEL_VERSION = "5".repeat(40);
 
 const COLUMNS = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
@@ -151,7 +156,8 @@ const UC1 = "docs/use-cases/UC-001-store.md", UC2 = "docs/use-cases/UC-002-pages
 
 // The files every product has: two use cases (UC-001 accepted by a record naming its blob, UC-002 open), two module files, the instance-independent parts of the process.
 function commonFiles() {
-  const files = { "SPEC.md": "# Spec\n", [UC1]: "# UC-001 store\n", [UC2]: "# UC-002 pages\n", [WORKFLOW_FILE]: "name: agent-m-jobs\n",
+  // Both files of Agent M's job workflow on GitHub: the bar holds a hand-over on the CI route back while one is absent (UC-049 4c); their texts may stand outdated.
+  const files = { "SPEC.md": "# Spec\n", [UC1]: "# UC-001 store\n", [UC2]: "# UC-002 pages\n", [WORKFLOW_FILE]: "name: agent-m-jobs\n", [MAIN_CHANGED_FILE]: "name: agent-m-main-changed\n",
     "docs/architecture/MOD-store.md": moduleFile("MOD-store"), "docs/architecture/MOD-pages.md": moduleFile("MOD-pages") };
   files[`docs/approvals/UC-001-${blobOf(files[UC1]).slice(0, 12)}.md`] = "kind: use-case\n";
   return files;
@@ -269,7 +275,7 @@ function open({ files = scrumFiles(), recording = false, store = null, went = []
   const net = network();
   const target = document.createElement("div");
   const bar = startPromptBar(target, { page: "main", store: kept, instance: { repository: "alice/agent-m", host: instance.host },
-    product: () => ({ address: PRODUCT_WEB, host: product.host }), products, subject, explain: () => document.createElement("details"), go: (...where) => went.push(where) });
+    product: () => ({ address: PRODUCT_WEB, host: product.host, tokenKey: "github-token:alice/thesis-tool" }), products, subject, explain: () => document.createElement("details"), go: (...where) => went.push(where) });
   bars.push(bar);
   return { went, target, instance, product, net, store: kept, bar };
 }
@@ -287,7 +293,7 @@ async function proposes(it, handOver, participant = DEV_BRIDGE) {
 const proposal = (it) => one(it.target, "hand-over");
 const queued = (it) => byClass(proposal(it), "queued").length;
 const following = (it) => textOf(one(it.target, "following"));
-const writesOf = (it) => it.product.attempts.length + it.product.starts.length + it.instance.attempts.length + it.net.bridge.handedOver.length;
+const writesOf = (it) => it.product.attempts.length + it.product.starts.length + it.product.stored.length + it.instance.attempts.length + it.net.bridge.handedOver.length;
 const NOTHING_WRITTEN = "no commit was attempted, no workflow was started and nothing was handed to the Bridge";
 const ITEM = (id, over = {}) => ({ kind: "implement", works_on: [id], task: TASK, ...over });
 // The conversation itself handed on by dev-ci, which an endpoint can do, queued as the endpoint's own job on GitHub Actions (UC-049 4a.2).
@@ -712,43 +718,50 @@ const NOT_RUN = "onDispatch: not run — KEY_A is missing: the key of dev-ci is 
 // The run the server lists for the started workflow, ended failed, with the log the entry's command line prints.
 const endsNotRun = (it, log) => { it.product.runs.push(ciRun("failed")); it.product.logs.set("7", log); };
 
+// What changed: on GitHub, a hand-over held back by the missing job workflow linked the route settings ("Set up the job workflow"); the bar now asks MOD-runtimes' actionsSetup and offers
+// Set up GitHub Actions right there (UC-049 4c, as accepted in MOD-prompt-bar), and keeps the link for GitLab only (tests/prompt-bar-actions-setup.test.mjs, TST-2026111009).
 // TST-1037001 · level: component · module: MOD-prompt-bar
 // guards: UC-049; EVERY STEP EXPLAINS ITSELF
-// given: the Scrum product without Agent M's job workflow; dev-ci's answer proposes a hand-over of the ready ITM-004
-// input: Send; then a click on the link the proposal shows
-// expect: the proposal shows "Route: not available" with the reason that the product has no Agent M job workflow, and one link "Set up the job workflow"; the click calls go with the route "settings" and nothing else; nothing was written
-test("a hand-over refused for a missing job workflow links the route settings, and the click goes there", async () => {
+// given: the Scrum product on GitHub without Agent M's job workflow's file .github/workflows/agent-m-jobs.yml; dev-ci's answer proposes a hand-over of the ready ITM-004
+// input: Send
+// expect: the proposal shows "Route: not available" with the reason that the product has no Agent M job workflow, "Nothing was handed over: alice/thesis-tool is not set up for GitHub
+//   Actions. Missing: the job workflow" and one button "Set up GitHub Actions", and no link "Set up the job workflow"; nothing was written
+test("a hand-over held back for a missing job workflow on GitHub offers Set up GitHub Actions, not the link to settings", async () => {
   const it = open({ files: withoutWorkflow() });
   await proposes(it, ITEM("ITM-004"), "dev-ci");
   assert.match(textOf(one(proposal(it), "route")), /^Route: not available — .*job workflow/);
-  const links = byClass(proposal(it), "settings-link");
-  assert.equal(links.length, 1);
-  assert.equal(textOf(links[0]), "Set up the job workflow");
-  links[0].dispatchEvent(scripted());
-  assert.deepEqual(it.went, [["settings"]]);
+  await until(() => textOf(proposal(it)).includes("Nothing was handed over"), "what is missing is shown");
+  assert.ok(textOf(proposal(it)).includes("Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow"), textOf(proposal(it)));
+  assert.equal(byClass(proposal(it), "actions-setup").length, 1);
+  assert.equal(textOf(one(proposal(it), "actions-setup")), "Set up GitHub Actions");
+  assert.equal(byClass(proposal(it), "settings-link").length, 0);
   assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
 });
 
 // What changed: the refusal for another reason was a start rule's (ITM-005, which no sprint selects), which no longer applies to the bar (UC-049 4a.2, as accepted); it is now the kind's own precondition's (ITM-003, whose use case UC-002 is not accepted).
+// And: the known positive now shows Set up GitHub Actions instead of the link to settings (TST-1037001), and each refusal shows neither.
 // TST-1037002 · level: component · module: MOD-prompt-bar
 // guards: UC-049
 // given: known positive TST-1037001; lab-pc:claude's hand-over of ITM-003, whose use case is not accepted, on a product with the job workflow; tab-only, whose only route is this tab, on a product without it; the allowed hand-over of TST-505001
 // input: Send, each
-// expect: no link to settings in any of them; ITM-003's says "Nothing was queued."
-test("a refusal for another reason shows no link to settings", async () => {
+// expect: neither the button Set up GitHub Actions nor a link to settings in any of them; ITM-003's says "Nothing was queued."
+test("a refusal for another reason offers no setup and no link to settings", async () => {
   const positive = open({ files: withoutWorkflow() });
   await proposes(positive, ITEM("ITM-004"), "dev-ci");
-  assert.equal(byClass(proposal(positive), "settings-link").length, 1, "known positive");
+  await until(() => byClass(proposal(positive), "actions-setup").length === 1, "known positive");
+  const offers = (it) => byClass(proposal(it), "settings-link").length + byClass(proposal(it), "actions-setup").length;
   const unaccepted = open();
   await proposes(unaccepted, ITEM("ITM-003"));
   await until(() => textOf(proposal(unaccepted)).includes("Nothing was queued."), "the refusal is shown");
-  assert.equal(byClass(proposal(unaccepted), "settings-link").length, 0);
+  assert.equal(offers(unaccepted), 0);
   const tab = open({ files: withoutWorkflow() });
   await proposes(tab, ITEM("ITM-004"), "tab-only");
-  assert.equal(byClass(proposal(tab), "settings-link").length, 0);
+  await settle();
+  assert.equal(offers(tab), 0);
   const allowed = open();
   await proposes(allowed, ITEM("ITM-004"));
-  assert.equal(byClass(proposal(allowed), "settings-link").length, 0);
+  await settle();
+  assert.equal(offers(allowed), 0);
 });
 
 // TST-1037003 · level: component · module: MOD-prompt-bar
@@ -929,12 +942,15 @@ test("Spawn job hands the message to GitHub Actions with the endpoint and the na
   assert.equal(following(it).includes("PLANTED-ANSWER-NV7 ok"), false, "the answer stands once, in the conversation, not again under the run");
 });
 
+// What changed: on GitHub, Spawn job toward a product without the job workflow said "Nothing was spawned" and linked the route settings; the bar now asks MOD-runtimes' actionsSetup
+// before it spawns and offers Set up GitHub Actions (UC-049 4c, as accepted in MOD-prompt-bar); the setup's click is proven in tests/prompt-bar-actions-setup.test.mjs.
 // TST-1200003 · level: component · module: MOD-prompt-bar
 // guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the page of TST-1200001 on a product without Agent M's job workflow; nvidia chosen
+// given: the page of TST-1200001 on a GitHub product without Agent M's job workflow's file .github/workflows/agent-m-jobs.yml; nvidia chosen
 // input: a person's click on Spawn job
-// expect: "Nothing was spawned" naming the missing job workflow, and the button "Set up the job workflow", whose click goes to the route settings; nothing was written and no workflow started
-test("Spawn job on a product without the job workflow spawns nothing and links setting it up", async () => {
+// expect: "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow" and the button "Set up GitHub Actions", no link "Set up the job
+//   workflow"; nothing was written and no workflow started
+test("Spawn job on a GitHub product without the job workflow spawns nothing and offers Set up GitHub Actions", async () => {
   const files = scrumFiles();
   delete files[WORKFLOW_FILE];
   const it = open({ files, endpoints: ON_ACTIONS });
@@ -942,10 +958,10 @@ test("Spawn job on a product without the job workflow spawns nothing and links s
   choose(it, "nvidia");
   one(it.target, "instruction").value = TASK;
   one(it.target, "send").dispatchEvent(personal());
-  await until(() => textOf(one(it.target, "status")).includes("Nothing was spawned"), "the refusal is shown");
-  assert.match(textOf(one(it.target, "status")), /no Agent M job workflow/);
-  one(it.target, "settings-link").dispatchEvent(personal());
-  assert.deepEqual(it.went.at(-1), ["settings"]);
+  await until(() => textOf(one(it.target, "status")).includes("Nothing was"), "the refusal is shown");
+  assert.ok(textOf(one(it.target, "status")).includes("Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow"), textOf(one(it.target, "status")));
+  assert.equal(byClass(one(it.target, "status"), "actions-setup").length, 1);
+  assert.equal(byClass(it.target, "settings-link").length, 0);
   assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
 });
 
@@ -973,7 +989,8 @@ test("TST-2026110820: a job spawned with Spawn job takes the person's account as
 test("TST-2026110821: Spawn job with a message that names another product spawns the job in that product's repository", async () => {
   const ALIEN_WEB = "https://github.com/alice/AlienInvasion";
   const alien = repoOf(ALIEN_WEB, scrumFiles());
-  const it = open({ endpoints: ON_ACTIONS, products: () => [{ address: PRODUCT_WEB, host: it.product.host }, { address: ALIEN_WEB, host: alien.host }] });
+  const it = open({ endpoints: ON_ACTIONS, products: () => [{ address: PRODUCT_WEB, host: it.product.host, tokenKey: "github-token:alice/thesis-tool" },
+    { address: ALIEN_WEB, host: alien.host, tokenKey: "github-token:alice/AlienInvasion" }] });
   writeSetting(it.store, "github-token:alice/AlienInvasion", { value: "github_pat_ALIEN0123456789abcdefgh", name: "alice", expires: "2027-01-01" });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   choose(it, "nvidia");

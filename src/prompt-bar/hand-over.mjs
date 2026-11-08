@@ -2,7 +2,8 @@
 // queuing it as a job of the endpoint or CLI session itself (UC-049 4a.2). assess reads the product's default branch — its head, its paths, its visibility — and none of the product's
 // facts: no start rule of the product's process applies to a hand-over, whatever it works on; its job's own preconditions decide when it is prepared — MOD-approvals' rests-on-accepted
 // among them, which refuses an item or step whose requirements or use cases are not all accepted. queue prepares the job of the kind the participant named and hands it over with
-// MOD-runtimes' handOverJob; the bar calls it once the participant's answer proposes it, the person's Send being the request (UC-049 4a).
+// MOD-runtimes' handOverJob; the bar calls it once the participant's answer proposes it, the person's Send being the request (UC-049 4a). actionsLack says what a repository on GitHub
+// lacks of what a run on GitHub Actions reads, from MOD-runtimes' actionsSetup, before the bar hands over on the CI route or spawns (UC-049 4c).
 //
 // Module: MOD-prompt-bar
 //
@@ -25,7 +26,7 @@ import { resourceStrategies } from "../resource-list/index.mjs";
 import { resultStrategies } from "../result-records/index.mjs";
 import { reuseStrategies } from "../reuse-facts/index.mjs";
 import { runStrategies } from "../run-planner/index.mjs";
-import { handOverJob, routeStrategies, routesFor, tabContext } from "../runtimes/index.mjs";
+import { actionsSetup, handOverJob, routeStrategies, routesFor, tabContext } from "../runtimes/index.mjs";
 import { sourceStrategies } from "../source-register/index.mjs";
 import { specStrategies } from "../spec-changes/index.mjs";
 import { scheduleStrategies } from "../test-schedule/index.mjs";
@@ -72,6 +73,40 @@ export async function assess({ handOver, participant, instance, page, instanceSn
   // UC-049 4c: what is missing is the job workflow, when the product has none and the CI route is therefore unavailable.
   const needsWorkflow = taken === null && !jobWorkflow && offers.some((each) => each.route.kind === "ci" && !each.available);
   return { route: taken?.route ?? null, routeText, needsWorkflow, snapshot, head: snapshot.commit, instanceSnapshot, participants };
+}
+
+// The CI secret that holds the person's token, which every run on GitHub Actions reads to write (A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET).
+const TOKEN_SECRET = "AGENT_M_TOKEN";
+
+/**
+ * actionsLack({ participant, page, instance, store, snapshot? }) -> Promise<{ missing: string[], unknown: string[], canSetUp: boolean, setUp } | null> — what a repository on GitHub lacks
+ * of what the participant's run on GitHub Actions reads (UC-049 4c, UC-010, Precondition): MOD-runtimes' actionsSetup for `page` — { address, host, tokenKey }, the key under which the
+ * store keeps that repository's token —, narrowed to the job workflow, AGENT_M_TOKEN and the CI secret the participant's route names. It is null for a repository on another server —
+ * the server the page's default branch names: `snapshot` where the caller read it, else read here — and where none of these is missing: a file that stands outdated, or a missing secret
+ * the run does not read, holds nothing back. `missing` names "the job workflow" and each such secret, the token first; `unknown` those of them for which this browser keeps no value;
+ * `canSetUp` whether setUp can set up anything that is missing. `setUp`, called only on a person's click (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK), runs actionsSetup's setUp
+ * and gives its commit and the names stored, with `missing` and `unknown` narrowed to the secrets the run reads that are still missing. No value is returned. Throws what actionsSetup
+ * and the host throw.
+ */
+export async function actionsLack({ participant, page, instance, store, snapshot = null }) {
+  const read = snapshot ?? await defaultSnapshot(page.host);
+  if (read.repository.server !== "github") return null;
+  const setup = await actionsSetup({ product: { address: page.address, host: page.host, tokenKey: page.tokenKey }, instance: { host: instance.host }, store });
+  const routeSecret = /\ssecret\s+(\S+)$/.exec(String(participant.route ?? "").trim())?.[1] ?? null;
+  const reads = [TOKEN_SECRET, ...(routeSecret !== null && routeSecret !== TOKEN_SECRET ? [routeSecret] : [])];
+  const secrets = reads.filter((name) => setup.missing.secrets.includes(name));
+  if (!setup.missing.workflow && secrets.length === 0) return null;
+  const unknownOf = (names) => names.filter((name) => setup.unknown.includes(name));
+  return {
+    missing: [...(setup.missing.workflow ? ["the job workflow"] : []), ...secrets],
+    unknown: unknownOf(secrets),
+    canSetUp: setup.missing.workflow || setup.missing.secrets.some((name) => !setup.unknown.includes(name)),
+    async setUp() {
+      const done = await setup.setUp();
+      const still = secrets.filter((name) => !done.stored.includes(name));
+      return { commit: done.commit, stored: done.stored, missing: still, unknown: unknownOf(still) };
+    },
+  };
 }
 
 /**

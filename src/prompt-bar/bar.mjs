@@ -49,6 +49,9 @@ const FIXED = "position: fixed; bottom: 0; left: 0; right: 0;";
 // The label of the button that sends: *Spawn job* where the message runs through GitHub Actions (offer.mjs throughActions), *Send* otherwise.
 export const SEND = "Send", SPAWN = "Spawn job";
 
+// The key under which the store keeps the instance's own token (MOD-browser-store, Data), handed to actionsSetup for a page of the instance (UC-049 4c).
+const INSTANCE_TOKEN_KEY = "github-token";
+
 const el = (name, className, ...children) => {
   const node = document.createElement(name);
   if (className) node.className = className;
@@ -144,7 +147,7 @@ const repositoryPath = (address) => { try { return new URL(address).pathname.rep
 
 /**
  * startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host: Host },
- * product: () -> { address: string, host: Host } | null, products: () -> { address: string, host: Host }[], subject: () -> Subject, explain: (topic: string) -> Element,
+ * product: () -> { address: string, host: Host, tokenKey: string } | null, products: () -> { address: string, host: Host, tokenKey: string }[], subject: () -> Subject, explain: (topic: string) -> Element,
  * go: (route: string, params?: Record<string, string>) -> void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void } — draws the bar into `target` once this
  * browser's endpoints and the CLI sessions its Bridges offer are read, and keeps it for the life of the page; no participant list is read for the
  * offer. With none offered it draws nothing and says nothing (UC-049 1a). It crosses the network through the hosts, the Bridges this browser keeps
@@ -188,19 +191,56 @@ export function startPromptBar(target, setup) {
     conversation.replaceChildren(...messages.map(line));
   };
 
-  // The repository the conversation is held on: the product's, or the instance's.
+  // The repository the conversation is held on: the product's, with the key of its token the frame gives, or the instance's, whose token the store keeps under github-token.
   function pageOf() {
     const product = setup.product();
-    return product ? { address: product.address, host: product.host } : { address: instanceWeb, host: instance.host };
+    return product ? { address: product.address, host: product.host, tokenKey: product.tokenKey } : { address: instanceWeb, host: instance.host, tokenKey: INSTANCE_TOKEN_KEY };
   }
 
-  // The product the person's words name (UC-049 3d), where it is another than the page's — `product()`, or the instance for a page of the instance —: { address, host }
+  // The product the person's words name (UC-049 3d), where it is another than the page's — `product()`, or the instance for a page of the instance —: { address, host, tokenKey }
   // from `products`, less an entry that is the instance's own repository; null where they name none, several, or the page's own.
   function namedBy(instruction) {
     const listed = (setup.products?.() ?? []).filter((each) => !sameAddress(each.address, instanceWeb));
     const address = namedProduct(instruction, listed);
     if (address === null || sameAddress(address, pageOf().address)) return null;
-    return { address, host: listed.find((each) => each.address === address).host };
+    const { host, tokenKey } = listed.find((each) => each.address === address);
+    return { address, host, tokenKey };
+  }
+
+  // A repository on GitHub not set up for what the run reads (UC-049 4c, UC-010): `lack` from hand-over.mjs' actionsLack, put on the page with `place`. Nothing was handed over; a
+  // secret this browser keeps no value for is named with the server's page of the repository's secrets; while setUp can set anything up, the button Set up GitHub Actions, whose one
+  // person's click runs setUp and then `proceed` — the hand-over or the spawn the person's Send asked for —, with no further click; a secret the run reads that is still missing then
+  // holds it back as before.
+  function showLack(page, lack, proceed, place) {
+    const parts = [problem(`Nothing was handed over: ${repositoryPath(page.address)} is not set up for GitHub Actions. Missing: ${lack.missing.join(" · ")}`)];
+    if (lack.unknown.length > 0) {
+      parts.push(el("p", "unknown-secrets", `This browser keeps no value for ${lack.unknown.join(", ")}: add ${lack.unknown.length > 1 ? "them" : "it"} on the server's page of this repository's secrets: `,
+        secretsLink(page.host)));
+    }
+    if (lack.canSetUp) {
+      const set = button("actions-setup", "Set up GitHub Actions");
+      set.addEventListener("click", async (event) => {
+        if (event?.isTrusted !== true || set.disabled || state.stopped) return; // THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+        set.disabled = true;
+        let done;
+        try {
+          done = await lack.setUp();
+        } catch (failure) {
+          set.disabled = false;
+          place(...parts, problem(`GitHub Actions could not be set up. ${said(failure)}`));
+          return;
+        }
+        const told = el("p", "set-up", `Set up GitHub Actions: ${done.commit ? `committed ${done.commit}` : "every workflow file stands already"}${done.stored.length ? `; stored the secrets ${done.stored.join(", ")}` : ""}.`);
+        if (done.missing.length > 0) {
+          showLack(page, { missing: done.missing, unknown: done.unknown, canSetUp: false }, proceed, (...nodes) => place(told, ...nodes));
+          return;
+        }
+        place(told);
+        await proceed();
+      });
+      parts.push(set);
+    }
+    place(...parts);
   }
 
   // The subject of a message about a named product: that product as its page, naming that the message named it, and none of the shown page's artifact parameters;
@@ -270,9 +310,11 @@ export function startPromptBar(target, setup) {
   async function proposeHandOver(section, handOver, participant, subject, about = null) {
     const outcome = el("div", "outcome", el("p", "checking", "Checking whether it can start…"));
     section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
+    // A repository on GitHub is set up with Set up GitHub Actions (showLack); one on GitLab keeps the link to the route settings, whose product section installs the job workflow.
+    const onGitHub = (assessment) => assessment.snapshot.repository.server === "github";
     const render = (assessment) => {
       const parts = [el("p", "route", assessment.route ? `Route: ${assessment.routeText}` : `Route: not available — ${assessment.routeText}`)];
-      if (assessment.needsWorkflow) {
+      if (assessment.needsWorkflow && !onGitHub(assessment)) {
         const set = button("settings-link", "Set up the job workflow");
         set.addEventListener("click", () => setup.go("settings"));
         parts.push(set);
@@ -305,10 +347,27 @@ export function startPromptBar(target, setup) {
           ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", sending.shown(each))))] : []));
       }
     }
-    try {
-      const assessment = await (await handPart()).assess({ handOver, participant, instance, page: about ?? pageOf() });
+    // On GitHub, before it is queued on the CI route, or while only the job workflow holds it back, what the run reads is asked of actionsSetup (UC-049 4c): with something missing,
+    // nothing is handed over, and Set up GitHub Actions sets up, assesses the hand-over again on the head the setup left and queues it; setUp itself says what it left missing.
+    const page = about ?? pageOf();
+    async function assessAndQueue(check = true) {
+      const hand = await handPart();
+      const assessment = await hand.assess({ handOver, participant, instance, page });
       render(assessment);
+      if (check && onGitHub(assessment) && (assessment.route?.kind === "ci" || assessment.needsWorkflow)) {
+        const lack = await hand.actionsLack({ participant, page, instance, store, snapshot: assessment.snapshot });
+        if (lack !== null) {
+          const lacking = el("div", "actions-setup-lack");
+          outcome.append(lacking);
+          showLack(page, lack, () => assessAndQueue(false).catch((failure) => outcome.append(problem(`It could not be checked whether this can start. ${said(failure)}`))),
+            (...nodes) => lacking.replaceChildren(...nodes));
+          return;
+        }
+      }
       if (assessment.route !== null) await queueNow(assessment);
+    }
+    try {
+      await assessAndQueue();
     } catch (failure) {
       outcome.replaceChildren(problem(`It could not be checked whether this can start. ${said(failure)}`));
     }
@@ -467,43 +526,13 @@ export function startPromptBar(target, setup) {
   // *Spawn job*: the message is the task of a job that is the endpoint's own, spawned on GitHub Actions (UC-049 4a) — one click, the person's. The task travels in the
   // workflow's inputs and is written to no file; with recording on, the message is recorded first, as a sent message is. The bar then follows the job until it has
   // ended and shows the answer its run left (follow.mjs).
-  async function onSpawn(participant, instruction) {
+  // One spawn at a time: `work` runs while Spawn job is disabled, and a failure is shown by name.
+  async function spawning(work) {
     if (state.spawning || state.stopped) return;
     state.spawning = true;
     send.disabled = true;
-    show(el("p", "spawning", `Spawning a job for ${participant.name} — ${placeOf(participant)} on GitHub Actions…`));
     try {
-      // A message that names another product spawns its job in that product's repository (UC-049 3d), and nothing without its token.
-      const about = namedBy(instruction);
-      if (about !== null && !(await sendPart()).keepsTokenFor(store, about.address)) { noTokenFor(about, "spawned"); return; }
-      const subject = about ? aboutSubject(setup.subject(), about) : setup.subject();
-      const page = about ?? pageOf();
-      const instanceSnapshot = await (await sendPart()).defaultSnapshot(instance.host);
-      const recordingOn = await recordingOf(instanceSnapshot);
-      showRecording(recordingOn);
-      // The bar's source, the person's account (THE PERSON WHO PROMPTS IS A SOURCE).
-      const source = sending.sourceOf(instanceSnapshot) ?? undefined;
-      const who = sending.personOf(store, instanceSnapshot, false) ?? "person";
-      if (recordingOn) await record(page, who, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
-      const conversationPath = recordingOn ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
-      const spawned = await (await handPart()).spawnEndpointJob({ kind: BAR_KIND, task: instruction, participant, store, instance, page, ofProduct: about !== null || setup.product() !== null,
-        conversation: conversationPath, source, instanceSnapshot });
-      if (spawned.refused) {
-        const parts = [problem(`Nothing was spawned: ${spawned.refused}.`)];
-        if (spawned.needsWorkflow) {
-          const set = button("settings-link", "Set up the job workflow");
-          set.addEventListener("click", () => setup.go("settings"));
-          parts.push(set);
-        }
-        show(...parts);
-        return;
-      }
-      keep([...conversationOf(store), { at: new Date(), from: "person", who, text: instruction, subject: subject.key }]);
-      input.value = "";
-      state.spawnedBy = participant.name;
-      show(...(about ? [aboutLine(about)] : []), el("p", "queued", `Spawned as ${spawned.id} on GitHub Actions.`));
-      keepJob({ id: spawned.id, address: page.address });
-      follow({ id: spawned.id, address: page.address }, page.host);
+      await work();
     } catch (failure) {
       const findings = failure?.name === "NotStartable" && Array.isArray(failure.findings) ? failure.findings : [];
       show(problem(findings.length > 0 ? "Nothing was spawned." : `Nothing was spawned. ${said(failure)}`),
@@ -512,6 +541,56 @@ export function startPromptBar(target, setup) {
       state.spawning = false;
       send.disabled = false;
     }
+  }
+
+  async function onSpawn(participant, instruction) {
+    await spawning(async () => {
+      show(el("p", "spawning", `Spawning a job for ${participant.name} — ${placeOf(participant)} on GitHub Actions…`));
+      // A message that names another product spawns its job in that product's repository (UC-049 3d), and nothing without its token.
+      const about = namedBy(instruction);
+      if (about !== null && !(await sendPart()).keepsTokenFor(store, about.address)) { noTokenFor(about, "spawned"); return; }
+      const subject = about ? aboutSubject(setup.subject(), about) : setup.subject();
+      const page = about ?? pageOf();
+      const instanceSnapshot = await (await sendPart()).defaultSnapshot(instance.host);
+      // On GitHub, before anything is written, what the run reads is asked of actionsSetup (UC-049 4c): with something missing, nothing is handed over, and Set up GitHub Actions
+      // sets up and then spawns, as the person's Spawn job asked. The instance's default branch read above is the page's for a page of the instance.
+      const lack = await (await handPart()).actionsLack({ participant, page, instance, store, snapshot: sameAddress(page.address, instanceWeb) ? instanceSnapshot : null });
+      if (lack !== null) {
+        showLack(page, lack, () => spawning(() => spawnNow(participant, instruction, about, subject, page)), show);
+        return;
+      }
+      await spawnNow(participant, instruction, about, subject, page, instanceSnapshot);
+    });
+  }
+
+  // The spawn itself, once nothing the run reads is missing: the message recorded where recording is on, the job spawned and followed. `instanceSnapshot` is read again where none is given.
+  async function spawnNow(participant, instruction, about, subject, page, given = null) {
+    const instanceSnapshot = given ?? await (await sendPart()).defaultSnapshot(instance.host);
+    const recordingOn = await recordingOf(instanceSnapshot);
+    showRecording(recordingOn);
+    // The bar's source, the person's account (THE PERSON WHO PROMPTS IS A SOURCE).
+    const source = sending.sourceOf(instanceSnapshot) ?? undefined;
+    const who = sending.personOf(store, instanceSnapshot, false) ?? "person";
+    if (recordingOn) await record(page, who, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
+    const conversationPath = recordingOn ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
+    const spawned = await (await handPart()).spawnEndpointJob({ kind: BAR_KIND, task: instruction, participant, store, instance, page, ofProduct: about !== null || setup.product() !== null,
+      conversation: conversationPath, source, instanceSnapshot });
+    if (spawned.refused) {
+      const parts = [problem(`Nothing was spawned: ${spawned.refused}.`)];
+      if (spawned.needsWorkflow) {
+        const set = button("settings-link", "Set up the job workflow");
+        set.addEventListener("click", () => setup.go("settings"));
+        parts.push(set);
+      }
+      show(...parts);
+      return;
+    }
+    keep([...conversationOf(store), { at: new Date(), from: "person", who, text: instruction, subject: subject.key }]);
+    input.value = "";
+    state.spawnedBy = participant.name;
+    show(...(about ? [aboutLine(about)] : []), el("p", "queued", `Spawned as ${spawned.id} on GitHub Actions.`));
+    keepJob({ id: spawned.id, address: page.address });
+    follow({ id: spawned.id, address: page.address }, page.host);
   }
 
   // The label of the button for the one chosen now: *Spawn job* where it runs through GitHub Actions.
