@@ -44,7 +44,8 @@ import { requirementImpact, storedGraph, storedReferences, traceGraph } from "..
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
-import { queuesAt, queues, replaceSpan, spanText } from "./queues.mjs";
+import { groupFileText, parseGroupFile, placeItems } from "../group-document/index.mjs";
+import { placesOf, queuesAt, queues, replaceSpan, spanText } from "./queues.mjs";
 
 // Whether a requirement stated by the proposal is another than the one the section holds under its name: its source, rule or check.
 const differs = (was, is) => was.source !== is.source || was.rule !== is.rule || was.check !== is.check;
@@ -129,21 +130,32 @@ export async function entryView(queue, entry, snapshot) {
   const texts = await entryTexts("entryView", queue, entry, snapshot);
   const { item, heldNow, proposalText } = texts;
   const rationale = item.rationale ? (await snapshot.read(item.rationale)) ?? "" : "";
+  const impact = await impactOfTexts(snapshot, texts);
+  const proposed = await entryPlaces(item, (path) => snapshot.read(path));
   return {
     current: heldNow === null ? null : { text: heldNow, blob: await blobSha(heldNow) },
     proposal: { text: proposalText, blob: item.proposal.blob },
     difference: lineDiff(heldNow ?? "", proposalText),
     rationale,
-    impact: await impactOfTexts(snapshot, texts),
+    impact,
     state: item.state,
     createdBy: item.createdBy,
     issue: item.issue,
+    places: { blob: item.places?.blob ?? null, rows: impact.filter((each) => each.change === "added")
+      .map(({ name }) => ({ requirement: name, place: proposed.find((row) => row.requirement === name)?.place ?? null })) },
   };
+}
+
+// The places an entry's places file proposes, [{ requirement, place }], read through `read`; none for an entry without one.
+async function entryPlaces(item, read) {
+  return item.places ? placesOf(item.places.path, (await read(item.places.path)) ?? "") : [];
 }
 
 // ---------------------------------------------------------------- accepting
 
 const APPROVALS = "docs/approvals/";
+// The group file of requirements, which an acceptance writes the places of the requirements it adds into (MOD-group-document).
+const GROUPS = "docs/groups/requirements.md";
 const SPEC_RECORD = /^docs\/approvals\/spec-[^/]+\.md$/;
 const SPEC_KEYS = ["kind", "queue", "entry", "proposal", "blob", "target", "anchor", "section"];
 // The record a row of entscheidungen.md names, approval:<file> in its fourth cell (MOD-spec-changes, Data).
@@ -158,7 +170,8 @@ const decisionRow = (number, recordFile, now) => `| ${now.toISOString().slice(0,
 // folder; sources: the product's links and the register; verb: how the reviewer knew the text ("shown", "approved"); records: whether
 // the records are written too. -> { files: Map(path -> text), applied: [{ item, id }], refused: [{ item, reason }] }
 async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
-  const texts = new Map(), initial = new Map(), changed = new Set(), files = new Map(), applied = [], refused = [];
+  const texts = new Map(), initial = new Map(), changed = new Set(), files = new Map(), applied = [], refused = [], notPlaced = [];
+  let groups = null, placedAny = false;
   const get = async (path) => {
     if (!texts.has(path)) {
       const text = await snapshot.read(path);
@@ -203,6 +216,7 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
     const proposal = entry.proposal.path ? await get(entry.proposal.path) : null;
     if (typeof proposal !== "string") { refuse(item, "the proposal no longer exists"); continue; }
     if (entry.proposal.blob !== item.proposalBlob) { refuse(item, `the proposal changed after it was ${verb} — open it again`); continue; }
+    if ((item.placesBlob ?? null) !== (entry.places?.blob ?? null)) { refuse(item, `the places of its requirements changed after they were ${verb} — open it again`); continue; }
     const unsourced = sourceFindings([...parseSpec(proposal).requirements.values()], sources.links, sources.register);
     if (unsourced.length) {
       refuse(item, `a requirement of its proposal names no source the product links: ${unsourced.map((each) => `${each.artifact} (${each.what})`).join("; ")}`);
@@ -228,10 +242,25 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
       continue;
     }
     put(entry.file, replaceSpan(spec, entry.anchor, entry.until, proposal));
+    // The places of the requirements the entry adds — the names its proposal holds and the section it replaces does not —: those shown, or, for a
+    // record, those its places file holds; applied to the group file as it stands on the head, the empty tree where there is none.
+    const adds = renamedRequirements(before, proposal).added;
+    const wanted = (item.places ?? await entryPlaces(entry, get)).filter((each) => adds.includes(each?.requirement) && each.place);
+    if (wanted.length > 0) {
+      groups ??= parseGroupFile(GROUPS, (await get(GROUPS)) ?? "");
+      const named = (node, id) => node.members.some((member) => member.id === id) || node.groups.some((group) => named(group, id));
+      const result = placeItems(groups, wanted.map(({ requirement, place }) => ({ item: requirement, place })));
+      for (const { item: requirement, place, reason } of result.notApplied) {
+        notPlaced.push({ item, requirement, place, reason: named(groups, requirement) ? reason : `${reason}; it stands at the top level, not yet placed` });
+      }
+      groups = result.tree;
+      if (result.placed.length > 0) placedAny = true;
+    }
     const recordFile = item.record.slice(APPROVALS.length);
     if (records) {
       files.set(item.record, writeDocument(approvalSchema, { fields: { kind: "spec", queue: queue.folder, entry: pad2(entry.number),
-        proposal: entry.proposal.path, blob: item.proposalBlob, target: entry.file, anchor: entry.anchor, section: await blobSha(before) } }));
+        proposal: entry.proposal.path, blob: item.proposalBlob, target: entry.file, anchor: entry.anchor, section: await blobSha(before),
+        ...(item.placesBlob ? { places: item.placesBlob } : {}) } }));
     }
     rows.set(folder, [...(rows.get(folder) ?? []), decisionRow(entry.number, recordFile, now)]);
     applied.push({ item, id: `spec-${folder.split("/").pop()}-${pad2(entry.number)}` });
@@ -240,14 +269,19 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
     const decisions = (await get(`${folder}/entscheidungen.md`)) ?? "";
     put(`${folder}/entscheidungen.md`, (decisions && !decisions.endsWith("\n") ? `${decisions}\n` : decisions) + added.join(""));
   }
+  // The group file is in the commit only where a place was applied, written as groupFileText writes it.
+  if (placedAny) put(GROUPS, groupFileText(groups));
   for (const path of changed) files.set(path, texts.get(path));
-  return { files, applied, refused };
+  return { files, applied, refused, notPlaced };
 }
 
 /**
- * acceptEntries(host: Host, shown: Array<{ queue: string, entry: number, proposalBlob: string, sectionBlob: string }>, person: string,
- *   now: Date, sources: { links: Document, register: Document[] }) -> Promise<{ commit: string } | { refused: Array<{ queue: string,
- *   entry: number, reason: string }> }> — accepts the entries shown in one commit on the default branch of the host, on the head it
+ * acceptEntries(host: Host, shown: Array<{ queue: string, entry: number, proposalBlob: string, sectionBlob: string, placesBlob: string | null,
+ *   places: Array<{ requirement: string, place: Place }> }>, person: string, now: Date, sources: { links: Document, register: Document[] }) ->
+ *   Promise<{ commit: string, notPlaced: Array<{ queue, entry, requirement, place, reason }> } | { refused: Array<{ queue: string,
+ *   entry: number, reason: string }> }> — the places shown of the requirements each entry adds are written into docs/groups/requirements.md with
+ *   placeItems, in the same commit, on the group file as the head holds it; a place that does not apply is named in notPlaced; an entry whose places
+ *   file no longer has `placesBlob` (null for none) is refused as stale. Without `places`, an entry's own places count. — accepts the entries shown in one commit on the default branch of the host, on the head it
  * read, with the token the host was connected with, so under the person's account: for each, in the order of its queue's index, its
  * approval record, the target's section replaced by the proposal byte for byte, and its decision row (A QUEUE IS ACCEPTED IN ITS
  * ORDER). While any entry is refused — its proposal or section no longer has the blob that was shown, a requirement of its proposal
@@ -263,14 +297,15 @@ export async function acceptEntries(host, shown, person, now, sources) {
   // One read of all the queues, so that a file they share, the target above all, is read once.
   const read = await queuesAt(head, folders);
   const loaded = new Map(folders.map((folder, at) => [folder, read[at]]));
-  const items = shown.map(({ queue, entry: number, proposalBlob, sectionBlob }) => ({ queue, entry: number, proposalBlob, sectionBlob,
+  const items = shown.map(({ queue, entry: number, proposalBlob, sectionBlob, placesBlob = null, places }) => ({ queue, entry: number, proposalBlob, sectionBlob,
+    placesBlob, places: Array.isArray(places) ? places : undefined,
     record: `${APPROVALS}spec-${queue.split("/").pop()}-${pad2(number)}-${String(proposalBlob).slice(0, 12)}.md` }));
-  const { files, applied, refused } = await plan(head, loaded, items, { sources, now, verb: "shown", records: true });
+  const { files, applied, refused, notPlaced } = await plan(head, loaded, items, { sources, now, verb: "shown", records: true });
   if (refused.length) return { refused: refused.map(({ item, reason }) => ({ queue: item.queue, entry: item.entry, reason })) };
   const message = `accept ${applied.map(({ id }) => id).join(", ")} (Agent M dashboard)\n\nAccepted by ${person}.\n`;
   const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head.commit,
     files: [...files].map(([path, text]) => ({ path, text })), message });
-  return { commit };
+  return { commit, notPlaced: notPlaced.map(({ item, requirement, place, reason }) => ({ queue: item.queue, entry: item.entry, requirement, place, reason })) };
 }
 
 // The product's links and the instance's register, read from docs/sources.md and every entry directly under docs/sources/.
@@ -288,7 +323,9 @@ async function sourcesOf(snapshot) {
  * entry no decision row names, and whose queue the snapshot holds, queues in the order of their folders' names and each in the order of its index: the same checks as acceptEntries makes —
  * the proposal and the section still have the blobs the record names, the record's anchor, target and proposal are its entry's,
  * every requirement of the proposal names a source the repository links — and the same bytes: the target with the section replaced
- * and the queue's decisions with the row appended. `applied` names the records applied, `refused` the others with the reason; a
+ * and the queue's decisions with the row appended; the places file of the entry must have the blob the record's `places` names, none where it names
+ * none, and its places are applied to docs/groups/requirements.md as acceptEntries applies them, `notPlaced` naming those that do not apply.
+ * `applied` names the records applied, `refused` the others with the reason; a
  * record that fails a check changes nothing. It writes nothing itself: the instance's workflow commits `files`.
  */
 export async function applyApproved(snapshot, now) {
@@ -311,10 +348,12 @@ export async function applyApproved(snapshot, now) {
     const queue = fields.queue.replace(/\/+$/, "");
     // A record whose queue the snapshot does not hold is not applied: its queue's decisions are in the history (THE REPLACED TEXT STAYS REACHABLE).
     if (!loaded.has(queue) || loaded.get(queue).entries.find((each) => each.number === number)?.decision) continue;
-    items.push({ queue, entry: number, proposalBlob: fields.blob, sectionBlob: fields.section, record: path,
+    // The places as the entry holds them: its places file, which must still have the blob the record names — none where it names none.
+    items.push({ queue, entry: number, proposalBlob: fields.blob, sectionBlob: fields.section, placesBlob: fields.places || null, places: undefined, record: path,
       claims: { anchor: fields.anchor, target: fields.target, proposal: fields.proposal } });
   }
   const done = await plan(snapshot, loaded, items, { sources: await sourcesOf(snapshot), now, verb: "approved", records: false });
   return { files: Object.fromEntries(done.files), applied: done.applied.map(({ item }) => item.record),
-    refused: [...refused, ...done.refused.map(({ item, reason }) => ({ record: item.record, reason }))] };
+    refused: [...refused, ...done.refused.map(({ item, reason }) => ({ record: item.record, reason }))],
+    notPlaced: done.notPlaced.map(({ item, requirement, reason }) => ({ record: item.record, requirement, reason })) };
 }

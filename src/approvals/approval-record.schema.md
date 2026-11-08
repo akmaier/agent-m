@@ -13,6 +13,8 @@ language names it.
 - `queue`, `entry`, `proposal`, `target`, `anchor` and `section` stand only for `kind: spec`: the queue's folder, the
   entry's number, the proposal's path, the SPEC file it changes, the heading its section starts with, and the
   blob SHA of that section as it stood beside the proposal.
+- `places` stands only for `kind: spec`, and only for an entry that has a places file: the blob SHA of that places file as it stood beside
+  the proposal (MOD-spec-changes); absent for an entry that has none.
 - `limitation` stands only for `kind: release-report`: zero or more lines `<TST-<nnn> or rate> — <reason>`, one per
   failing test or worse rate.
 
@@ -52,6 +54,7 @@ section: f8fbf7328c329ac0d2fc73e3901f1db1027a0f61
     "target": { "type": "path", "requiredWhen": { "field": "kind", "in": ["spec"] } },
     "anchor": { "type": "text", "requiredWhen": { "field": "kind", "in": ["spec"] } },
     "section": { "type": "sha", "digits": 40, "requiredWhen": { "field": "kind", "in": ["spec"] } },
+    "places": { "type": "sha", "digits": 40 },
     "limitation": { "type": "list", "item": { "type": "text" } }
   }
 }

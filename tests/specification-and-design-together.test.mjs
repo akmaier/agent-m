@@ -179,7 +179,7 @@ test("a requirement edit — saved as a proposal, shown beside the current text,
   const accepted = await acceptEntries(fake.host, [shownOf(saved.queue, saved.entry, view)], "alice", NOW, sources());
 
   assert.equal(fake.writes.length, 2, "the acceptance is one more commit");
-  assert.deepEqual(accepted, { commit: fake.head() });
+  assert.deepEqual(accepted, { commit: fake.head(), notPlaced: [] });
   const files = fake.files();
   assert.equal(files["SPEC.md"], HEAD + READING_EDITED + WRITING, "the proposal in the place of the section, every other byte as it was");
   const record = recordPathOf(saved.queue, 1, READING_EDITED);

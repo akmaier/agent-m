@@ -31,7 +31,7 @@ import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact } from "../trace-graph/index.mjs";
 import { graphOf, impactOf } from "./accept.mjs";
-import { issueLine, nextEntry, queueRationaleSchema, queues, spanText } from "./queues.mjs";
+import { issueLine, nextEntry, PLACES_SUFFIX, queueRationaleSchema, queues, spanText } from "./queues.mjs";
 
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
@@ -66,8 +66,10 @@ function withSources(block, name, items) {
 }
 
 /**
- * entrySections(spec, draft, classes, source) -> Array<{ anchor, until, text }> — the sections of `spec` that the draft's candidates
- * change, each as the whole section's new text, composed by `classes`. Every other byte of a section stays as it is. Pure. Throws TwoChanges
+ * entrySections(spec, draft, classes, source) -> Array<{ anchor, until, text, places }> — the sections of `spec` that the draft's candidates
+ * change, each as the whole section's new text, composed by `classes`, and the places of the candidates it adds as `new` that name a place —
+ * { requirement, place: Place }, of merged candidates the one whose rule it takes —; every other candidate keeps the place of the requirement it
+ * refers to. No place stands in the text. Every other byte of a section stays as it is. Pure. Throws TwoChanges
  * { requirement, candidates } when two candidates change one requirement, and composes nothing.
  * @param {string} spec
  * @param {unknown} draft
@@ -97,7 +99,7 @@ export function entrySections(spec, draft, classes, source) {
       { requirement, candidates: names });
   }
 
-  const texts = new Map();
+  const texts = new Map(), places = new Map();
   const current = (heading) => (texts.has(heading) ? texts.get(heading) : sectionText(text, heading));
   for (const { each, candidate } of composed) {
     const held = parsed.requirements.get(each.of);
@@ -113,6 +115,8 @@ export function entrySections(spec, draft, classes, source) {
       const next = section.endsWith(`${eol}${eol}`) ? `${section}${block}${eol}${eol}`
         : section.endsWith("\n") ? `${section}${eol}${block}${eol}` : `${section}${eol}${eol}${block}`;
       texts.set(heading, next);
+      const place = placeOf(candidate.place);
+      if (place) places.set(heading, [...(places.get(heading) ?? []), { requirement: folded(candidate.name), place }]);
       continue;
     }
     const lines = linesOf(section);
@@ -126,7 +130,14 @@ export function entrySections(spec, draft, classes, source) {
     texts.set(heading, [...lines.slice(0, first), `${block}${last}`, ...lines.slice(end)].join(""));
   }
   return parsed.sections.filter((section) => texts.has(section.heading) && texts.get(section.heading) !== sectionText(text, section.heading))
-    .map((section) => ({ anchor: section.heading, until: null, text: texts.get(section.heading) }));
+    .map((section) => ({ anchor: section.heading, until: null, text: texts.get(section.heading), places: places.get(section.heading) ?? [] }));
+}
+
+// A candidate's place as a MOD-group-document Place { group, new }, or null where it names none: `group` a list of titles, `new` a title or null.
+function placeOf(place) {
+  if (!place || typeof place !== "object" || !Array.isArray(place.group)) return null;
+  const title = typeof place.new === "string" && place.new.trim() !== "" ? place.new.trim() : null;
+  return { group: place.group.map((each) => String(each).trim()), new: title };
 }
 
 // ---------------------------------------------------------------- the writer of classified candidates (specStrategies: queue-entries)
@@ -161,8 +172,9 @@ const pad2 = (n) => String(n).padStart(2, "0");
 
 // One new entry of a section's queue, docs/spec-freigaben/<package>/ (MOD-spec-changes, Data), planned into `planned`, the texts by path this call writes in the repository, which are read
 // before the snapshot: the queue's index with the entry's row appended, or, where there is no such queue yet, its index and its decisions started; the proposal NN-<package>.md and the
-// rationale NN-<package>.begruendung.md. Its number is one more than any the queue's index or decisions name. -> { folder, number, paths }, the paths it planned.
-async function sectionEntry(snapshot, { target, anchor, until, text, rationale }, planned) {
+// rationale NN-<package>.begruendung.md, and the places file NN-<package>.plaetze.md where `places` holds a place. Its number is one more than any the queue's
+// index or decisions name. -> { folder, number, paths }, the paths it planned, the rationale's last.
+async function sectionEntry(snapshot, { target, anchor, until, text, rationale, places = [] }, planned) {
   const held = new Map();
   const read = async (path) => {
     if (planned.has(path)) return planned.get(path);
@@ -184,7 +196,22 @@ async function sectionEntry(snapshot, { target, anchor, until, text, rationale }
   }
   planned.set(paths.at(-2), text);
   planned.set(paths.at(-1), rationale);
+  const proposed = (Array.isArray(places) ? places : []).filter((each) => each?.place && Array.isArray(each.place.group));
+  if (proposed.length > 0) {
+    const placesPath = `${folder}/${pad2(number)}-${name}${PLACES_SUFFIX}`;
+    planned.set(placesPath, placesText(heading, number, proposed));
+    // Before the proposal and the rationale, so that the rationale stays the last path, as the callers read it.
+    paths.splice(paths.length - 2, 0, placesPath);
+  }
   return { folder, number, paths };
+}
+
+// The text of an entry's places file (MOD-spec-changes, Data; queue-places.schema.md): the title line `# Places — <heading>: entry NN` and the places
+// table, one row per requirement, `Group` the titles from the top separated by ` / ` and `—` for the top level, `New group` its title or `—`.
+const placeCell = (value) => String(value).replace(/\|/g, "\\|");
+function placesText(heading, number, places) {
+  const rows = places.map(({ requirement, place }) => `| ${placeCell(requirement)} | ${place.group.length ? place.group.map(placeCell).join(" / ") : "—"} | ${place.new ? placeCell(place.new) : "—"} |`);
+  return [`# Places — ${heading}: entry ${pad2(number)}`, "", "| Requirement | Group | New group |", "|---|---|---|", ...rows, ""].join("\n");
 }
 
 // What an entry changes: the requirements of its new section that the composed candidates account for, each as its candidate's class says.
@@ -335,7 +362,7 @@ export async function queueEntries(result, context) {
     for (const section of sections) {
       const changes = changesOf(section, composed, spec).map((change) => ({ ...change, candidate: composed.find(({ each }) => each === change.each).candidate }));
       const rationale = rationaleOf(section, changes, graph, job);
-      const entry = await sectionEntry(where.snapshot, { target: "SPEC.md", anchor: section.anchor, until: section.until, text: section.text, rationale }, planned);
+      const entry = await sectionEntry(where.snapshot, { target: "SPEC.md", anchor: section.anchor, until: section.until, text: section.text, rationale, places: section.places }, planned);
       const findings = documentFindings(queueRationaleSchema, readDocument(queueRationaleSchema, entry.paths.at(-1), rationale));
       if (findings.length) throw Object.assign(new Error(`the rationale of entry ${pad2(entry.number)} of the queue ${entry.folder} breaks its schema: ${findings[0].what}`), { name: "RationaleInvalid" });
       paths.push(...entry.paths.filter((path) => !paths.includes(path)));
@@ -414,7 +441,7 @@ export async function proposeSection(host, change) {
   const impact = await impactOf(snapshot, before ?? "", change.text, before === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null, true);
   const rationale = sectionRationale(change, impact);
   const planned = new Map();
-  const { folder, number, paths } = await sectionEntry(snapshot, { target: change.target, anchor: change.anchor, until: change.until, text: change.text, rationale }, planned);
+  const { folder, number, paths } = await sectionEntry(snapshot, { target: change.target, anchor: change.anchor, until: change.until, text: change.text, rationale, places: change.places }, planned);
   const findings = documentFindings(queueRationaleSchema, readDocument(queueRationaleSchema, paths.at(-1), rationale));
   if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);
   const files = paths.map((path) => ({ path, text: planned.get(path) }));

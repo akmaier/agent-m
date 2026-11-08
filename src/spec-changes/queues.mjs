@@ -17,6 +17,8 @@
 //   - What the snapshot cannot read gives no evidence: without the target's text, or a record's, the entry keeps the state
 //     its files give. The target of an entry is the file its own row names (Datei).
 //   - The issue of an entry is the one its rationale's line `**Issue:**` names, null without that line or that rationale.
+//   - The places file of an entry is NN-<package>.plaetze.md beside its proposal, named in `places` with its blob from the tree, null where the
+//     queue's folder holds none; it is never the entry's proposal. placesOf reads its rows.
 //
 // The files are read ahead through the snapshot's readMany, which reads in batches where the snapshot has a batch request and
 // does nothing otherwise: first every queue's index.md and entscheidungen.md, then the targets and records the entries name and the
@@ -38,6 +40,7 @@ const OWNER = "MOD-spec-changes";
 const INDEX_SCHEMA_FILE = new URL("./queue-index.schema.md", import.meta.url);
 const DECISIONS_SCHEMA_FILE = new URL("./queue-decisions.schema.md", import.meta.url);
 const RATIONALE_SCHEMA_FILE = new URL("./queue-rationale.schema.md", import.meta.url);
+const PLACES_SCHEMA_FILE = new URL("./queue-places.schema.md", import.meta.url);
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 
 // In a browser: the module's own file, from the address the module itself was loaded from. Throws an Error naming
@@ -55,6 +58,26 @@ export const queueRationaleSchema = loadSchema(
   disk ? disk.readFileSync(RATIONALE_SCHEMA_FILE, "utf8") : await ownFile(RATIONALE_SCHEMA_FILE), OWNER);
 const queueDecisionsSchema = loadSchema(
   disk ? disk.readFileSync(DECISIONS_SCHEMA_FILE, "utf8") : await ownFile(DECISIONS_SCHEMA_FILE), OWNER);
+// The schema of an entry's places file, which propose.mjs writes and placesOf reads.
+export const queuePlacesSchema = loadSchema(
+  disk ? disk.readFileSync(PLACES_SCHEMA_FILE, "utf8") : await ownFile(PLACES_SCHEMA_FILE), OWNER);
+
+// An entry's places file beside its proposal, NN-<package>.plaetze.md (MOD-spec-changes, Data).
+export const PLACES_SUFFIX = ".plaetze.md";
+const LEFT_OUT = "—";
+
+/**
+ * placesOf(path: string, text: string) -> Array<{ requirement: string, place: Place }> — the places a places file proposes, row by row, each a
+ * MOD-group-document Place: `Group` split at ` / ` into the titles from the top, `—` (read as left out) the top level; `New group` its `new`, null for none.
+ */
+export function placesOf(path, text) {
+  const { rows } = readRegister(queuePlacesSchema, path, text ?? "");
+  const titles = (cell) => (cell === undefined || cell === null || String(cell).trim() === "" || String(cell).trim() === LEFT_OUT ? []
+    : String(cell).split(" / ").map((title) => title.trim()));
+  const named = (cell) => (cell === undefined || cell === null || String(cell).trim() === "" || String(cell).trim() === LEFT_OUT ? null : String(cell).trim());
+  return rows.filter((row) => named(row.cells.Requirement) !== null)
+    .map((row) => ({ requirement: named(row.cells.Requirement), place: { group: titles(row.cells.Group), new: named(row.cells["New group"]) } }));
+}
 
 // A queue is a folder docs/spec-freigaben/<package>/ (MOD-spec-changes, Data); every queue has exactly one index.md, so its
 // folder is found from the snapshot's own paths, without a request.
@@ -151,10 +174,12 @@ function entryOf(row, folder, base, files, snapshot, records, decisions) {
   const number = row.cells.Nr;
   const nn = String(number).padStart(2, "0");
   const fileName = files.find((name) => name.startsWith(`${nn}-`) && name.endsWith(".md")
-    && !name.endsWith(".begruendung.md"));
+    && !name.endsWith(".begruendung.md") && !name.endsWith(PLACES_SUFFIX));
   const proposalPath = fileName ? `${base}/${fileName}` : null;
   const blob = proposalPath ? snapshot.blob(proposalPath) : null;
   const rationale = fileName ? `${base}/${fileName.replace(/\.md$/, ".begruendung.md")}` : "";
+  const placesName = fileName ? fileName.replace(/\.md$/, PLACES_SUFFIX) : null;
+  const places = placesName && files.includes(placesName) ? { path: `${base}/${placesName}`, blob: snapshot.blob(`${base}/${placesName}`) } : null;
 
   const decided = decisions.get(number) ?? null;
   const decisionRecord = decided?.record ?? null;
@@ -169,6 +194,7 @@ function entryOf(row, folder, base, files, snapshot, records, decisions) {
     until: row.cells["bis (exklusiv)"] ?? null,
     proposal: { path: proposalPath, blob },
     rationale,
+    places,
     record: recordPath,
     decision: decided ? decisionRecord ?? decided.commit : null,
     state: decided ? "in SPEC" : approved ? "approved" : "open",
@@ -325,7 +351,7 @@ async function readQueues(snapshot, folders, records, issues = true) {
 /**
  * @typedef {{ path: string, blob: string | null }} Proposal
  * @typedef {{ number: number, file: string, anchor: string, until: string | null, proposal: Proposal,
- *   rationale: string, record: string | null, decision: string | null,
+ *   rationale: string, places: { path: string, blob: string } | null, record: string | null, decision: string | null,
  *   state: "open" | "approved" | "in SPEC" | "stale" | "waiting for its anchor", createdBy: { queue: string, entry: number } | null,
  *   issue: { number: number, product: string } | null }} Entry
  * @typedef {{ folder: string, title: string, target: string, entries: Entry[] }} Queue

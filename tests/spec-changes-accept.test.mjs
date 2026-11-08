@@ -230,7 +230,7 @@ test("acceptEntries — entries 05 and 06, 06's anchor created by 05, are accept
     blob: gitBlob(E06.proposal), target: "SPEC.md", anchor: "## 1a. Added", section: gitBlob(ADDED) });
   assert.match(change.message, /\balice\b/, "the commit names who accepted");
   for (const item of [E05, E06]) assert.ok(change.message.includes(entryId(item)), `and what: ${entryId(item)} in ${change.message}`);
-  assert.deepEqual(result, { commit: fake.head() });
+  assert.deepEqual(result, { commit: fake.head(), notPlaced: [] });
   assert.equal((await fake.snapshot(read).read("SPEC.md")), SPEC, "the replaced text stands in the head that was read");
 });
 
@@ -492,7 +492,7 @@ test("applyApproved — a record that a decision row names is left alone", async
   const fake = fakeHost({ files: productFiles({ entries: [E05, E07] }) });
   await acceptEntries(fake.host, [shownOf(E05, READING), shownOf(E07, WRITING)], "alice", NOW, sources());
   const after = await applyApproved(fake.snapshot(), NOW);
-  assert.deepEqual(after, { files: {}, applied: [], refused: [] });
+  assert.deepEqual(after, { files: {}, applied: [], refused: [], notPlaced: [] });
 });
 
 // TST-472955 · level: unit · module: MOD-spec-changes
@@ -619,13 +619,13 @@ test("applyApproved — a record of an entry that a decision row names is left a
   const [older, olderBody] = recordFile(E05, { proposal: E05.proposal + "an earlier wording\n", section: READING });
   const decided = DECISIONS + rowFor(E05);
   const withRow = await applyApproved(fakeHost({ files: productFiles({ entries: [E05], decisions: decided, extra: { [current]: currentBody, [older]: olderBody } }) }).snapshot(), NOW);
-  assert.deepEqual(withRow, { files: {}, applied: [], refused: [] });
+  assert.deepEqual(withRow, { files: {}, applied: [], refused: [], notPlaced: [] });
 
   const withoutRow = await applyApproved(fakeHost({ files: productFiles({ entries: [E05], extra: { [older]: olderBody } }) }).snapshot(), NOW);
   assert.deepEqual(withoutRow.refused.map(({ record }) => record), [older], "known positive: where no row names the entry, the older record is stale");
 
   const gone = await applyApproved(fakeHost({ files: productFiles({ entries: [E07], decisions: decided, extra: { [current]: currentBody } }) }).snapshot(), NOW);
-  assert.deepEqual(gone, { files: {}, applied: [], refused: [] });
+  assert.deepEqual(gone, { files: {}, applied: [], refused: [], notPlaced: [] });
 });
 
 // TST-472962 · level: unit · module: MOD-spec-changes
