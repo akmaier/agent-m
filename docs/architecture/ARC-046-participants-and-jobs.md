@@ -153,9 +153,11 @@ every subsystem and both programs, that interprets every kind of job from data**
   the system's enclosure, not by what a tool may say: what the model's side can read holds no credential.
 - **A conversation is a job without a record.** A message of the prompt bar (UC-049) runs as a job in the tab — of the
   kind its page names, with every rule on jobs — and leaves no job record (`A JOB IS RECORDED IN ITS PRODUCT
-  REPOSITORY`). Work it cannot do in the tab — running code or tests, changing code, reaching the web — is proposed
-  through the tool `hand-over` as a job of an existing kind, and queued on the person's click, prepared with that kind's
-  preconditions, as a job of the endpoint or CLI session itself, on its route to CI or a Bridge. That job is recorded; its task travels with the hand-over — as an input of the
+  REPOSITORY`). Work another kind owns, or that it cannot do in the tab — running code or tests, changing code,
+  reaching the web —, is planned through the tool `hand-over` as pieces, each a job of an existing kind with that
+  kind's definition, and each piece that rests on no other's unaccepted result is queued on the person's click,
+  prepared with that kind's preconditions, as a job of the endpoint or CLI session itself — in the tab, attended, or on
+  its route to CI or a Bridge (Vibe Coding, ch. 12, *One Thing at a Time*). That job is recorded; its task travels with the hand-over — as an input of the
   job workflow's start, or in the request to the Bridge — and stands in no file (`A CONVERSATION IS WRITTEN TO A
   REPOSITORY ONLY WHEN RECORDING IS ON`). A model endpoint's handed-over work is done in Agent M's own loop with the
   tools of MOD-checkout-tools in the job's checkout — in CI with the endpoint's key from a CI secret —; a CLI session on
@@ -270,6 +272,14 @@ schemas are read by MOD-documents (ARC-048).
 - **Free-form work handed over without a kind.** Rejected: a change of code would then bypass the backlog, the
   acceptance and the work-in-progress rules every implementation job meets; the hand-over names a kind, and the kind's
   preconditions decide.
+- **A conversation's pieces run inside its own job, one after the other.** Rejected: a piece would run without a record
+  of its own, and its results would stand in the conversation's; each piece is a job of its own, recorded, and the job
+  of a conversation on CI names the jobs it started, as a run does.
+- **A kind of its own that plans before the conversation answers.** Rejected: it would be a second prompt for the
+  decision the conversation's own round already takes — which kinds of work a request needs —; the plan is that round's
+  answer.
+- **The pieces ordered by their kinds.** Rejected for the reason kinds are not known to the runner by name: the drafter
+  names the earlier piece a piece rests on, and the kinds' preconditions still refuse work on what is not accepted.
 
 - **A module per kind of job, or per kind of drafted artifact.** Rejected: they would repeat the same pipeline with other
   data; the differences between kinds are data and a few strategies, so they are kept as such (`DON'T REPEAT YOURSELF`).

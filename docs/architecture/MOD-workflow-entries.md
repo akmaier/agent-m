@@ -45,6 +45,7 @@ uses:
   - MOD-job-ledger.jobState
   - MOD-progress-measures.productFacts
   - MOD-runtimes.queueJob
+  - MOD-runtimes.handOverJob
   - MOD-runtimes.routeStrategies
   - MOD-run-planner.runStrategies
   - MOD-product-process.declarationSchema
@@ -223,26 +224,24 @@ so; a model's command there reaches what that user can.
   user, through the holder (*The model's user*) —, appending its records. No person attends a job in CI: its
   kind's writer writes at once (`A CI AGENT'S DRAFT ENTERS AS OPEN`), and a kind that hands its draft back leaves it in
   the record's end as `draft:`, from which the page shows it. A job whose draft
-  holds a hand-over (MOD-job-runner's `hand-over`, UC-049 4f) is followed in the same run, with the same participant and
-  driver, by a job of the kind it names, where that kind is not the job's own: its parameters the job's `source`, those
-  MOD-job-runner's `handOverParams` gives for what it works on, and its task as `instruction`; prepared with that kind's
-  preconditions and no start rule of the product's process, and run unattended, so that its writer writes at once — a
-  change of requirements as an open entry of a new queue, a use case or an architecture file as open, a change of code
-  as a pull request, which it does not merge; no job writes an approval record. A model endpoint's job of a kind that
-  changes code or runs tests works in the job's checkout of the product as `onDispatch` states — the tools of
-  MOD-checkout-tools, the same endpoint with `checkoutPrompt` for that checkout as its system prompt, `bash` refused
-  where a restricted source refuses it —, and where the record holds `declares`, the participant built from it is built
-  for the kind handed on, as `onDispatch` states. A hand-over of the job's own kind, of a kind that takes
-  no instruction (MOD-job-runner's `taskRefusal`, its rule named), or one whose job does not start, is not run, and the
-  job's end names it with why, as `not run: <kind> — <why>`; where a finding of its preparation keeps it from starting,
-  `<why>` is each such finding as `<what> [<rule>] — <fix>`, joined by `; `, so that the end names what the hand-over
-  requires to run (UC-049 4a.5) — `not run: change-requirements — <what> [THE PERSON WHO PROMPTS IS A SOURCE] — <fix>`;
-  one whose run fails by MOD-job-runner's `failedBecause` is
-  listed as `failed: <kind> — <why>`. The end lists every result of both: their commits,
-  their files and pull requests, and their writers' notes; and each finding the hand-over's correction loop left, as
-  `left: <finding>` in MOD-text-tools' one form (`formatFinding`), since its rounds stand in no record. A hand-over
-  that ran is listed as `<kind>: no change` only where none of these is listed for it, its writer having committed
-  nothing since its result equals the current files. The entry resumes each
+  holds a plan (MOD-job-runner's `hand-over`, UC-049 4f) hands over each of its pieces whose `after` is empty and whose
+  kind is not the job's own as a job of its own, on this route, with the same participant — built from `declares` where
+  the record holds it —: its parameters the job's `source`, those MOD-job-runner's `handOverParams` gives for what it
+  works on, and `refuses` naming `hand-over`. The agent's machine leaves those pieces, with their tasks, with its result
+  (`leaveResult`); the writing machine, which holds the person's token, prepares each with its kind's preconditions and
+  no start rule of the product's process, and hands it over with MOD-runtimes' `handOverJob`, its start's `startedBy`
+  the job — so that the commit of its record appends the job's `Job started` part — and its task the input `task` of
+  the run it starts, standing in no file. Each runs in a run of its own as `onDispatch` runs a hand-over, by its kind's
+  definition and unattended, so that its writer writes at once — a change of requirements as an open entry of a new
+  queue, a use case or an architecture file as open, a change of code as a pull request, which it does not merge; no
+  job writes an approval record —, and its own record lists its results. A piece whose `after` names another, a piece
+  of the job's own kind, of a kind that takes no instruction (MOD-job-runner's `taskRefusal`, its rule named), or one
+  whose job does not start, is not handed over, and the job's end names it with why, as `not run: <kind> — <why>`; for
+  a piece that rests on another, `<why>` is `waits for the acceptance of <n>`, `<n>` the number of the piece it rests
+  on, and that piece's job where it was handed over; where a finding of its preparation keeps it from starting, `<why>`
+  is each such finding as `<what> [<rule>] — <fix>`, joined by `; `, so that the end names what the piece requires to
+  run (UC-049 4a.5) — `not run: change-requirements — <what> [THE PERSON WHO PROMPTS IS A SOURCE] — <fix>`. The end
+  lists, beside the job's own results, `handed over: <kind> — <JOB-id>` for each piece handed over. The entry resumes each
   job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`). A job whose run ends by MOD-job-runner's `failedBecause` — an answer that could not be
   read after the last round — ends `failed`, with no result, that reason and its rounds, and the entry ends `failed`. A
   job whose writer committed nothing, since its result equals the current files,
@@ -280,9 +279,8 @@ so; a model's command there reaches what that user can.
   `taskRefusal`, since the task would reach no prompt —; for a model
   endpoint, the endpoint the input `endpoint` names, with the key from the CI secret the input `secret` names, through
   Agent M's own job runner, MOD-endpoint-calls' `endpointDriver` calling the endpoint, with its tool loop where the
-  participant declares *use tools*, as in the tab, its input beginning with Agent M's `AGENTS.md` as text; a job handed
-  on from it in the same run takes the same driver. A job of a kind that only reads and drafts text — whose `needs` hold
-  *draft text* and nothing but *draft text* and *read the repository*, as `converse` and the change kinds of
+  participant declares *use tools*, as in the tab, its input beginning with Agent M's `AGENTS.md` as text. A job of a
+  kind that only reads and drafts text — whose `needs` hold *draft text* and nothing but *draft text* and *read the repository*, as `converse` and the change kinds of
   requirements, use cases and the architecture — works in no checkout. A job of any other kind — one that changes code or
   runs tests — works in the job's checkout of the product, `JobContext`'s `product.checkout`, with the tools of
   MOD-checkout-tools, which only the agent's machine registers, and with MOD-checkout-tools' `checkoutPrompt` for that
@@ -300,8 +298,7 @@ so; a model's command there reaches what that user can.
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
   merged — on the agent's machine, where the branch is not on the server yet, `writeResult` refuses it; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
   and log — in the log between the lines `--- answer of <id> ---` and `--- end of the answer of <id> ---` —, where the
-  prompt bar reads it, and the answer of the job handed on from it in the same run the same way, between the lines
-  `--- answer handed on in <id> ---` and `--- end of the answer handed on in <id> ---`; an answer that could not be read
+  prompt bar reads it; an answer that could not be read
   is left there as it was received, and its job's end holds only
   the reason, since the answer is a message of the conversation (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN
   RECORDING IS ON`). An endpoint the run cannot reach ends it `failed`, its summary naming the
@@ -316,7 +313,8 @@ so; a model's command there reaches what that user can.
   `not run`, naming it. Writes nothing.
 - `leaveResult(env: CiEnvironment) -> Promise<EntryStatus>` — on the agent's machine, after its entry, whether that
   ended well or not: the result packed for the writing machine — the default branch and the base, each branch that is new
-  or moved as a bundle that keeps every commit's identifier, the pull requests and ends kept for later. `nothing to do`
+  or moved as a bundle that keeps every commit's identifier, the pull requests, the ends and the pieces of a plan to hand
+  over kept for later. `nothing to do`
   where the entry made none.
 - `writeResult(env: CiEnvironment) -> Promise<EntryStatus>` — on the writing machine, which runs no agent, with the
   person's token: the result downloaded, read and checked. It is refused where a commit changes a workflow file of the
@@ -325,8 +323,9 @@ so; a model's command there reaches what that user can.
   than a job's record or as a pull request's branch one the result does not hold, and, for a hand-over, where the task's words stand
   in a commit's message or a kept pull request. A result that passes is written: the default branch's commits pushed as
   they are, or, where the branch moved meanwhile, each picked onto it in its order; every other branch pushed as it is,
-  never forced; each kept pull request opened, or the open or merged one of its branch taken; each job's end appended,
-  naming its commits and pull requests as they now stand. A result that is refused, or that does not apply on the branch
+  never forced; each kept pull request opened, or the open or merged one of its branch taken; each kept piece of a plan
+  handed over as `onRecordsChanged` states; each job's end appended, naming its commits and pull requests as they now
+  stand, and the jobs it handed over. A result that is refused, or that does not apply on the branch
   as it stands now, writes no branch, and each job it ended is ended `failed`, naming why, except one another run has
   taken or ended meanwhile, which is that run's. While the agent works, a job's record shows it queued: its taking
   reaches the product with the result.
@@ -422,8 +421,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   through the checkout of the instance, which fetches it with its own credentials.
 - `MOD-documents.readDocument`, `readRegister`, `writeDocument` and `MOD-participant-list.participantSchema` — the
   declaration, the participants, the register entries.
-- `MOD-text-tools.Finding` — the findings an entry reports; `MOD-text-tools.formatFinding` — each finding a hand-over's
-  correction loop left, as its end lists it.
+- `MOD-text-tools.Finding` — the findings an entry reports; `MOD-text-tools.formatFinding` — each finding that keeps a
+  piece of a plan from starting, as its end lists it.
 - `MOD-test-document.TestDeclaration`, `testDeclarations` — the declarations of the product's tests, to which a report's
   outcomes are matched.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-agent-processes.agentDriver` — the drivers of CI participants, a coding agent
@@ -435,15 +434,16 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   model endpoint that works in the job's checkout, on the agent's machine.
 - `MOD-job-runner.JobContext`, `registerStrategies`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of
   any kind from its record, unattended; `MOD-job-runner.failedBecause` — whether a run's job ends failed, and why;
-  `MOD-job-runner.handOverParams` — the parameters of a hand-over run in the same
-  job; `MOD-job-runner.taskRefusal` — a hand-over whose kind takes no instruction, refused;
+  `MOD-job-runner.handOverParams` — the parameters of a piece of a plan handed over as a job of its own;
+  `MOD-job-runner.taskRefusal` — a hand-over whose kind takes no instruction, refused;
   `MOD-job-runner.withheld` — whether a restricted source's content in the checkout refuses `bash`;
   `MOD-job-catalogue.toolsOf` — the capabilities a kind's tools need, for a participant built from `declares`.
 - `MOD-source-register.sourceSchemas`, `registerPaths`, `restrictedPlaces` — the places of the restricted sources a job's
   context carries.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `newJobId`, `startRecord`, `takeJob`, `appendToRecord`, `jobState` — the
   records of the jobs it takes, their parameters, and their ends with a draft handed back.
-- `MOD-runtimes.queueJob` — queueing the close of a sprint an agent closes, in `onSchedule`.
+- `MOD-runtimes.queueJob` — queueing the close of a sprint an agent closes, in `onSchedule`; `MOD-runtimes.handOverJob`
+  — each piece of a plan handed over as a job of its own, on the writing machine.
 - `MOD-progress-measures.productFacts` — the product's facts, read once per entry.
 - `MOD-trace-graph.publishGraph`, `MOD-approvals.statuses`, `lastAcceptedText`, `MOD-progress-measures.publishOverview` —
   the records `onMainChanged` stores for each commit of the default branch.

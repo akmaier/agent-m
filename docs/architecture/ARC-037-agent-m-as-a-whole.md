@@ -392,8 +392,8 @@ sequenceDiagram
 
 **A conversation.** A message in the prompt bar runs in the tab as a job of the kind the page's subject names, with the
 page as its context and no record; a model endpoint the tab calls uses the tools its capabilities allow, each call
-carried out by the runner; work the tab cannot do is handed over as a recorded job whose task travels with the
-hand-over; a draft is saved only on the person's click.
+carried out by the runner; work another kind owns, or the tab cannot do, is planned as pieces, each handed over as a
+recorded job of its own whose task travels with the hand-over; a draft is saved only on the person's click.
 
 ```mermaid
 sequenceDiagram

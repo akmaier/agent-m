@@ -110,7 +110,7 @@ job of its own, whose record names its inputs and whose task travels with the ha
 CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`). It also gives a product the files of Agent M's
 job workflow, and what the product lacks of the CI route — those files and the CI secrets they read —, set up on a
 person's click; and it offers the writer that checks and records a coding participant's branch and pull request. The page uses
-it in a browser; its writer and its workflow files are used in Node as well.
+it in a browser; its writer, its workflow files and `handOverJob` on the CI route are used in Node as well.
 
 ## Parts
 
@@ -386,10 +386,13 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   what it wrote before a failure stays written.
 - `handOverJob(prepared: Prepared, route: Route, start: JobStart, host: Host, head: string, task: string, target: {
   endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null }) -> Promise<{ path: string,
-  commit: string }>` — queues the work a conversation of the prompt bar handed over, on the person's click *Hand over*
-  (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`): commits `start` as the person's commit on the head that was read —
+  commit: string }>` — queues one piece of work a conversation of the prompt bar handed over, as the result of the
+  person's *Send* (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`), or in the run of a conversation's job that runs on
+  CI (MOD-workflow-entries): commits `start` as the person's commit on the head that was read —
   the record naming the participant, the page and the commit it read, the conversation record where the instance records
-  conversations, and that its task travels with the hand-over, without the task's words —, then, on the CI route, starts
+  conversations, and that its task travels with the hand-over, without the task's words —, and, for a start whose
+  `startedBy` names a job, in the same commit that job's `Job started` part, through MOD-job-ledger's `appendToRecord`,
+  as `queueJob` appends a run's; then, on the CI route, starts
   the product's job workflow with `startWorkflow` and the inputs `job`, `task` and, for a model endpoint, `endpoint` and
   `secret`, the CI secret its route names, or,
   on a Bridge, hands it over with `handOver` and the task. `prepared` is the job of the kind the participant named, with
