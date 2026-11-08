@@ -18,7 +18,10 @@
 // default branch lacks, nothing when it is complete (5b); the address is added to this browser's list, never to the
 // instance repository (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY). A write refused after a successful read (5a)
 // is named, nothing is written, and Step A on GitHub is repainted with its instructions — a "done" shown earlier
-// never survives a refusal at Check or at Add product.
+// never survives a refusal at Check or at Add product. On a GitHub product the same click then sets up GitHub Actions
+// as the job workflow's line of Settings does (UC-001 step 5; actions-setup.mjs, the one copy of that setup both
+// pages use): MOD-runtimes' actionsSetup through the host Step C wrote with, and its setUp; a failure there is named
+// and undoes neither the layout's commit nor the address. A GitLab product's click does nothing more.
 //
 // Each step that asks something of the person carries its folded "What is this?", from MOD-site-frame's
 // explanations.md (EVERY STEP EXPLAINS ITSELF; ITM-255's topics for this view: repository, product-key,
@@ -37,6 +40,7 @@ import { reviewLayoutCommit } from "../artifact-edits/index.mjs";
 import { readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { heads } from "./routes.mjs";
+import { productActionsSetup, secretsPageOf, setUpText, unknownText } from "./actions-setup.mjs";
 
 export const TOKEN_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -369,12 +373,41 @@ function gitlabStepBBody(context, address, afterCheck) {
 
 // ---------------------------------------------------------------- Step C: one click (ONE CLICK PER DECISION).
 
+// The instance's host for actionsSetup: the one the frame hands the route, else the instance's repository connected with the instance's own token, as the dashboard's other
+// pages connect it. Throws what parseAddress throws for a context that names no instance.
+function instanceHostOf(context) {
+  if (context.instance?.host) return context.instance.host;
+  const token = storedToken(context.store, INSTANCE_TOKEN_KEY);
+  return connect(parseAddress(`https://github.com/${context.instance?.repository}`), { ...(token ?? {}), secrets: secretValues(context.store) });
+}
+
+// UC-001 step 5 on GitHub, after the layout's commit and the address: MOD-runtimes' actionsSetup for the product through `host`, the host Step C read and wrote it with, on
+// the head the layout's commit left, and its setUp in the same click. `part` names the commit setUp made and the secrets it stored, never a value, and each secret this
+// browser keeps no value for with the repository's secrets page; a failure is named there and undoes nothing written before it. Never throws.
+async function setUpActions(context, address, host, part) {
+  part.replaceChildren("Setting up GitHub Actions…");
+  try {
+    const setup = await productActionsSetup({ address, host, instanceHost: instanceHostOf(context), store: context.store });
+    const done = await setup.setUp();
+    part.replaceChildren(`GitHub Actions: ${setUpText(done)}`);
+    if (setup.unknown.length) part.append(" ", unknownText(setup.unknown), " ", anchor("Open the repository's secrets page ↗", secretsPageOf(address)));
+  } catch (e) {
+    part.replaceChildren(`✗ GitHub Actions were not set up: ${e?.message ?? e} The review layout and ${address.web} in this browser's list stay; ` +
+      "on Settings, the product's line \"Agent M's job workflow\" finishes the setup with Set up GitHub Actions.");
+  }
+}
+
 function stepCSection(context, address, onWriteRefused) {
   const label = address.server === "gitlab" ? "Step B" : "Step A";
+  const github = address.server === "github";
   const btn = el("button", "add btn primary", "Add product");
   const out = el("p", "result");
+  const actions = github ? el("p", "add-product-actions") : null;
   const sends = el("p", "muted", `One click writes the missing review layout into ${address.web}'s own default ` +
-    "branch and adds its address to this browser's product list — nothing is written to the instance repository.");
+    "branch and adds its address to this browser's product list — nothing is written to the instance repository." +
+    (github ? " Then it writes Agent M's job workflow into the same branch and stores the secrets this browser keeps a value for — the " +
+      "product's key as AGENT_M_TOKEN, an endpoint's key under the CI secret it names — into the repository's Actions secrets, sealed for " +
+      "GitHub's API alone." : ""));
 
   function refresh() {
     const credentials = credentialsFor(context.store, address);
@@ -403,6 +436,7 @@ function stepCSection(context, address, onWriteRefused) {
       const switchProduct = el("button", "switch btn", "Switch to the new product");
       switchProduct.addEventListener("click", () => context.go("main", { product: address.web }));
       out.append(" ", switchProduct);
+      if (actions) await setUpActions(context, address, host, actions);
     } catch (e) {
       out.replaceChildren();
       if (e?.name === "NotFound") {
@@ -418,7 +452,7 @@ function stepCSection(context, address, onWriteRefused) {
     }
   });
 
-  const section = stepSection("Step C · Add the product", el("p", null, btn), out, sends,
+  const section = stepSection("Step C · Add the product", el("p", null, btn), out, ...(actions ? [actions] : []), sends,
     explain("review-layout-commit"), explain("reverting-the-commit"), explain("the-product-list"));
   return { section, refresh };
 }
