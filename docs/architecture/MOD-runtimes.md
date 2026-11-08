@@ -361,8 +361,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
 - `actionsSetup({ product: { address: string, host: Host, tokenKey: string }, instance: { host: Host }, store: Store }) ->
   Promise<{ missing: { workflow: boolean, secrets: string[] }, outdated: string[], unknown: string[], named: { token:
   string, keys: string[] }, setUp: () -> Promise<{ commit: string | null, stored: string[] }> }>` — what the product
-  lacks for the CI route, and its setup (UC-010, UC-049 4c); the one place the settings page and the prompt bar learn
-  it. `tokenKey` is the key of the product's own token in `store`, which the caller hands, since this module reads no
+  lacks for the CI route, and its setup (UC-001 step 5, UC-010, UC-049 4c); the one place the pages of settings and the
+  prompt bar learn it. `tokenKey` is the key of the product's own token in `store`, which the caller hands, since this module reads no
   rule of the frame. It reads the instance's default branch — its repository and commit, and its participants
   (`docs/participants.md`, through `readRegister`, `participantSchema` and `participantsOf`) — and the product's:
   `named` is what the job workflow reads, `token` `AGENT_M_TOKEN` and `keys`, in their order without a name twice, the
