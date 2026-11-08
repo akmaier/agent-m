@@ -739,9 +739,11 @@ into Agent M's settings.
 *Check:* no automatic check; at review.
 
 **A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT** *(PO A. Maier)*
-Each repository token leaves the browser only as the authorisation header of requests to the API of
-the server that issued it.
-*Check:* `tests/review-core.test.mjs`
+Each repository token leaves the browser only to the API of the server that issued it: as the authorisation header of
+its requests, or sealed to the public key of one of that server's repositories as that repository's CI secret.
+*Check:* `tests/review-core.test.mjs`; `tests/repository-hosts-ci-secret.test.mjs` — a product's token stored as
+`AGENT_M_TOKEN` reaches only its own server, sealed in the body of the request that stores the secret; counter-proof: the
+token in the clear in any body or address fails.
 
 **NO MODEL READS A CREDENTIAL** *(PO A. Maier)*
 No token, key or password that Agent M, its Bridge or its CI holds reaches a model: neither in what is sent to it nor
