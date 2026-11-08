@@ -1044,9 +1044,10 @@ test("TST-2026110820: a job spawned with Spawn job takes the person's account as
 //   and the bar says "About alice/AlienInvasion — named in your message."
 test("TST-2026110821: Spawn job with a message that names another product spawns the job in that product's repository", async () => {
   const ALIEN_WEB = "https://github.com/alice/AlienInvasion";
-  const alien = repoOf(ALIEN_WEB, scrumFiles());
   const it = open({ endpoints: ON_ACTIONS, products: () => [{ address: PRODUCT_WEB, host: it.product.host, tokenKey: "github-token:alice/thesis-tool" },
     { address: ALIEN_WEB, host: alien.host, tokenKey: "github-token:alice/AlienInvasion" }] });
+  // AlienInvasion holds the job workflow as this instance's commit gives it (standingCurrent), so that nothing of it stands outdated (UC-049 4c); the bar asks `products` first on Send.
+  const alien = repoOf(ALIEN_WEB, standingCurrent(scrumFiles(), it.instance.head(), it.store));
   writeSetting(it.store, "github-token:alice/AlienInvasion", { value: "github_pat_ALIEN0123456789abcdefgh", name: "alice", expires: "2027-01-01" });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   choose(it, "nvidia");

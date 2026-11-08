@@ -28,8 +28,8 @@ export class RuntimeError extends Error {
   }
 }
 
-// Agent M's job workflow in a product (MOD-runtimes.md, Data), by the repository's server: one file.
-const WORKFLOW_PATH = { github: ".github/workflows/agent-m-jobs.yml", gitlab: ".gitlab/agent-m-jobs.yml" };
+// Agent M's job workflow in a product (MOD-runtimes.md, Data), by the repository's server: one file. Exported within MOD-runtimes for actions-setup.mjs, which reads the commit it pins.
+export const WORKFLOW_PATH ={ github: ".github/workflows/agent-m-jobs.yml", gitlab: ".gitlab/agent-m-jobs.yml" };
 // Beside it, the file that runs MOD-workflow-entries' onMainChanged (MOD-runtimes.md, Data), from the templates workflow/<server>-main-changed.yml.
 const MAIN_CHANGED_PATH = { github: ".github/workflows/agent-m-main-changed.yml", gitlab: ".gitlab/agent-m-main-changed.yml" };
 
@@ -60,8 +60,8 @@ export async function commitStart(host, start, head) {
 }
 
 // pinnedInstance(text) -> string | null — the instance commit a job workflow file pins: GitHub's checkout of the instance (`ref:` after its `repository:`),
-// GitLab's AGENT_M_COMMIT; null where the file names none.
-function pinnedInstance(text) {
+// GitLab's AGENT_M_COMMIT; null where the file names none. Exported within MOD-runtimes for actions-setup.mjs (actionsSetup's pins.product); index.mjs does not export it.
+export function pinnedInstance(text) {
   const found = /repository:\s*\S+\s*\n\s*ref:\s*([0-9a-f]{40})\b/.exec(text ?? "") ?? /AGENT_M_COMMIT:\s*"?([0-9a-f]{40})\b/.exec(text ?? "");
   return found ? found[1] : null;
 }

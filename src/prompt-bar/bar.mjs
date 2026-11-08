@@ -207,12 +207,21 @@ export function startPromptBar(target, setup) {
     return { address, host, tokenKey };
   }
 
-  // A repository on GitHub not set up for what the run reads (UC-049 4c, UC-010): `lack` from hand-over.mjs' actionsLack, put on the page with `place`. Nothing was handed over; a
-  // secret this browser keeps no value for is named with the server's page of the repository's secrets; while setUp can set anything up, the button Set up GitHub Actions, whose one
-  // person's click runs setUp and then `proceed` — the hand-over or the spawn the person's Send asked for —, with no further click; a secret the run reads that is still missing then
-  // holds it back as before.
+  // A repository on GitHub not set up for what the run reads (UC-049 4c, UC-010): `lack` from hand-over.mjs' actionsLack, put on the page with `place`. Nothing was handed over; what
+  // is missing is named, and each file of the job workflow that stands outdated, with the commit the job workflow pins and this instance's, seven digits each, or, where the two are the
+  // same or the file pins none, that it stands with another text; a secret this browser keeps no value for is named with the server's page of the repository's secrets; while setUp can
+  // set anything up, the button Set up GitHub Actions, whose one person's click runs setUp, which writes the outdated files again, and then `proceed` — the hand-over or the spawn the
+  // person's Send asked for —, with no further click; a secret the run reads that is still missing then holds it back as before.
   function showLack(page, lack, proceed, place) {
-    const parts = [problem(`Nothing was handed over: ${repositoryPath(page.address)} is not set up for GitHub Actions. Missing: ${lack.missing.join(" · ")}`)];
+    const lines = [`Nothing was handed over: ${repositoryPath(page.address)} is not set up for GitHub Actions.`];
+    if (lack.missing.length > 0) lines.push(`Missing: ${lack.missing.join(" · ")}`);
+    const outdated = lack.outdated ?? [];
+    if (outdated.length > 0) {
+      const { instance: ours = null, product: theirs = null } = lack.pins ?? {};
+      lines.push(`Outdated: ${outdated.join(", ")}: ${theirs !== null && ours !== null && theirs !== ours
+        ? `the job workflow pins ${theirs.slice(0, 7)}, this instance is ${ours.slice(0, 7)}` : "it stands with another text than this instance gives"}`);
+    }
+    const parts = [problem(lines.join(" "))];
     if (lack.unknown.length > 0) {
       parts.push(el("p", "unknown-secrets", `This browser keeps no value for ${lack.unknown.join(", ")}: add ${lack.unknown.length > 1 ? "them" : "it"} on the server's page of this repository's secrets: `,
         secretsLink(page.host)));
@@ -232,7 +241,7 @@ export function startPromptBar(target, setup) {
         }
         const told = el("p", "set-up", `Set up GitHub Actions: ${done.commit ? `committed ${done.commit}` : "every workflow file stands already"}${done.stored.length ? `; stored the secrets ${done.stored.join(", ")}` : ""}.`);
         if (done.missing.length > 0) {
-          showLack(page, { missing: done.missing, unknown: done.unknown, canSetUp: false }, proceed, (...nodes) => place(told, ...nodes));
+          showLack(page, { missing: done.missing, outdated: done.outdated, unknown: done.unknown, canSetUp: false }, proceed, (...nodes) => place(told, ...nodes));
           return;
         }
         place(told);
@@ -349,7 +358,7 @@ export function startPromptBar(target, setup) {
           ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", sending.shown(each))))] : []));
       }
     }
-    // On GitHub, before it is queued on the CI route, or while only the job workflow holds it back, what the run reads is asked of actionsSetup (UC-049 4c): with something missing,
+    // On GitHub, before it is queued on the CI route, or while only the job workflow holds it back, what the run reads is asked of actionsSetup (UC-049 4c): with something missing or outdated,
     // nothing is handed over, and Set up GitHub Actions sets up, assesses the hand-over again on the head the setup left and queues it; setUp itself says what it left missing.
     const page = about ?? pageOf();
     async function assessAndQueue(check = true) {
@@ -554,7 +563,7 @@ export function startPromptBar(target, setup) {
       const subject = about ? aboutSubject(setup.subject(), about) : setup.subject();
       const page = about ?? pageOf();
       const instanceSnapshot = await (await sendPart()).defaultSnapshot(instance.host);
-      // On GitHub, before anything is written, what the run reads is asked of actionsSetup (UC-049 4c): with something missing, nothing is handed over, and Set up GitHub Actions
+      // On GitHub, before anything is written, what the run reads is asked of actionsSetup (UC-049 4c): with something missing or outdated, nothing is handed over, and Set up GitHub Actions
       // sets up and then spawns, as the person's Spawn job asked. The instance's default branch read above is the page's for a page of the instance.
       const lack = await (await handPart()).actionsLack({ participant, page, instance, store, snapshot: sameAddress(page.address, instanceWeb) ? instanceSnapshot : null });
       if (lack !== null) {
