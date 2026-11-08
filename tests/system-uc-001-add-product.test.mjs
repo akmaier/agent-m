@@ -42,7 +42,7 @@ function gitlabProject({ accessLevel = 40 } = {}) {
   return project;
 }
 
-async function world({ files = { "README.md": "# Thesis tool\n" }, writable = true, readable = true, missing = false, visibility = "public", gitlab = null } = {}) {
+async function world({ files = { "README.md": "# Thesis tool\n" }, writable = true, readable = true, missing = false, visibility = "public", gitlab = null, productHandlers = [] } = {}) {
   const log = [];
   const product = await repoServer({ repo: PRODUCT, files, handlers: [
     (url, init) => {
@@ -53,6 +53,7 @@ async function world({ files = { "README.md": "# Thesis tool\n" }, writable = tr
       if (!writable && (init.method ?? "GET") !== "GET") return new Response(JSON.stringify({ message: "Resource not accessible" }), { status: 403 });
       return undefined;
     },
+    ...productHandlers,
   ] });
   const instance = await repoServer({ files: {}, handlers: [
     (url, init) => {
@@ -108,6 +109,39 @@ test("TST-281 UC-001 main flow stores a product token and adds the missing layou
   assert.ok(productCalls.length > 0 && productCalls.every((r) => r.authorization === `Bearer ${PRODUCT_TOKEN}`), "the product token reaches only product API calls");
   assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token`)).value, TOKEN,
     "the canonical instance token is unchanged");
+});
+
+// TST-2026110836 · level: system · module: MOD-settings-pages
+// guards: UC-001; ONE CLICK PER DECISION; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the instance token and an existing public GitHub product repository without layout, job workflow or Actions secret, whose server answers its Actions secrets
+// input: on the dashboard's real #add route, paste its address, acknowledge and store its product token, then make the one trusted Add product click
+// expect: UC-001 step 5 on GitHub: the layout's commit, then the job workflow's commit (.github/workflows/agent-m-jobs.yml), and AGENT_M_TOKEN stored sealed with the product's token, never in clear; the page names the job workflow's commit and the stored secret; the instance repository is not written
+test("TST-2026110836 UC-001 step 5 on GitHub also installs Agent M's workflows and stores the secrets this browser keeps", async () => {
+  const stored = [];
+  const secrets = (url, init) => {
+    if (url.origin !== API || !url.pathname.startsWith(`/repos/${PRODUCT}/actions/secrets`)) return undefined;
+    if ((init.method ?? "GET") === "GET" && url.pathname.endsWith("/public-key")) return json({ key_id: "fixture-key-id", key: Buffer.alloc(32, 7).toString("base64") });
+    if ((init.method ?? "GET") === "GET") return json({ total_count: stored.length, secrets: stored.map(({ name }) => ({ name })) });
+    if (init.method === "PUT") { stored.push({ name: decodeURIComponent(url.pathname.split("/").pop()), body: String(init.body) }); return new Response(null, { status: 201 }); }
+    return undefined;
+  };
+  const w = await world({ productHandlers: [secrets] });
+  const main = await addPage(w);
+  const ack = main.querySelector("input.ack");
+  ack.checked = true; ack.fire("change", { isTrusted: true });
+  main.querySelector("input.token").value = PRODUCT_TOKEN;
+  await press(w.instance, main.querySelector("button.store"));
+  await press(w.instance, main.querySelector("button.add"));
+  await settle(w.instance);
+
+  assert.equal(w.product.writes.length, 2, "failure node: Step C writes the layout's commit, then the job workflow's");
+  assert.ok("SPEC.md" in w.product.writes[0].files, "the first commit is the layout's");
+  assert.ok(".github/workflows/agent-m-jobs.yml" in w.product.writes[1].files, "the second commit installs the job workflow");
+  assert.deepEqual(stored.map(({ name }) => name), ["AGENT_M_TOKEN"], "the product's token is stored as AGENT_M_TOKEN");
+  assert.equal(stored[0].body.includes(PRODUCT_TOKEN), false, "the token travels sealed");
+  assert.match(main.innerHTML, /Committed [0-9a-z]{40}\..*AGENT_M_TOKEN/s, "the page names the job workflow's commit and the stored secret");
+  assert.equal(main.innerHTML.includes(PRODUCT_TOKEN), false, "no value is shown");
+  assert.deepEqual(w.instance.writes, [], "nothing is written to the instance repository");
 });
 
 // TST-282 · level: system · module: MOD-settings-pages
