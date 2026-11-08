@@ -82,6 +82,7 @@ function installNetwork() {
     const rest = api[2] ?? "";
     if (rest === "") return reply({ default_branch: "main", visibility: "public", private: false, permissions: { push: true }, archived: false, description: "" });
     if (rest.startsWith("/commits/")) return reply({ sha: `c-${api[1].split("/")[1]}` });
+    if (rest.startsWith("/actions/secrets")) return reply({ total_count: 0, secrets: [] });
     if (rest.startsWith("/git/trees/")) return reply({ tree: Object.keys(files).map((path) => ({ type: "blob", path, sha: `b-${path}` })) });
     const file = /^\/contents\/([^?]+)/.exec(rest)?.[1];
     if (file && files[decodeURIComponent(file)] !== undefined) return new Response(files[decodeURIComponent(file)], { status: 200 });
@@ -100,7 +101,7 @@ const route = (name, entry, over = {}) => ({ name, entry, title: `Title of ${nam
 
 // Starts a page on a fresh fixture, a browser that declares the endpoint drafter-a — its place, context and model, as the bar offers it (UC-049 1) —, the instance token github_pat_INSTANCE, the product
 // https://github.com/acme/widget and its token github_pat_WIDGET.
-async function start({ page = "review", fragment = "", views } = {}) {
+async function start({ page = "review", fragment = "", views, settings = {} } = {}) {
   rendered.length = 0;
   installNetwork();
   const fixture = installPage({ ...REVIEW, hash: fragment });
@@ -112,6 +113,7 @@ async function start({ page = "review", fragment = "", views } = {}) {
   writeSetting(store, "products", [WIDGET, "https://github.com/acme/gadget"]);
   writeSetting(store, "github-token:acme/gadget", { value: "github_pat_GADGET", name: "alice", expires: "2030-01-01" });
   writeSetting(store, "github-token:acme/widget", { value: "github_pat_WIDGET", name: "alice", expires: "2030-01-01" });
+  for (const [key, value] of Object.entries(settings)) writeSetting(store, key, value);
   await startPage({ page, views: [{ routes: views, strategies: [] }], menuViews: [] });
   const body = fixture.document.body;
   const footer = all(body, "footer").find((node) => node.className === "site-frame-prompt-bar") ?? null;
@@ -358,4 +360,31 @@ test("TST-2026110822 the bar is handed the products this browser manages, each w
     "the gadget was read with its own token");
   one(page.footer, "review").dispatchEvent(new Event("click"));
   assert.ok(page.location.hash.startsWith("#draft/subject=") && page.location.hash.endsWith(`/product=${encoded(GADGET)}`), page.location.hash);
+});
+
+// TST-2026111010 · level: unit · module: MOD-site-frame
+// guards: UC-049; UC-010; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: the browser of start(), which keeps the product https://github.com/acme/widget and its own token under github-token:acme/widget, and also the endpoint nvidia, which runs through
+//   GitHub Actions (the CI secret NVIDIA_API_KEY, no Bridge) and whose key it keeps; the widget's repository holds no job workflow and no Actions secret; the route alpha
+// input: the review page at #alpha/product=<the widget>; nvidia chosen; a person's click on Spawn job with the message "look at it"
+// expect: startPage hands the bar the chosen product with its tokenKey, so that the bar knows this browser keeps the value of AGENT_M_TOKEN: it says "Nothing was handed over:
+//   acme/widget is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY", offers Set up GitHub Actions, and names no secret as kept no value for;
+//   no request carried a body (nothing was written); counter-proof: with the product handed without its tokenKey, AGENT_M_TOKEN is named as kept no value for
+test("TST-2026111010 startPage hands the bar the chosen product's tokenKey, by which the bar finds the product's own token for AGENT_M_TOKEN", async () => {
+  const page = await start({ fragment: `#alpha/product=${encoded(WIDGET)}`, views: [route("alpha", "requirements")], settings: {
+    "endpoint:nvidia": { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nvidia/nemotron", key: "nvapi-FIXTURE-0123", place: "NVIDIA, USA",
+      context: 128000, secret: "NVIDIA_API_KEY" } } });
+  await drawn(page);
+  const selector = one(page.footer, "participant");
+  selector.value = "nvidia";
+  selector.dispatchEvent(new Event("change"));
+  assert.equal(one(page.footer, "send").textContent, "Spawn job", "known positive: nvidia runs through GitHub Actions");
+  one(page.footer, "instruction").value = "look at it";
+  one(page.footer, "send").dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
+  await until(() => /Nothing was|Spawned as/.test(one(page.footer, "status").textContent), "the bar answers the Spawn job");
+  const said = one(page.footer, "status").textContent;
+  assert.ok(said.includes("Nothing was handed over: acme/widget is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY"), said);
+  assert.equal(byClass(page.footer, "unknown-secrets").length, 0, said);
+  assert.ok(walk(page.footer).some((node) => node.localName === "button" && node.textContent === "Set up GitHub Actions"), said);
+  assert.deepEqual(requests.filter((request) => request.url.startsWith("https://api.github.com/") && request.body !== ""), [], "nothing was written");
 });
