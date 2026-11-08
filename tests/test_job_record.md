@@ -196,13 +196,16 @@ For the conversation cases, the keys are those of tests/test_conversation_not_re
       },
       {
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
-        "handOver": {
-          "kind": "converse",
-          "works_on": [
-            "A LOAN HAS A DUE DATE"
-          ],
-          "task": "run the tests of the notes"
-        }
+        "handOver": [
+          {
+            "kind": "converse",
+            "works_on": [
+              "A LOAN HAS A DUE DATE"
+            ],
+            "task": "run the tests of the notes",
+            "after": []
+          }
+        ]
       }
     ],
     "steps": [

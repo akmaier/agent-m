@@ -1,7 +1,9 @@
 // A product not set up for GitHub Actions, in the prompt bar (UC-049 4c; UC-010, Precondition) — MOD-prompt-bar's startPromptBar, as docs/architecture/MOD-prompt-bar.md states it: on
-// GitHub, before *Spawn job* spawns and before a hand-over is queued on the CI route, the bar asks MOD-runtimes' actionsSetup for the message's page; where the job workflow is missing, or a
-// secret the run reads — AGENT_M_TOKEN, or the one the participant's route names —, nothing is handed over, the bar shows `Nothing was handed over: <owner/repo> is not set up for GitHub
-// Actions. Missing: <the job workflow · SECRET · …>` and offers **Set up GitHub Actions**, whose one person's click runs setUp, assesses again on the head the setup left and hands over, or
+// GitHub, before *Spawn job* spawns and before a hand-over is queued on the CI route, the bar asks MOD-runtimes' actionsSetup for the message's page; where the job workflow is missing, a
+// file of it stands outdated, or a secret the run reads — AGENT_M_TOKEN, or the one the participant's route names — is missing, nothing is handed over, the bar shows `Nothing was handed over:
+// <owner/repo> is not set up for GitHub Actions.`, `Missing: <the job workflow · SECRET · …>` where anything is missing, and `Outdated: <file, …>: the job workflow pins <7 digits>, this
+// instance is <7 digits>` (or `it stands with another text than this instance gives` where the pins are equal or none), and offers **Set up GitHub Actions**, whose one person's click runs
+// setUp, assesses again on the head the setup left and hands over, or
 // spawns, as the Send asked, with no further click. A secret this browser keeps no value for is named with the server's page of the repository's secrets. On GitLab the bar keeps its link to
 // the route settings.
 // Run: node --test tests/prompt-bar-actions-setup.test.mjs
@@ -128,6 +130,12 @@ const INSTANCE_FILES = { "SPEC.md": "# Instance spec\n", "docs/participants.md":
 const workflowFiles = (instance, keys = ["NVIDIA_API_KEY"]) => Object.fromEntries(jobWorkflowFiles("github", { repository: "alice/agent-m", commit: instance.head() },
   { token: "AGENT_M_TOKEN", keys }, []).map(({ path, text }) => [path, text]));
 
+// An older commit of Agent M, and the files of the job workflow as that commit gives them: what a product set up before this instance moved on holds.
+const OLD_COMMIT = "fedcba9876543210fedcba9876543210fedcba98";
+const olderWorkflowFiles = (keys = ["NVIDIA_API_KEY"]) => Object.fromEntries(jobWorkflowFiles("github", { repository: "alice/agent-m", commit: OLD_COMMIT },
+  { token: "AGENT_M_TOKEN", keys }, []).map(({ path, text }) => [path, text]));
+const seven = (commit) => commit.slice(0, 7);
+
 // ---------------------------------------------------------------- the network, the strategies
 
 const MODELS = "https://models.example";
@@ -139,7 +147,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 // session. Every other address is stray.
 function network() {
   const state = { handOver: null, seen: [], stray: [] };
-  const envelope = () => JSON.stringify({ draft: { answer: "I hand this on.", ...(state.handOver ? { handOver: state.handOver } : {}) }, answers: [] });
+  // The plan the answer proposes: the one piece the test gives, which rests on none.
+  const envelope = () => JSON.stringify({ draft: { answer: "I hand this on.", ...(state.handOver ? { handOver: [{ after: [], ...state.handOver }] } : {}) }, answers: [] });
   globalThis.fetch = async (url, init = {}) => {
     const where = new URL(String(url));
     const method = init.method ?? "GET";
@@ -293,26 +302,22 @@ test("TST-2026111003: one person's click on Set up GitHub Actions sets up once a
 // TST-2026111004 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010
 // given: the GitHub product holding the job workflow's files as this instance commit gives them and the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY; this browser also keeps the endpoint
-//   other, whose CI secret OTHER_KEY the repository lacks — a secret the run of nvidia does not read; and, apart, the product holding the job workflow's files with one of them standing with
-//   another text, an outdated file; known positive: TST-2026111001, where the bar holds the job back
-// input: a person's click on Spawn job with the message TASK, on each
-// expect: on each the job is spawned at once — one commit adds the job's record, the job workflow is started once, the bar says "Spawned as" —, with no "Nothing was handed over" and no button
-//   Set up GitHub Actions; no secret was stored
-test("TST-2026111004: a product that has what the run reads spawns at once; a missing secret the run does not read, or an outdated file, holds nothing back", async () => {
-  for (const outdated of [false, true]) {
-    const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
-    const files = workflowFiles(instance, ["NVIDIA_API_KEY", "OTHER_KEY"]);
-    if (outdated) files[".github/workflows/agent-m-main-changed.yml"] = "name: an older text\n";
-    const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n", ...files }, { secrets: ["AGENT_M_TOKEN", "NVIDIA_API_KEY"] });
-    const it = open({ product, instance, store: { other: true } });
-    await spawns(it);
-    assert.ok(status(it).includes("Spawned as"), status(it));
-    assert.equal(status(it).includes("Nothing was handed over"), false);
-    assert.equal(setUpButtons(it).length, 0);
-    assert.equal(product.attempts.length, 1);
-    assert.equal(product.starts.length, 1);
-    assert.deepEqual(product.stored, []);
-  }
+//   other, whose CI secret OTHER_KEY the repository lacks — a secret the run of nvidia does not read; known positive: TST-2026111001, where the bar holds the job back
+// input: a person's click on Spawn job with the message TASK
+// expect: the job is spawned at once — one commit adds the job's record, the job workflow is started once, the bar says "Spawned as" —, with no "Nothing was handed over" and no button Set up
+//   GitHub Actions; no secret was stored. (An outdated file of the job workflow holds the job back: TST-2026111202, TST-2026111204.)
+test("TST-2026111004: a product that has what the run reads spawns at once; a missing secret the run does not read holds nothing back", async () => {
+  const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
+  const files = workflowFiles(instance, ["NVIDIA_API_KEY", "OTHER_KEY"]);
+  const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n", ...files }, { secrets: ["AGENT_M_TOKEN", "NVIDIA_API_KEY"] });
+  const it = open({ product, instance, store: { other: true } });
+  await spawns(it);
+  assert.ok(status(it).includes("Spawned as"), status(it));
+  assert.equal(status(it).includes("Nothing was handed over"), false);
+  assert.equal(setUpButtons(it).length, 0);
+  assert.equal(product.attempts.length, 1);
+  assert.equal(product.starts.length, 1);
+  assert.deepEqual(product.stored, []);
 });
 
 // TST-2026111005 · level: component · module: MOD-prompt-bar
@@ -447,4 +452,106 @@ test("TST-2026111009: on GitLab a hand-over without the job workflow keeps the l
   assert.equal(setUpButtons(it).length, 0);
   assert.equal(product.listings(), 0);
   assert.equal(writesOf(product, instance), 0);
+});
+
+// ---------------------------------------------------------------- a job workflow of another commit of Agent M (UC-049 4c; UC-010, Precondition)
+
+// TST-2026111202 · level: component · module: MOD-prompt-bar
+// guards: UC-049; UC-010; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the GitHub product holding the job workflow's two files as the older Agent M commit OLD_COMMIT gives them, and the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY; this browser keeps
+//   the product's token and nvidia's key; known positive: the same product holding the files as this instance's commit gives them spawns at once (TST-2026111004)
+// input: a person's click on Spawn job with the message TASK
+// expect: the bar says "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions." and "Outdated: .github/workflows/agent-m-jobs.yml,
+//   .github/workflows/agent-m-main-changed.yml: the job workflow pins fedcba9, this instance is <the instance's head, seven digits>", says no "Missing:", and shows one button "Set up GitHub
+//   Actions"; nothing was written — no commit, no workflow started, no secret stored —; the secrets were listed once
+test("TST-2026111202: Spawn job toward a product whose job workflow pins another Agent M commit writes nothing, names both commits, and offers Set up GitHub Actions", async () => {
+  const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
+  const older = olderWorkflowFiles();
+  const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n", ...older }, { secrets: ["AGENT_M_TOKEN", "NVIDIA_API_KEY"] });
+  const it = open({ product, instance });
+  await spawns(it);
+  assert.ok(status(it).includes("Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions."), status(it));
+  assert.ok(status(it).includes(`Outdated: ${Object.keys(older).join(", ")}: the job workflow pins ${seven(OLD_COMMIT)}, this instance is ${seven(instance.head())}`), status(it));
+  assert.equal(status(it).includes("Missing:"), false, status(it));
+  assert.equal(setUpButtons(it).length, 1);
+  assert.equal(writesOf(product, instance), 0, "nothing was written");
+  assert.equal(product.listings(), 1);
+  assert.deepEqual(it.net.stray, []);
+});
+
+// TST-2026111203 · level: component · module: MOD-prompt-bar
+// guards: UC-049; UC-010; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the bar of TST-2026111202, showing Set up GitHub Actions
+// input: one person's click on Set up GitHub Actions — and no other click
+// expect: the first commit on the product, on the head the page read, writes the job workflow's two files with the texts this instance's commit gives them, and no secret is stored; then the job
+//   is spawned once: the second commit, on the head the setup left, adds the job's record, which names the instance's head as the Agent M commit it runs at (agent_m: <head>, commit <head>), the
+//   job workflow is started once with the task TASK, and the bar says "Spawned as JOB-…"; nothing was written to the instance
+test("TST-2026111203: one person's click on Set up GitHub Actions writes the outdated files again and then spawns the job at this instance's commit", async () => {
+  const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
+  const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n", ...olderWorkflowFiles() }, { secrets: ["AGENT_M_TOKEN", "NVIDIA_API_KEY"] });
+  const head = product.head();
+  const it = open({ product, instance });
+  await spawns(it);
+  assert.equal(setUpButtons(it).length, 1, status(it));
+  setUpButtons(it)[0].dispatchEvent(personal());
+  await until(() => status(it).includes("Spawned as") || product.attempts.length > 2, "the job is spawned after the setup");
+  assert.equal(product.attempts.length, 2, JSON.stringify(product.attempts.map((attempt) => attempt.files.map((file) => file.path))));
+  const [setup, record] = product.attempts;
+  assert.equal(setup.expectedHead, head);
+  assert.deepEqual(Object.fromEntries(setup.files.map(({ path, text }) => [path, text])), workflowFiles(instance));
+  assert.deepEqual(product.stored, []);
+  assert.notEqual(record.expectedHead, head, "the job is spawned on the head the setup left");
+  assert.match(record.files[0].path, /^docs\/jobs\/JOB-\d{8}-\d{4}-[0-9a-f]{4}\.md$/);
+  assert.ok(record.files[0].text.includes(`agent_m: ${instance.head()}, commit ${instance.head()}`), record.files[0].text);
+  assert.equal(product.starts.length, 1);
+  assert.equal(product.starts[0].inputs.task, TASK);
+  assert.equal(instance.attempts.length + instance.stored.length, 0, "nothing was written to the instance");
+});
+
+// TST-2026111204 · level: component · module: MOD-prompt-bar
+// guards: UC-049; UC-010
+// given: two GitHub products holding the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY: one holding the job workflow file as this instance's commit gives it and agent-m-main-changed.yml
+//   with another text (the pins are equal); one holding agent-m-main-changed.yml as this instance's commit gives it and agent-m-jobs.yml with a text that pins no commit; known positive: with both
+//   files as this instance's commit gives them the job is spawned at once (TST-2026111004)
+// input: a person's click on Spawn job with the message TASK, on each
+// expect: on the first the bar says "Outdated: .github/workflows/agent-m-main-changed.yml: it stands with another text than this instance gives", on the second "Outdated:
+//   .github/workflows/agent-m-jobs.yml: it stands with another text than this instance gives"; neither says "the job workflow pins"; each shows one button Set up GitHub Actions; nothing was written
+test("TST-2026111204: an outdated file whose job workflow pins this instance's commit, or none, is named as standing with another text, and holds the job back", async () => {
+  for (const [changed, text] of [[".github/workflows/agent-m-main-changed.yml", "name: an older text\n"], [".github/workflows/agent-m-jobs.yml", "name: agent-m-jobs\n"]]) {
+    const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
+    const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n", ...workflowFiles(instance), [changed]: text }, { secrets: ["AGENT_M_TOKEN", "NVIDIA_API_KEY"] });
+    const it = open({ product, instance });
+    await spawns(it);
+    assert.ok(status(it).includes(`Outdated: ${changed}: it stands with another text than this instance gives`), status(it));
+    assert.equal(status(it).includes("the job workflow pins"), false, status(it));
+    assert.equal(setUpButtons(it).length, 1);
+    assert.equal(writesOf(product, instance), 0, "nothing was written");
+  }
+});
+
+// TST-2026111205 · level: component · module: MOD-prompt-bar
+// guards: UC-049; UC-010; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the GitHub product of TST-2026111202, whose job workflow pins OLD_COMMIT; the endpoint relay, whose answer hands the conversation itself on, which takes GitHub Actions
+// input: the person's Send; then one person's click on Set up GitHub Actions
+// expect: after Send the hand-over shows "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions." and "Outdated: …: the job workflow pins fedcba9, this instance is
+//   <seven digits>" and the button, and nothing is queued; after the click the setup commits the job workflow's two files as this instance's commit gives them, stores no secret, and the
+//   hand-over is queued at once — one commit adds the job's record (route ci hosted), the job workflow is started once with the task TASK
+test("TST-2026111205: a hand-over on the CI route toward a product whose job workflow pins another commit is held back, and one click sets up and queues it", async () => {
+  const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
+  const older = olderWorkflowFiles();
+  const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n", ...older }, { secrets: ["AGENT_M_TOKEN", "NVIDIA_API_KEY"] });
+  const it = open({ product, instance, extraEndpoints: RELAY });
+  await proposesHandOver(it);
+  const handOver = textOf(one(it.target, "hand-over"));
+  assert.ok(handOver.includes("Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions."), handOver);
+  assert.ok(handOver.includes(`Outdated: ${Object.keys(older).join(", ")}: the job workflow pins ${seven(OLD_COMMIT)}, this instance is ${seven(instance.head())}`), handOver);
+  assert.equal(product.attempts.length + product.starts.length + product.stored.length, 0, "nothing is queued");
+  setUpButtons(it)[0].dispatchEvent(personal());
+  await until(() => product.starts.length > 0 || /Nothing was queued/.test(textOf(one(it.target, "hand-over"))), "the hand-over is queued after the setup");
+  assert.equal(product.attempts.length, 2, textOf(one(it.target, "hand-over")));
+  assert.deepEqual(Object.fromEntries(product.attempts[0].files.map(({ path, text }) => [path, text])), workflowFiles(instance));
+  assert.deepEqual(product.stored, []);
+  assert.match(product.attempts[1].files[0].text, /^route: ci hosted$/m);
+  assert.equal(product.starts.length, 1);
+  assert.equal(product.starts[0].inputs.task, TASK);
 });

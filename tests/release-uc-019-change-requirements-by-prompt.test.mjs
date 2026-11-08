@@ -24,7 +24,7 @@ import { createHash } from "node:crypto";
 import { ask, bridgeAt } from "../src/bridge-client/index.mjs";
 import { startRecord } from "../src/job-ledger/index.mjs";
 import { scenario, onRequirementPage, run, send, review, save, goTo, press, rest, statusOf, barOf, keptDraft, sentText, targetsOf, messageLines, all, one, row, namedButton, draft, candidate,
-  SOURCE, LOAN, SHELF, CONFLICT, CHANGED, INSTRUCTION, SPEC, CURRENT_RULE, proposalWrites, proposalTexts, recordTexts, assertProposal } from "./uc-019-prompt-bar-harness.mjs";
+  SOURCE, ACCOUNT, LOAN, SHELF, CONFLICT, CHANGED, INSTRUCTION, SPEC, GROUPS, CURRENT_RULE, proposalWrites, proposalTexts, recordTexts, writesBeyondRecords, assertProposal } from "./uc-019-prompt-bar-harness.mjs";
 
 // UC-only exclusions from this requirements battery:
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT: UC-019 6b applies this to a reviewed use-case file;
@@ -44,17 +44,19 @@ const brokenThenFixed = () => [draft(candidate({ check: "" })), draft()];
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: author github.com/akmaier uses their instance to edit bob/lending-tool; only SRC-author is linked
 // input: the page of the requirement, the instruction in the bar, Send, Review the draft and Save
-// expect: the author is not mistaken for bob; the bar sends, the draft kept carries the source SRC-author, and the proposal names SRC-author, despite the different product owner
+// expect: the author is not mistaken for bob; the bar sends, the draft kept carries the author's account github.com/akmaier as its source, and the proposal names that account among the
+//   requirement's sources and not github.com/bob, despite the different product owner (UC-019 step 6: "names among its sources the author's account `<server>/<account>` — `github.com/akmaier` —,
+//   which needs no register entry (UC-004) and no link (UC-015)")
 test("TST-418101: prompting source follows the author account, not the product owner", async () => {
   const s = await scenario({ owner: "bob" });
   await onRequirementPage(s);
   await send(s);
   assert.doesNotMatch(statusOf(s).textContent, /Nothing was sent/, "the linked author source is available when the product owner differs");
   await review(s);
-  assert.equal(keptDraft(s).params.source, SOURCE);
+  assert.equal(keptDraft(s).params.source, ACCOUNT);
   await until(s, () => all(s.target, "section", "requirements-result").length === 1);
   await save(s);
-  assert.match(assertProposal(s), /SRC-author/);
+  assert.doesNotMatch(assertProposal(s), /github\.com\/bob/, "the product owner is not the prompting source");
 });
 
 // TST-418102
@@ -88,14 +90,16 @@ test("TST-418102: a named Bridge endpoint uses the Bridge transport from the bar
 // level: release
 // module: MOD-review-pages; MOD-source-register
 // guards: UC-019; A CONFLICT IS DECIDED BY A PERSON
-// given: a candidate from SRC-author (advisory) conflicts with LOAN from SRC-policy (normative)
+// given: a candidate drafted from the author's prompt, whose source is the account github.com/akmaier (UC-019 step 6), conflicts with LOAN from SRC-policy (normative)
 // input: Send, Review the draft and inspect the undecided conflict beside the existing requirement (UC-019 8a)
 // expect: both sources and both authorities are visible in that conflict's panel before any decision or write
 test("TST-418103: the conflict panel shows both sources and their authority", async () => {
   const s = await scenario({ answers: [draft(candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))] });
   await run(s);
   const conflict = row(s, CONFLICT);
-  for (const text of [SOURCE, "advisory", "SRC-policy", "normative"]) assert.ok(conflict.textContent.includes(text), `the conflict shows ${text}`);
+  // The candidate's source is the author's account (UC-019 step 6), shown with what is known of its authority; the existing requirement's source with its declared authority.
+  assert.match(one(conflict, "p", "candidate-source").textContent, /github\.com\/akmaier \([^)]+\)/, "the conflict shows the candidate's source with its authority");
+  assert.match(one(conflict, "section", "current-requirement").textContent, /SRC-policy \(normative\)/, "the conflict shows the existing requirement's source with its authority");
   assert.equal(proposalWrites(s).length, 0);
 });
 
@@ -105,7 +109,7 @@ test("TST-418103: the conflict panel shows both sources and their authority", as
 // guards: UC-019; THE PAGE NAMES WHERE IT SENDS
 // given: a returned draft on the route draft and a follow-up instruction written in the bar; the participant answers the follow-up with a draft of the same kind (the change kind reads only a draft)
 // input: write the follow-up "Make the display final." without pressing Send, then press Send
-// expect: before Send no further request is made; Send makes exactly one further exchange to the participant named by the bar ("Sent to: drafter — this machine"), whose message holds the follow-up and the draft as it stands - its rule "Every loan visibly displays its due date." - and nothing is written
+// expect: before Send no further request is made; Send makes exactly one further exchange to the participant named by the bar ("Sent to: drafter — this machine"), whose message holds the follow-up and the draft as it stands - its rule "Every loan visibly displays its due date." - and nothing is written but the records of the pieces the tab runs (UC-049 4a.1: "it runs in this tab at once, on the page's context, with its record"), which hold neither message
 test("TST-418104: a follow-up in the bar is sent only on Send, with the draft as it stands", async () => {
   const s = await scenario({ answers: [draft(), draft()] });
   await run(s);
@@ -118,7 +122,9 @@ test("TST-418104: a follow-up in the bar is sent only on Send, with the draft as
   assert.match(statusOf(s).textContent, /^Sent to:drafter — this machine/);
   assert.ok(sentText(s, 1).includes("Make the display final."));
   assert.ok(sentText(s, 1).includes("Every loan visibly displays its due date."), "the current draft goes with the follow-up");
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0, "nothing is written but the records of the tab's pieces");
+  assert.ok(recordTexts(s).length > 0, "known positive: the tab's piece is recorded");
+  for (const text of recordTexts(s)) assert.ok(!text.includes(INSTRUCTION) && !text.includes("Make the display final."), "a record holds no message of the conversation");
 });
 
 // TST-418105
@@ -228,7 +234,7 @@ test("TST-418109: a changed rule is compared and proposed under its existing ide
 // guards: UC-019; A SPEC EDIT IS SAVED AS A PROPOSAL; A GENERATED ARTIFACT IS A PROPOSAL; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: an untouched page, an instruction typed in the bar and an editable draft
 // input: pause before Send and before Save, then press each once
-// expect: no request and no write before Send; none to the repository after it; one Save writes one open queue, unchanged SPEC and the provenance lines Agent-M-Version, Agent-M-Kind: change-requirements, Agent-M-Participant: drafter, Agent-M-Model: fixture-model, Agent-M-Rounds: 1, with no Agent-M-Job line, no line naming the instruction and no job record
+// expect: no request and no write before Send; none to the repository after it; one Save writes one open queue, unchanged SPEC and the provenance lines Agent-M-Version, Agent-M-Kind: change-requirements, Agent-M-Participant: drafter, Agent-M-Model: fixture-model, Agent-M-Rounds: 1, with no Agent-M-Job line and no line naming the instruction; the one job record is that of the piece the tab ran (UC-049 4a.1: "it runs in this tab at once, on the page's context, with its record"), and it holds no message of the conversation
 test("TST-418110: explicit Send and one Save preserve proposal state and complete provenance", async () => {
   const s = await scenario(); await onRequirementPage(s);
   one(barOf(s), "textarea", "instruction").value = INSTRUCTION;
@@ -244,7 +250,8 @@ test("TST-418110: explicit Send and one Save preserve proposal state and complet
   assert.ok(lines.every((line) => !line.startsWith("Agent-M-Job:") && !line.includes("Agent-M-Instruction") && !line.includes(INSTRUCTION)), "no job line, no line names the instruction");
   const decisions = Object.entries(write.files).find(([path]) => path.endsWith("/entscheidungen.md"));
   assert.ok(decisions); assert.doesNotMatch(decisions[1], /akzeptiert|accepted/i);
-  assert.equal(recordTexts(s).length, 0);
+  assert.equal(recordTexts(s).length, 1, "the record of the piece the tab ran");
+  assert.ok(!recordTexts(s)[0].includes(INSTRUCTION), "the record holds no message of the conversation");
 });
 
 // TST-418111
@@ -599,6 +606,37 @@ test("TST-418126: a finding left on the draft page reads like a compiler message
   const answers = Array.from({ length: 5 }, (_, i) => draft(candidate({ name: `VISIBLE DUE DATE ${i}`, check: "" })));
   const s = await scenario({ answers }); await onRequirementPage(s); await send(s); await review(s);
   assert.match(one(s.target, "ul", "left").textContent, /VISIBLE DUE DATE 4:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
+});
+
+// TST-418128
+// level: release
+// module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages; MOD-spec-changes
+// guards: UC-019; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; ARTIFACTS ARE ARRANGED IN NESTED GROUPS
+// given: the product's hierarchy docs/groups/requirements.md holds the group "Lending" alone; the drafter first returns a new requirement A RETURN IS RECORDED placed in "Export", which the hierarchy does not hold, then the same requirement placed in a new group "Returns" that stands in "Lending"
+// input: Send, Review the draft, Save
+// expect: UC-019 step 7 — the second request to the drafter carries the finding of the first draft under [AN ITEM HAS ONE PLACE IN ITS HIERARCHY]; step 8 — the new requirement stands on the draft page with its place, naming "Returns" and "Lending"; step 9 — the one proposal commit holds, beside its entry, the places of its new requirements, a row naming A RETURN IS RECORDED, "Lending" and "Returns", and SPEC.md and docs/groups/requirements.md stay byte-identical ("A new requirement also names its place in the requirement hierarchy — a group the hierarchy holds, or a new group with the group it stands in"; "a queue entry is written, with the places of its new requirements beside its section … and the SPEC and docs/groups/requirements.md stay unchanged")
+test("TST-418128: a new requirement names its place in the hierarchy, a place the hierarchy does not hold goes back, and Save writes the places beside the entry", async () => {
+  const RETURN = "A RETURN IS RECORDED";
+  const placed = (place) => draft(candidate({ name: RETURN, rule: "Every return is recorded with its date.", check: "`tests/return.test.mjs`", class: "new", of: null, place }));
+  const s = await scenario({ answers: [placed({ group: ["Export"] }), placed({ group: ["Lending"], new: "Returns" })] });
+  await run(s);
+  assert.equal(s.endpointRequests.length, 2, "the first draft went back once");
+  assert.match(sentText(s, 1), /\[AN ITEM HAS ONE PLACE IN ITS HIERARCHY\]/, "the finding of the place the hierarchy does not hold is sent back");
+  assert.doesNotMatch(sentText(s, 0), /\[AN ITEM HAS ONE PLACE IN ITS HIERARCHY\]/, "known negative: the first request carries no such finding");
+  const place = one(row(s, RETURN), "p", "candidate-place").textContent;
+  assert.ok(place.includes("Returns") && place.includes("Lending"), `the new requirement stands with its place: ${place}`);
+  await save(s);
+  assert.equal(proposalWrites(s).length, 1, "one proposal commit");
+  const [write] = proposalWrites(s);
+  // The place's row: the requirement, then the group it stands in, then the new group.
+  const ROW = new RegExp(`^\\|\\s*${RETURN}\\s*\\|[^\\n]*Lending[^\\n]*\\|[^\\n]*Returns[^\\n]*\\|\\s*$`, "m");
+  const places = Object.entries(write.files).filter(([, text]) => ROW.test(text));
+  assert.equal(places.length, 1, `one file of the commit holds the place: ${Object.keys(write.files).join(", ")}`);
+  assert.ok(places[0][0].startsWith("docs/spec-freigaben/"), `the places stand beside the entry: ${places[0][0]}`);
+  assert.ok(!places[0][1].includes("Every return is recorded with its date."), "the places stand beside the section's text, not in it");
+  assert.equal(s.product.files["SPEC.md"], SPEC, "SPEC.md stays byte-identical");
+  assert.equal(s.product.files["docs/groups/requirements.md"], GROUPS, "docs/groups/requirements.md stays byte-identical");
+  assert.ok(!Object.keys(write.files).includes("docs/groups/requirements.md"), "the commit does not write the hierarchy");
 });
 
 // Counterproofs are requested explicitly; ordinary CI still runs every behavior case. Each fault is confined to a copied

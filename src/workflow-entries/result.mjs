@@ -7,7 +7,8 @@
 // A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET. The agent's machine holds no token that
 // may write: its checkout pushes, through MOD-repository-hosts' local clone as everywhere else, to a bare repository in the result folder (the checkout's push
 // address, `remote.origin.pushurl`), whose new commits travel as a git bundle, so that every commit keeps its identifier. What needs the server — opening a
-// pull request — and the end of each job's record, which names the pull request, are kept in `deferred.json` and done on the writing machine. Node only.
+// pull request —, the end of each job's record, which names the pull request, and the pieces of a conversation's plan to hand over (UC-049 4f), which need the person's token,
+// are kept in `deferred.json` and done on the writing machine. Node only.
 
 const builtin = (name) => globalThis.process.getBuiltinModule(`node:${name}`);
 
@@ -42,8 +43,9 @@ const writeJson = (file, value) => builtin("fs").writeFileSync(file, `${JSON.str
  * prepareResult(productDir: string, resultDir: string, branch: string) -> { pullRequest(request) -> string, end(path, part, trailers) -> void } — on the agent's
  * machine: makes, once, the bare repository `<resultDir>/result.git` as a clone of the product's checkout, notes its branches as the result's base, and sets it as
  * the checkout's push address, so that every commit the job makes in the checkout lands there; then returns what keeps the writes for later in
- * `<resultDir>/deferred.json`: `pullRequest` keeps a request to open a pull request and returns the address it stands under until it is opened, and `end` keeps
- * the end of a job's record — the part, with its time, and the provenance lines of its commit. Fails as git fails.
+ * `<resultDir>/deferred.json`: `pullRequest` keeps a request to open a pull request and returns the address it stands under until it is opened, `end` keeps
+ * the end of a job's record — the part, with its time, and the provenance lines of its commit —, and `plan` keeps the pieces of the plan of the job whose record is at the path,
+ * with their tasks, for the writing machine to hand over. Fails as git fails.
  */
 export function prepareResult(productDir, resultDir, branch) {
   const fs = builtin("fs"), path = builtin("path");
@@ -53,11 +55,11 @@ export function prepareResult(productDir, resultDir, branch) {
     git(resultDir, ["clone", "--bare", "--quiet", path.resolve(productDir), bare]);
     writeJson(path.join(resultDir, "base.json"), { branch, refs: branchesOf(bare) });
     git(productDir, ["remote", "set-url", "--push", "origin", bare]);
-    writeJson(deferredFile, { pullRequests: [], ends: [] });
+    writeJson(deferredFile, { pullRequests: [], ends: [], plans: [] });
   }
   const keep = (field, entry) => {
     const deferred = readJson(deferredFile);
-    deferred[field].push(entry);
+    (deferred[field] ??= []).push(entry);
     writeJson(deferredFile, deferred);
   };
   return {
@@ -67,6 +69,9 @@ export function prepareResult(productDir, resultDir, branch) {
     },
     end(recordPath, part, trailers) {
       keep("ends", { path: recordPath, part: { ...part, part: { ...part.part, at: new Date(part.part.at).toISOString() } }, trailers });
+    },
+    plan(recordPath, pieces) {
+      keep("plans", { path: recordPath, pieces });
     },
   };
 }
@@ -87,8 +92,8 @@ export function packResult(resultDir) {
     const exclude = [...new Set(Object.values(base.refs))];
     git(bare, ["bundle", "create", path.resolve(out, "result.bundle"), ...refs.map((each) => each.ref), ...(exclude.length ? ["--not", ...exclude] : [])]);
   }
-  writeJson(path.join(out, "result.json"), { branch: base.branch, base: base.refs, refs, pullRequests: deferred.pullRequests, ends: deferred.ends });
-  return { refs, ends: deferred.ends.length, pullRequests: deferred.pullRequests.length };
+  writeJson(path.join(out, "result.json"), { branch: base.branch, base: base.refs, refs, pullRequests: deferred.pullRequests, ends: deferred.ends, plans: deferred.plans ?? [] });
+  return { refs, ends: deferred.ends.length, pullRequests: deferred.pullRequests.length, plans: (deferred.plans ?? []).length };
 }
 
 /**
@@ -141,11 +146,11 @@ export function checkResult(read, secrets, task) {
     if (changed) return `the commit ${short(commit)} changes the workflow file ${changed}, which a job's result may not change`;
   }
   // What was kept for later names only a job's record as the file of an end, and only a branch of the result as the branch of a pull request.
-  const odd = read.result.ends.find((each) => !/^docs\/jobs\/[^/]+\.md$/.test(each.path));
-  if (odd) return `an end kept for later names ${odd.path}, which is no job's record`;
+  const odd = [...read.result.ends, ...(read.result.plans ?? [])].find((each) => !/^docs\/jobs\/[^/]+\.md$/.test(each.path));
+  if (odd) return `an end or a plan kept for later names ${odd.path}, which is no job's record`;
   const strange = read.result.pullRequests.find((each) => !read.result.refs.some(({ ref }) => ref === `refs/heads/${each.branch}`));
   if (strange) return `a pull request kept for later names the branch ${strange.branch}, which the result does not hold`;
-  const kept = JSON.stringify({ pullRequests: read.result.pullRequests, ends: read.result.ends });
+  const kept = JSON.stringify({ pullRequests: read.result.pullRequests, ends: read.result.ends, plans: read.result.plans ?? [] });
   for (const secret of secrets.filter((each) => typeof each === "string" && each.length > 0)) {
     for (const { commit, message, paths, texts } of read.commits) {
       if (message.includes(secret)) return `the commit ${short(commit)} holds a key of the run in its message`;

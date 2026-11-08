@@ -23,7 +23,8 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { byClass, buttonsNamed, click, find, until } from "./review-pages-draft-world.mjs";
 import { repoServer, settle } from "./app-harness.mjs";
-import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
+import { listSettings, openStore, readSetting, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
+import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { issueStrategies } from "../src/issue-handling/index.mjs";
 import { view as tracePages } from "../src/trace-pages/index.mjs";
@@ -65,6 +66,26 @@ export const candidate = (fields = {}) => ({ name: CHANGED, rule: "Every loan vi
 export const draft = (...candidates) => ({ candidates: candidates.length ? candidates : [candidate()] });
 
 // ---------------------------------------------------------------- the page and the servers
+
+// The commit the instance's default branch stands at: the one Agent M's job workflow of this instance pins.
+export const INSTANCE_COMMIT = "c0ffee".padEnd(40, "0");
+// A participant's CI route in the instance's list, `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>` (MOD-runtimes, Data).
+const CI_ROUTE = /\|\s*ci\s+(?:hosted|runner:(\S+))\s+secret\s+(\S+)\s*\|/;
+/**
+ * jobWorkflow(instanceFiles, store) -> the files of Agent M's job workflow on GitHub as this instance's commit gives them (UC-010, Precondition), by their definition,
+ * MOD-runtimes' jobWorkflowFiles: the secrets they name are AGENT_M_TOKEN and, once each, the secret of each CI route of the instance's list (`instanceFiles` may replace it) and
+ * each that an endpoint of `store` names; the runners are those routes' labels. A fixture of the input, no expected result.
+ */
+function jobWorkflow(instanceFiles, store) {
+  const participants = instanceFiles["docs/participants.md"] ?? register(200000);
+  const routes = participants.split("\n").map((line) => CI_ROUTE.exec(line)).filter(Boolean);
+  const endpoints = listSettings(store).filter((setting) => setting.key.startsWith("endpoint:")).map((setting) => readSetting(store, setting.key)?.secret)
+    .filter((secret) => typeof secret === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(secret));
+  const keys = [...new Set([...routes.map((route) => route[2]), ...endpoints])];
+  const runners = [...new Set(routes.map((route) => route[1]).filter(Boolean))];
+  return Object.fromEntries(jobWorkflowFiles("github", { repository: INSTANCE, commit: INSTANCE_COMMIT }, { token: "AGENT_M_TOKEN", keys }, runners).map(({ path, text }) => [path, text]));
+}
+
 
 const FIXTURE_ORIGINS = ["https://api.github.com", "https://raw.githubusercontent.com", "https://fixture-endpoint.example.test", "http://127.0.0.1:9418"];
 export const outside = [];
@@ -110,7 +131,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     const kind = Array.isArray(shown?.candidates) ? "change-requirements" : files.some((path) => path.startsWith("docs/architecture/")) || /^#(decision|module)\//.test(hash)
       ? "change-architecture" : files.length > 0 || /^#use-case\//.test(hash) ? "change-use-case" : "change-requirements";
     const task = /## The person's message\n\n(?:### [^\n]*\n\n)?([^]*?)\n\n## /.exec(textOfRequest(body))?.[1] ?? "";
-    return { answer: `Handed on to ${kind}.`, handOver: { kind, works_on: [], task } };
+    return { answer: `Handed on to ${kind}.`, handOver: [{ kind, works_on: [], task, after: [] }] };
   };
   const handler = async (url, init) => {
     // A controlled Bridge of the test (`bridgeFetch`) answers in place of the fixture below.
@@ -150,24 +171,6 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     if (url.origin === "https://api.github.com" && (init.method ?? "GET") === "GET" && /^\/repos\/[^/]+\/[^/]+\/tags$/.test(url.pathname)) return response([]);
     return null;
   };
-  const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS,
-    "docs/sources.md": linked ? LINKS : LINKS.split("\n").filter((line) => !line.startsWith(`| ${SOURCE} |`)).join("\n"),
-    // Both files of Agent M's job workflow on GitHub: the bar holds a hand-over on the CI route back while one is absent (UC-049 4c); their texts may stand outdated.
-    ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n", ".github/workflows/agent-m-main-changed.yml": "name: Agent M main changed\n", ...extraFiles } });
-  const chapterFolder = "docs/sources/SRC-vibe-coding/2026-10-05/";
-  const chapters = Object.fromEntries(readdirSync(new URL(chapterFolder, ROOT)).filter((path) => path.endsWith(".md"))
-    .map((path) => [chapterFolder + path, readOriginal(chapterFolder + path)]));
-  const instance = await repoServer({ files: { "SPEC.md": readOriginal("SPEC.md"), "docs/participants.md": register(context), [`docs/sources/${SOURCE}.md`]: PERSON,
-    "docs/sources/SRC-policy.md": POLICY, "docs/sources/SRC-vibe-coding.md": readOriginal("docs/sources/SRC-vibe-coding.md"),
-    ...(recording ? { "docs/conversation-recording.md": txt("---", "recording: on", "---", "# Recording of conversations") } : {}),
-    ...chapters, ...instanceFiles }, handlers: [handler, (url, init) => url.pathname === `/repos/${repo}`
-      ? response({ default_branch: "main", private: false, archived: false, permissions: { push: true }, description: "" })
-      : url.pathname.startsWith(`/repos/${repo}/`) ? product.fetch(url, init) : null] });
-  globalThis.fetch = (input, init) => {
-    const url = new URL(String(input));
-    if (!FIXTURE_ORIGINS.includes(url.origin)) { outside.push(url.href); return Promise.reject(new TypeError(`the test's network refuses ${url.href}`)); }
-    return instance.fetch(input, init);
-  };
   // The browser: the window announces a change of the fragment, as a browser does, the storage is empty, the page's timers do not run.
   const events = new EventTarget();
   let fragment = "";
@@ -189,6 +192,24 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     writeSetting(store, "session:release-bridge:observer", { place: "Anthropic, USA", context: 200000, model: "observer-model", capabilities: ["read the repository"] });
   }
   for (const [key, value] of Object.entries(settings)) writeSetting(store, key, value);
+  const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS,
+    "docs/sources.md": linked ? LINKS : LINKS.split("\n").filter((line) => !line.startsWith(`| ${SOURCE} |`)).join("\n"),
+    // Agent M's job workflow as this instance's commit gives it (UC-010, Precondition): the bar holds a hand-over on the CI route back where it is absent or stands otherwise (UC-049 4c).
+    ...jobWorkflow(instanceFiles, store), ...extraFiles } });
+  const chapterFolder = "docs/sources/SRC-vibe-coding/2026-10-05/";
+  const chapters = Object.fromEntries(readdirSync(new URL(chapterFolder, ROOT)).filter((path) => path.endsWith(".md"))
+    .map((path) => [chapterFolder + path, readOriginal(chapterFolder + path)]));
+  const instance = await repoServer({ head: INSTANCE_COMMIT, files: { "SPEC.md": readOriginal("SPEC.md"), "docs/participants.md": register(context), [`docs/sources/${SOURCE}.md`]: PERSON,
+    "docs/sources/SRC-policy.md": POLICY, "docs/sources/SRC-vibe-coding.md": readOriginal("docs/sources/SRC-vibe-coding.md"),
+    ...(recording ? { "docs/conversation-recording.md": txt("---", "recording: on", "---", "# Recording of conversations") } : {}),
+    ...chapters, ...instanceFiles }, handlers: [handler, (url, init) => url.pathname === `/repos/${repo}`
+      ? response({ default_branch: "main", private: false, archived: false, permissions: { push: true }, description: "" })
+      : url.pathname.startsWith(`/repos/${repo}/`) ? product.fetch(url, init) : null] });
+  globalThis.fetch = (input, init) => {
+    const url = new URL(String(input));
+    if (!FIXTURE_ORIGINS.includes(url.origin)) { outside.push(url.href); return Promise.reject(new TypeError(`the test's network refuses ${url.href}`)); }
+    return instance.fetch(input, init);
+  };
   const named = encodeURIComponent(address);
   fragment = hash ?? `#trace/key=specification/ref=main/product=${named}`;
   const s = { product, instance, repo, address, store, location, endpointRequests, bridgeRequests, testRequests, handOnRequests, chapter: readOriginal(`${chapterFolder}08_requirements-engineering.md`) };
@@ -220,6 +241,10 @@ export const namedButton = (root, text) => { const found = buttonsNamed(root, te
 export const row = (s, name = CHANGED) => { const found = all(s.target, "li", "candidate").find((node) => node.getAttribute("data-name") === name); assert.ok(found, `candidate ${name} is shown: ${s.target.textContent}`); return found; };
 export const proposalWrites = (s) => s.product.writes.filter((write) => Object.keys(write.files).some((path) => path.endsWith(".begruendung.md")));
 export const proposalTexts = (s) => proposalWrites(s).flatMap((write) => Object.entries(write.files).filter(([path]) => /\/\d\d-[^/]+\.md$/.test(path) && !path.endsWith(".begruendung.md")).map(([, text]) => text));
+// The product's commits other than those of the record of a piece of a plan run in this tab — its start with its taking, and its end —, which MOD-prompt-bar writes for every
+// such piece ("its record is queued on the tab's route with MOD-runtimes' `queueJob` … and it runs with `runOnTab` and that record, which gains its end"); a record holds no word of the
+// conversation, which recordTexts lets a test check.
+export const writesBeyondRecords = (s) => s.product.writes.filter((write) => !Object.keys(write.files).every((path) => /^docs\/jobs\/JOB-[^/]+\.md$/.test(path)));
 export const recordTexts = (s) => Object.entries(s.product.files).filter(([path]) => /^docs\/jobs\/JOB-.*\.md$/.test(path)).map(([, text]) => text);
 export const conversationRecords = (s) => Object.entries(s.instance.files).concat(Object.entries(s.product.files)).filter(([path]) => path.startsWith("docs/conversations/"));
 
@@ -277,8 +302,11 @@ export async function run(s, options = {}) {
   await until(() => all(s.target, "section", "requirements-result").length === 1, `the draft of the requirements: ${s.target.textContent}`);
 }
 
-// `source` is how the prompting source stands in the saved proposal, the person's register entry by default; a caller that expects the person's account names it.
-export function assertProposal(s, source = /SRC-author, make visible/) {
+// `source` is how the prompting source stands in the saved proposal: by default the person's account `github.com/akmaier` as one item of a requirement's sources, as UC-019 step 6
+// says ("names among its sources the author's account `<server>/<account>` — `github.com/akmaier` —, which needs no register entry (UC-004) and no link (UC-015)").
+export const ACCOUNT = "github.com/akmaier";
+export const ACCOUNT_AMONG_SOURCES = /\*\((?:[^)\n]*; )?github\.com\/akmaier(?:; [^)\n]*)?\)\*/;
+export function assertProposal(s, source = ACCOUNT_AMONG_SOURCES) {
   assert.equal(s.product.files["SPEC.md"], SPEC, "SPEC stays byte-identical before acceptance");
   assert.equal(proposalWrites(s).length, 1, "one Save produces one proposal commit for the affected section");
   const text = proposalTexts(s).join("\n");

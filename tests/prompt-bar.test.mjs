@@ -25,6 +25,7 @@ import { createHash } from "node:crypto";
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { latestDraft, currentJob, startPromptBar } from "../src/prompt-bar/index.mjs";
+import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { tick, until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used
@@ -81,8 +82,6 @@ const DRAFTER = endpoint("drafter-a");
 const OTHER = endpoint("drafter-b", { place: "this machine" });
 // drafter-a called through the Bridge mac, naming the CI secret of its key: a message goes through the Bridge, and a hand-over may take GitHub Actions (UC-049 4a.2).
 const DRAFTER_CI = endpoint("drafter-a", { secret: "KEY_A", bridge: "mac" });
-// Agent M's job workflow: both files of it on GitHub, since the bar holds a hand-over on the CI route back while one is absent (UC-049 4c); their texts may stand outdated.
-const JOB_WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n", ".github/workflows/agent-m-main-changed.yml": "name: agent-m-main-changed\n" };
 
 const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.stringify(fields)}`), { name }, fields);
 const sha = (n) => createHash("sha1").update(`commit ${n}`).digest("hex");
@@ -123,7 +122,11 @@ function fakeRepo(web, files) {
 
 const INSTANCE_WEB = "https://github.com/alice/agent-m";
 const PRODUCT_WEB = "https://github.com/alice/thesis-tool";
-const SWITCH_ON = "---\nrecording: on\n---\n# Recording of conversations\n";
+// Agent M's job workflow in the instance's repository: both files of it on GitHub, as this instance's commit gives them for the secret KEY_A that drafter-a's setting names, since the bar
+// holds a hand-over on the CI route back while one is absent or stands outdated (UC-049 4c). This instance's commit is the first commit fakeRepo makes for INSTANCE_WEB, the one that holds them.
+const JOB_WORKFLOW = Object.fromEntries(jobWorkflowFiles("github", { repository: "alice/agent-m", commit: sha(`${INSTANCE_WEB}1`) }, { token: "AGENT_M_TOKEN", keys: ["KEY_A"] }, [])
+  .map(({ path, text }) => [path, text]));
+const SWITCH_ON ="---\nrecording: on\n---\n# Recording of conversations\n";
 
 // The strategy of another module that the kind `converse` names; it keeps the parameters of every message.
 const seen = [];
@@ -453,7 +456,7 @@ test("Send — a message that cannot be recorded is not sent, and the page says 
 // input: Send
 // expect: the page shows "Kind: implement", "Works on: ITM-504", "Task: Add the bar.", "Participant: drafter-a — Anthropic, USA" and "Route: ci hosted", and no button "Hand over": the hand-over goes on without a further click (UC-049 4a), and is refused at once — "Nothing was queued." — since drafter-a, which drafts text only, cannot do implement; no commit was attempted
 test("Send — a hand-over the participant proposes is shown with its kind, what it works on, its task, the participant and its route, and goes on without a click", async () => {
-  endpointAnswers(answer("I can hand this on.", { handOver: { kind: "implement", works_on: ["ITM-504"], task: "Add the bar." } }));
+  endpointAnswers(answer("I can hand this on.", { handOver: [{ kind: "implement", works_on: ["ITM-504"], task: "Add the bar.", after: [] }] }));
   const it = page({ offer: [DRAFTER_CI], instanceFiles: JOB_WORKFLOW });
   await drawn(it);
   await sends(it, "implement this");

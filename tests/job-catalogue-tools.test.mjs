@@ -24,7 +24,7 @@ const FIVE = [
   { name: "read-file", needs: "read the repository", required: ["path"] },
   { name: "search-files", needs: "read the repository", required: ["text"] },
   { name: "propose-edit", needs: "draft text", required: ["path", "text"] },
-  { name: "hand-over", needs: "draft text", required: ["kind", "works_on", "task"] },
+  { name: "hand-over", needs: "draft text", required: ["kind", "works_on", "task", "after"] },
 ];
 const NAMES = FIVE.map((tool) => tool.name);
 const READING = ["list-files", "read-file", "search-files"];
@@ -158,16 +158,16 @@ test("no tool's description or schema stands in code", async () => {
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: the catalogue as shipped
 // input: toolsOf(["hand-over"])
-// expect: an input schema with the properties kind, works_on and task, kind and task of type string, works_on an array whose items are of type string, and all three required
+// expect: an input schema with the properties kind, works_on, task and after (MOD-job-catalogue: `{ kind, works_on, task, after }`), kind and task of type string, works_on an array whose items are of type string, and all four required
 test("hand-over — its arguments name what the job works on, as a required list of texts", async () => {
   const [tool] = await catalogue.toolsOf(["hand-over"]);
   const { properties, required } = tool.input;
-  assert.deepEqual(Object.keys(properties).sort(), ["kind", "task", "works_on"]);
+  assert.deepEqual(Object.keys(properties).sort(), ["after", "kind", "task", "works_on"]);
   assert.equal(properties.kind.type, "string");
   assert.equal(properties.task.type, "string");
   assert.equal(properties.works_on.type, "array");
   assert.equal(properties.works_on.items.type, "string");
-  assert.deepEqual([...required].sort(), ["kind", "task", "works_on"]);
+  assert.deepEqual([...required].sort(), ["after", "kind", "task", "works_on"]);
 });
 
 // TST-524002 · level: unit · module: MOD-job-catalogue

@@ -77,13 +77,13 @@ const RECORDING_ON = "---\nrecording: on\n---\n# Recording of conversations\n";
 const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.stringify(fields)}`), { name }, fields);
 const sha = (n) => createHash("sha1").update(`commit ${n}`).digest("hex");
 
-// One repository in memory whose default branch is `trunk`; every commit attempt is kept, and refused as Moved. `path` is the repository's address, by default the
+// One repository in memory whose default branch is `trunk`; every commit attempt is kept. `path` is the repository's address, by default the
 // web address's owner and name.
 function fakeRepo(web, files, path = web.replace(/^https:\/\/github\.com\//, "")) {
   const commits = new Map(), attempts = [];
   let made = 0;
   const commitOf = (tree) => { const id = sha(`${web}${++made}`); commits.set(id, tree); return id; };
-  const head = commitOf(new Map(Object.entries(files)));
+  let head = commitOf(new Map(Object.entries(files)));
   const repository = { server: "github", origin: "https://github.com", path, web };
   return {
     attempts,
@@ -95,7 +95,13 @@ function fakeRepo(web, files, path = web.replace(/^https:\/\/github\.com\//, "")
         return { repository, ref, commit: ref === "trunk" ? head : ref, paths: [...tree.keys()].sort(), read: async (file) => (tree.has(file) ? tree.get(file) : null), blob: () => null };
       },
       async listPullRequests() { return []; },
-      async commitFiles(change) { attempts.push(structuredClone(change)); throw failure("Moved", { head }); },
+      // A commit on the head that was read lands (a piece of a plan run in this tab commits its record); any other is refused as Moved.
+      async commitFiles(change) {
+        attempts.push(structuredClone(change));
+        if (change.expectedHead !== head) throw failure("Moved", { head });
+        head = commitOf(new Map([...commits.get(head), ...change.files.map((file) => [file.path, file.text])]));
+        return { commit: head };
+      },
       async startWorkflow(...args) { attempts.push({ startWorkflow: args }); },
     },
   };
@@ -176,7 +182,7 @@ const ABOUT = "About alice/AlienInvasion — named in your message.";
 //   instance — though the subject gave none
 test("TST-2026110814: a hand-over run in the tab takes the person's account as its source, though the page's subject gives none", async () => {
   const candidate = { name: LOAN, rule: "Every loan states its due date and says when it is overdue.", check: "`tests/loan.test.mjs`", constrains: "product", passage: "the instruction", class: "change", of: LOAN };
-  endpointAnswers({ answer: "I hand this on.", handOver: { kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue" } }, { candidates: [candidate] });
+  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { candidates: [candidate] });
   const subject = loanPage();
   const it = page({ subject });
   await drawn(it);
@@ -195,7 +201,7 @@ test("TST-2026110814: a hand-over run in the tab takes the person's account as i
 // expect: one request only, the conversation's; the bar names the finding under THE PERSON WHO PROMPTS IS A SOURCE with what it requires — an instance repository whose
 //   address names its owner —; no draft is kept and nothing is written
 test("TST-2026110815: without an account the hand-over to change-requirements names what it requires and runs nothing", async () => {
-  endpointAnswers({ answer: "I hand this on.", handOver: { kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue" } }, { candidates: [] });
+  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { candidates: [] });
   const it = page({ instancePath: "" });
   await drawn(it);
   await sends(it, "the loan should say when it is overdue");

@@ -23,7 +23,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CONFLICT, CURRENT_RULE, INSTRUCTION, LOAN, SHELF, SPEC, all, assertProposal, barOf, candidate, draft, draftAddress, fromTrace, goTo, keptDraft, messageLines, onRequirementPage, one,
-  proposalWrites, recordTexts, review, row, run, save, scenario, send, sentText, statusOf, targetsOf } from "./uc-019-prompt-bar-harness.mjs";
+  proposalWrites, recordTexts, review, row, run, save, scenario, send, sentText, statusOf, targetsOf, writesBeyondRecords } from "./uc-019-prompt-bar-harness.mjs";
 
 // The prompting source as the saved proposal names it: the account of the instance's owner, github.com/akmaier (MOD-prompt-bar's `source`, MOD-source-register's personAccount),
 // standing alone at the end of the source, with no passage of the instruction after it (MOD-spec-changes, entrySections).
@@ -47,7 +47,7 @@ test("TST-418001: the prompt bar on the specification browser names where it sen
   assert.equal(s.endpointRequests.length, 1);
   assert.ok(sentText(s).includes(INSTRUCTION), "the instruction reaches the participant");
   assert.deepEqual(targetsOf(s), [LOAN], "the requirement to change is the open one, not named by the author");
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
 });
 
 // TST-418002
@@ -56,19 +56,21 @@ test("TST-418001: the prompt bar on the specification browser names where it sen
 // guards: UC-019
 // given: the page of the requirement A LOAN HAS A DUE DATE, its author's source linked, and a fixture endpoint that drafts one changed requirement
 // input: the instruction in the bar, Send, Review the draft, edit the returned rule, Save
-// expect: one request to the endpoint; before Save nothing is written; after it one commit with the author's exact edit as one open proposal, SPEC.md unchanged, the commit message without the instruction, and no job record
+// expect: one request to the endpoint; before Save nothing is written but the record of the piece run in this tab; after it one commit with the author's exact edit as one open proposal, SPEC.md unchanged, the commit message without the instruction, and no job record but the piece's, on the tab's route, without the instruction
 test("TST-418002: one requirement traverses the bar, the route draft and Save", async () => {
   const s = await scenario();
   await run(s);
   assert.equal(s.endpointRequests.length, 1);
-  assert.equal(s.product.writes.length, 0, "a draft alone writes nothing");
+  assert.equal(writesBeyondRecords(s).length, 0, "a draft alone writes nothing");
   const edit = one(row(s), "textarea", "candidate-rule");
   edit.value = "Every loan displays a readable due date.";
   edit.dispatchEvent(new Event("input"));
   await save(s);
   assert.match(assertProposal(s, ACCOUNT_SOURCE), /Every loan displays a readable due date\./);
   assert.ok(messageLines(proposalWrites(s)[0]).every((line) => !line.includes(INSTRUCTION)), "no line of the commit names the instruction");
-  assert.equal(recordTexts(s).length, 0, "a message of the bar runs in the tab without a job record");
+  // A message of the bar runs in the tab without a job record; the piece it hands on to change-requirements, run in this tab, has its own (UC-049 4a.1), which holds no word of it.
+  assert.equal(recordTexts(s).length, 1, "one job record: the piece's");
+  assert.ok(/^kind: change-requirements$/m.test(recordTexts(s)[0]) && /^route: tab$/m.test(recordTexts(s)[0]) && !recordTexts(s)[0].includes(INSTRUCTION), recordTexts(s)[0]);
 });
 
 // TST-418003
@@ -155,9 +157,9 @@ test("TST-418006: a stale section refuses Save and retains the draft beside the 
   edit.value = "Every loan displays the author's retained edit.";
   edit.dispatchEvent(new Event("input"));
   await s.product.change("SPEC.md", SPEC.replace(CURRENT_RULE, "Every loan states its updated due date."));
-  const before = s.product.writes.length;
+  const before = writesBeyondRecords(s).length;
   await save(s);
-  assert.equal(s.product.writes.length, before);
+  assert.equal(writesBeyondRecords(s).length, before);
   assert.equal(edit.value, "Every loan displays the author's retained edit.");
   assert.match(one(s.target, "div", "newer").textContent, /Every loan states its updated due date\./);
 });

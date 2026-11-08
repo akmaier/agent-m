@@ -9,7 +9,7 @@
 import { readRegister } from "../documents/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { listSettings, readSetting } from "../browser-store/index.mjs";
-import { jobWorkflowFiles } from "./ci.mjs";
+import { WORKFLOW_PATH, jobWorkflowFiles, pinnedInstance } from "./ci.mjs";
 
 const TOKEN_SECRET = "AGENT_M_TOKEN";
 const PARTICIPANTS = "docs/participants.md";
@@ -35,10 +35,11 @@ function valueOf(store, tokenKey, name) {
 }
 
 /**
- * actionsSetup({ product: { address, host, tokenKey }, instance: { host }, store }) -> Promise<{ missing: { workflow, secrets }, outdated, unknown, named: { token, keys }, setUp }>
- * (MOD-runtimes, Interfaces). It reads the instance's default branch — its repository, commit and participants — and the product's; `named` is what the job workflow reads:
+ * actionsSetup({ product: { address, host, tokenKey }, instance: { host }, store }) -> Promise<{ missing: { workflow, secrets }, outdated, pins: { instance, product }, unknown, named:
+ * { token, keys }, setUp }> (MOD-runtimes, Interfaces). It reads the instance's default branch — its repository, commit and participants — and the product's; `named` is what the job workflow reads:
  * AGENT_M_TOKEN and, without a name twice, the CI secret of each participant's `ci … secret <NAME>` route and the `secret` each endpoint setting of `store` names; the runners are
- * the labels of those routes. `missing.workflow` is true where a file jobWorkflowFiles gives is absent, `outdated` names each that stands with another text. On GitHub
+ * the labels of those routes. `missing.workflow` is true where a file jobWorkflowFiles gives is absent, `outdated` names each that stands with another text. `pins.instance` is the
+ * instance commit jobWorkflowFiles is given, `pins.product` the instance commit the product's job workflow file pins, null where that file is absent or names none. On GitHub
  * `missing.secrets` names each secret `named` that ciSecretNames does not list, the token first, and `unknown` those for which this browser keeps no value; on GitLab both are empty.
  * `setUp`, called only on a person's click, commits every absent or outdated file in one commit on the default branch on the head that was read, as the person's commit, then stores
  * with setCiSecret each missing secret this browser keeps a value for; it returns the commit, null where no file was written, and the names stored, never a value. Crosses the
@@ -60,6 +61,9 @@ export async function actionsSetup({ product, instance, store }) {
   const gitlabCi = server === "gitlab" ? (await snapshot.read(".gitlab-ci.yml")) ?? null : null;
   const files = jobWorkflowFiles(server, { repository: instanceSnapshot.repository.path, commit: instanceSnapshot.commit }, named, runners, gitlabCi);
   const standing = await Promise.all(files.map((file) => snapshot.read(file.path)));
+  // The instance commit the files are given, and the one the product's job workflow file pins — the one a job queued on the CI route records —, null where it is absent or names none.
+  const jobFile = standing[files.findIndex((file) => file.path === WORKFLOW_PATH[server])];
+  const pins = { instance: instanceSnapshot.commit, product: jobFile === null || jobFile === undefined ? null : pinnedInstance(jobFile) };
   const absent = files.filter((_, at) => standing[at] === null || standing[at] === undefined);
   const outdated = files.filter((file, at) => standing[at] !== null && standing[at] !== undefined && standing[at] !== file.text).map((file) => file.path);
   // Every file that is absent or stands with another text, in the order jobWorkflowFiles gives them.
@@ -91,6 +95,7 @@ export async function actionsSetup({ product, instance, store }) {
   return {
     missing: { workflow: absent.length > 0, secrets: missingSecrets },
     outdated,
+    pins,
     unknown,
     named,
     setUp,

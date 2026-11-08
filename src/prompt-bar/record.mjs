@@ -77,7 +77,8 @@ const REFUSED_FOR_SECRET = "the repository host refused the text: it holds a sto
 
 // The section an entry is: a hand-over, a withheld message (no text), or a message with its text as written.
 function sectionOf(entry, withheld) {
-  if (entry.job !== undefined) return `## ${stamp(entry.at)} — handed over\njob: ${entry.job}\n`;
+  // The jobs a message's plan handed over: one section, one line per job.
+  if (entry.job !== undefined) return `## ${stamp(entry.at)} — handed over\n${[entry.job].flat().map((job) => `job: ${job}`).join("\n")}\n`;
   const lines = [`## ${stamp(entry.at)} — ${entry.who}`, `page: ${entry.page}`];
   if (withheld) return `${lines.join("\n")}\nwithheld: ${withheld}\n`;
   if (entry.model) lines.push(`model: ${entry.model}`);
@@ -98,11 +99,11 @@ function withSection(text, conversation, entry, section) {
  * string | null }> — appends one entry to the conversation record at conversation.path, as one commit on the default branch with the
  * token of the host, on the head that was read, and again on a moved head. The first entry makes the record. An entry is
  * { at, who, page, model?, text, withheld? } — a message, `withheld` the reason its page withholds it with, in which case the
- * section names that and nothing of the text — or { at, job } — a job handed over. A commit the host refuses with SecretRefused
+ * section names that and nothing of the text — or { at, job } — the jobs a message's plan handed over, `job` one identifier or a list of them. A commit the host refuses with SecretRefused
  * is made again with the message withheld, naming that reason. Any other failure is thrown, and nothing is appended.
  * @param {object} host
  * @param {{ path: string, startedBy: string }} conversation
- * @param {{ at: Date, who?: string, page?: string, model?: string, text?: string, withheld?: string, job?: string }} entry
+ * @param {{ at: Date, who?: string, page?: string, model?: string, text?: string, withheld?: string, job?: string | string[] }} entry
  * @returns {Promise<{ commit: string, withheld: string | null }>}
  */
 export async function appendToConversation(host, conversation, entry) {

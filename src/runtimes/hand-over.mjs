@@ -40,12 +40,27 @@ async function endAsFailed(host, id, path, refusal) {
   await host.commitFiles({ branch: defaultBranch, expectedHead: snapshot.commit, files: [{ path, text }], message: `Job ${id}: end` });
 }
 
-// The CI secret of an endpoint's key, as the route of the participant `prepared` was prepared for names it — `endpoint <name> secret <NAME>` —, or null for a route that names none.
-const secretOf = (prepared) => /^endpoint\s+\S+\s+secret\s+(\S+)$/.exec(String(prepared.drafter?.route ?? "").trim())?.[1] ?? null;
+// A job's identifier, as a start's `startedBy` names the job that started it — a conversation's job that planned the piece (UC-049 4f) — rather than an account.
+const JOB_ID = /^JOB-\S+$/;
+
+// The files the commit of a start holds beside its record: for a start whose `startedBy` names a job, that job's record with a `Job started` part naming this one
+// (MOD-job-ledger's appendToRecord), read on the head that was read; none for a start by an account. Throws NotFound, naming the record, for a job the head does not hold.
+async function startedPart(host, start, head) {
+  if (!JOB_ID.test(String(start.startedBy ?? ""))) return [];
+  const path = `docs/jobs/${start.startedBy}.md`;
+  const text = await (await host.readSnapshot(head)).read(path);
+  if (text === null) throw new RuntimeError("NotFound", { what: path }, `the job ${start.startedBy} that starts ${start.id} has no record ${path} on the head that was read`);
+  return [{ path, text: appendToRecord(text, { part: "job started", at: start.start, job: start.id, kind: start.kind, worksOn: start.worksOn }) }];
+}
+
+// The CI secret of an endpoint's key, as the route of the participant `prepared` was prepared for names it — `endpoint <name> secret <NAME>`, or `ci <runner> secret <NAME>` for a
+// CI agent whose record names its endpoint, as a conversation's job in CI hands its pieces over —, or null for a route that names none.
+const secretOf = (prepared) => /^(?:endpoint\s+\S+|ci\s+\S+)\s+secret\s+(\S+)$/.exec(String(prepared.drafter?.route ?? "").trim())?.[1] ?? null;
 
 /**
- * handOverJob(prepared, route, start, host, head, task, target) -> Promise<{ path, commit }> — queues the work a conversation of the prompt bar handed over, on the person's click
- * (MOD-runtimes, Interfaces). Refused before anything is written with NotStartable { findings } — the findings of `prepared.blocking`, one for each entry of `prepared.notFitting`,
+ * handOverJob(prepared, route, start, host, head, task, target) -> Promise<{ path, commit }> — queues one piece of work a conversation of the prompt bar handed over, as the result
+ * of the person's Send, or in the run of a conversation's job that runs on CI (MOD-runtimes, Interfaces); it runs in a browser and in Node. For a start whose `startedBy` names a
+ * job, the same commit appends that job's `Job started` part, naming this one; a job the head does not hold is refused with NotFound before anything is written. Refused before anything is written with NotStartable { findings } — the findings of `prepared.blocking`, one for each entry of `prepared.notFitting`,
  * one for a kind with the gate point before-write, and MOD-job-runner's taskRefusal for a kind that takes no instruction —, and with TypeError for a route that is neither CI nor a Bridge, an empty task, and a Bridge route without the Bridge's handle,
  * since the task could not travel. Then commits `start` with `task: "with the hand-over"` as the person's commit on the head that was read, with the message `Queue job <id>: <kind>`;
  * on the CI route it starts the product's job workflow with `startWorkflow` on the default branch and the inputs `job`, `task` and, for a model endpoint, `endpoint`, the JSON text
@@ -62,10 +77,11 @@ export async function handOverJob(prepared, route, start, host, head, task, targ
   }
 
   const queuedStart = { ...start, task: "with the hand-over" };
+  const also = await startedPart(host, start, head);
   let queued;
   try {
-    if (route.kind === "bridge") return await queueOnBridge(host, queuedStart, head, target.bridge, task);
-    const { path, commit, defaultBranch, workflow } = await commitStart(host, queuedStart, head);
+    if (route.kind === "bridge") return await queueOnBridge(host, queuedStart, head, target.bridge, task, also);
+    const { path, commit, defaultBranch, workflow } = await commitStart(host, queuedStart, head, also);
     queued = { path, commit };
     const { kind, baseUrl, model } = target.endpoint ?? {};
     await host.startWorkflow(workflow, defaultBranch, { job: start.id, task, ...(target.endpoint ? { endpoint: JSON.stringify({ kind, baseUrl, model }), ...(secretOf(prepared) ? { secret: secretOf(prepared) } : {}) } : {}) });

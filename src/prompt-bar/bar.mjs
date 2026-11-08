@@ -1,7 +1,7 @@
 // MOD-prompt-bar, bar.mjs — the bar (docs/architecture/MOD-prompt-bar.md: Parts, Interfaces: startPromptBar, latestDraft, dropDraft, currentJob): the
-// selector, the input, *Send* and *Stop*, the conversation, the answer, and the hand-over a participant proposes: shown with its kind, what it
-// works on, its task, the participant and its route (hand-over.mjs), queued as the participant's own job and followed
-// until it has ended (follow.mjs), with *Stop* cancelling it.
+// selector, the input, *Send* and *Stop*, the conversation, the answer, and the plan a participant proposes: a numbered list of its pieces, each with its kind,
+// what it works on, its task and where it stands — run in this tab one after another, or each queued as a job of the participant's own (hand-over.mjs) and followed
+// until it has ended (follow.mjs), or waiting for the acceptance of the piece it rests on —, with *Stop* cancelling every job still queued or running.
 //
 // Module: MOD-prompt-bar
 //
@@ -10,8 +10,9 @@
 // sessionsOffered) —: *Send* is the one click that sends a message, and the one that, with recording on, writes
 // the conversation record first, and the request of whatever its answer hands on; only a click the browser marks as a person's (`isTrusted`)
 // does. The conversation lives in the tab's values (MOD-browser-store): `prompt-bar:conversation`, a list of Messages; `prompt-bar:draft`, the
-// latest ConversationDraft; `prompt-bar:records`, the record each repository's part of the conversation is appended to; and `prompt-bar:job`,
-// the job handed over and followed while it runs ({ id, address }).
+// latest ConversationDraft; `prompt-bar:records`, the record each repository's part of the conversation is appended to; `prompt-bar:job`,
+// the jobs handed over and followed while they run ([{ id, address }]); and `prompt-bar:plan`, the pieces of a plan that run in this tab after the draft before them
+// ({ participant, about, pieces }).
 
 import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
@@ -40,6 +41,7 @@ const CONVERSATION = "prompt-bar:conversation";
 const DRAFT = "prompt-bar:draft";
 const RECORDS = "prompt-bar:records";
 const JOB = "prompt-bar:job";
+const PLAN = "prompt-bar:plan";
 const CHOSEN = "prompt-bar:participant";
 const HEIGHT = "prompt-bar:height";
 // The bar's height a person sets with its grip, in pixels: at least LOWEST, at most nine tenths of the window; a key press moves it by STEP.
@@ -156,7 +158,8 @@ const repositoryPath = (address) => { try { return new URL(address).pathname.rep
  */
 export function startPromptBar(target, setup) {
   const { store, instance } = setup;
-  const state = { stopped: false, controller: null, follower: null, following: false };
+  // `jobs` holds each job followed — its follower, its part of the bar, its repository's address and host, and whether it has ended —, by its identifier.
+  const state = { stopped: false, controller: null, jobs: new Map(), answered: new Set() };
   let reached = [], offered = [], recording = false, instanceWeb = null;
 
   const status = el("section", "status");
@@ -207,12 +210,21 @@ export function startPromptBar(target, setup) {
     return { address, host, tokenKey };
   }
 
-  // A repository on GitHub not set up for what the run reads (UC-049 4c, UC-010): `lack` from hand-over.mjs' actionsLack, put on the page with `place`. Nothing was handed over; a
-  // secret this browser keeps no value for is named with the server's page of the repository's secrets; while setUp can set anything up, the button Set up GitHub Actions, whose one
-  // person's click runs setUp and then `proceed` — the hand-over or the spawn the person's Send asked for —, with no further click; a secret the run reads that is still missing then
-  // holds it back as before.
+  // A repository on GitHub not set up for what the run reads (UC-049 4c, UC-010): `lack` from hand-over.mjs' actionsLack, put on the page with `place`. Nothing was handed over; what
+  // is missing is named, and each file of the job workflow that stands outdated, with the commit the job workflow pins and this instance's, seven digits each, or, where the two are the
+  // same or the file pins none, that it stands with another text; a secret this browser keeps no value for is named with the server's page of the repository's secrets; while setUp can
+  // set anything up, the button Set up GitHub Actions, whose one person's click runs setUp, which writes the outdated files again, and then `proceed` — the hand-over or the spawn the
+  // person's Send asked for —, with no further click; a secret the run reads that is still missing then holds it back as before.
   function showLack(page, lack, proceed, place) {
-    const parts = [problem(`Nothing was handed over: ${repositoryPath(page.address)} is not set up for GitHub Actions. Missing: ${lack.missing.join(" · ")}`)];
+    const lines = [`Nothing was handed over: ${repositoryPath(page.address)} is not set up for GitHub Actions.`];
+    if (lack.missing.length > 0) lines.push(`Missing: ${lack.missing.join(" · ")}`);
+    const outdated = lack.outdated ?? [];
+    if (outdated.length > 0) {
+      const { instance: ours = null, product: theirs = null } = lack.pins ?? {};
+      lines.push(`Outdated: ${outdated.join(", ")}: ${theirs !== null && ours !== null && theirs !== ours
+        ? `the job workflow pins ${theirs.slice(0, 7)}, this instance is ${ours.slice(0, 7)}` : "it stands with another text than this instance gives"}`);
+    }
+    const parts = [problem(lines.join(" "))];
     if (lack.unknown.length > 0) {
       parts.push(el("p", "unknown-secrets", `This browser keeps no value for ${lack.unknown.join(", ")}: add ${lack.unknown.length > 1 ? "them" : "it"} on the server's page of this repository's secrets: `,
         secretsLink(page.host)));
@@ -232,7 +244,7 @@ export function startPromptBar(target, setup) {
         }
         const told = el("p", "set-up", `Set up GitHub Actions: ${done.commit ? `committed ${done.commit}` : "every workflow file stands already"}${done.stored.length ? `; stored the secrets ${done.stored.join(", ")}` : ""}.`);
         if (done.missing.length > 0) {
-          showLack(page, { missing: done.missing, unknown: done.unknown, canSetUp: false }, proceed, (...nodes) => place(told, ...nodes));
+          showLack(page, { missing: done.missing, outdated: done.outdated, unknown: done.unknown, canSetUp: false }, proceed, (...nodes) => place(told, ...nodes));
           return;
         }
         place(told);
@@ -264,52 +276,69 @@ export function startPromptBar(target, setup) {
     return done;
   }
 
-  // The job handed over is kept in the tab so that the next page goes on following it; a tab that keeps nothing follows it on this page only.
-  function keepJob(job) {
+  // The jobs handed over and still running are kept in the tab so that the next page goes on following them; a tab that keeps nothing follows them on this page only.
+  function keepJobs() {
+    const running = [...state.jobs.entries()].filter(([, job]) => !job.ended).map(([id, job]) => ({ id, address: job.address }));
     try {
-      writeTabValue(store, JOB, job);
+      writeTabValue(store, JOB, running.length ? running : null);
     } catch { /* the tab keeps no values */ }
   }
 
-  // Stop is for the message that runs in this tab, or else for the job that is followed.
-  const refreshStop = () => { stop.disabled = state.controller === null && !state.following; };
+  // Stop is for the message that runs in this tab, or else for every job followed that has not ended.
+  const following = () => [...state.jobs.values()].some((job) => !job.ended);
+  const refreshStop = () => { stop.disabled = state.controller === null && !following(); };
 
-  // The job followed, as the last poll saw it.
-  function showJob(view) {
-    state.following = view.end === null;
-    if (view.end !== null) keepJob(null);
+  // A line of a job's end that names a job it handed over (MOD-workflow-entries): `handed over: <kind> — <JOB-id>`.
+  const HANDED_OVER = /^handed over: \S+ — (JOB-\S+)$/;
+
+  // A job followed, as the last poll saw it, in its own part of the bar.
+  function showJob(view, job) {
+    job.ended = view.end !== null;
+    keepJobs();
     refreshStop();
     const route = view.route ?? "";
     const waiting = view.end !== null || route === "" ? [] : [el("p", "waiting", route.startsWith("bridge ") ? `waiting for the Bridge ${route.slice("bridge ".length)}` : "waiting for GitHub Actions")];
-    const secret = view.missingSecret === null ? [] : [el("p", "missing-secret", `Not run: the secret ${view.missingSecret} is missing. Add it on the server's page of this repository's secrets: `, secretsLink(state.followedHost ?? pageOf().host))];
+    const secret = view.missingSecret === null ? [] : [el("p", "missing-secret", `Not run: the secret ${view.missingSecret} is missing. Add it on the server's page of this repository's secrets: `, secretsLink(job.host))];
     const run = view.address === null ? [] : [el("p", "run-address", "Run: ", linkTo(view.address))];
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
-    // The answer of the job handed on in the run, folded below the results as the run received it; it does not join the conversation.
-    const handedOn = view.handedOn ? [el("details", "handed-on", el("summary", null, "The answer handed on in the run"), el("pre", null, view.handedOn))] : [];
-    followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
-      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...handedOn, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
+    job.node.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
+      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
       ...(view.problem ? [problem(view.problem)] : []));
-    // The run's answer joins the conversation once (UC-049 4a.4).
-    if (view.answer && state.answered !== view.id) {
-      state.answered = view.id;
+    // The run's answer joins the conversation once (UC-049 4a.5).
+    if (view.answer && !state.answered.has(view.id)) {
+      state.answered.add(view.id);
       keep([...conversationOf(store), { at: new Date(), from: "participant", who: state.spawnedBy ?? view.id, text: view.answer, subject: setup.subject().key }]);
+    }
+    // A job that is the endpoint's own (UC-049 4f): each job its end lists as handed over is followed the same way; the pieces it did not hand over stand among its results.
+    for (const line of view.end?.results ?? []) {
+      const handed = HANDED_OVER.exec(line)?.[1];
+      if (handed) follow({ id: handed, address: job.address }, job.host);
     }
   }
 
-  // The job is followed in the repository it was queued in: the page's, or the product the message named.
+  // A job is followed in the repository it was queued in: the page's, or the product the message named. A job followed already is not followed twice.
   function follow(job, host = pageOf().host) {
-    state.follower?.stop();
-    state.following = true;
-    state.followedHost = host;
-    state.follower = followJob({ id: job.id, address: job.address, host, store, show: showJob });
+    if (state.jobs.has(job.id)) return;
+    const node = el("div", "job");
+    followed.append(node);
+    const entry = { node, address: job.address, host, ended: false, follower: null };
+    state.jobs.set(job.id, entry);
+    entry.follower = followJob({ id: job.id, address: job.address, host, store, show: (view) => showJob(view, entry) });
+    keepJobs();
     refreshStop();
   }
 
-  // The hand-over the participant proposed: the route it would take; it is queued as the participant's own job — no start rule of the product's process applies, its kind's own
-  // preconditions refuse it where they find something —, and the bar follows it.
-  async function proposeHandOver(section, handOver, participant, subject, about = null) {
+  // Stop on the jobs followed: each one that has not ended is cancelled at its runtime, one after the other, since each cancel commits on the head it read.
+  async function cancelAll() {
+    for (const job of [...state.jobs.values()].filter((each) => !each.ended)) await job.follower.cancel();
+  }
+
+  // A piece of the plan the participant proposed: the route it would take; it is queued as a job of the participant's own — no start rule of the product's process applies, its kind's own
+  // preconditions refuse it where they find something —, and the bar follows it. `where` says where it stands; `queued` collects the job where the plan's own Send queues it, so that the
+  // conversation record names every job of the plan in one section; a piece queued later, after Set up GitHub Actions, is recorded by itself.
+  async function proposeHandOver(section, handOver, participant, subject, about = null, where = el("p", "where"), queued = null) {
     const outcome = el("div", "outcome", el("p", "checking", "Checking whether it can start…"));
     section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
     // A repository on GitHub is set up with Set up GitHub Actions (showLack); one on GitLab keeps the link to the route settings, whose product section installs the job workflow.
@@ -332,24 +361,23 @@ export function startPromptBar(target, setup) {
         const fresh = assessment;
         const source = (await sendPart()).sourceOf(fresh.instanceSnapshot) ?? undefined;
         const conversation = (await recordingOf(fresh.instanceSnapshot)) ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
-        const queued = await (await handPart()).queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: about !== null || setup.product() !== null, conversation, source });
-        outcome.append(el("p", "queued", `Queued as ${queued.id}.`));
-        keepJob({ id: queued.id, address: page.address });
-        follow({ id: queued.id, address: page.address }, page.host);
+        const job = await (await handPart()).queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: about !== null || setup.product() !== null, conversation, source });
+        outcome.append(el("p", "queued", `Queued as ${job.id}.`));
+        const route = assessment.route;
+        where.replaceChildren(route.kind === "bridge" ? `on ${route.bridge} — ${job.id}` : `waiting for GitHub Actions — ${job.id}`);
+        follow({ id: job.id, address: page.address }, page.host);
         if (conversation !== null) {
-          try {
-            await record(page, queued.person, { at: new Date(), job: queued.id });
-          } catch (failure) {
-            outcome.append(problem(`The hand-over could not be recorded in the conversation. ${said(failure)}`));
-          }
+          if (queued?.open) queued.jobs.push({ id: job.id, page, person: job.person });
+          else await recordHandedOver(page, job.person, [job.id], outcome);
         }
       } catch (failure) {
         const findings = failure?.name === "NotStartable" && Array.isArray(failure.findings) ? failure.findings : [];
+        where.replaceChildren("not handed over");
         outcome.append(problem(findings.length > 0 ? "Nothing was queued." : `Nothing was queued. ${said(failure)}`),
           ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", sending.shown(each))))] : []));
       }
     }
-    // On GitHub, before it is queued on the CI route, or while only the job workflow holds it back, what the run reads is asked of actionsSetup (UC-049 4c): with something missing,
+    // On GitHub, before it is queued on the CI route, or while only the job workflow holds it back, what the run reads is asked of actionsSetup (UC-049 4c): with something missing or outdated,
     // nothing is handed over, and Set up GitHub Actions sets up, assesses the hand-over again on the head the setup left and queues it; setUp itself says what it left missing.
     const page = about ?? pageOf();
     async function assessAndQueue(check = true) {
@@ -367,11 +395,22 @@ export function startPromptBar(target, setup) {
         }
       }
       if (assessment.route !== null) await queueNow(assessment);
+      else where.replaceChildren("not handed over");
     }
     try {
       await assessAndQueue();
     } catch (failure) {
+      where.replaceChildren("not handed over");
       outcome.replaceChildren(problem(`It could not be checked whether this can start. ${said(failure)}`));
+    }
+  }
+
+  // The jobs a message's plan handed over, appended to the conversation record of their repository as one section, one line per job; a failure is said beside the plan.
+  async function recordHandedOver(page, person, ids, place) {
+    try {
+      await record(page, person, { at: new Date(), job: ids });
+    } catch (failure) {
+      place.append(problem(`The hand-over could not be recorded in the conversation. ${said(failure)}`));
     }
   }
 
@@ -406,47 +445,139 @@ export function startPromptBar(target, setup) {
     return review;
   }
 
-  // A hand-over the participant proposed, carried out without a further click (UC-049 4a): in this tab where its kind's result waits for the person and the participant can do the
-  // kind — prepared as a message is, its draft kept for *Review the draft* —, else queued as the participant's own job (proposeHandOver).
-  async function handOn(handOver, participant, subject, conversation, signal, about = null) {
+  // One line of the plan, an entry of its numbered list: the piece's section — its kind, what it works on, its task, and, beside it, where it stands.
+  async function pieceLine(piece) {
     const { worksOnOf } = await handPart();
-    const section = el("section", "hand-over", el("h3", null, "The participant hands this on"),
-      el("p", "kind", `Kind: ${handOver.kind}`), el("p", "works-on", `Works on: ${worksOnOf(handOver).join(", ")}`), el("p", "task", `Task: ${handOver.task}`));
-    status.append(section);
-    let kind;
-    try {
-      kind = await kindOf(handOver.kind);
-    } catch (failure) {
-      section.append(problem(`Nothing was handed on. ${said(failure)}`));
-      return;
+    const where = el("p", "where");
+    const item = el("section", "hand-over", el("p", "kind", `Kind: ${piece.kind}`), el("p", "works-on", `Works on: ${worksOnOf(piece).join(", ")}`), el("p", "task", `Task: ${piece.task}`), where);
+    return { line: el("li", "piece", item), item, where };
+  }
+  const planSection = (list) => el("section", "plan", el("h3", null, "The participant plans this"), list);
+  // A piece that rests on an earlier one is not handed over: it waits for that piece's result to be accepted, and the person's message that says so plans it again.
+  const waitsFor = (after) => `waits for ${after.join(" and ")} to be accepted: it can start only once ${after.length > 1 ? "those are" : "that is"} accepted — tell me here when it is`;
+  // Whether a piece runs in this tab: its kind is not the bar's own, its result waits for the person, and the participant can do it (UC-049 4a.1).
+  const runsHere = (kind, participant) => kind.name !== BAR_KIND && kind.review === "person" && eligible([participant], { capabilities: kind.needs }).eligible.length > 0;
+
+  // The plan the participant proposed, carried out without a further click (UC-049 4a): a numbered list of its pieces; each piece whose `after` is empty a job of its own — in this tab
+  // where its kind's result waits for the person and the participant can do the kind, the first at once and each next one once the draft before it is saved or discarded; else queued as a
+  // job of the participant's own and followed —; a piece whose `after` names another shown as waiting for its acceptance.
+  async function carryOutPlan(plan, participant, subject, conversation, signal, about = null) {
+    const list = el("ol", "pieces");
+    status.append(planSection(list));
+    const here = [], queued = { open: true, jobs: [] };
+    for (const [at, piece] of plan.entries()) {
+      const { line, item, where } = await pieceLine(piece);
+      list.append(line);
+      const after = (Array.isArray(piece.after) ? piece.after : []).filter((number) => Number.isInteger(number));
+      if (after.length > 0) { where.replaceChildren(waitsFor(after)); continue; }
+      let kind;
+      try {
+        kind = await kindOf(piece.kind);
+      } catch (failure) {
+        where.replaceChildren("not handed over");
+        item.append(problem(`Nothing was handed on. ${said(failure)}`));
+        continue;
+      }
+      if (runsHere(kind, participant)) { here.push({ number: at + 1, piece, item, where }); continue; }
+      // The conversation itself handed on (the bar's own kind) goes on as a job, as a kind the tab cannot run does: the endpoint's own (UC-049 4a.2).
+      await proposeHandOver(item, piece, participant, subject, about, where, queued);
     }
-    // The conversation itself handed on (the bar's own kind) goes on as a job, as a kind the tab cannot run does: the endpoint's own (UC-049 4a.2).
-    if (kind.name === BAR_KIND || kind.review !== "person" || eligible([participant], { capabilities: kind.needs }).eligible.length === 0) {
-      await proposeHandOver(section, handOver, participant, subject, about);
-      return;
-    }
+    queued.open = false;
+    if (queued.jobs.length > 0) await recordHandedOver(queued.jobs[0].page, queued.jobs[0].person, queued.jobs.map((job) => job.id), status);
+    if (here.length === 0) return;
+    for (const later of here.slice(1)) later.where.replaceChildren("after the draft before it");
+    keepPlan(here.length > 1 ? { participant: participant.name, about: about?.address ?? null, pieces: here.slice(1).map(({ number, piece }) => ({ number, ...piece })) } : null);
+    await runHere(here[0], participant, subject, conversation, signal, about);
+  }
+
+  // The pieces of a plan that run in this tab after the draft before them, kept in the tab, so that the next page goes on with them.
+  function keepPlan(plan) {
+    try { writeTabValue(store, PLAN, plan); } catch { /* the tab keeps no values */ }
+  }
+
+  // A piece of the plan run in this tab, attended, as a message runs (UC-049 4a.1): prepared for its kind with `hand-over` among its refuses, its record queued on the tab's route, run
+  // with that record, and its result kept as the conversation's draft of that kind, which *Review the draft* leads to.
+  async function runHere({ piece, item, where }, participant, subject, conversation, signal, about = null) {
+    where.replaceChildren("runs here");
     let ready;
     try {
-      ready = await (await sendPart()).prepareHandOver({ handOver, subject, participant, conversation, store, instance, product: about ?? setup.product() });
+      ready = await (await sendPart()).prepareHandOver({ handOver: piece, subject, participant, conversation, store, instance, product: about ?? setup.product() });
     } catch (failure) {
-      section.append(problem(`Nothing was run. ${said(failure)}`));
+      where.replaceChildren("not handed over");
+      item.append(problem(`Nothing was run. ${said(failure)}`));
       return;
     }
     const reasons = sending.whyNot(ready.prepared, offered);
     if (reasons.length) {
-      section.append(problem("Nothing was run."), el("ul", "reasons", ...reasons.map((reason) => el("li", "reason", reason))));
+      where.replaceChildren("not handed over");
+      item.append(problem("Nothing was run."), el("ul", "reasons", ...reasons.map((reason) => el("li", "reason", reason))));
       return;
     }
-    section.append(el("p", "running", `Running ${handOver.kind} in this tab…`));
-    running = { kind: handOver.kind, participant: participant.name, started: new Date() };
-    const result = await sending.runMessage(ready, { signal });
+    let held;
+    try {
+      const page = about ?? pageOf();
+      const recorded = ready.recording ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
+      held = await sending.queueHere(ready, piece, { conversation: recorded, source: ready.prepared.params.source });
+    } catch (failure) {
+      where.replaceChildren("not handed over");
+      item.append(problem(`Nothing was run. ${said(failure)}`));
+      return;
+    }
+    where.replaceChildren(`runs here — ${held.id}`);
+    item.append(el("p", "running", `Running ${piece.kind} in this tab…`));
+    running = { kind: piece.kind, participant: participant.name, started: new Date() };
+    const result = await sending.runHere(ready, held, { signal });
     if (result.stoppedBecause === "unusable" || !result.draft) {
-      section.append(problem("The answer could not be read. Nothing was changed."), el("details", "raw", el("summary", null, "The answer as received"), el("pre", null, result.raw ?? "")));
+      item.append(problem("The answer could not be read. Nothing was changed."), el("details", "raw", el("summary", null, "The answer as received"), el("pre", null, result.raw ?? "")));
       return;
     }
     const left = [...result.remaining, ...result.forPerson];
-    section.append(el("p", "rounds", `Rounds: ${result.rounds.length}`), ...(left.length ? [el("ul", "left", ...left.map((each) => el("li", "finding", sending.shown(each))))] : []),
-      reviewButton(subject, handOver.kind, participant, ready.prepared.params, result, about));
+    // The conversation keeps one draft: this piece's, until the person saves or discards it; the next piece run here waits for that.
+    const { page: _page, ...kept } = ready.prepared.params;
+    writeTabValue(store, DRAFT, { subject: subject.key, kind: piece.kind, participant: participant.name, params: kept, result });
+    item.append(el("p", "rounds", `Rounds: ${result.rounds.length}`), ...(left.length ? [el("ul", "left", ...left.map((each) => el("li", "finding", sending.shown(each))))] : []),
+      reviewButton(subject, piece.kind, participant, ready.prepared.params, result, about));
+  }
+
+  // The next piece of a plan kept in the tab runs once the draft before it is saved or discarded — the conversation's draft is then dropped — and nothing runs in this tab: asked when the bar
+  // is drawn and whenever its input takes focus.
+  async function continuePlan() {
+    if (state.controller || state.stopped) return;
+    let plan = null, draft = null;
+    try { plan = readTabValue(store, PLAN); draft = readTabValue(store, DRAFT); } catch { return; }
+    if (!plan?.pieces?.length || draft !== null) return;
+    const participant = offered.find((each) => each.name === plan.participant) ?? null;
+    const [next, ...rest] = plan.pieces;
+    keepPlan(rest.length ? { ...plan, pieces: rest } : null);
+    const list = el("ol", "pieces");
+    show(planSection(list));
+    const lines = [];
+    for (const piece of plan.pieces) {
+      const line = await pieceLine(piece);
+      list.append(line.line);
+      lines.push(line);
+    }
+    for (const later of lines.slice(1)) later.where.replaceChildren("after the draft before it");
+    if (participant === null) {
+      lines[0].where.replaceChildren("not handed over");
+      lines[0].item.append(problem(`Nothing was run: ${plan.participant}, who planned it, is not offered here.`));
+      return;
+    }
+    const about = plan.about ? (setup.products?.() ?? []).find((each) => sameAddress(each.address, plan.about)) ?? null : null;
+    const controller = new AbortController();
+    state.controller = controller;
+    send.disabled = true;
+    refreshStop();
+    try {
+      await runHere({ piece: next, item: lines[0].item, where: lines[0].where }, participant, setup.subject(), conversationOf(store), controller.signal, about);
+    } catch (failure) {
+      lines[0].item.append(controller.signal.aborted || failure?.name === "Cancelled" ? problem("Stopped. Nothing was written.") : problem(said(failure)));
+    } finally {
+      state.controller = null;
+      running = null;
+      refreshStop();
+      send.disabled = false;
+    }
   }
 
   async function onSend(event) {
@@ -512,8 +643,11 @@ export function startPromptBar(target, setup) {
             status.append(problem(`The answer could not be recorded: ${said(failure)}`));
           }
         }
-        // The hand-over the answer proposes goes on now, within the same Send: Stop ends it as it ends the message.
-        if (result.draft?.handOver) await handOn(result.draft.handOver, participant, subject, conversationOf(store), controller.signal, about);
+        // The plan the answer proposes goes on now, within the same Send: Stop ends it as it ends the message.
+        if (Array.isArray(result.draft?.handOver) && result.draft.handOver.length > 0) {
+          keepPlan(null);
+          await carryOutPlan(result.draft.handOver, participant, subject, conversationOf(store), controller.signal, about);
+        }
       }
     } catch (failure) {
       show(controller.signal.aborted || failure?.name === "Cancelled" ? problem("Stopped. Nothing was written.") : problem(said(failure)));
@@ -554,7 +688,7 @@ export function startPromptBar(target, setup) {
       const subject = about ? aboutSubject(setup.subject(), about) : setup.subject();
       const page = about ?? pageOf();
       const instanceSnapshot = await (await sendPart()).defaultSnapshot(instance.host);
-      // On GitHub, before anything is written, what the run reads is asked of actionsSetup (UC-049 4c): with something missing, nothing is handed over, and Set up GitHub Actions
+      // On GitHub, before anything is written, what the run reads is asked of actionsSetup (UC-049 4c): with something missing or outdated, nothing is handed over, and Set up GitHub Actions
       // sets up and then spawns, as the person's Spawn job asked. The instance's default branch read above is the page's for a page of the instance.
       const lack = await (await handPart()).actionsLack({ participant, page, instance, store, snapshot: sameAddress(page.address, instanceWeb) ? instanceSnapshot : null });
       if (lack !== null) {
@@ -591,7 +725,6 @@ export function startPromptBar(target, setup) {
     input.value = "";
     state.spawnedBy = participant.name;
     show(...(about ? [aboutLine(about)] : []), el("p", "queued", `Spawned as ${spawned.id} on GitHub Actions.`));
-    keepJob({ id: spawned.id, address: page.address });
     follow({ id: spawned.id, address: page.address }, page.host);
   }
 
@@ -663,7 +796,7 @@ export function startPromptBar(target, setup) {
     if (reached.length === 0 || state.stopped) return;
     await judge();
     if (state.stopped) return;
-    input.addEventListener("focus", () => judge().catch(() => {}));
+    input.addEventListener("focus", () => judge().then(continuePlan).catch(() => {}));
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
     // Clear conversation empties the tab's conversation and what the bar shows of the last message; while a message runs it does nothing — Stop ends that first.
@@ -672,7 +805,7 @@ export function startPromptBar(target, setup) {
       keep([]);
       status.replaceChildren();
     });
-    stop.addEventListener("click", () => (state.controller ? state.controller.abort() : state.follower?.cancel()));
+    stop.addEventListener("click", () => (state.controller ? state.controller.abort() : cancelAll()));
     conversation.replaceChildren(...conversationOf(store).map(line));
     // Below the message field: on the left the folded explanation, on the right the buttons.
     const notes = el("div", "bar-notes", clear, " ", setup.explain("prompt-bar"));
@@ -713,12 +846,13 @@ export function startPromptBar(target, setup) {
       grip.addEventListener("pointercancel", end);
     });
     target.replaceChildren(bar);
-    // A job handed over on an earlier page of this tab goes on being followed.
+    // The jobs handed over on an earlier page of this tab go on being followed, and a plan's next piece run here goes on once the draft before it is dropped.
     let handedOver = null;
     try {
       handedOver = readTabValue(store, JOB);
     } catch { /* the tab keeps no values */ }
-    if (handedOver !== null && handedOver.address === pageOf().address) follow(handedOver);
+    for (const job of [handedOver ?? []].flat()) if (job?.address === pageOf().address) follow(job);
+    await continuePlan();
   }
 
   draw().catch((failure) => {
@@ -729,7 +863,7 @@ export function startPromptBar(target, setup) {
     stop() {
       state.stopped = true;
       state.controller?.abort();
-      state.follower?.stop();
+      for (const job of state.jobs.values()) job.follower?.stop();
       target.replaceChildren();
     },
   };

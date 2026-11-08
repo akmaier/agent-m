@@ -22,11 +22,12 @@
 import test, { afterEach, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
+import { listSettings, openStore, readSetting, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { approvalStrategies } from "../src/approvals/index.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
-import { startPromptBar } from "../src/prompt-bar/index.mjs";
+import { dropDraft, startPromptBar } from "../src/prompt-bar/index.mjs";
+import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { tick, until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used
@@ -156,7 +157,8 @@ const UC1 = "docs/use-cases/UC-001-store.md", UC2 = "docs/use-cases/UC-002-pages
 
 // The files every product has: two use cases (UC-001 accepted by a record naming its blob, UC-002 open), two module files, the instance-independent parts of the process.
 function commonFiles() {
-  // Both files of Agent M's job workflow on GitHub: the bar holds a hand-over on the CI route back while one is absent (UC-049 4c); their texts may stand outdated.
+  // Both files of Agent M's job workflow on GitHub: the bar holds a hand-over on the CI route back while one is absent or stands outdated (UC-049 4c); `open` gives each that the files hold
+  // the text this instance's commit gives it (standingCurrent).
   const files = { "SPEC.md": "# Spec\n", [UC1]: "# UC-001 store\n", [UC2]: "# UC-002 pages\n", [WORKFLOW_FILE]: "name: agent-m-jobs\n", [MAIN_CHANGED_FILE]: "name: agent-m-main-changed\n",
     "docs/architecture/MOD-store.md": moduleFile("MOD-store"), "docs/architecture/MOD-pages.md": moduleFile("MOD-pages") };
   files[`docs/approvals/UC-001-${blobOf(files[UC1]).slice(0, 12)}.md`] = "kind: use-case\n";
@@ -202,24 +204,25 @@ const RUN_URL = "https://github.com/alice/thesis-tool/actions/runs/7";
 const COMMIT = "c0ffee0000000000000000000000000000000001";
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-// The network: `state.handOver` is the hand-over the next answer proposes; `bridge` is the Bridge's jobs, its log and what it was asked. `seen` keeps every request; `stray` every one that is not
-// for the model endpoint or the Bridge.
+// The network: `state.handOver` is the plan the next answer proposes — a list of pieces, or one piece, which rests on none —; `state.answerFor(body)` the draft that answers another kind's
+// prompt, where it gives one; `bridge` is the Bridge's jobs, its log and what it was asked. `seen` keeps every request; `stray` every one that is not for the model endpoint or the Bridge.
 function network() {
-  const state = { handOver: null, answer: "I can hand this on.", bridge: { jobs: [], log: [], logEnded: false, confirm: true, handedOver: [], cancelled: [] }, seen: [], stray: [] };
-  const envelope = () => JSON.stringify({ draft: { answer: state.answer, ...(state.handOver ? { handOver: state.handOver } : {}) }, answers: [] });
+  const state = { handOver: null, answerFor: () => null, answer: "I can hand this on.", bridge: { jobs: [], log: [], logEnded: false, confirm: true, handedOver: [], cancelled: [] }, seen: [], stray: [] };
+  const plan = () => (Array.isArray(state.handOver) ? state.handOver : [{ after: [], ...state.handOver }]);
+  const envelope = (body = "") => JSON.stringify({ draft: state.answerFor(body) ?? { answer: state.answer, ...(state.handOver ? { handOver: plan() } : {}) }, answers: [] });
   globalThis.fetch = async (url, init = {}) => {
     const where = new URL(String(url));
     const call = { origin: where.origin, method: init.method ?? "GET", path: where.pathname, query: where.search, body: String(init.body ?? ""), token: init.headers?.["x-agent-m-bridge-token"] ?? null };
     state.seen.push(call);
-    if (call.origin === MODELS) return json({ choices: [{ message: { content: envelope() } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
+    if (call.origin === MODELS) return json({ choices: [{ message: { content: envelope(call.body) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
     if (call.origin !== BRIDGE) { state.stray.push(call); return json({}, 404); }
     if (call.token !== BRIDGE_TOKEN) return json({ error: "token-refused", message: "pair again" }, 401);
     const bridge = state.bridge;
     // testBridge's two requests, which drawing the bar sends: the Bridge names itself and lists the agents of its sessions, ready.
     if (call.method === "GET" && call.path === "/v1/pair") return json({ bridge: { name: "lab-pc", version: "1.0.0", platform: "linux" }, origin: "https://alice.github.io" });
     if (call.method === "GET" && call.path === "/v1/agents") return json({ agents: Object.keys(SESSIONS).map((name) => ({ name, version: "1.0.0", ready: true, loggedIn: true })), missing: [] });
-    if (call.method === "POST" && call.path === "/v1/ask") return json({ ask: "ask-1" });
-    if (call.method === "GET" && call.path === "/v1/ask/ask-1") return json({ state: "done", text: envelope(), calls: [], usage: null });
+    if (call.method === "POST" && call.path === "/v1/ask") { state.lastAsk = call.body; return json({ ask: "ask-1" }); }
+    if (call.method === "GET" && call.path === "/v1/ask/ask-1") return json({ state: "done", text: envelope(state.lastAsk), calls: [], usage: null });
     if (call.method === "POST" && call.path === "/v1/jobs") { bridge.handedOver.push(JSON.parse(call.body)); return json({ accepted: true }); }
     if (call.method === "GET" && call.path === "/v1/jobs") return json({ jobs: bridge.jobs });
     const log = /^\/v1\/jobs\/([^/]+)\/log$/.exec(call.path);
@@ -258,6 +261,16 @@ afterEach(() => {
 const subjectOf = () => ({ key: "use-case:UC-007", title: "UC-007 Derive use cases", kind: "converse", entry: "use-cases",
   paramsFor: () => ({ page: "The page shows UC-007.", target: "UC-007" }), draftRoute: null, withhold: null, refuses: [] });
 
+// `files` with each file of Agent M's job workflow they hold given the text this instance's commit `commit` gives it, for the secrets the job workflow reads: AGENT_M_TOKEN and the CI secret
+// each endpoint setting of `kept` names, in the order the store lists them (the instance's participant list holds alice alone, whose route names no secret). A file `files` does not hold stays
+// absent.
+function standingCurrent(files, commit, kept) {
+  const keys = [...new Set(listSettings(kept).filter((setting) => setting.key.startsWith("endpoint:")).map((setting) => readSetting(kept, setting.key)?.secret)
+    .filter((secret) => typeof secret === "string"))];
+  const current = jobWorkflowFiles("github", { repository: "alice/agent-m", commit }, { token: "AGENT_M_TOKEN", keys }, []);
+  return { ...files, ...Object.fromEntries(current.filter(({ path }) => path in files).map(({ path, text }) => [path, text])) };
+}
+
 // A page of the product (or of the instance): the instance with its participant list, a store declaring the endpoints dev-ci and tab-only (and `endpoints`), the Bridge lab-pc and its
 // sessions, and the tokens, and the bar started on it.
 function open({ files = scrumFiles(), recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf, endpoints = {}, products = () => [] } = {}) {
@@ -271,7 +284,7 @@ function open({ files = scrumFiles(), recording = false, store = null, went = []
   writeSetting(kept, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
   const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": register(ALICE),
     ...instanceFiles, ...(recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
-  const product = repoOf(PRODUCT_WEB, files);
+  const product = repoOf(PRODUCT_WEB, standingCurrent(files, instance.head(), kept));
   const net = network();
   const target = document.createElement("div");
   const bar = startPromptBar(target, { page: "main", store: kept, instance: { repository: "alice/agent-m", host: instance.host },
@@ -942,50 +955,6 @@ test("Spawn job hands the message to GitHub Actions with the endpoint and the na
   assert.equal(following(it).includes("PLANTED-ANSWER-NV7 ok"), false, "the answer stands once, in the conversation, not again under the run");
 });
 
-// The log of a run that also handed work on in the same run (MOD-workflow-entries): the run's own answer, then the answer of the job handed on from it, each between its lines.
-const HANDED_ON_LOG = (id) => [ANSWER_LOG(id).trimEnd(), `2026-10-16T12:08:01.0000000Z --- answer handed on in ${id} ---`,
-  "2026-10-16T12:08:01.0000000Z {", '2026-10-16T12:08:01.0000000Z   "draft": "PLANTED-HANDED-ON-NV8"', "2026-10-16T12:08:01.0000000Z }",
-  `2026-10-16T12:08:01.0000000Z --- end of the answer handed on in ${id} ---`, ""].join("\n");
-
-// TST-2026111107 · level: component · module: MOD-prompt-bar
-// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
-// given: the page of TST-1200002, nvidia chosen, recording off; the person's Spawn job; the run, once taken, leaves in its log its own answer "PLANTED-ANSWER-NV7 ok" and, between `--- answer handed on in <id> ---` and `--- end of the answer handed on in <id> ---`, the answer of the job it handed on, three lines holding PLANTED-HANDED-ON-NV8; its record ends done with that run's address; and, as the counter-proof, the same with a log that holds only the run's own answer
-// input: 15 seconds pass after the end
-// expect: the run's own answer joins the conversation; the answer handed on does not — the conversation holds no PLANTED-HANDED-ON-NV8 —, and stands folded under the followed job: a `details` element whose summary names it and which holds the three lines as the run received them, without the server's time stamps; the run's log is read once. The counter-proof shows no such `details`
-test("TST-2026111107: the answer of the job handed on in the run is shown folded under the followed job, and does not join the conversation", async () => {
-  const followedTo = async (log) => {
-    const it = open({ endpoints: ON_ACTIONS });
-    let reads = 0;
-    const read = it.product.host.ciRunLog;
-    it.product.host.ciRunLog = async (id) => { reads += 1; return read(id); };
-    await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
-    choose(it, "nvidia");
-    one(it.target, "instruction").value = TASK;
-    one(it.target, "send").dispatchEvent(personal());
-    await until(() => following(it).includes("State:"), "the job is followed");
-    takes(it, RUN_URL);
-    it.product.runs.push(ciRun("succeeded"));
-    const id = /docs\/jobs\/(JOB-[^/]+)\.md$/.exec(it.product.jobPath())[1];
-    it.product.logs.set("7", log(id));
-    ends(it, "done", [], null, RUN_URL);
-    await after(15000);
-    await until(() => textOf(one(it.target, "conversation")).includes("PLANTED-ANSWER-NV7 ok"), "the run's own answer joins the conversation");
-    return { it, reads: () => reads };
-  };
-  const { it, reads } = await followedTo(HANDED_ON_LOG);
-  assert.equal(textOf(one(it.target, "conversation")).includes("PLANTED-HANDED-ON-NV8"), false, "the answer handed on does not join the conversation");
-  const folded = all(one(it.target, "following"), (node) => node.localName === "details");
-  assert.equal(folded.length, 1, following(it));
-  const [summary] = all(folded[0], (node) => node.localName === "summary");
-  assert.ok(summary && /handed on/i.test(textOf(summary)), "the fold names the answer handed on");
-  assert.ok(textOf(folded[0]).includes('{\n  "draft": "PLANTED-HANDED-ON-NV8"\n}'), textOf(folded[0]));
-  assert.ok(!textOf(folded[0]).includes("2026-10-16T12:08:01"), "the server's time stamps are not shown");
-  assert.equal(reads(), 1, "the run's log is read once");
-
-  const plain = await followedTo((id) => ANSWER_LOG(id));
-  assert.deepEqual(all(one(plain.it.target, "following"), (node) => node.localName === "details"), [], "counter-proof: a log without an answer handed on shows no fold");
-});
-
 // What changed: on GitHub, Spawn job toward a product without the job workflow said "Nothing was spawned" and linked the route settings; the bar now asks MOD-runtimes' actionsSetup
 // before it spawns and offers Set up GitHub Actions (UC-049 4c, as accepted in MOD-prompt-bar); the setup's click is proven in tests/prompt-bar-actions-setup.test.mjs.
 // TST-1200003 · level: component · module: MOD-prompt-bar
@@ -1032,9 +1001,10 @@ test("TST-2026110820: a job spawned with Spawn job takes the person's account as
 //   and the bar says "About alice/AlienInvasion — named in your message."
 test("TST-2026110821: Spawn job with a message that names another product spawns the job in that product's repository", async () => {
   const ALIEN_WEB = "https://github.com/alice/AlienInvasion";
-  const alien = repoOf(ALIEN_WEB, scrumFiles());
   const it = open({ endpoints: ON_ACTIONS, products: () => [{ address: PRODUCT_WEB, host: it.product.host, tokenKey: "github-token:alice/thesis-tool" },
     { address: ALIEN_WEB, host: alien.host, tokenKey: "github-token:alice/AlienInvasion" }] });
+  // AlienInvasion holds the job workflow as this instance's commit gives it (standingCurrent), so that nothing of it stands outdated (UC-049 4c); the bar asks `products` first on Send.
+  const alien = repoOf(ALIEN_WEB, standingCurrent(scrumFiles(), it.instance.head(), it.store));
   writeSetting(it.store, "github-token:alice/AlienInvasion", { value: "github_pat_ALIEN0123456789abcdefgh", name: "alice", expires: "2027-01-01" });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   choose(it, "nvidia");
@@ -1045,4 +1015,154 @@ test("TST-2026110821: Spawn job with a message that names another product spawns
   assert.ok(alien.jobPath(), "the record is committed in AlienInvasion");
   assert.equal(it.product.attempts.length + it.product.starts.length, 0, "nothing is written to thesis-tool");
   assert.ok(textOf(one(it.target, "status")).includes("About alice/AlienInvasion — named in your message."), textOf(one(it.target, "status")));
+});
+
+// ---------------------------------------------------------------- the plan the participant proposes (UC-049 4a, 4f)
+//
+// As docs/architecture/MOD-prompt-bar.md states it: "A plan the participant proposed (UC-049 4a), the draft's `handOver`, is shown as a numbered list, each piece with its kind, what it works
+// on and its task and, beside it, where it stands, and goes on at once … Each piece whose `after` is empty becomes a job of its own, with its record …, prepared with `prepareJob` for its kind
+// and with `hand-over` among its `refuses` …; a piece whose `after` names another is not handed over, and is shown as `waits for <n> to be accepted: it can start only once that is accepted —
+// tell me here when it is` … Of several such pieces [run in this tab], the next runs once the person has saved or discarded the draft of the one before, since the conversation keeps one
+// `ConversationDraft`, and is shown meanwhile as *after the draft before it* … Any other piece … queued at once …, each piece a job of its own. Such a job takes, beside what its piece works
+// on, only the bar's `source` and `refuses` naming `hand-over` … for a job that is the endpoint's own (UC-049 4f), also each job its end lists as handed over, followed the same way, and each
+// piece it did not hand over; *Stop* then cancels every one still queued or running"; and the conversation record's `## <date and time> — handed over`: "`job:` each job a message's plan
+// handed over, one line per job".
+
+const pieceOf = (kind, works_on, task, after = []) => ({ kind, works_on, task, after });
+const piecesShown = (it) => byClass(one(it.target, "plan") ?? new Element("section"), "hand-over");
+const whereOf = (node) => textOf(one(node, "where") ?? new Element("p"));
+const WAITS_FOR_1 = "waits for 1 to be accepted: it can start only once that is accepted — tell me here when it is";
+// The records the bar's commits added, in their order: each record's text as the commit that added it held it (a later commit appends to it).
+const recordsCommitted = (it) => { const first = new Map(); for (const file of it.product.attempts.flatMap((attempt) => attempt.files)) if (/^docs\/jobs\/JOB-.*\.md$/.test(file.path) && !first.has(file.path)) first.set(file.path, file.text); return [...first.values()]; };
+
+// TST-2026114909 · level: component · module: MOD-prompt-bar
+// guards: UC-049; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: recording is on at the instance; the Scrum product with Agent M's job workflow; dev-ci, whose answer plans three pieces of the conversation itself, which its tab cannot take — 1 { converse, [ITM-004], TASK }, 2 { converse, [ITM-005], TASK }, 3 { converse, [ITM-003], TASK, after [1] }
+// input: the person's Send — no further click
+// expect: the plan is shown as one numbered list of three pieces in their order, each with its kind, what it works on and its task; pieces 1 and 2 are queued at once, each as a job of its own — two commits, each adding one record of kind converse whose parameters hold `refuses` naming hand-over, and two starts of the job workflow, each with its own job —; piece 3 stands as `waits for 1 to be accepted: it can start only once that is accepted — tell me here when it is` and nothing is written for it; both jobs are followed, each under its own `Handed over: <id>`; the conversation record gains one section `handed over` with one `job:` line for each of the two jobs
+test("TST-2026114909: a plan is shown as a numbered list; each piece that rests on none is queued at once as a job of its own, and a piece that rests on another waits for its acceptance", async () => {
+  const it = open({ recording: true });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  it.net.handOver = [pieceOf("converse", ["ITM-004"], TASK), pieceOf("converse", ["ITM-005"], TASK), pieceOf("converse", ["ITM-003"], TASK, [1])];
+  one(it.target, "participant").value = "dev-ci";
+  one(it.target, "instruction").value = "plan this";
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => piecesShown(it).length === 3, "the plan is shown");
+  assert.equal(one(it.target, "plan").childNodes.filter((node) => node.localName === "ol").length, 1, "a numbered list");
+  piecesShown(it).forEach((node, at) => {
+    for (const line of ["Kind: converse", `Works on: ${["ITM-004", "ITM-005", "ITM-003"][at]}`, `Task: ${TASK}`]) assert.ok(textOf(node).includes(line), `${line} in piece ${at + 1}`);
+  });
+  await until(() => it.product.starts.length === 2, "pieces 1 and 2 are queued at once");
+  const records = recordsCommitted(it);
+  assert.equal(records.length, 2, "two records, one for each piece handed over");
+  for (const record of records) {
+    assert.match(record, /^kind: converse$/m);
+    assert.match(record, /"refuses": \[\s*"hand-over"\s*\]/);
+  }
+  assert.ok(records[0].includes("  - ITM-004") && records[1].includes("  - ITM-005"), "in their order");
+  const ids = it.product.starts.map((start) => start.inputs.job);
+  assert.equal(new Set(ids).size, 2, "each piece is a job of its own");
+  assert.equal(whereOf(piecesShown(it)[2]), WAITS_FOR_1);
+  assert.ok(!records.some((record) => record.includes("ITM-003")), "nothing is written for the waiting piece");
+  await until(() => ids.every((id) => following(it).includes(`Handed over: ${id}`)), "both jobs are followed");
+  const path = readTabValue(it.store, "prompt-bar:records")[PRODUCT_WEB].path;
+  await until(() => /handed over\n/.test(it.product.file(path) ?? ""), "the plan is recorded in the conversation");
+  const section = it.product.file(path).split(/^## /m).find((part) => / — handed over\n/.test(part));
+  assert.deepEqual(section.split("\n").filter((line) => line.startsWith("job: ")), ids.map((id) => `job: ${id}`), "one section, one line per job");
+});
+
+// TST-2026114910 · level: component · module: MOD-prompt-bar
+// guards: UC-049; A CANCELLED JOB WRITES NOTHING MORE
+// given: the plan of TST-2026114909, both pieces queued on GitHub Actions and followed, neither taken by a run
+// input: Stop
+// expect: every one still queued is cancelled: each record gains its end `cancelled`, and neither is followed any more
+test("TST-2026114910: Stop cancels every job of the plan still queued or running", async () => {
+  const it = open();
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  it.net.handOver = [pieceOf("converse", ["ITM-004"], TASK), pieceOf("converse", ["ITM-005"], TASK)];
+  one(it.target, "participant").value = "dev-ci";
+  one(it.target, "instruction").value = "plan this";
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => it.product.starts.length === 2 && it.product.starts.every((start) => following(it).includes(`Handed over: ${start.inputs.job}`)), "both jobs are followed");
+  await until(() => one(it.target, "stop").disabled === false, "Stop is offered");
+  one(it.target, "stop").dispatchEvent(personal());
+  for (const { inputs } of it.product.starts) {
+    await until(() => /^state: cancelled$/m.test(it.product.file(`docs/jobs/${inputs.job}.md`) ?? ""), `${inputs.job} is cancelled`);
+  }
+});
+
+// The stand-ins of the strategies change-use-case names that no module registers here: each gives no part and no finding.
+for (const [category, strategies] of Object.entries({ recipes: { "use-case-with-neighbours": async () => [], "chapters-for-requirements": async () => [] },
+  checks: { "identifier-kept": () => [] }, writers: { "open-files": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) } })) {
+  for (const [name, strategy] of Object.entries(strategies)) {
+    try { registerStrategies("tests/prompt-bar-hand-over.test.mjs#plan", { [category]: { [name]: strategy } }); } catch (error) { if (error.name !== "DuplicateStrategy") throw error; }
+  }
+}
+// The prompt of change-use-case, by which the Bridge's answer is told from the conversation's.
+const CHANGE_USE_CASE = "You change a use case of a product";
+const asksOfChange = (it) => it.net.seen.filter((call) => call.origin === BRIDGE && call.path === "/v1/ask" && call.body.includes(CHANGE_USE_CASE)).length;
+
+// TST-2026114911 · level: component · module: MOD-prompt-bar
+// guards: UC-049; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: lab-pc:claude, which can do change-use-case, a kind whose result waits for the person; its answer plans two pieces of change-use-case — 1 on UC-001, 2 on UC-002 —, each with a task; the change of a use case answers a draft without files
+// input: the person's Send; then dropDraft for the page's subject, as the review pages do once the person saved or discarded the draft, and the bar started again on the next page of the tab
+// expect: piece 1 runs here — "runs here" —, with its record queued on the tab's route in one commit with its taking (`## Taken` by `tab …`), its task in no commit, and its end appended; its result is kept as the conversation's draft of change-use-case; piece 2 is shown as "after the draft before it" and is not asked; once the draft is dropped, the next bar runs piece 2 — its prompt is sent, a second record queued on the tab's route
+test("TST-2026114911: of two pieces run in this tab, the first runs at once with its record, and the next once the person has saved or discarded the draft before it", async () => {
+  const it = open();
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  it.net.handOver = [pieceOf("change-use-case", ["UC-001"], TASK), pieceOf("change-use-case", ["UC-002"], TASK)];
+  it.net.answerFor = (body) => (body.includes(CHANGE_USE_CASE) ? { files: [] } : null);
+  one(it.target, "participant").value = DEV_BRIDGE;
+  one(it.target, "instruction").value = "plan this";
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => piecesShown(it).length === 2, "the plan is shown");
+  await until(() => readTabValue(it.store, "prompt-bar:draft") !== null, "the first piece's draft is kept");
+  assert.equal(readTabValue(it.store, "prompt-bar:draft").kind, "change-use-case");
+  assert.equal(asksOfChange(it), 1, "piece 1 ran, piece 2 did not");
+  assert.ok(whereOf(piecesShown(it)[0]).includes("runs here"), whereOf(piecesShown(it)[0]));
+  assert.equal(whereOf(piecesShown(it)[1]), "after the draft before it");
+  const [first] = recordsCommitted(it);
+  assert.match(first, /^kind: change-use-case$/m);
+  assert.match(first, /^route: tab$/m);
+  assert.match(first, /^task: with the hand-over$/m);
+  assert.match(first, /## Taken\n\nat: [^\n]+\nby: tab \S+/);
+  await until(() => /^state: done$/m.test(it.product.file(it.product.paths().find((path) => /^docs\/jobs\/JOB-/.test(path))) ?? ""), "its end is appended");
+  assert.ok(!JSON.stringify(it.product.attempts).includes("PLANTED-TASK-9C2E"), "the task is in no commit");
+
+  dropDraft(it.store, subjectOf().key);
+  const next = document.createElement("div");
+  bars.push(startPromptBar(next, { page: "review", store: it.store, instance: { repository: "alice/agent-m", host: it.instance.host },
+    product: () => ({ address: PRODUCT_WEB, host: it.product.host, tokenKey: "github-token:alice/thesis-tool" }), subject: subjectOf, explain: () => document.createElement("details"), go: () => {} }));
+  await until(() => asksOfChange(it) === 2, "the next bar runs piece 2");
+  await until(() => recordsCommitted(it).length === 2, "piece 2's record is queued on the tab's route");
+  assert.match(recordsCommitted(it)[1], /  - UC-002/);
+});
+
+// TST-2026114908 · level: component · module: MOD-prompt-bar
+// guards: UC-049; UC-036
+// given: the page of TST-1200002, nvidia chosen, recording off; the person's Spawn job; the run, once taken, leaves its own answer in its log; its record ends done listing `handed over: implement — <JOB-b>` and `not run: change-use-case — waits for the acceptance of 1 (<JOB-b>)`, and the record of JOB-b, queued, stands beside it; known positive: the spawned job itself is followed
+// input: 15 seconds pass after the end
+// expect: the bar follows JOB-b as well — `Handed over: <JOB-b>`, `State: queued` —, shows the piece not handed over among the end's results, and folds no answer handed on: no `details` under the followed jobs
+test("TST-2026114908: for a job that is the endpoint's own, the bar follows each job its end lists as handed over, and names each piece it did not hand over", async () => {
+  const it = open({ endpoints: ON_ACTIONS });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  choose(it, "nvidia");
+  one(it.target, "instruction").value = TASK;
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => following(it).includes("State:"), "the spawned job is followed");
+  const path = it.product.jobPath();
+  const id = /docs\/jobs\/(JOB-[^/]+)\.md$/.exec(path)[1];
+  const piece = "JOB-20261016-1208-b0b0";
+  it.product.edit(path, (text) => appendToRecord(text, { part: "taken", at: new Date("2026-10-16T12:01:00Z"), by: RUN_URL }));
+  it.product.runs.push(ciRun("succeeded"));
+  it.product.logs.set("7", ANSWER_LOG(id));
+  it.product.edit(`docs/jobs/${piece}.md`, () => queuedJob(piece, "ITM-004"));
+  it.product.edit(path, (text) => appendToRecord(text, { part: "end", at: new Date("2026-10-16T12:09:00Z"), state: "done",
+    results: [`handed over: implement — ${piece}`, `not run: change-use-case — waits for the acceptance of 1 (${piece})`], draft: null, rounds: [], usage: null,
+    cost: { known: false, usage: null }, reason: null, log: RUN_URL }));
+  await after(15000);
+  await until(() => following(it).includes(`Handed over: ${piece}`), "the job handed over is followed");
+  assert.ok(following(it).includes(`not run: change-use-case — waits for the acceptance of 1 (${piece})`), following(it));
+  await until(() => /State: queued/.test(following(it).split(`Handed over: ${piece}`)[1] ?? ""), "the job handed over is shown queued");
+  assert.deepEqual(all(one(it.target, "following"), (node) => node.localName === "details"), [], "no answer handed on is folded");
 });

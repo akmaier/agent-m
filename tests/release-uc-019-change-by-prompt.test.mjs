@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, messageLines, namedButton, onUseCase, one, press, proposalTexts, proposalWrites, review, run, scenario,
-  send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
+  recordTexts, send, statusOf, useCases, writesBeyondRecords } from "./uc-019-prompt-bar-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
@@ -44,7 +44,7 @@ const REALISED = [
   "A PARTICIPANT DECLARES ITS CAPABILITIES", "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA", "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION",
   "EVERY STEP EXPLAINS ITSELF", "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT", "A FINDING READS LIKE A COMPILER MESSAGE",
   "AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED", "WHAT A PERSON DECIDES IS NOT SENT BACK", "THE CORRECTION LOOP HAS A FIXED LIMIT", "THE ROUNDS ARE COUNTED AND SHOWN",
-  "A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING",
+  "A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING", "ARTIFACTS ARE ARRANGED IN NESTED GROUPS", "AN ITEM HAS ONE PLACE IN ITS HIERARCHY",
 ];
 
 function ucRealises() {
@@ -62,6 +62,20 @@ function ucRealises() {
 const ev = (file, id) => ({ file, id });
 
 const COVERED_BY_RELEASE = {
+  // UC-019 realises both as accepted: step 4 gives the drafter "its requirement hierarchy from `docs/groups/requirements.md`", step 6 has a new requirement name "its place
+  // in the requirement hierarchy — a group the hierarchy holds, or a new group with the group it stands in", step 7 sends back a place the hierarchy does not hold, and
+  // step 9 writes "the places of its new requirements beside its section".
+  "ARTIFACTS ARE ARRANGED IN NESTED GROUPS": [
+    ev(RELEASE_REQUIREMENTS, "TST-418128"),
+    ev("tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"),
+    ev("tests/spec-changes-places.test.mjs", "TST-2026110880"),
+  ],
+  "AN ITEM HAS ONE PLACE IN ITS HIERARCHY": [
+    ev(RELEASE_REQUIREMENTS, "TST-418128"),
+    ev("tests/job-runner-candidate-places.test.mjs", "TST-2026110875"),
+    ev(DRAFT, "TST-2026110896"),
+    ev("tests/spec-changes-places.test.mjs", "TST-2026110880"),
+  ],
   "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT": [
     ev(DRAFT, "TST-507020"),
     ev(RELEASE_REQUIREMENTS, "TST-418109"),
@@ -240,10 +254,10 @@ const FINDINGS = {
 // guards: UC-019
 // given: UC-019's realised requirements as committed, REALISED, COVERED_BY_RELEASE and FINDINGS in this release test
 // input: compare the realised requirements with REALISED and with the keys of COVERED_BY_RELEASE
-// expect: UC-019 realises exactly the 35 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
+// expect: UC-019 realises exactly the 37 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
 test("TST-377101: UC-019 release coverage names every realised requirement and its executable evidence", () => {
   const realised = ucRealises();
-  assert.equal(REALISED.length, 35);
+  assert.equal(REALISED.length, 37);
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
   assert.deepEqual(realised.toSorted(), REALISED.toSorted());
   assert.deepEqual(Object.keys(COVERED_BY_RELEASE).sort(), REALISED.toSorted());
@@ -339,7 +353,9 @@ test("TST-377106: UC-019 A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN REC
   const off = await scenario({ extraFiles: useCases, answers });
   await onUseCase(off); await send(off, ALIGN); await review(off);
   await press(off, namedButton(all(off.target, "div", "draft")[0], "Save"));
-  assert.equal(off.product.writes.length, 1, "known positive: the draft was saved");
+  // The piece the conversation hands on runs in this tab with its record (UC-049 4a.1: "it runs in this tab at once, on the page's context, with its record"); beyond it, the Save's commit.
+  assert.equal(writesBeyondRecords(off).length, 1, "known positive: the draft was saved");
+  assert.ok(recordTexts(off).length > 0, "known positive: the tab piece's record is in the product");
   assert.equal(committed(off).some((body) => body.includes(ALIGN) || body.includes("is ready to review")), false, "recording off: nothing of the conversation in any commit");
   assert.equal(conversationRecords(off).length, 0);
 
@@ -368,13 +384,13 @@ test("TST-377107: UC-019 AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT", asyn
   await press(useCase, namedButton(all(useCase.target, "div", "draft")[0], "Save"));
   const requirement = await scenario(); await run(requirement);
   await press(requirement, namedButton(requirement.target, "Save"));
-  const commits = [useCase.product.writes[0], proposalWrites(requirement)[0]];
+  const commits = [useCase.product.writes.find((write) => UC7_PATH in write.files), proposalWrites(requirement)[0]];
   for (const write of commits) {
     const lines = messageLines(write);
     assert.ok(lines.some((line) => /^Agent-M-Version: [0-9a-f]{40}, commit [0-9a-f]{40}$/.test(line)), `a version line in ${write.message}`);
     assert.ok(lines.includes("Agent-M-Participant: drafter") && lines.includes("Agent-M-Model: fixture-model"), write.message);
   }
-  for (const body of [...Object.values(useCase.product.writes[0].files), ...proposalTexts(requirement)]) {
+  for (const body of [...Object.values(commits[0].files), ...proposalTexts(requirement)]) {
     assert.ok(!/Agent-M-|fixture-model|drafter/.test(body), "the artifact's own text names neither the version, the participant nor the model");
   }
 });
@@ -385,14 +401,14 @@ test("TST-377107: UC-019 AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT", asyn
 // guards: UC-019; ONE CLICK PER DECISION
 // given: a draft whose inputs are complete
 // input: the author presses Save once
-// expect: that click alone writes the commit - one commit, with every file, and no second click or dialog is asked for
+// expect: that click alone writes the commit - one commit, with every file, and no second click or dialog is asked for; before it nothing but the record of the piece the tab runs (UC-049 4a.1) is written
 test("TST-377108: UC-019 ONE CLICK PER DECISION", async () => {
   const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
   await onUseCase(s); await send(s, ALIGN); await review(s);
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0, "before Save only the tab piece's record is written");
   await press(s, namedButton(all(s.target, "div", "draft")[0], "Save"));
-  assert.equal(s.product.writes.length, 1, "one click, one commit");
-  assert.deepEqual(Object.keys(s.product.writes[0].files), [UC7_PATH, UC8_PATH], "both files in it");
+  assert.equal(writesBeyondRecords(s).length, 1, "one click, one commit");
+  assert.deepEqual(Object.keys(writesBeyondRecords(s)[0].files), [UC7_PATH, UC8_PATH], "both files in it");
   assert.equal(all(s.body, "dialog").length, 0, "no dialog asks for a second click");
 });
 
