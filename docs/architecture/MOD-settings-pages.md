@@ -14,6 +14,7 @@ uses:
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.schemaForm
+  - MOD-site-frame.tokenKeyOf
   - MOD-markdown-render.renderArtifact
   - MOD-browser-store.openStore
   - MOD-browser-store.readSetting
@@ -92,7 +93,7 @@ uses:
   - MOD-job-ledger.newJobId
   - MOD-runtimes.routesFor
   - MOD-runtimes.queueJob
-  - MOD-runtimes.jobWorkflowFiles
+  - MOD-runtimes.actionsSetup
   - MOD-runtimes.gitlabVariableScopes
   - MOD-notifications.NotificationState
   - MOD-notifications.notificationState
@@ -159,10 +160,16 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     it; after *Switch off*, that the browser keeps its permission until the person takes it back in its settings. A
     repository setting has a summary and *Edit*, opening its form here or the page where it is kept — the product's
     process on the implementation pages, its schedule on the test pages. A product's section holds its pseudonymisation —
-    switching it off states first what follows —, its collaborators who agreed to be named, and whether Agent M's job
-    workflow is installed, with *Install*, which names among the job workflow's keys, beside the CI secrets of the
-    participants' routes, the CI secret each of this browser's endpoints names. For a GitLab product the line names each
-    CI/CD variable of the job workflow with the environment scopes it needs (MOD-runtimes' `gitlabVariableScopes`), checks
+    switching it off states first what follows —, its collaborators who agreed to be named, and the line of Agent M's job
+    workflow, from MOD-runtimes' `actionsSetup` for the product, with the key `tokenKeyOf` gives for its token (UC-010,
+    Precondition). For a GitHub product the line names what is missing — the job workflow, each file of it that stands
+    with another text than this instance commit gives, each secret by name — and, while anything `setUp` can set up is
+    missing and the product's token can write, offers one button, **Set up GitHub Actions**, whose click, the person's,
+    runs `setUp` and names the commit and the secrets it stored, never a value; each secret this browser keeps no value
+    for (`unknown`) is named with the link to the repository's secrets page, where the person adds it. For a GitLab
+    product the line says whether the job workflow is installed, with *Install*, which runs the same `setUp`, names each
+    CI/CD variable of the job workflow (`actionsSetup`'s `named`) with the environment scopes it needs (MOD-runtimes'
+    `gitlabVariableScopes`), checks
     them against the project's variables as its server lists them — names and scopes, never a value
     (MOD-repository-hosts' `ciVariableScopes`) —, and calls the job workflow safe only where every variable stands with
     exactly those scopes; it names each variable that lacks a scope or has another, and where the server does not list the
@@ -272,7 +279,8 @@ It writes, on a person's click and as that person's commit: the instance's `docs
 `docs/resources.md` and `docs/conversation-recording.md`, and a product's `docs/sources.md`, `docs/resources.md`,
 `docs/settings.md` and `docs/collaborators.md`, with `saveFile`; the source register's entries and content under `docs/sources/` of the instance,
 and restricted content in the repository the person names, as the commit plans of MOD-source-register say; a product's
-review layout when it is added; Agent M's job workflow files of a product; a resource's check job's start record through
+review layout when it is added; Agent M's job workflow files of a product and its Actions secrets, through MOD-runtimes'
+`actionsSetup`; a resource's check job's start record through
 MOD-runtimes. It writes this browser's settings through MOD-browser-store, the switch of the notifications through
 MOD-notifications. It reads the instance's and the products' snapshots, the Bridge's releases, and what each test
 reaches.
@@ -291,8 +299,8 @@ reaches.
   (`NO SECRET IN THE REPOSITORY`).
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect, MOD-repository-hosts.readSnapshot,
   MOD-repository-hosts.repositoryInfo — products and the instance, a token's test, a repository's visibility;
-  MOD-repository-hosts.commitFiles — the commit plans of a source's registration or new version, and the job workflow
-  files; MOD-repository-hosts.startWorkflow — *Fetch again*; MOD-repository-hosts.listReleaseAssets — the Bridge's files
+  MOD-repository-hosts.commitFiles — the commit plans of a source's registration or new version;
+  MOD-repository-hosts.startWorkflow — *Fetch again*; MOD-repository-hosts.listReleaseAssets — the Bridge's files
   with their sizes and SHA-256; MOD-repository-hosts.webLinks — the server's token, fork, Pages, Actions, secrets and
   access-token pages.
 - MOD-identifiers.pagesAddress — the instance's dashboard address: the page *Open your dashboard* opens in
@@ -330,8 +338,9 @@ reaches.
 - MOD-personal-data.settingsSchemas, MOD-personal-data.pseudonymisationOf, MOD-personal-data.namedPersonFindings — a
   product's pseudonymisation and collaborators, and the files that still name a collaborator who withdrew.
 - MOD-job-runner.prepareJob, MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob — a resource's check
-  job on its runner; MOD-runtimes.jobWorkflowFiles — the job workflow a product needs; MOD-runtimes.gitlabVariableScopes
-  — on GitLab, the environment scopes its variables need.
+  job on its runner; MOD-runtimes.actionsSetup — what a product lacks of the job workflow and its CI secrets, and their
+  setup; MOD-site-frame.tokenKeyOf — the key of the product's token handed to it; MOD-runtimes.gitlabVariableScopes — on
+  GitLab, the environment scopes its variables need.
 - MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
   MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
   MOD-prompt-bar.spawnEndpointJob, MOD-prompt-bar.followJob — the test job of an endpoint that runs through GitHub Actions.
