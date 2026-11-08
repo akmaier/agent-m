@@ -18,10 +18,20 @@ import { defaultSnapshot } from "./send.mjs";
  * answerIn(log: string | null, id: string) -> string | null — the answer a run on CI left in its log for the job `id` (MOD-workflow-entries: between the lines
  * `--- answer of <id> ---` and `--- end of the answer of <id> ---`), each line without the time stamp the server puts before it; null where the log holds none.
  */
-export function answerIn(log, id) {
+export const answerIn = (log, id) => between(log, `answer of ${id}`);
+
+/**
+ * handedOnIn(log: string | null, id: string) -> string | null — the answer of the job handed on from the job `id` in the same run, as the run left it in its log
+ * (MOD-workflow-entries: between the lines `--- answer handed on in <id> ---` and `--- end of the answer handed on in <id> ---`), each line without the server's time stamp; null where the
+ * log holds none.
+ */
+export const handedOnIn = (log, id) => between(log, `answer handed on in ${id}`);
+
+// The lines of a log between `--- <what> ---` and `--- end of the <what> ---`, each without the time stamp the server puts before it; null where the log holds no such block.
+function between(log, what) {
   const lines = String(log ?? "").split("\n").map((line) => line.replace(/^\d{4}-\d\d-\d\dT[\d:.]+Z /, "").replace(/\r$/, ""));
-  const from = lines.indexOf(`--- answer of ${id} ---`);
-  const to = lines.indexOf(`--- end of the answer of ${id} ---`, from + 1);
+  const from = lines.indexOf(`--- ${what} ---`);
+  const to = lines.indexOf(`--- end of the ${what} ---`, from + 1);
   return from === -1 || to === -1 ? null : lines.slice(from + 1, to).join("\n");
 }
 
@@ -46,12 +56,13 @@ function bridgesOf(record, store) {
  * followJob({ id, address, host, store, show }) -> { stop: () => void, cancel: () => Promise<void> } — polls the job `id` of the repository at `address` through `host`, once at once and then
  * every 15 seconds until its record has its end, and hands `show` the view after each poll and each line of a Bridge's log: { id, state, route, address, lines, end, cancel, problem } —
  * `state` the job's state as listJobs derives it; `route` the record's route; `address` the CI run's address once jobLog gives it; `lines` the Bridge's log so far; `end` the record's end
- * (state, results, reason) or null; `answer` the answer a hand-over's run on CI left in its log (answerIn), read once when its end is read, else null; `cancel` `cancelled` or `cancelling` after cancel; `problem` what could not be read, by name. A failure of a poll is shown, never thrown, and polling goes on.
+ * (state, results, reason) or null; `answer` the answer a hand-over's run on CI left in its log (answerIn), and `handedOn` the answer of the job handed on from it in that run (handedOnIn),
+ * both read from the one log read once when its end is read, else null; `cancel` `cancelled` or `cancelling` after cancel; `problem` what could not be read, by name. A failure of a poll is shown, never thrown, and polling goes on.
  * `cancel` cancels the job at its runtime with cancelJob and polls again at once. `stop` ends the polling.
  */
 export function followJob({ id, address, host, store, show }) {
   const path = `docs/jobs/${id}.md`;
-  const view = { id, state: null, route: null, address: null, missingSecret: null, lines: [], end: null, answer: null, cancel: null, problem: null };
+  const view = { id, state: null, route: null, address: null, missingSecret: null, lines: [], end: null, answer: null, handedOn: null, cancel: null, problem: null };
   let record = null, timer = null, stopped = false, busy = false, streaming = false, answerRead = false;
 
   const emit = () => { if (!stopped) show({ ...view, lines: [...view.lines] }); };
@@ -87,11 +98,13 @@ export function followJob({ id, address, host, store, show }) {
     return /: not run — (\S+) is missing/.exec(log ?? "")?.[1] ?? null;
   }
 
-  // The answer of a job ended on CI, read once from the log of the run its end names: the run among the job workflow's runs whose address that is.
-  async function answerOf() {
+  // The answers of a job ended on CI, read once from the one log of the run its end names — the run among the job workflow's runs whose address that is —: its own, and that of the job
+  // handed on from it in the run. -> { answer, handedOn }.
+  async function answersOf() {
     answerRead = true;
     const run = (await host.listCiRuns({ workflow: "agent-m-jobs.yml" })).find((each) => each.url === record.end.log);
-    return run ? answerIn(await host.ciRunLog(run.id), id) : null;
+    const log = run ? await host.ciRunLog(run.id) : null;
+    return { answer: answerIn(log, id), handedOn: handedOnIn(log, id) };
   }
 
   async function poll() {
@@ -121,7 +134,9 @@ export function followJob({ id, address, host, store, show }) {
       if (record.end && view.address === null && typeof record.end.log === "string") view.address = record.end.log;
       if (!record.end && !record.taken && record.route.startsWith("ci ")) view.missingSecret = await secretOf().catch(() => null);
       if (record.end && !answerRead && record.task === "with the hand-over" && record.route.startsWith("ci ") && typeof record.end.log === "string") {
-        view.answer = await answerOf().catch((failure) => { view.problem = `The answer could not be read from the run's log. ${said(failure)}`; return null; });
+        const read = await answersOf().catch((failure) => { view.problem = `The answer could not be read from the run's log. ${said(failure)}`; return null; });
+        view.answer = read?.answer ?? null;
+        view.handedOn = read?.handedOn ?? null;
       }
       if (!live || live.reachable) await logOf(bridges); // a runtime that has just not answered is not asked again for the log
     } catch (failure) {
