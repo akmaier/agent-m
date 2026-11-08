@@ -79,6 +79,9 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
    - writes the missing review layout into the product repository's default branch
      (`docs/use-cases/`, `docs/architecture/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md`
      skeleton, a `CHANGELOG.md`), skipping whatever already exists;
+   - on GitHub, sets up GitHub Actions for the product as UC-010's **Set up GitHub Actions** does: installs Agent M's
+     workflows — among them the one that stores the product's trace graph on every push — and stores the secrets this
+     browser keeps a value for; a secret it keeps none for is named with a link to the repository's secrets page;
    - adds the product's address to the list in this browser's `localStorage` — nothing is written to
      the instance repository;
    - shows the commit as a link, and offers to switch to the new product.
@@ -101,6 +104,7 @@ sequenceDiagram
     D-->>A: reachable
     A->>D: Step C, Add product
     D->>P: commit missing layout
+    D->>P: install workflows, store secrets (GitHub)
     D->>D: add address to the list in localStorage
     D-->>A: commit link
 ```
@@ -135,7 +139,7 @@ sequenceDiagram
 
 ## Postcondition
 
-- The product repository contains the review layout; it has no Pages site.
+- The product repository contains the review layout and, on GitHub, Agent M's workflows; it has no Pages site.
 - This browser lists the product; the instance repository names no product.
 - This browser keeps a token for this product that reaches the product repository and nothing else — or,
   in 3a, uses the key that already reached it; the instance's token is unchanged.
