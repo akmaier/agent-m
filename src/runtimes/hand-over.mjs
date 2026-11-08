@@ -53,8 +53,9 @@ async function startedPart(host, start, head) {
   return [{ path, text: appendToRecord(text, { part: "job started", at: start.start, job: start.id, kind: start.kind, worksOn: start.worksOn }) }];
 }
 
-// The CI secret of an endpoint's key, as the route of the participant `prepared` was prepared for names it — `endpoint <name> secret <NAME>` —, or null for a route that names none.
-const secretOf = (prepared) => /^endpoint\s+\S+\s+secret\s+(\S+)$/.exec(String(prepared.drafter?.route ?? "").trim())?.[1] ?? null;
+// The CI secret of an endpoint's key, as the route of the participant `prepared` was prepared for names it — `endpoint <name> secret <NAME>`, or `ci <runner> secret <NAME>` for a
+// CI agent whose record names its endpoint, as a conversation's job in CI hands its pieces over —, or null for a route that names none.
+const secretOf = (prepared) => /^(?:endpoint\s+\S+|ci\s+\S+)\s+secret\s+(\S+)$/.exec(String(prepared.drafter?.route ?? "").trim())?.[1] ?? null;
 
 /**
  * handOverJob(prepared, route, start, host, head, task, target) -> Promise<{ path, commit }> — queues one piece of work a conversation of the prompt bar handed over, as the result
