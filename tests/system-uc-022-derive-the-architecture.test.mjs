@@ -567,14 +567,14 @@ test("TST-448217: UC-022 2a — when no participant qualifies as reviewer, Run s
 // guards: UC-022; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY
 // given: the ready product; small-d, whose context holds 50000 tokens, and drafter-a, whose context holds 300000
 // input: 3a the person chooses small-d as drafter with reviewer-b and shows the panel; then small-d as reviewer of drafter-a; then drafter-a again
-// expect: the panel names small-d as unable to hold what it would receive, with the size, 88211 tokens, and its context, 50000, and lists all seven parts for it — none left out —; it offers no Run; as reviewer small-d is named the same way; nothing is sent and nothing is written; counter-proof — drafter-a, still choosable on the same page, gives a panel that names nothing as not fitting and offers Run
+// expect: the panel names small-d as unable to hold what it would receive, with the size, 91648 tokens — its prompt, its parts and the form its draft is checked by (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY) —, and its context, 50000, and lists all seven parts for it — none left out —; it offers no Run; as reviewer small-d is named the same way; nothing is sent and nothing is written; counter-proof — drafter-a, still choosable on the same page, gives a panel that names nothing as not fitting and offers Run
 test("TST-448218: UC-022 3a — a participant whose context cannot hold the input is named with the sizes, nothing is truncated or sent, and a larger one is choosable", async () => {
   const seen = ready();
   const fake = fakeProduct();
   const target = await show(fake);
   const panel = await panelFor(target, "small-d", "reviewer-b");
   const notFitting = byClass(panel, "p", "not-fitting");
-  assert.deepEqual(notFitting.map((node) => node.textContent), ["small-d cannot hold what it would receive: 88211 tokens, its context holds 50000"]);
+  assert.deepEqual(notFitting.map((node) => node.textContent), ["small-d cannot hold what it would receive: 91648 tokens, its context holds 50000"]);
   assert.deepEqual(byClass(byClass(panel, "section", "destination")[0], "li", "part").map((item) => item.textContent.split(" — ")[0]), ["SPEC.md", UC1_PATH, UC2_PATH, ...CHAPTERS], "no part is left out");
   assert.equal(runButtons(target).length, 0, "no Run");
   const asReviewer = await panelFor(target, "drafter-a", "small-d");

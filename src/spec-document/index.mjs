@@ -37,7 +37,7 @@
  */
 
 export { parseSpec } from "./parse.mjs";
-export { requirementFindings } from "./checks.mjs";
+export { requirementFindings, requirementForm } from "./checks.mjs";
 export { sectionText, replaceSection, requirementNamesIn, renamedRequirements } from "./sections.mjs";
 
 // Where the product's name stands in skeleton.md.

@@ -26,7 +26,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startRecord } from "../src/job-ledger/index.mjs";
@@ -69,6 +69,8 @@ const BOOK_ENTRY = text("---", "id: SRC-vibe-coding", "title: Vibe Coding", "kin
   "| File | SHA-256 |", "|---|---|", `| \`${CHAPTER_FILE}\` | \`${sha256(CHAPTER)}\` |`);
 const LINKS = text("# The sources this product meets", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| SRC-fixture-po | 2026-10-05 | ${"1".repeat(64)} | |`);
 
+// Agent M's own SPEC.md, which the fixture instance holds: a kind of requirement-form takes the form its draft is checked by from it.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
 const PARTICIPANTS = text("# Participants of this instance", "",
   "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
   "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
@@ -121,7 +123,7 @@ async function withWorkspace({ records = () => [], extra = {} } = {}, run) {
   const root = mkdtempSync(join(tmpdir(), "agent-m-jobs-"));
   const workspace = join(root, "ws");
   try {
-    const instance = repository(root, "instance", { "README.md": "# Instance\n", "docs/participants.md": PARTICIPANTS, "docs/sources/SRC-fixture-po.md": PO_ENTRY,
+    const instance = repository(root, "instance", { "README.md": "# Instance\n", "SPEC.md": INSTANCE_SPEC, "docs/participants.md": PARTICIPANTS, "docs/sources/SRC-fixture-po.md": PO_ENTRY,
       "docs/sources/SRC-vibe-coding.md": BOOK_ENTRY, [`docs/sources/SRC-vibe-coding/2026-10-05/${CHAPTER_FILE}`]: CHAPTER }, join(workspace, "instance"));
     const agentM = { version: "2026.10.0", commit: git(join(workspace, "instance"), "rev-parse", "HEAD") };
     const product = repository(root, "product", { "README.md": "# Thesis tool\n", ...Object.fromEntries(records(agentM)), ...extra }, join(workspace, "product"));

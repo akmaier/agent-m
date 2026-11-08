@@ -121,7 +121,8 @@ test("prepareJob — the SPEC part is sized as every part is, and a participant 
   assert.equal(spec.text, SPEC);
   assert.equal(spec.size, estimate(SPEC));
   const others = fitting.parts.filter((each) => each !== spec).reduce((sum, each) => sum + each.size, 0);
-  assert.equal(fitting.destinations[0].size, estimate(kind.prompt) + spec.size + others);
+  // The drafter's size also counts the job's form, the schemas its document-schema check reads (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY).
+  assert.equal(fitting.destinations[0].size, estimate(kind.prompt) + estimate(fitting.form.text) + spec.size + others);
   assert.equal(fitting.fits, true);
 
   const small = await prepareJob("derive-architecture", contextOf(kind, snapshotOf(FILES)), { drafter: SMALL, reviewers: [] });

@@ -43,7 +43,7 @@ function promptedSourceResult(input) {
   const source = sourceRegister.personAccount({ repository: { server: "github", path: input.instance } });
   const sections = specChanges.entrySections(input.spec, { candidates: input.candidates ?? [] }, input.classes ?? [], source);
   // Counter-proof: the same sections with the account taken out of every source.
-  const saved = sections.map((section) => input.dropAccount ? section.text.split(`; ${source}, `).join("; Unlinked Source, ").split(`(${source}, `).join("(Unlinked Source, ") : section.text);
+  const saved = sections.map((section) => input.dropAccount ? section.text.split(`; ${source})*`).join("; Unlinked Source)*").split(`(${source})*`).join("(Unlinked Source)*") : section.text);
   const spec = specDocument.parseSpec(saved.join("\\n"));
   const findings = sourceRegister.sourceFindings([...spec.requirements.values()], links, register).map((found) => found.rule);
   return { source, sections: input.dropAccount ? [] : sections, findings };
@@ -99,7 +99,8 @@ class TestPromptedSource(unittest.TestCase):
         expected = [case["case"]["expected"] for case in cases()]
         named = next(item for item in expected if item["sections"])
         self.assertEqual(named["source"], "github.com/alice")
-        self.assertTrue(all("github.com/alice, prompt" in section["text"] for section in named["sections"]))
+        self.assertTrue(all("github.com/alice)*" in section["text"] for section in named["sections"]))
+        self.assertFalse(any("github.com/alice, " in section["text"] for section in named["sections"]), "the account stands alone, with no passage")
         self.assertEqual(named["findings"], [])
         self.assertTrue(any(item["findings"] for item in expected))
 

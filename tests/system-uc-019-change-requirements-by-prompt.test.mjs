@@ -25,8 +25,9 @@ import assert from "node:assert/strict";
 import { CONFLICT, CURRENT_RULE, INSTRUCTION, LOAN, SHELF, SPEC, all, assertProposal, barOf, candidate, draft, draftAddress, fromTrace, goTo, keptDraft, messageLines, onRequirementPage, one,
   proposalWrites, recordTexts, review, row, run, save, scenario, send, sentText, statusOf, targetsOf } from "./uc-019-prompt-bar-harness.mjs";
 
-// The prompting source as the saved proposal names it: the account of the instance's owner, github.com/akmaier (MOD-prompt-bar's `source`, MOD-source-register's personAccount).
-const ACCOUNT_SOURCE = /github\.com\/akmaier, make visible/;
+// The prompting source as the saved proposal names it: the account of the instance's owner, github.com/akmaier (MOD-prompt-bar's `source`, MOD-source-register's personAccount),
+// standing alone at the end of the source, with no passage of the instruction after it (MOD-spec-changes, entrySections).
+const ACCOUNT_SOURCE = /github\.com\/akmaier\)\*/;
 
 // TST-418001
 // level: system

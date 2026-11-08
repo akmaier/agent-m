@@ -84,10 +84,23 @@ async function ownFile(url) {
 }
 
 const SCHEMA_FILES = { useCase: "use-case", decision: "decision", module: "module", item: "item" };
-const OWN = Object.freeze(Object.fromEntries(await Promise.all(Object.entries(SCHEMA_FILES).map(async ([key, name]) => {
+// The texts of the schema files as they were read, each under its path in the repository, in the order above.
+const TEXTS = Object.freeze(await Promise.all(Object.values(SCHEMA_FILES).map(async (name) => {
   const url = new URL(`./schemas/${name}.schema.md`, import.meta.url);
-  return [key, load(disk ? disk.readFileSync(url, "utf8") : await ownFile(url), OWNER)];
-}))));
+  return Object.freeze({ path: `src/documents/schemas/${name}.schema.md`, text: disk ? disk.readFileSync(url, "utf8") : await ownFile(url) });
+})));
+const OWN = Object.freeze(Object.fromEntries(Object.keys(SCHEMA_FILES).map((key, at) => [key, load(TEXTS[at].text, OWNER)])));
+
+/**
+ * artifactSchemaTexts() -> { path: string, text: string }[] — the files of the four schemas as this module read them, each with its
+ * path in the repository, src/documents/schemas/<name>.schema.md, and its text byte for byte, in the order use case, decision,
+ * module, item: what documentFindings judges a drafted document by, for a drafter to read (A DRAFTING JOB RECEIVES THE FORM ITS
+ * DRAFT IS CHECKED BY), so that no prompt keeps a copy of them.
+ * @returns {{ path: string, text: string }[]}
+ */
+export function artifactSchemaTexts() {
+  return TEXTS.map(({ path, text }) => ({ path, text }));
+}
 
 /**
  * artifactSchemas() -> { useCase: Schema, decision: Schema, module: Schema, item: Schema } — the four schemas this module

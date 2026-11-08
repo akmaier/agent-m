@@ -157,7 +157,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
   const chapterFolder = "docs/sources/SRC-vibe-coding/2026-10-05/";
   const chapters = Object.fromEntries(readdirSync(new URL(chapterFolder, ROOT)).filter((path) => path.endsWith(".md"))
     .map((path) => [chapterFolder + path, readOriginal(chapterFolder + path)]));
-  const instance = await repoServer({ files: { "docs/participants.md": register(context), [`docs/sources/${SOURCE}.md`]: PERSON,
+  const instance = await repoServer({ files: { "SPEC.md": readOriginal("SPEC.md"), "docs/participants.md": register(context), [`docs/sources/${SOURCE}.md`]: PERSON,
     "docs/sources/SRC-policy.md": POLICY, "docs/sources/SRC-vibe-coding.md": readOriginal("docs/sources/SRC-vibe-coding.md"),
     ...(recording ? { "docs/conversation-recording.md": txt("---", "recording: on", "---", "# Recording of conversations") } : {}),
     ...chapters, ...instanceFiles }, handlers: [handler, (url, init) => url.pathname === `/repos/${repo}`

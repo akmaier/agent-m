@@ -97,7 +97,7 @@ for (const name of names) {
   const driver = { send: async (input) => { sent.push(jobRunner.driverPrompt(input)); const stop = new Error("recorded"); stop.name = "Recorded"; throw stop; } };
   try { await jobRunner.runJob({ ...prepared, blocking: [], notFitting: [] }, { drafter: driver, reviewers: [] }, { attended: true, context }); }
   catch (error) { if (error.name !== "Recorded") throw error; }
-  out[name] = { prompt: kind.prompt, recipes: kind.recipes.map((recipe) => recipe.name), sent,
+  out[name] = { prompt: kind.prompt, recipes: kind.recipes.map((recipe) => recipe.name), sent, form: prepared.form?.text ?? null,
     parts: prepared.parts.map((part) => ({ recipe: part.recipe, name: part.name, text: part.text })) };
 }
 return out;
@@ -188,15 +188,22 @@ def expected_input(prompt, parts):
 
 
 def input_problems(kind, sent):
-    """What is wrong with the input `sent` of a job of this kind (a record of INPUT): it is not Agent M's AGENTS.md followed by the prompt with its
-    recipes' parts and nothing else. A part that no recipe of the kind gave, a place of the prompt that names no recipe of the kind, and any difference
-    from the expected text. The instance of INPUT is this repository, whose AGENTS.md is read here from the file."""
+    """What is wrong with the input `sent` of a job of this kind (a record of INPUT): it is not Agent M's AGENTS.md followed — for a kind with a form, the
+    form its draft is checked by and a blank line (MOD-job-runner, DriverInput) — by the prompt with its recipes' parts and nothing else. A part that no
+    recipe of the kind gave, a place of the prompt that names no recipe of the kind, and any difference from the expected text. The instance of INPUT is
+    this repository, whose AGENTS.md is read here from the file. What the form holds is checked by FormGiven."""
     problems = []
     rules = (ROOT / "AGENTS.md").read_text(encoding="utf-8") + "\n\n"
     if not sent.startswith(rules):
         problems.append("the input does not begin with Agent M's AGENTS.md")
     else:
         sent = sent[len(rules):]
+    form = kind.get("form")
+    if form is not None:
+        if not form.startswith(FORM_HEADING) or not sent.startswith(form + "\n\n"):
+            problems.append("the input does not give the form after Agent M's AGENTS.md")
+        else:
+            sent = sent[len(form) + 2:]
     for part in kind["parts"]:
         if part["recipe"] not in kind["recipes"]:
             problems.append(f"the part {part['name']} comes from the recipe {part['recipe']}, which the kind does not have")
@@ -271,20 +278,24 @@ class JobInput(unittest.TestCase):
 
 INSTANCE_RULES = "# AGENTS.md of the fixture instance\n\nINSTANCE-RULES-TEXT: every agent reads the SPEC first.\n"
 PRODUCT_RULES = "# AGENTS.md of the fixture product\n\nPRODUCT-RULES-TEXT.\n"
+# The fixture product's SPEC.md, with a paragraph Form of a requirement of its own, so that the product's form given in the instance's place is told apart.
+PRODUCT_SPEC = ("# Fixture product — Specification\n\n**Form of a requirement:** PRODUCT-FORM-TEXT, a name and a rule.\n\n## 1. One\n\n"
+                "**A REQUIREMENT HAS FOUR FIELDS** *(PO)*\nPRODUCT-FOUR-FIELDS-TEXT.\n*Check:* no automatic check; at review\n")
+FORM_HEADING = "## The form your draft is checked by"
 
 # The fixture instance — this repository's files, with an AGENTS.md of its own text — and the fixture product, whose only file is its AGENTS.md. The
 # input of every kind's drafter, as its driver sends it (driverPrompt), in the browser and, with `checkout`, in a checkout of the instance, whose path
 # the input then names. In a checkout every strategy is a stand-in, so that no chapter is read from the fixture checkout.
 FIRST = """
 const fs = process.getBuiltinModule("node:fs");
-const root = %s, rules = %s, productRules = %s, checkout = %s;
+const root = %s, rules = %s, productRules = %s, checkout = %s, productSpec = %s;
 const commit = "a".repeat(40);
 const snapshotOf = (path, read) => ({ repository: { server: "github", origin: "https://github.com", path, web: "https://github.com/" + path },
   ref: "main", commit, paths: [], read, blob: () => null });
 const instance = snapshotOf("akmaier/agent-m", async (path) => {
   if (path === "AGENTS.md") return rules;
   try { return fs.readFileSync(root + path, "utf8"); } catch { return null; } });
-const product = snapshotOf("acme/product", async (path) => (path === "AGENTS.md" ? productRules : null));
+const product = snapshotOf("acme/product", async (path) => (path === "AGENTS.md" ? productRules : path === "SPEC.md" ? productSpec : null));
 if (checkout === null) jobRunner.registerStrategies("MOD-source-register", { recipes: Object.fromEntries(
   Object.entries(sourceRegister.sourceStrategies.recipes).filter(([name]) => name.startsWith("chapters-for-"))) });
 const empty = { recipes: async () => [], preconditions: async () => null, checks: () => [],
@@ -352,11 +363,12 @@ def begins_with(sent, first):
 class AgentsFirst(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.browser = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), "null"))
+        cls.browser = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), "null", json.dumps(PRODUCT_SPEC)))
         cls.folder = tempfile.TemporaryDirectory()
         cls.checkout = cls.folder.name
         Path(cls.checkout, "AGENTS.md").write_text(INSTANCE_RULES, encoding="utf-8")
-        cls.in_checkout = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.checkout)))
+        cls.in_checkout = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.checkout),
+                                      json.dumps(PRODUCT_SPEC)))
         cls.message = js(MESSAGE % (json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES)))
 
     @classmethod
@@ -418,6 +430,115 @@ class AgentsFirst(unittest.TestCase):
         in_checkout = self.in_checkout["implement"][0]
         self.assertTrue(begins_with(in_checkout, path))
         self.assertFalse(begins_with(in_checkout[len(path):], path), "the path left out")
+
+
+# A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY. The check of a requirement's form is the check `requirement-form`, the check of a document's
+# schema `document-schema` (MOD-job-runner, Data: Built-in strategies); which a kind names is read here from its definition's front matter. The requirements
+# the check of a requirement cites are those requirementFindings names its findings under, as MOD-spec-document's Interfaces list them; the schemas the check
+# of a document reads are the four files of src/documents/schemas/ (MOD-documents, Parts). The fixture instance's SPEC.md is this repository's (FIRST reads
+# every file but AGENTS.md from it); each piece is cut from it here: the paragraph from its first line to the next empty line, a requirement from its head
+# line to the next empty line.
+KINDS = ROOT / "src" / "job-catalogue" / "kinds"
+CITED = ["A REQUIREMENT HAS FOUR FIELDS", "A REQUIREMENT NAMES ITS CHECK", "ONE STATEMENT PER REQUIREMENT", "THE NAME IS THE ID AND IT SURVIVES",
+         "EVERY ARTIFACT HAS AN IDENTIFIER", "A DOCUMENT HOLDS NO HISTORY"]
+
+
+def checks_of(kind):
+    """The checks a kind's definition names, from the list under `checks:` in its front matter."""
+    front = (KINDS / kind / "kind.md").read_text(encoding="utf-8").split("\n---", 1)[0]
+    match = re.search(r"^checks:\n((?:  - .*\n)*)", front + "\n", re.M)
+    return re.findall(r"^  - (\S+)", match.group(1), re.M) if match else []
+
+
+def paragraph_at(text, start):
+    """The text from `start` to the next empty line."""
+    end = text.find("\n\n", start)
+    return text[start:end if end >= 0 else len(text)]
+
+
+def requirement_pieces(spec):
+    """{ what: text } — the paragraph Form of a requirement and each cited requirement's block, cut from the SPEC's text."""
+    pieces = {"the paragraph Form of a requirement": paragraph_at(spec, spec.index("**Form of a requirement:**"))}
+    for name in CITED:
+        pieces[name] = paragraph_at(spec, re.search(rf"^\*\*{re.escape(name)}\*\* \*\(", spec, re.M).start())
+    return pieces
+
+
+def schema_pieces():
+    """{ path: text } — every schema file the check of a document reads."""
+    folder = ROOT / "src" / "documents" / "schemas"
+    return {f"src/documents/schemas/{f.name}": f.read_text(encoding="utf-8") for f in sorted(folder.glob("*.schema.md"))}
+
+
+def form_problems(kind, sent):
+    """The pieces of the form the input `sent` of a job of this kind does not give word for word, whichever its kind's checks name."""
+    checks = checks_of(kind)
+    expected = {}
+    if "requirement-form" in checks:
+        expected.update(requirement_pieces((ROOT / "SPEC.md").read_text(encoding="utf-8")))
+    if "document-schema" in checks:
+        expected.update(schema_pieces())
+    return [what for what, text in expected.items() if text not in sent]
+
+
+class FormGiven(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.browser = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), "null", json.dumps(PRODUCT_SPEC)))
+        cls.folder = tempfile.TemporaryDirectory()
+        Path(cls.folder.name, "AGENTS.md").write_text(INSTANCE_RULES, encoding="utf-8")
+        cls.in_checkout = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.folder.name),
+                                      json.dumps(PRODUCT_SPEC)))
+        cls.drafting = [name for name in cls.browser if {"requirement-form", "document-schema"} & set(checks_of(name))]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.folder.cleanup()
+
+    # TST-1792070 · level: component · module: MOD-job-runner
+    # guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
+    # given: every kind of the job catalogue whose definition names requirement-form or document-schema, for the fixture instance — this repository's
+    #   SPEC.md — and the fixture product, whose SPEC.md has a paragraph of its own; in the browser and in a checkout of the instance
+    # input: the input each kind's driver sends in its first exchange, against the paragraph and the six cited requirements cut from the instance's SPEC.md,
+    #   and the four schema files
+    # expect: the kinds of both checks are among them (derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture,
+    #   change-architecture); each input gives, word for word, every piece its kind's checks name; none gives the product's paragraph
+    def test_each_drafting_kind_receives_the_form_of_its_checks_word_for_word(self):
+        self.assertTrue({"derive-requirements", "change-requirements", "derive-use-cases", "change-use-case", "derive-architecture",
+                         "change-architecture"} <= set(self.drafting), self.drafting)
+        self.assertEqual(len(requirement_pieces((ROOT / "SPEC.md").read_text(encoding="utf-8"))), 7, "known positive: every piece is cut")
+        self.assertEqual(len(schema_pieces()), 4, "known positive: the four schemas are read")
+        for route, inputs in (("browser", self.browser), ("checkout", self.in_checkout)):
+            for name in self.drafting:
+                with self.subTest(f"{route}: {name}"):
+                    self.assertEqual(len(inputs[name]), 1)
+                    self.assertEqual(form_problems(name, inputs[name][0]), [])
+                    self.assertNotIn("PRODUCT-FORM-TEXT", inputs[name][0])
+                    self.assertNotIn("PRODUCT-FOUR-FIELDS-TEXT", inputs[name][0])
+
+    # TST-1792071 · level: component · module: MOD-job-runner
+    # guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
+    # given: the inputs change-requirements and derive-use-cases sent in the browser
+    # input: the check over each as sent; over change-requirements' with the paragraph left out, with ONE STATEMENT PER REQUIREMENT left out, and with the
+    #   product's SPEC.md given in the instance's place — its paragraph and its A REQUIREMENT HAS FOUR FIELDS for the instance's —; over derive-use-cases'
+    #   with the module schema left out
+    # expect: the inputs as sent pass; each of the others fails, naming what it lacks
+    def test_counter_proof_an_input_without_a_piece_or_with_the_products_spec_fails(self):
+        spec = (ROOT / "SPEC.md").read_text(encoding="utf-8")
+        pieces = requirement_pieces(spec)
+        sent = self.browser["change-requirements"][0]
+        self.assertEqual(form_problems("change-requirements", sent), [])
+        self.assertIn("the paragraph Form of a requirement",
+                      form_problems("change-requirements", sent.replace(pieces["the paragraph Form of a requirement"], "")))
+        self.assertIn("ONE STATEMENT PER REQUIREMENT", form_problems("change-requirements", sent.replace(pieces["ONE STATEMENT PER REQUIREMENT"], "")))
+        product_paragraph = paragraph_at(PRODUCT_SPEC, PRODUCT_SPEC.index("**Form of a requirement:**"))
+        product_four = paragraph_at(PRODUCT_SPEC, PRODUCT_SPEC.index("**A REQUIREMENT HAS FOUR FIELDS**"))
+        swapped = sent.replace(pieces["the paragraph Form of a requirement"], product_paragraph).replace(pieces["A REQUIREMENT HAS FOUR FIELDS"], product_four)
+        self.assertEqual(form_problems("change-requirements", swapped), ["the paragraph Form of a requirement", "A REQUIREMENT HAS FOUR FIELDS"])
+        use_cases = self.browser["derive-use-cases"][0]
+        self.assertEqual(form_problems("derive-use-cases", use_cases), [])
+        module = schema_pieces()["src/documents/schemas/module.schema.md"]
+        self.assertEqual(form_problems("derive-use-cases", use_cases.replace(module, "")), ["src/documents/schemas/module.schema.md"])
 
 
 if __name__ == "__main__":

@@ -17,6 +17,11 @@
 // input and its expected result before it runs (given / input / expect). Nothing reaches the network.
 
 import test from "node:test";
+import { readFileSync } from "node:fs";
+// The instance holds Agent M's own SPEC.md, from which a kind of requirement-form takes the form its draft is checked by (A DRAFTING JOB RECEIVES THE FORM
+// ITS DRAFT IS CHECKED BY), and no AGENTS.md.
+const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
+const INSTANCE_WITH_SPEC = { read: async (path) => (path === "SPEC.md" ? INSTANCE_SPEC : null) };
 import assert from "node:assert/strict";
 import { formatFinding } from "../src/text-tools/index.mjs";
 import { kindOf } from "../src/job-catalogue/index.mjs";
@@ -90,7 +95,7 @@ for (const [category, strategies] of Object.entries(STAND_INS)) {
 
 const contextOf = (kind, { gates = [] } = {}) => ({
   kind, params: {}, product: { address: "https://github.com/alice/product", snapshot: null, host: null },
-  instance: { snapshot: null, host: null }, connect: async () => null, participants: [DRAFTER, REVIEWER],
+  instance: { snapshot: INSTANCE_WITH_SPEC, host: null }, connect: async () => null, participants: [DRAFTER, REVIEWER],
   places: { sources: {}, mailbox: null }, gates, person: "alice", now: new Date("2026-10-11T08:00:00Z"),
   agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: "JOB-20261011-0800-abcd",
 });

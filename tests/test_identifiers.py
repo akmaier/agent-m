@@ -139,6 +139,26 @@ class Identifiers(unittest.TestCase):
         r = carried(edited(PRODUCT, {"SPEC.md": spec}))
         self.assertEqual(r["problems"], [["SPEC.md", 9, "Every file has a status"]])
 
+    # TST-1792001 · level: unit · module: MOD-identifiers
+    # guards: EVERY ARTIFACT HAS AN IDENTIFIER
+    # given: the fixture product's SPEC, a requirement of it renamed in turn to A_NAME_WITH_UNDERSCORES, to one with a lowercase letter and to one with
+    #   two spaces in a row; and, as the known positives, renamed to EVERY MODEL READS AGENT M'S AGENTS.MD FIRST and to
+    #   A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
+    # input: carried() over each copy — requirementFindings under EVERY ARTIFACT HAS AN IDENTIFIER for SPEC.md
+    # expect: each of the first three is reported as a name that is no requirement's name, at its line; the two known positives pass, each carried as a
+    #   requirement on its line
+    def test_a_requirement_name_outside_the_scheme_is_reported_and_names_in_its_form_pass(self):
+        head = "**EVERY FILE HAS A STATUS**"
+        for name in ["A_NAME_WITH_UNDERSCORES", "EVERY FILE HAS A STATUs", "EVERY FILE  HAS A STATUS"]:
+            with self.subTest(name):
+                r = carried(edited(PRODUCT, {"SPEC.md": PRODUCT["SPEC.md"].replace(head, f"**{name}**")}))
+                self.assertEqual(r["problems"], [["SPEC.md", 9, name]])
+        for name in ["EVERY MODEL READS AGENT M'S AGENTS.MD FIRST", "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT"]:
+            with self.subTest(name):
+                r = carried(edited(PRODUCT, {"SPEC.md": PRODUCT["SPEC.md"].replace(head, f"**{name}**")}))
+                self.assertEqual(r["problems"], [])
+                self.assertIn([name, "requirement", "SPEC.md", 9], r["items"])
+
     def test_counter_proof_a_test_whose_cases_carry_no_identifier(self):
         t = "tests/reader.test.mjs"
         self.assert_one({t: PRODUCT[t].replace(f"{C} TST-001 · ", f"{C} ").replace(f"{C} TST-002 · ", f"{C} ")}, t,

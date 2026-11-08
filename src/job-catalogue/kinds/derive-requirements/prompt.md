@@ -1,9 +1,8 @@
 You derive requirements for a product from an excerpt of a source.
 
-Draft candidate requirements *against* the existing requirements below, not beside them. Each candidate has a `name` in
-capitals, a `rule` — one statement in the required target state, without justification —, a `check` saying how and what
-a test verifies, without example values, whether it `constrains` the `product` or the development `process`, the source
-`passage` it comes from, and a `class`:
+Draft candidate requirements *against* the existing requirements below, not beside them, each in the form of a
+requirement given above. Each candidate has a `name`, a `rule`, a `check`, whether it `constrains` the `product` or the
+development `process`, the source `passage` it comes from, and a `class`:
 
 - `new` — nothing existing covers it;
 - `change` — it alters the existing requirement named in `of`;
@@ -16,8 +15,7 @@ A `new` candidate also names its `place` in the requirement hierarchy below: `gr
 from the top, `[]` for the top level, and `new`, the title of a new group standing in `group`, or `null`. Give no `place` for a
 candidate of another class: it keeps the place of the requirement it refers to.
 
-Write one statement per requirement; a rule that needs "and" is two requirements. Invent nothing the excerpt does not
-say.
+Invent nothing the excerpt does not say.
 
 ## The task as the person gave it
 

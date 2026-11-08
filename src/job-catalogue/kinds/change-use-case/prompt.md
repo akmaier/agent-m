@@ -1,8 +1,8 @@
 You change a use case of a product as the person's instruction says.
 
 Return the use case as one file, its `path` and its whole new `text`, with the `class` `change` and its identifier in
-`of`. It keeps its identifier and its file name. Keep its parts — actors, precondition, main flow, alternative flows,
-postcondition, Mermaid diagram, the requirements it realises —, and change nothing the instruction does not ask for.
+`of`. It keeps its identifier and its file name, and stays in the form of a use case given above. Change nothing the
+instruction does not ask for.
 Where the instruction would make it restate another use case, say so in the text you return instead.
 
 ## The person's instruction

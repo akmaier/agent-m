@@ -11,10 +11,16 @@ each run sets — the strategies the kinds name come from modules that do not of
 record (roundsText) and every input its participants received are returned, and compared here. Asked through node
 (tests/jsrun.py).
 """
+import json
 import re
 import unittest
 
-from jsrun import js
+from jsrun import js, ROOT
+
+# The instance holds Agent M's own SPEC.md, from which a kind of requirement-form takes the form its draft is checked by (A DRAFTING JOB RECEIVES
+# THE FORM ITS DRAFT IS CHECKED BY), and no AGENTS.md.
+INSTANCE_JS = ("const INSTANCE_WITH_SPEC = { read: async (path) => (path === \"SPEC.md\" ? process.getBuiltinModule(\"node:fs\").readFileSync("
+               + json.dumps(str(ROOT / "SPEC.md")) + ", \"utf8\") : null) };\n")
 
 RUNS = r"""
 const findingOf = (fields) => ({ artifact: "docs/use-cases/UC-001-x.md", line: 3, kind: "error",
@@ -46,7 +52,7 @@ const files = (text) => ({ files: [{ path: "docs/use-cases/UC-001-x.md", text, c
 async function run(kindName, { drafterAnswers, reviewerAnswers = null, limit, attended = true }) {
   const kind = await jobCatalogue.kindOf(kindName);
   const context = { kind, params: {}, product: { address: "https://github.com/alice/product", snapshot: null, host: null },
-    instance: { snapshot: null, host: null }, connect: async () => null, participants: [drafterP, reviewerP],
+    instance: { snapshot: INSTANCE_WITH_SPEC, host: null }, connect: async () => null, participants: [drafterP, reviewerP],
     places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
     commit: "0".repeat(40) }, jobId: "JOB-20261011-0800-abcd" };
   const reviewers = reviewerAnswers ? [reviewerP] : [];
@@ -126,7 +132,7 @@ const drafter = { participant: drafterP, async send(input) { inputs.push(input);
   usage: null }; } };
 const kind = await jobCatalogue.kindOf("derive-requirements");
 const context = { kind, params: {}, product: { address: "https://github.com/alice/product", snapshot: null, host: null },
-  instance: { snapshot: null, host: null }, connect: async () => null, participants: [drafterP],
+  instance: { snapshot: INSTANCE_WITH_SPEC, host: null }, connect: async () => null, participants: [drafterP],
   places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
   commit: "0".repeat(40) }, jobId: null };
 // This run drives the loop with the finding it sets. Its candidate is no requirement as the artifact model reads one, which the
@@ -147,8 +153,8 @@ TEMPLATE = re.compile(r"^[^\s:]+:\d+: (error|warning): .+ \[[A-Z][A-Z0-9 ,'-]*[A
 class CorrectionLoop(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.runs = js(RUNS)
-        cls.conflict = js(CONFLICT)
+        cls.runs = js(INSTANCE_JS + RUNS)
+        cls.conflict = js(INSTANCE_JS + CONFLICT)
 
     # TST-475002 · level: component · module: MOD-job-runner
     # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE

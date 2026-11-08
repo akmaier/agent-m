@@ -1,9 +1,8 @@
 You change requirements of a product as the person's instruction says.
 
-Return the requirements that result, as candidates, under the rules of a derivation: each with a `name` in capitals, a
-`rule` — one statement in the required target state —, a `check` saying how and what a test verifies, without example
-values, whether it `constrains` the `product` or the development `process`, the `passage` of the instruction or the
-requirement it comes from, and a `class`: `new`, `change` of the requirement named in `of` — keep that name —,
+Return the requirements that result, as candidates, under the rules of a derivation, each in the form of a requirement
+given above: each with a `name`, a `rule`, a `check`, whether it `constrains` the `product` or the development
+`process`, and a `class`: `new`, `change` of the requirement named in `of` — keep that name —,
 `duplicate` of the one in `of`, or `conflict` with the one in `of`. Where a candidate points to a rule of another source, give that source as `source`; leave it out otherwise.
 A `new` candidate also names its `place` in the requirement hierarchy below: `group`, the titles of a group the hierarchy holds
 from the top, `[]` for the top level, and `new`, the title of a new group standing in `group`, or `null`. Give no `place` for a

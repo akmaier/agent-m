@@ -103,8 +103,8 @@ function reviewed(text, kind) {
 // The kind's prompt with each recipe's parts in its named place, each under its name; "(none)" where a recipe gave none.
 // The prepared prompt: the kind's prompt with each recipe's parts in its place, followed by the form of the answer — the envelope the runner reads every answer
 // by (envelopeOf), as a JSON schema — so that a participant is told the form before its first answer, not only by a finding after an answer that does not have it.
-// It begins with Agent M's AGENTS.md, the job's `rules`, as prepareJob gave it.
-const promptOf = (kind, parts, rules) => `${rules ? `${rules.text}\n\n` : ""}${kind.prompt.replace(/\{\{([a-z-]+)\}\}/g, (place, recipe) => {
+// It begins with Agent M's AGENTS.md, the job's `rules`, as prepareJob gave it; the drafter's continues with the job's `form`, where it has one.
+const promptOf = (kind, parts, rules, form = null) => `${rules ? `${rules.text}\n\n` : ""}${form ? `${form.text}\n\n` : ""}${kind.prompt.replace(/\{\{([a-z-]+)\}\}/g, (place, recipe) => {
   const given = parts.filter((part) => part.recipe === recipe);
   return given.length ? given.map((part) => `### ${part.name}\n\n${part.text}`).join("\n\n") : "(none)";
 })}\n\n${answerForm(kind)}`;
@@ -159,7 +159,7 @@ export async function runJob(prepared, drivers, options) {
       const previous = number === 1 ? (refine === undefined ? null : draftText(refine)) : (readable ? draftText(draft) : lastText);
       // Where the kind names tools, this exchange carries the ToolUse the drafter may have; what the exchange holds goes into the draft.
       const offered = await offerTools(kind, drivers.drafter.participant, context);
-      const sent = await drivers.drafter.send({ prompt: promptOf(kind, drafterParts, prepared.rules), parts: drafterParts, output: envelope,
+      const sent = await drivers.drafter.send({ prompt: promptOf(kind, drafterParts, prepared.rules, prepared.form), parts: drafterParts, output: envelope,
         findings: number === 1 ? [] : open, previous, workdir: null, tools: offered?.use ?? null }, { onOutput, signal });
       usage.push({ participant: drivers.drafter.participant.name, usage: sent.usage });
       cancelled();

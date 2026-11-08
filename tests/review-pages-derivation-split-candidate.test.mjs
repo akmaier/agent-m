@@ -18,6 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { requirementForm } from "../src/spec-document/index.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
@@ -98,9 +99,12 @@ function fakeInstance() {
     async readSnapshot() { return snapshot; } };
 }
 
-// An instance whose own SPEC holds one requirement and whose host takes commits: the repository a candidate that constrains the process is written to.
+// An instance whose own SPEC holds one requirement and whose host takes commits: the repository a candidate that constrains the process is written to. Its SPEC
+// also holds the form of a requirement as Agent M's SPEC.md states it, in a section before, which a requirements job gives its drafter (A DRAFTING JOB RECEIVES
+// THE FORM ITS DRAFT IS CHECKED BY).
 const GATES = "EVERY GATE NAMES WHO DECIDES IT";
-const INSTANCE_SPEC = text("# Agent M - Specification", "", "## Process", "", `**${GATES}** *(PO A. Maier)*`, "Every gate names who decides it.", "*Check:* `tests/gate.test.mjs`");
+const INSTANCE_SPEC = text("# Agent M - Specification", "", "## Form", "", requirementForm(onDisk("SPEC.md")), "", "## Process", "", `**${GATES}** *(PO A. Maier)*`,
+  "Every gate names who decides it.", "*Check:* `tests/gate.test.mjs`");
 function writableInstance() {
   const calls = [];
   const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" },

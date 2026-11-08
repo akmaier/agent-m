@@ -48,9 +48,11 @@ const onDisk = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "u
 const BOOK = { "docs/sources/SRC-vibe-coding.md": onDisk("docs/sources/SRC-vibe-coding.md"),
   ...Object.fromEntries(readdirSync(new URL(`../${BOOK_FOLDER}`, import.meta.url)).map((name) => [BOOK_FOLDER + name, onDisk(BOOK_FOLDER + name)])) };
 const PERSON = { [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE };
-const WITH_SOURCE = { product: { "docs/sources.md": LINKS }, instance: { ...BOOK, ...PERSON } };
-const WITHOUT_LINK = { instance: { ...BOOK, ...PERSON } };
-const WITHOUT_ANY = { instance: BOOK };
+// Agent M's own SPEC.md, which the instance holds: the change of requirements gives its drafter the form of a requirement from it (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY).
+const SPEC = { "SPEC.md": onDisk("SPEC.md") };
+const WITH_SOURCE = { product: { "docs/sources.md": LINKS }, instance: { ...SPEC, ...BOOK, ...PERSON } };
+const WITHOUT_LINK = { instance: { ...SPEC, ...BOOK, ...PERSON } };
+const WITHOUT_ANY = { instance: { ...SPEC, ...BOOK } };
 
 const CANDIDATE = { name: "EVERY EXPORT KEEPS ALL PAGES", rule: "An export holds every page of the document.", check: "tests/unit.test.mjs", constrains: "product", passage: "the export is cut off after the second page", class: "new" };
 const CONFLICT = { name: "THE EXPORT MAY DROP PAGES", rule: "An export may drop pages.", check: "tests/unit.test.mjs", constrains: "product", passage: "the export is cut off", class: "conflict" };

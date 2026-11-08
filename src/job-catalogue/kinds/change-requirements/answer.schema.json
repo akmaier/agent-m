@@ -22,9 +22,6 @@
               "process"
             ]
           },
-          "passage": {
-            "type": "string"
-          },
           "class": {
             "type": "string",
             "enum": [
@@ -63,7 +60,6 @@
           "rule",
           "check",
           "constrains",
-          "passage",
           "class"
         ]
       }
