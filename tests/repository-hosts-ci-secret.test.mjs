@@ -1,11 +1,13 @@
-// MOD-repository-hosts' setCiSecret: a CI secret stored in a GitHub repository's Actions secrets, its value sealed to the repository's public key as libsodium's
+// MOD-repository-hosts' setCiSecret and ciSecretNames: a CI secret stored in a GitHub repository's Actions secrets, its value sealed to the repository's public key as libsodium's
 // crypto_box_seal seals it. GitHub: "Get a repository public key" (GET /repos/{owner}/{repo}/actions/secrets/public-key: key_id and key, base64) and "Create or update a
-// repository secret" (PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}, body encrypted_value and key_id; 201 created, 204 updated), docs.github.com/en/rest/actions/secrets.
+// repository secret" (PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}, body encrypted_value and key_id; 201 created, 204 updated), and "List repository secrets"
+// (GET /repos/{owner}/{repo}/actions/secrets: total_count and secrets, each with name, created_at and updated_at, never a value), docs.github.com/en/rest/actions/secrets.
+// The check of A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT that the SPEC names here runs MOD-runtimes' actionsSetup over a GitHub host whose requests are the adapter's own.
 // Deterministic, no network: GitHub is a fake of `fetch`; the value is a fixture, never a real key.
 // Run: node --test tests/repository-hosts-ci-secret.test.mjs
 //
-// Module: MOD-repository-hosts
-// Guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// Module: MOD-repository-hosts, MOD-runtimes
+// Guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // Level: unit
 //
 // The libsodium vector of TST-1200104 was made once with PyNaCl 1.6.2 (libsodium's SealedBox.encrypt) for the secret key 01 02 … 20; it shows that the convention of
@@ -16,6 +18,8 @@ import assert from "node:assert/strict";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 import { sealToBase64 } from "../src/repository-hosts/sealed-box.mjs";
 import { blake2b, box, scalarMultBase } from "../src/repository-hosts/vendor/nacl-blake.mjs";
+import { actionsSetup, jobWorkflowFiles } from "../src/runtimes/index.mjs";
+import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 
 const TOKEN = "github_pat_CAROLsprintTOOL0123456789abcdef";
 const VALUE = "nvapi-FIXTURE-VALUE-0123456789";
@@ -108,4 +112,87 @@ test("sealToBase64 — the sealed box of libsodium's crypto_box_seal", () => {
   assert.equal(open(sealed, RECIPIENT_SECRET), VALUE);
   assert.notEqual(sealToBase64(VALUE, RECIPIENT_PUBLIC), sealed);
   assert.throws(() => sealToBase64(VALUE, Buffer.from("short").toString("base64")), TypeError);
+});
+
+// GitHub's listing of the repository's secrets, page by page (per_page and page, as "List repository secrets" takes them): `pages` are the names on each page.
+const listing = (pages) => (r) => {
+  const url = new URL(r.href);
+  if (r.method !== "GET" || `${url.origin}${url.pathname}` !== SECRETS) return json(404, { message: "Not Found" });
+  const names = pages[Number(url.searchParams.get("page") ?? 1) - 1] ?? [];
+  return json(200, { total_count: pages.flat().length, secrets: names.map((name) => ({ name, created_at: "2026-11-01T00:00:00Z", updated_at: "2026-11-01T00:00:00Z" })) });
+};
+const where = (r) => { const url = new URL(r.href); return [r.method, `${url.origin}${url.pathname}`, url.searchParams.get("page"), url.searchParams.get("per_page")]; };
+
+// TST-2026110901 · level: unit · module: MOD-repository-hosts
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: a GitHub repository with the person's token, whose secrets GitHub lists on two pages — a full page of 100 names, KEY_0 … KEY_99, then KEY_7 again and AGENT_M_TOKEN
+// input: ciSecretNames()
+// expect: GET …/actions/secrets with per_page=100, page 1 and then page 2, each with the token as a Bearer header and to GitHub's API of that repository alone; the names KEY_0 … KEY_99 and AGENT_M_TOKEN, each once, as texts
+test("TST-2026110901: ciSecretNames on GitHub — the names of the repository's Actions secrets, page after page, each once", async () => {
+  const first = Array.from({ length: 100 }, (_, at) => `KEY_${at}`);
+  const host = connect(GITHUB, { token: TOKEN });
+  const { result, requests } = await serving(listing([first, ["KEY_7", "AGENT_M_TOKEN"]]), () => host.ciSecretNames());
+  assert.equal(result.error, undefined, String(result.error));
+  assert.deepEqual(result.value, [...first, "AGENT_M_TOKEN"]);
+  assert.deepEqual(requests.map(where), [["GET", SECRETS, "1", "100"], ["GET", SECRETS, "2", "100"]]);
+  for (const r of requests) assert.equal(r.headers.authorization, `Bearer ${TOKEN}`);
+  assert.equal(requests.some((r) => r.href.includes(TOKEN)), false, "the token is in no address");
+});
+
+// TST-2026110902 · level: unit · module: MOD-repository-hosts
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: known positive TST-2026110901; then a server that answers 403 to the listing (a token without the permission Secrets); a GitHub repository without a token; a GitLab project with its token
+// input: ciSecretNames() on each
+// expect: PermissionMissing whose permission is "Secrets" for the 403; NotSupported for the other two, each before any request
+test("TST-2026110902: ciSecretNames — a token without Secrets is PermissionMissing; without a token and on GitLab NotSupported before any request", async () => {
+  assert.deepEqual((await serving(listing([["AGENT_M_TOKEN"]]), () => connect(GITHUB, { token: TOKEN }).ciSecretNames())).result.value, ["AGENT_M_TOKEN"], "known positive");
+  const refused = await serving(() => json(403, { message: "Resource not accessible by personal access token" }), () => connect(GITHUB, { token: TOKEN }).ciSecretNames());
+  assert.equal(refused.result.error?.name, "PermissionMissing");
+  assert.equal(refused.result.error.permission, "Secrets");
+  for (const host of [connect(GITHUB, {}), connect(parseAddress("https://gitlab.example.org/space/sprint-tool"), { token: "glpat-SPACEsprintTOOLvalue0123456789" })]) {
+    const { result, requests } = await serving(listing([["AGENT_M_TOKEN"]]), () => host.ciSecretNames());
+    assert.equal(result.error?.name, "NotSupported");
+    assert.deepEqual(requests, []);
+  }
+});
+
+// The requests among `requests` that hold `value` in the clear, in their address or their body: the failure of A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT.
+const inTheClear = (requests, value) => requests.filter((r) => r.href.includes(value) || JSON.stringify(r.body ?? {}).includes(value));
+
+// TST-2026110903 · level: unit · module: MOD-runtimes
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: the GitHub product carol/sprint-tool connected with the person's token TOKEN — its secret listing, public key and PUT made by the adapter's own requests to a fake GitHub —, which holds the job workflow already and no secret; this browser keeps TOKEN under github-token:carol/sprint-tool; an instance in memory with no participant
+// input: MOD-runtimes' actionsSetup for the product, then setUp
+// expect: setUp stores AGENT_M_TOKEN alone; every request goes to GitHub's API of carol/sprint-tool with TOKEN as its Bearer header; the PUT of AGENT_M_TOKEN carries TOKEN sealed, opening to it with the repository's secret key; TOKEN in the clear is in no address and no body; counter-proof: a request with TOKEN in the clear in its body, and one with it in its address, are each found
+test("TST-2026110903: a product's token stored as AGENT_M_TOKEN reaches only its own server, sealed in the body of the request that stores the secret", async () => {
+  const instanceRepository = { server: "github", origin: "https://github.com", path: "carol/instance", web: "https://github.com/carol/instance" };
+  const instance = { async repositoryInfo() { return { defaultBranch: "main" }; },
+    async readSnapshot(ref) { return { repository: instanceRepository, ref, commit: "9".repeat(40), paths: [], blob: () => null, async read() { return null; } }; } };
+  const files = jobWorkflowFiles("github", { repository: "carol/instance", commit: "9".repeat(40) }, { token: "AGENT_M_TOKEN", keys: [] }, []);
+  const held = new Map(files.map(({ path, text }) => [path, text]));
+  const host = { ...connect(GITHUB, { token: TOKEN }), async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
+    async readSnapshot(ref) { return { repository: GITHUB, ref, commit: "1".repeat(40), paths: [...held.keys()], blob: () => "c".repeat(40), async read(path) { return held.get(path) ?? null; } }; } };
+  const values = new Map();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (k) => values.get(k) ?? null, setItem: (k, v) => values.set(k, String(v)),
+    removeItem: (k) => values.delete(k), get length() { return values.size; }, key: (i) => [...values.keys()][i] ?? null } });
+  const store = openStore("carol/instance");
+  writeSetting(store, "github-token:carol/sprint-tool", { value: TOKEN });
+  const server = (r) => (r.method === "GET" && r.href.startsWith(`${SECRETS}?`) ? listing([[]])(r)
+    : r.method === "GET" && r.href === `${SECRETS}/public-key` ? json(200, { key_id: "568250167242549743", key: RECIPIENT_PUBLIC })
+      : r.method === "PUT" && r.href === `${SECRETS}/AGENT_M_TOKEN` ? json(201, {}) : json(404, { message: "Not Found" }));
+  const { result, requests } = await serving(server, async () => {
+    const setup = await actionsSetup({ product: { address: GITHUB.web, host, tokenKey: "github-token:carol/sprint-tool" }, instance: { host: instance }, store });
+    return setup.setUp();
+  });
+  assert.equal(result.error, undefined, String(result.error));
+  assert.deepEqual(result.value, { commit: null, stored: ["AGENT_M_TOKEN"] });
+  assert.deepEqual(requests.map((r) => r.method), ["GET", "GET", "PUT"], "known positive: the listing, the key and the PUT were sent");
+  for (const r of requests) {
+    assert.ok(r.href.startsWith(SECRETS), `only GitHub's API of the product: ${r.href}`);
+    assert.equal(r.headers.authorization, `Bearer ${TOKEN}`);
+  }
+  assert.equal(open(requests[2].body.encrypted_value, RECIPIENT_SECRET), TOKEN, "the token travels sealed to the repository's key");
+  assert.deepEqual(inTheClear(requests, TOKEN), [], "the token in the clear is in no address and no body");
+  const planted = [{ href: `${SECRETS}/AGENT_M_TOKEN`, body: { value: TOKEN } }, { href: `${SECRETS}?token=${TOKEN}`, body: null }];
+  assert.equal(inTheClear(planted, TOKEN).length, 2, "counter-proof: the token in the clear in a body, and in an address, is found");
 });
