@@ -116,14 +116,16 @@ sequenceDiagram
 - **3a. The group file names an identifier that no longer exists.** The tree shows it as *unknown
   member*; the author removes it or leaves it.
 - **3b. An item appears in no group** — for example, a use case just written by UC-007. It is shown
-  at the top level, marked *not yet placed*.
+  at the top level, marked *not yet placed*. A requirement added by an accepted SPEC change stands where
+  its entry placed it (UC-006, step 6), and is shown here only where that place no longer applied (UC-006, 5b).
 - **3c. The group file names an item twice.** The tree shows both places and asks the author to
   keep one; nothing is saved until the item has one place.
 - **5a. The group file changed since step 1.** Nothing is written. The dashboard
   shows the newer hierarchy with the author's pending changes applied where they still apply, and
   names those that no longer apply; the author saves again.
-- **5b. A requirement in the group file is removed from the SPEC by an accepted change later.** The
-  group file is not changed by that acceptance; the tree shows the name as in 3a.
+- **5b. A requirement in the group file is removed from the SPEC by an accepted change later.** That
+  acceptance writes only the places of the requirements it adds and removes no name from the group file;
+  the tree shows the name as in 3a.
 - **5c. No token is stored (GitHub).** *Save arrangement* puts the new group file on the clipboard and opens GitHub's editor at its path — its new-file page where the file does not exist yet —, as in UC-018 4a. On a GitLab
   product without a token, there is no save.
 
