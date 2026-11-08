@@ -253,6 +253,23 @@ test("TST-1360102: a hand-over to change-requirements without the person's own s
   });
 });
 
+// TST-2026110813 · level: component · module: MOD-workflow-entries
+// guards: UC-049; THE PERSON WHO PROMPTS IS A SOURCE; A FINDING READS LIKE A COMPILER MESSAGE
+// given: the job of TST-1360102 — a hosted converse job whose parameters hold no `source`, the endpoint answering a hand-over to change-requirements —, so that the
+//   precondition person-source keeps the hand-over from starting (UC-049 4a.5)
+// input: onRecordsChanged
+// expect: the end lists one line `not run: change-requirements — <what> [THE PERSON WHO PROMPTS IS A SOURCE] — <fix>`: the finding's what, its rule in brackets, then ` — `
+//   and its fix, which names what the hand-over requires — the owner of the instance's repository —; the fix is not cut away
+test("TST-2026110813: a hand-over kept from starting by a finding lists the finding as <what> [<rule>] — <fix>", async () => {
+  await withWorkspace({ source: undefined }, async (w) => {
+    fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { candidates: [] } }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    const line = endOf(w).split("\n").find((each) => each.includes("not run: change-requirements — ")) ?? "";
+    assert.match(line, /not run: change-requirements — \S[^\n]* \[THE PERSON WHO PROMPTS IS A SOURCE\] — \S[^\n]*owner/);
+  });
+});
+
 // ---------------------------------------------------------------- a hand-over to the change of a use case
 
 // TST-1360103 · level: component · module: MOD-workflow-entries

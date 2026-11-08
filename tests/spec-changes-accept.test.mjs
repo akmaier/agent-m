@@ -308,6 +308,26 @@ test("acceptEntries — a requirement that names no linked source: nothing is wr
   assert.ok(result.refused[0].reason.includes(WRITE_RULE) && result.refused[0].reason.includes("An unlinked source"), result.refused[0].reason);
 });
 
+// TST-2026110811 · level: unit · module: MOD-spec-changes
+// guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE PERSON WHO PROMPTS IS A SOURCE; UC-006; UC-019
+// given: entry 07, whose proposal's requirement names only the account github.com/alice — no register entry names it and the product links none of it —; and, as the
+//   known positive that the same fixture refuses, entry 07 naming "An unlinked source"; entry 05, whole, shown beside each
+// input: acceptEntries(host, [05 shown, 07 shown], ...) for each, with the product's links and the register of sources()
+// expect: the entry naming the account accepted in one commit; the one naming the unlinked source refused, nothing written
+test("TST-2026110811: acceptEntries — a requirement whose source is the person's account is accepted without a register entry or a link", async () => {
+  const unlinked = entry(7, "## 2. Writing", WRITING_NEW.replace("(Fixture PO)", "(An unlinked source)"));
+  const refusing = fakeHost({ files: productFiles({ entries: [E05, unlinked] }) });
+  assert.ok((await acceptEntries(refusing.host, [shownOf(E05, READING), shownOf(unlinked, WRITING)], "alice", NOW, sources())).refused, "known positive: refused");
+  assert.equal(refusing.writes().length, 0);
+
+  const account = entry(7, "## 2. Writing", WRITING_NEW.replace("(Fixture PO)", "(github.com/alice, the instruction)"));
+  const fake = fakeHost({ files: productFiles({ entries: [E05, account] }) });
+  const result = await acceptEntries(fake.host, [shownOf(E05, READING), shownOf(account, WRITING)], "alice", NOW, sources());
+  assert.equal(result.refused, undefined, JSON.stringify(result.refused));
+  assert.ok(result.commit);
+  assert.equal(fake.writes().length, 1);
+});
+
 // TST-472945 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: entry 05, shown with no section although the SPEC holds section 1; and, to show the same fixture accepting, shown beside it

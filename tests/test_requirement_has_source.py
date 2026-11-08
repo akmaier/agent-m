@@ -2,7 +2,7 @@
 # Guards: A REQUIREMENT HAS A REGISTERED SOURCE; A RESOURCE'S TERMS ENTER AS A SOURCE
 # Level: unit
 """SPEC §2 A REQUIREMENT HAS A REGISTERED SOURCE — every requirement names at least one source linked to
-its product. §15 A RESOURCE'S TERMS ENTER AS A SOURCE — a requirement naming a resource entry as its source
+its product or the account `<server>/<account>` of a person, which needs no register entry and no link. §15 A RESOURCE'S TERMS ENTER AS A SOURCE — a requirement naming a resource entry as its source
 is rejected; counter-proof: the same requirement naming the registered licence source passes.
 
 The requirements are read by MOD-spec-document (parseSpec) and judged by MOD-source-register's sourceFindings
@@ -70,6 +70,19 @@ class RequirementHasSource(unittest.TestCase):
         fs = findings(SPEC.replace("*(PO A. Maier)*", "*(PO B. Other)*"), [NAMED])
         self.assertEqual(kinds(fs), [("error", REGISTERED)], "a source that names no register entry")
         self.assertIn("PO B. Other", fs[0]["what"])
+
+    # TST-2026110812 · level: unit · module: MOD-source-register
+    # guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE PERSON WHO PROMPTS IS A SOURCE
+    # given: the fixture SPEC with THE EXPORT IS A PDF naming only the account github.com/akmaier, a register that holds no entry of that account, and a product
+    #   that links no source at all
+    # input: sourceFindings of THE EXPORT IS A PDF
+    # expect: no finding; counter-proof: the same requirement naming SRC-other, which is neither linked nor an account, is an error under
+    #   A REQUIREMENT HAS A REGISTERED SOURCE
+    def test_an_account_is_a_source_without_entry_or_link(self):
+        as_account = SPEC.replace(PDF_SOURCE, "*(github.com/akmaier)*")
+        self.assertEqual(findings(as_account, [PDF], []), [], "github.com/akmaier, neither registered nor linked")
+        self.assertEqual(kinds(findings(SPEC.replace(PDF_SOURCE, "*(SRC-other)*"), [PDF], [])), [("error", REGISTERED)],
+                         "counter-proof: a source that is neither linked nor an account")
 
     def test_a_resource_entry_named_as_source_is_rejected(self):
         # The resource entry RES-model records which licence applies; it does not by itself create a requirement.

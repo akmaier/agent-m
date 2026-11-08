@@ -254,7 +254,7 @@ const subjectOf = () => ({ key: "use-case:UC-007", title: "UC-007 Derive use cas
 
 // A page of the product (or of the instance): the instance with its participant list, a store declaring the endpoints dev-ci and tab-only (and `endpoints`), the Bridge lab-pc and its
 // sessions, and the tokens, and the bar started on it.
-function open({ files = scrumFiles(), recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf, endpoints = {} } = {}) {
+function open({ files = scrumFiles(), recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf, endpoints = {}, products = () => [] } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   if (store === null) Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const kept = store ?? openStore("alice/agent-m");
@@ -269,7 +269,7 @@ function open({ files = scrumFiles(), recording = false, store = null, went = []
   const net = network();
   const target = document.createElement("div");
   const bar = startPromptBar(target, { page: "main", store: kept, instance: { repository: "alice/agent-m", host: instance.host },
-    product: () => ({ address: PRODUCT_WEB, host: product.host }), subject, explain: () => document.createElement("details"), go: (...where) => went.push(where) });
+    product: () => ({ address: PRODUCT_WEB, host: product.host }), products, subject, explain: () => document.createElement("details"), go: (...where) => went.push(where) });
   bars.push(bar);
   return { went, target, instance, product, net, store: kept, bar };
 }
@@ -815,10 +815,11 @@ test("with recording on, a script's click on Send sends nothing and commits noth
   assert.ok(recorded.includes("SCRIPTED-MESSAGE-4F7A"), "the record names the message");
 });
 
-// ---------------------------------------------------------------- a hand-over of the subject's own kind takes only the subject's source (ITM-1129)
+// ---------------------------------------------------------------- a queued hand-over takes only the bar's source, the person's account (ITM-1129)
 
-// A page whose subject gives, as context, the person's own source, and also what a page gives the bar — the text of the page, a target and, on the route draft, the participant's answer as `draft`.
-// `withSource: false` is a subject that gives none.
+// A page whose subject gives what a page gives the bar — the text of the page, a target and, on the route draft, the participant's answer as `draft` — and, with
+// `withSource`, a `source` of its own, which no subject gives since the bar gives the person's account (MOD-prompt-bar: "Its job takes, beside what the hand-over works
+// on, only the bar's `source`").
 function subjectGiving({ withSource = true } = {}) {
   return () => ({ key: "use-case:UC-001", title: "UC-001 Store", entry: "use-cases",
     paramsFor: () => ({ page: "PLANTED-PAGE-9A1 The page shows UC-001.", target: "UC-001", draft: { answer: "PLANTED-ANSWER-9A1 the participant's answer" }, ...(withSource ? { source: "SRC-person-alice" } : {}) }),
@@ -828,32 +829,35 @@ const jobRecordOf = (it) => it.product.attempts.flatMap((attempt) => attempt.fil
 
 // TST-1129001 · level: component · module: MOD-prompt-bar
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
-// given: a page whose subject gives, as context, the source SRC-person-alice, and also the text of the page, a target and a draft that holds the participant's answer; the participant proposes a hand-over of the kind implement, queued since the participant's tab cannot run it
+// given: a page whose subject gives the text of the page, a target, a draft that holds the participant's answer, and a source SRC-person-alice of its own; the instance
+//   alice/agent-m on GitHub; the participant proposes a hand-over of the kind implement, queued since the participant's tab cannot run it
 // input: Send, whose answer proposes the hand-over
-// expect: the queued job's record holds `"source": "SRC-person-alice"` among its parameters and no other parameter of the subject — no `page`, no `draft`, no `target`, no text of the page and no text of the answer anywhere in the record
-test("a queued hand-over takes only the subject's source into its record", async () => {
+// expect: the queued job's record holds `"source": "github.com/alice"` — the bar's, the account personAccount gives for the instance — among its parameters, not the
+//   subject's SRC-person-alice, and no other parameter of the subject — no `page`, no `draft`, no `target`, no text of the page and no text of the answer anywhere
+test("a queued hand-over takes only the bar's source, the person's account, into its record", async () => {
   const it = open({ subject: subjectGiving() });
   await proposes(it, ITEM("ITM-004"));
   await handsOver(it);
   const record = jobRecordOf(it);
   assert.ok(record.includes("kind: implement"), "known positive: the job is queued");
-  assert.match(record, /"source": "SRC-person-alice"/);
+  assert.match(record, /"source": "github\.com\/alice"/);
+  assert.doesNotMatch(record, /SRC-person-alice/);
   assert.doesNotMatch(record, /"page"|"draft"|"target"/);
   assert.doesNotMatch(record, /PLANTED-PAGE-9A1|PLANTED-ANSWER-9A1/);
 });
 
 // TST-1129002 · level: component · module: MOD-prompt-bar
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-049
-// given: a page whose subject gives no source of the person; the participant proposes the hand-over of TST-1129001
+// given: a page whose subject gives no source; the participant proposes the hand-over of TST-1129001
 // input: Send, whose answer proposes the hand-over
-// expect: the job is queued all the same — the subject refuses nothing, a kind that needs the source refuses by its own precondition — and its record holds no source
-test("a queued hand-over from a subject without the person's source takes none", async () => {
+// expect: the job is queued, and its record holds `"source": "github.com/alice"` all the same: the bar gives the account on every page
+test("a queued hand-over from a subject that gives no source takes the person's account", async () => {
   const it = open({ subject: subjectGiving({ withSource: false }) });
   await proposes(it, ITEM("ITM-004"));
   await handsOver(it);
   const record = jobRecordOf(it);
   assert.ok(record.includes("kind: implement"), "known positive: the job is queued");
-  assert.doesNotMatch(record, /"source"/);
+  assert.match(record, /"source": "github\.com\/alice"/);
 });
 
 // ---------------------------------------------------------------- an endpoint of this browser that runs through GitHub Actions: *Spawn job*
@@ -943,4 +947,41 @@ test("Spawn job on a product without the job workflow spawns nothing and links s
   one(it.target, "settings-link").dispatchEvent(personal());
   assert.deepEqual(it.went.at(-1), ["settings"]);
   assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+});
+
+// TST-2026110820 · level: component · module: MOD-prompt-bar
+// guards: UC-049; THE PERSON WHO PROMPTS IS A SOURCE
+// given: the page of TST-1200002, whose subject gives no source; nvidia chosen; the instance alice/agent-m on GitHub
+// input: a person's click on Spawn job with the message TASK
+// expect: the spawned job's record holds `"source": "github.com/alice"` among its parameters — the bar's, the account personAccount gives for the instance
+test("TST-2026110820: a job spawned with Spawn job takes the person's account as its source", async () => {
+  const it = open({ endpoints: ON_ACTIONS });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  choose(it, "nvidia");
+  one(it.target, "instruction").value = TASK;
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => following(it).includes("State:"), "the job is followed");
+  assert.match(it.product.file(it.product.jobPath()), /"source": "github\.com\/alice"/);
+});
+
+// TST-2026110821 · level: component · module: MOD-prompt-bar
+// guards: UC-049; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: the page of TST-1200002 on thesis-tool; this browser also manages AlienInvasion, which holds Agent M's job workflow, and keeps its token; nvidia chosen
+// input: a person's click on Spawn job with the message "draft a specification in the Alien Invasion repo"
+// expect: the job is spawned in AlienInvasion's repository — its record committed there, its job workflow started once there —, nothing is written to thesis-tool's,
+//   and the bar says "About alice/AlienInvasion — named in your message."
+test("TST-2026110821: Spawn job with a message that names another product spawns the job in that product's repository", async () => {
+  const ALIEN_WEB = "https://github.com/alice/AlienInvasion";
+  const alien = repoOf(ALIEN_WEB, scrumFiles());
+  const it = open({ endpoints: ON_ACTIONS, products: () => [{ address: PRODUCT_WEB, host: it.product.host }, { address: ALIEN_WEB, host: alien.host }] });
+  writeSetting(it.store, "github-token:alice/AlienInvasion", { value: "github_pat_ALIEN0123456789abcdefgh", name: "alice", expires: "2027-01-01" });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  choose(it, "nvidia");
+  one(it.target, "instruction").value = "draft a specification in the Alien Invasion repo";
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => alien.starts.length > 0 || textOf(one(it.target, "status")).includes("Nothing was spawned"), "the job is spawned");
+  assert.equal(alien.starts.length, 1, textOf(one(it.target, "status")));
+  assert.ok(alien.jobPath(), "the record is committed in AlienInvasion");
+  assert.equal(it.product.attempts.length + it.product.starts.length, 0, "nothing is written to thesis-tool");
+  assert.ok(textOf(one(it.target, "status")).includes("About alice/AlienInvasion — named in your message."), textOf(one(it.target, "status")));
 });
