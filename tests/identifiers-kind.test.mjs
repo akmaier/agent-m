@@ -64,14 +64,22 @@ test("kindOfIdentifier — null for a string that is none of the scheme's kinds"
 
 // TST-1302004 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: the SPEC's form of a requirement, a name in capitals; a name with a dot, EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; counter-proofs: the same name with the lowercase md of the file name, a group title "14. Issues, mail and personal data", a number with no capital, "13.", and the use case UC-022
+// given: the scheme's requirement, "words of capital letters A–Z, digits, apostrophes ', commas, hyphens - and dots, separated by single spaces, with at least one capital letter" (the module file's Data); names with a dot, an apostrophe, commas and a hyphen, EVERY MODEL READS AGENT M'S AGENTS.MD FIRST, A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT and A RE-RUN IS 2 JOBS; counter-proofs: the lowercase md of the file name, a group title "14. Issues, mail and personal data", a number with no capital, "13.", an underscore, two spaces in a row, a space at the start, a colon, a slash, parentheses, and the use case UC-022
 // input: kindOfIdentifier(each)
-// expect: "requirement" for the name with a dot; null for the lowercase md, the group title and "13."; "UC" for UC-022
-test("kindOfIdentifier — a name in capitals is a requirement whatever else it holds, but no lowercase letter", () => {
+// expect: "requirement" for the three names; null for each counter-proof; "UC" for UC-022
+test("kindOfIdentifier — a requirement is words of capitals, digits, apostrophes, commas, hyphens and dots, separated by single spaces", () => {
   assert.equal(kindOfIdentifier("EVERY MODEL READS AGENT M'S AGENTS.MD FIRST"), "requirement");
+  assert.equal(kindOfIdentifier("A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT"), "requirement");
+  assert.equal(kindOfIdentifier("A RE-RUN IS 2 JOBS"), "requirement");
   assert.equal(kindOfIdentifier("EVERY MODEL READS AGENT M'S AGENTS.md FIRST"), null);
   assert.equal(kindOfIdentifier("14. Issues, mail and personal data"), null);
   assert.equal(kindOfIdentifier("13."), null);
+  assert.equal(kindOfIdentifier("A_NAME_WITH_UNDERSCORES"), null, "an underscore");
+  assert.equal(kindOfIdentifier("A NAME  WITH TWO SPACES"), null, "two spaces in a row");
+  assert.equal(kindOfIdentifier(" A NAME"), null, "a space at the start");
+  assert.equal(kindOfIdentifier("A NAME: WITH A COLON"), null, "a colon");
+  assert.equal(kindOfIdentifier("A NAME/WITH A SLASH"), null, "a slash");
+  assert.equal(kindOfIdentifier("A NAME (WITH PARENTHESES)"), null, "parentheses");
   assert.equal(kindOfIdentifier("UC-022"), "UC");
 });
 

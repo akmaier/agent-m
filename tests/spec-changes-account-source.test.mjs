@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { specStrategies } from "../src/spec-changes/index.mjs";
+import { entrySections, specStrategies } from "../src/spec-changes/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { parseSpec } from "../src/spec-document/index.mjs";
 import { sourceFindings, sourceSchemas } from "../src/source-register/index.mjs";
@@ -75,14 +75,16 @@ test("TST-2026110809: person-source refuses a change without the person's accoun
 // given: the fixture product, which links no source, and an instance whose register holds no entry; a result of change-requirements with one change of A SAMPLE RULE
 // input: the writer queue-entries with the job's parameter `source` github.com/alice; then sourceFindings of the requirements of the entry it wrote, over the product's
 //   empty links and the empty register; and, as the known positive that the same check refuses, of the entry with the account replaced by SRC-nowhere
-// expect: one commit with one entry, whose A SAMPLE RULE names "github.com/alice, the instruction" among its sources; no finding for it; one error under
+// expect: one commit with one entry, whose A SAMPLE RULE names the account github.com/alice alone among its sources — no passage after it, though the draft
+//   holds one (MOD-spec-changes, entrySections: "a person's account … stands alone whatever passage the draft holds") —; no finding for it; one error under
 //   A REQUIREMENT HAS A REGISTERED SOURCE for SRC-nowhere
 test("TST-2026110810: a change by prompt is written with the person's account as its source, and that entry passes the source check without a link", async () => {
   const context = contextWith({ source: ACCOUNT });
   await specStrategies.writers["queue-entries"](resultOf([CHANGE]), context);
   assert.equal(context.product.host.commits.length, 1);
   const entry = context.product.host.commits[0].files.find((file) => /^docs\/spec-freigaben\/reading\/01-reading\.md$/.test(file.path))?.text ?? "";
-  assert.ok(entry.includes(`${ACCOUNT}, the instruction`), entry);
+  assert.ok(entry.includes(`**A SAMPLE RULE** *(Product Owner; ${ACCOUNT})*`), entry);
+  assert.ok(!entry.includes(`${ACCOUNT}, `), entry);
   const { links, entry: entrySchema } = sourceSchemas();
   assert.ok(entrySchema);
   const linked = readDocument(links, "docs/sources.md", NO_LINKS);
@@ -90,4 +92,36 @@ test("TST-2026110810: a change by prompt is written with the person's account as
   assert.deepEqual(checked(entry.replace(`Product Owner; ${ACCOUNT}`, "SRC-nowhere").replace(ACCOUNT, "SRC-nowhere")),
     ["error A REQUIREMENT HAS A REGISTERED SOURCE"], "known positive: an item neither linked nor an account fails");
   assert.deepEqual(checked(entry), []);
+});
+
+const NEW = { name: "A NEW SAMPLE RULE", rule: "A reader names the file it reads.", check: "`tests/sample.test.mjs`", constrains: "product", passage: "the instruction",
+  class: "new", of: null };
+
+// TST-1792040 · level: unit · module: MOD-spec-changes · MOD-source-register
+// guards: THE PERSON WHO PROMPTS IS A SOURCE
+// given: the fixture SPEC; a draft of one new candidate whose class names the passage "the instruction"
+// input: entrySections with the job's source github.com/alice, the person's account; and, as the counter-proof that a passage stays a locator into a
+//   registered source, with the source SRC-sample-book and the passage "ch. 3"
+// expect: the account stands alone as the source, *(github.com/alice)*, with no passage; the registered source is followed by its passage, *(SRC-sample-book, ch. 3)*
+test("TST-1792040: entrySections writes a person's account alone, whatever passage the draft holds; a registered source keeps its passage", () => {
+  const sectionOf = (source, passage) => entrySections(SPEC, { candidates: [{ ...NEW, passage }] },
+    [{ refs: [NEW.name], from: [passage], class: "new", of: null, decidedBy: "participant" }], source)[0].text;
+  const byPrompt = sectionOf(ACCOUNT, "the instruction");
+  assert.ok(byPrompt.includes(`**A NEW SAMPLE RULE** *(${ACCOUNT})*`), byPrompt);
+  assert.ok(!byPrompt.includes("the instruction"), byPrompt);
+  assert.ok(sectionOf("SRC-sample-book", "ch. 3").includes("**A NEW SAMPLE RULE** *(SRC-sample-book, ch. 3)*"), "a registered source keeps its passage");
+});
+
+// TST-1792041 · level: unit · module: MOD-spec-changes
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: the fixture product; a result of change-requirements with one change whose class names the passage "the instruction"
+// input: the writer queue-entries with the job's parameter `source` github.com/alice; the rationale of the entry it wrote
+// expect: its **Origin.** names the account as the source and names no passage — neither the word "passage" nor "the instruction"
+test("TST-1792041: the rationale of a change by prompt names the account as its origin and no passage of the instruction", async () => {
+  const context = contextWith({ source: ACCOUNT });
+  await specStrategies.writers["queue-entries"](resultOf([CHANGE]), context);
+  const rationale = context.product.host.commits[0].files.find((file) => file.path.endsWith(".begruendung.md"))?.text ?? "";
+  const origin = rationale.split("\n").find((each) => each.startsWith("**Origin.**")) ?? "";
+  assert.ok(origin.includes(`Source ${ACCOUNT}`), rationale);
+  assert.doesNotMatch(origin, /passage|the instruction/, origin);
 });
