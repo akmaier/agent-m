@@ -3,7 +3,7 @@
 import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readExport, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
-import { confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
+import { confirmDecision, explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema } from "../product-process/index.mjs";
@@ -12,7 +12,8 @@ import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf, namedPersonFindings } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { endpointLacks, recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
-import { actionsSetup, gitlabVariableScopes } from "../runtimes/index.mjs";
+import { gitlabVariableScopes } from "../runtimes/index.mjs";
+import { productActionsSetup, secretsPageOf, setUpText, unknownText } from "./actions-setup.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
@@ -966,17 +967,16 @@ async function jobWorkflowLine(context, { address, canWrite }) {
   const missingSecrets = el("p", "settings-job-workflow-missing");
   const unknownSecrets = el("p", "settings-job-workflow-unknown");
   const secretsPage = el("a", "settings-job-workflow-secrets-link", "Open the repository's secrets page");
-  secretsPage.href = connect(address, {}).webLinks().secrets;
+  secretsPage.href = secretsPageOf(address);
   const button = el("button", "settings-job-workflow-install btn primary", github ? "Set up GitHub Actions" : "Install");
   let offer = false, scopes = null, setup = null;
   const showSecrets = (missing, unknown) => {
     missingSecrets.textContent = missing.length ? `Missing secrets: ${missing.join(", ")}.` : "Every secret the job workflow reads is stored.";
-    unknownSecrets.textContent = unknown.length ? `This browser keeps no value for ${unknown.join(", ")}: add ${unknown.length > 1 ? "them" : "it"} on the repository's secrets page.` : "";
+    unknownSecrets.textContent = unknownText(unknown);
   };
   try {
     if (!context.instance?.host) throw new Error("The instance repository is not connected.");
-    setup = await actionsSetup({ product: { address: context.product.address, host: context.product.host, tokenKey: tokenKeyOf(address) },
-      instance: { host: context.instance.host }, store: context.store });
+    setup = await productActionsSetup({ address, host: context.product.host, instanceHost: context.instance.host, store: context.store });
     const installed = !setup.missing.workflow && setup.outdated.length === 0;
     status.textContent = installed ? "Installed for this instance commit."
       : `${setup.missing.workflow ? "Not installed." : ""}${setup.outdated.length ? `${setup.missing.workflow ? " " : ""}Workflow files are different from this instance commit: ${setup.outdated.join(", ")}.` : ""}`;
@@ -997,7 +997,7 @@ async function jobWorkflowLine(context, { address, canWrite }) {
       button.hidden = true;
       button.disabled = true;
       if (github) showSecrets(setup.missing.secrets.filter((name) => !stored.includes(name)), setup.unknown);
-      result.textContent = `${commit ? `Committed ${commit}.` : "Every workflow file stands already."}${stored.length ? ` Stored the secrets ${stored.join(", ")}.` : ""}`;
+      result.textContent = setUpText({ commit, stored });
     } catch (error) {
       result.textContent = error.message;
     }
