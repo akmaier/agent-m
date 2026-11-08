@@ -386,19 +386,34 @@ test("an edit held by a call replaces the answer's own edit of the same path", a
 
 // ---------------------------------------------------------------- hand-over
 
-const handOver = (kind, works_on, task) => ["hand-over", { kind, works_on, task }];
+const handOver = (kind, works_on, task, after = []) => ["hand-over", { kind, works_on, task, after }];
 
 // TST-486015 · level: unit · module: MOD-job-runner
 // guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
-// given: the real catalogue, whose kind implement has a participant; the kind of TST-486001
-// input: hand-over of implement, works on UC-049, with the task "Add the tool"; then of implement, works on UC-001, with the task "Add the other tool"
-// expect: each answered "proposed: a job of implement goes on once you have answered: what it drafts is a proposal for the person"; the draft's handOver is { kind: "implement", works_on: ["UC-001"], task: "Add the other tool" }, the later replacing the earlier; no host was touched, so nothing is queued
-test("hand-over holds the proposed hand-over in the draft's handOver and queues nothing", async () => {
-  const { answers, result, touched } = await answersTo([handOver("implement", ["UC-049"], "Add the tool"),
-    handOver("implement", ["UC-001"], "Add the other tool")]);
-  assert.deepEqual(answers, Array(2).fill("proposed: a job of implement goes on once you have answered: what it drafts is a proposal for the person"));
-  assert.deepEqual(result.draft.handOver, { kind: "implement", works_on: ["UC-001"], task: "Add the other tool" });
+// given: the real catalogue, whose kinds change-requirements and change-use-case have a participant; the kind of TST-486001
+// input: hand-over of change-requirements, works on nothing, with the task "Add the rule"; then of change-use-case, works on UC-049, with the task "Realise it", after [1]
+// expect: each answered "proposed: a job of <kind> goes on once you have answered: what it drafts is a proposal for the person"; the draft's handOver is the plan, a list in the order of the calls — the piece of change-requirements, then that of change-use-case with after [1] (MOD-job-runner's hand-over: "adds one piece to the draft's plan, `handOver`, a list in the order of the calls") —; no host was touched, so nothing is queued. Counter-proof: on the tool as it stood, which held one hand-over, the later replacing the earlier, the draft holds one object and the test fails.
+test("hand-over adds one piece per call to the draft's plan, in the order of the calls, and queues nothing", async () => {
+  const { answers, result, touched } = await answersTo([handOver("change-requirements", [], "Add the rule"),
+    handOver("change-use-case", ["UC-049"], "Realise it", [1])]);
+  assert.deepEqual(answers, ["change-requirements", "change-use-case"].map((kind) => `proposed: a job of ${kind} goes on once you have answered: what it drafts is a proposal for the person`));
+  assert.deepEqual(result.draft.handOver, [{ kind: "change-requirements", works_on: [], task: "Add the rule", after: [] },
+    { kind: "change-use-case", works_on: ["UC-049"], task: "Realise it", after: [1] }]);
   assert.deepEqual(touched, []);
+});
+
+// TST-2026114904 · level: unit · module: MOD-job-runner
+// guards: UC-049
+// given: the real catalogue; the kind of TST-486001; the known positive of TST-486015, whose second piece's after [1] names the first
+// input: hand-over of change-requirements with after [1] — no earlier piece —; then of change-requirements with after []; then of change-use-case with after [2], and with after [0]
+// expect: the first, the third and the fourth are refused, each with "refused: after names no earlier piece: <n>" (MOD-job-runner's hand-over: "it refuses, with a refusal the drafter reads, an `after` that names no earlier piece"), and hold nothing; the second is proposed; the draft's plan is that one piece alone. Counter-proof: on the tool as it stood, which took no after, every call is proposed.
+test("TST-2026114904: hand-over refuses an after that names no earlier piece", async () => {
+  const { answers, result } = await answersTo([handOver("change-requirements", [], "Add the rule", [1]), handOver("change-requirements", [], "Add the rule"),
+    handOver("change-use-case", ["UC-049"], "Realise it", [2]), handOver("change-use-case", ["UC-049"], "Realise it", [0])]);
+  assert.deepEqual(answers, ["refused: after names no earlier piece: 1",
+    "proposed: a job of change-requirements goes on once you have answered: what it drafts is a proposal for the person",
+    "refused: after names no earlier piece: 2", "refused: after names no earlier piece: 0"]);
+  assert.deepEqual(result.draft.handOver, [{ kind: "change-requirements", works_on: [], task: "Add the rule", after: [] }]);
 });
 
 // TST-486016 · level: unit · module: MOD-job-runner
@@ -418,7 +433,7 @@ test("hand-over refuses a kind the catalogue does not hold, and one without a pa
 // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A GENERATED ARTIFACT IS A PROPOSAL
 // given: a model endpoint declaring use tools; the kind of TST-486001; a fixture drafter that lists docs/, reads docs/a.md, proposes an edit of docs/a.md and a hand-over of implement for UC-049, and answers; a product host and an instance host that fail the test when touched
 // input: runJob, attended
-// expect: the drafter's listing is "docs/a.md\ndocs/sub/b.md" and its reading is the file's text; the result's draft is { answer: "read it", edits: [{ path: "docs/a.md", text: "alpha changed" }], handOver: { kind: "implement", works_on: ["UC-049"], task: "Implement it" } }; the job stopped because passed, nothing was written (written is null), and no property of either host and no connection was touched
+// expect: the drafter's listing is "docs/a.md\ndocs/sub/b.md" and its reading is the file's text; the result's draft is { answer: "read it", edits: [{ path: "docs/a.md", text: "alpha changed" }], handOver: [{ kind: "implement", works_on: ["UC-049"], task: "Implement it", after: [] }] }; the job stopped because passed, nothing was written (written is null), and no property of either host and no connection was touched
 test("a fixture drafter reads, proposes an edit and a hand-over; nothing is written by any tool", async () => {
   const seen = {};
   const { result, touched } = await run([async (tools) => {
@@ -431,7 +446,7 @@ test("a fixture drafter reads, proposes an edit and a hand-over; nothing is writ
   assert.equal(seen.listing, "docs/a.md\ndocs/sub/b.md");
   assert.equal(seen.reading, "alpha\nneedle in a\nomega");
   assert.deepEqual(result.draft, { answer: "read it", edits: [{ path: "docs/a.md", text: "alpha changed" }],
-    handOver: { kind: "implement", works_on: ["UC-049"], task: "Implement it" } });
+    handOver: [{ kind: "implement", works_on: ["UC-049"], task: "Implement it", after: [] }] });
   assert.equal(result.stoppedBecause, "passed");
   assert.equal(result.written, null);
   assert.deepEqual(touched, []);
