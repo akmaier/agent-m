@@ -276,7 +276,8 @@ and sends nothing while the job does not
   (MOD-job-ledger) —, then follows it by its record and
   `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows
   its log's answer and every result its end record lists, a hand-over not run with why and what it requires among them
-  (UC-049 4a.5); *Stop* then cancels it with `cancelJob`. It says above the
+  (UC-049 4a.5), and, folded below them, the answer of the job handed on in the run as the run received it, which does
+  not join the conversation; *Stop* then cancels it with `cancelJob`. It says above the
   selector when the conversation is recorded (UC-049 6c). Crosses the network: to the participant through its route, and
   to the repository servers to read the subject, the participants and the switch, to append the record, and to queue
   and start a hand-over. A failure of the participant's route is shown in the conversation by name.
@@ -325,8 +326,9 @@ and sends nothing while the job does not
   `products`, so a message never names it this way. Pure.
 - `followJob({ id, address, host, store, show }) -> { stop, cancel }` — a handed-over job followed every 15 seconds until
   its record has its end, `show` given its state, its run's address, its end and, for a run on CI, the answer the run
-  left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), read
-  once with `listCiRuns` and `ciRunLog` when its end is read.
+  left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), and
+  the answer of the job handed on from it, between `--- answer handed on in <id> ---` and `--- end of the answer handed
+  on in <id> ---`, both read from the one log read once with `listCiRuns` and `ciRunLog` when its end is read.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that

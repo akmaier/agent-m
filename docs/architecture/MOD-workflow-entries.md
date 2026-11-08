@@ -15,6 +15,7 @@ uses:
   - MOD-documents.readRegister
   - MOD-documents.writeDocument
   - MOD-text-tools.Finding
+  - MOD-text-tools.formatFinding
   - MOD-test-document.TestDeclaration
   - MOD-test-document.testDeclarations
   - MOD-participant-list.participantSchema
@@ -238,7 +239,10 @@ so; a model's command there reaches what that user can.
   requires to run (UC-049 4a.5) — `not run: change-requirements — <what> [THE PERSON WHO PROMPTS IS A SOURCE] — <fix>`;
   one whose run fails by MOD-job-runner's `failedBecause` is
   listed as `failed: <kind> — <why>`. The end lists every result of both: their commits,
-  their files and pull requests, and their writers' notes. The entry resumes each
+  their files and pull requests, and their writers' notes; and each finding the hand-over's correction loop left, as
+  `left: <finding>` in MOD-text-tools' one form (`formatFinding`), since its rounds stand in no record. A hand-over
+  that ran is listed as `<kind>: no change` only where none of these is listed for it, its writer having committed
+  nothing since its result equals the current files. The entry resumes each
   job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`). A job whose run ends by MOD-job-runner's `failedBecause` — an answer that could not be
   read after the last round — ends `failed`, with no result, that reason and its rounds, and the entry ends `failed`. A
   job whose writer committed nothing, since its result equals the current files,
@@ -296,7 +300,9 @@ so; a model's command there reaches what that user can.
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
   merged — on the agent's machine, where the branch is not on the server yet, `writeResult` refuses it; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
   and log — in the log between the lines `--- answer of <id> ---` and `--- end of the answer of <id> ---` —, where the
-  prompt bar reads it; an answer that could not be read is left there as it was received, and its job's end holds only
+  prompt bar reads it, and the answer of the job handed on from it in the same run the same way, between the lines
+  `--- answer handed on in <id> ---` and `--- end of the answer handed on in <id> ---`; an answer that could not be read
+  is left there as it was received, and its job's end holds only
   the reason, since the answer is a message of the conversation (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN
   RECORDING IS ON`). An endpoint the run cannot reach ends it `failed`, its summary naming the
   reason that MOD-endpoint-calls' `diagnoseEndpoint` gives — the diagnosis its `EndpointFailed` carries — and the routes
@@ -414,7 +420,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   through the checkout of the instance, which fetches it with its own credentials.
 - `MOD-documents.readDocument`, `readRegister`, `writeDocument` and `MOD-participant-list.participantSchema` — the
   declaration, the participants, the register entries.
-- `MOD-text-tools.Finding` — the findings an entry reports.
+- `MOD-text-tools.Finding` — the findings an entry reports; `MOD-text-tools.formatFinding` — each finding a hand-over's
+  correction loop left, as its end lists it.
 - `MOD-test-document.TestDeclaration`, `testDeclarations` — the declarations of the product's tests, to which a report's
   outcomes are matched.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-agent-processes.agentDriver` — the drivers of CI participants, a coding agent
