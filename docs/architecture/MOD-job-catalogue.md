@@ -83,8 +83,8 @@ Agent M prepares no job of the kind.
 
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
-| `derive-requirements` | UC-005 | draft text | | `instruction?`, `source-excerpt`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
-| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
+| `derive-requirements` | UC-005 | draft text | | `instruction?`, `source-excerpt`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class, and, for a new one, its place |
+| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | the same |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `instruction?`, `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
 | `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `draft?`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `instruction?`, `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
@@ -145,6 +145,12 @@ edits as a pull request —, and *Write tests*
 a run nobody attends (UC-043): `propose-tests` ends with its cases in its job's record, and `write-tests` follows it
 without a click, with those cases as its parameters. On `write-tests`, `test-proposals` holds the written tests against
 the cases it was handed, each with its counter-proof.
+
+A candidate of `derive-requirements` or `change-requirements` classed `new` names its place in the requirement hierarchy
+the recipe `requirement-hierarchy` shows, as `place`, a MOD-group-document `Place`: `group`, the path of titles of a
+group the hierarchy holds from the top, `[]` for the top level, and `new`, the title of a new group standing in `group`,
+or `null`; their prompts ask for it, and for no place on a candidate of another class, which keeps the place of the
+requirement it refers to (UC-005 step 5, UC-019 step 6).
 
 For `derive-requirements`, `change-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the

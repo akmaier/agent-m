@@ -360,7 +360,9 @@ so; a model's command there reaches what that user can.
 - `onApprovalsCommitted(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance: applies every approval of the
   instance's own SPEC that the dashboard did not apply, with the same functions the dashboard uses, byte for byte, or
   nothing when a text is stale (`WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE`, `A STALE APPROVAL IS NOT
-  APPLIED`); the status names what was applied and what was stale.
+  APPLIED`), the places of the requirements an entry adds included, as the entry holds them; the status and the
+  commit's message name what was applied, what was stale, and every place `applyApproved` names as not applied, with its
+  requirement (UC-006 4c, 5b).
 - `onSourcesCommitted(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance: for each register entry of an EU
   legal text that waits for its fetch, as MOD-source-register defines it, and for the entry a run started with the input
   `source` names, fetches the official text and commits it with its retrieval date, the repository's version identifier

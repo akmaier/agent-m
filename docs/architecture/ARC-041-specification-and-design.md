@@ -35,6 +35,7 @@ forced_by:
   - ONE REVIEW LAYOUT FOR EVERY PRODUCT
   - A REGROUPING IS COMMITTED DIRECTLY
   - REGROUPING LEAVES THE GROUPED FILE UNCHANGED
+  - AN ITEM HAS ONE PLACE IN ITS HIERARCHY
   - A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
   - DERIVATION SEES THE EXISTING REQUIREMENTS
   - A CHANGE IS PROPOSED UNDER THE EXISTING NAME
@@ -108,7 +109,7 @@ kinds every input their rules demand.
 | Module | Folder | Responsibility |
 |---|---|---|
 | MOD-approvals | `src/approvals/` | the schema of approval records under `docs/approvals/`; the status of a reviewed file — open, accepted, changed since acceptance —; its last accepted text; accepting one or many files shown, in one commit with one record each, leaving out and naming what changed since it was shown or rests on what is not accepted; GitHub's prefilled page without a token; the recipes of accepted use cases and of the whole architecture, and the precondition that what a draft rests on is accepted |
-| MOD-spec-changes | `src/spec-changes/` | change queues under `docs/spec-freigaben/`, one per SPEC section: proposals of whole sections with their rationale, impact list and origin; an open entry edited in place; acceptance in the queue's order with each anchor, the SPEC section replaced byte for byte with its record and decision in one commit, nothing written on a stale text; the same application for the instance's workflow without a token; each requirement's history; the recipe of the SPEC with its open queues, the sections that classified candidates change — a duplicate as an added source, a change under the existing name, a conflict only as a person decided it —, and the writer that turns them into queue entries |
+| MOD-spec-changes | `src/spec-changes/` | change queues under `docs/spec-freigaben/`, one per SPEC section: proposals of whole sections with their rationale, impact list, origin and the places of the requirements they add; an open entry edited in place; acceptance in the queue's order with each anchor, the SPEC section replaced byte for byte with its record, its places in the group file of requirements and its decision in one commit, nothing written on a stale text; the same application for the instance's workflow without a token; each requirement's history; the recipe of the SPEC with its open queues, the sections that classified candidates change — a duplicate as an added source, a change under the existing name, a conflict only as a person decided it —, and the writer that turns them into queue entries |
 | MOD-artifact-edits | `src/artifact-edits/` | saving an edited use case, decision, module file or group file only on the blob it was opened on, refusing a changed identifier, keeping the edit on refusal; a drafted change's identifier restored before it is edited; GitHub's editor and new-file pages without a token; the review layout written into a new product; the writer that commits drafted use cases and architecture files as open files, new identifiers assigned, in one commit |
 
 ```mermaid
@@ -124,8 +125,8 @@ The kinds that draft these artifacts, and how they use these strategies:
 
 | Kind in MOD-job-catalogue | Recipes | Checks | Reviewing participant | Writer |
 |---|---|---|---|---|
-| derive requirements (UC-005) | a linked source version's excerpt (MOD-source-register); the SPEC with its open queues | the requirement form; classes of candidates | — | queue entries |
-| change requirements by prompt (UC-019) | the requirements named; the SPEC with its open queues | the same | — | the editor's draft, or queue entries from a CI agent |
+| derive requirements (UC-005) | a linked source version's excerpt (MOD-source-register); the SPEC with its open queues; the requirement hierarchy | the requirement form; classes of candidates; places of new candidates | — | queue entries, with places |
+| change requirements by prompt (UC-019) | the requirements named; the SPEC with its open queues; the requirement hierarchy | the same | — | the editor's draft, or queue entries with places from a CI agent |
 | derive use cases (UC-007) | the requirements chosen; every use case | the use-case schema; realised names | — | open files |
 | change a use case by prompt (UC-019) | the use case, its requirements, every other use case | the same; the identifier kept | — | the editor's draft, or an open file from a CI agent |
 | derive the architecture (UC-022) | the whole SPEC; every accepted use case | the decision and module schemas; uses, provides, cycles, names | review the architecture, another participant and model | open files, after the due diligence step of MOD-reuse-facts |
@@ -134,8 +135,9 @@ The kinds that draft these artifacts, and how they use these strategies:
 
 ### The formats it owns
 
-The schema of the approval record (MOD-approvals); the change queue with its index, entries, rationales and decisions
-(MOD-spec-changes). The prompts and output schemas of the drafting kinds are in MOD-job-catalogue.
+The schema of the approval record (MOD-approvals); the change queue with its index, entries, rationales, places and
+decisions (MOD-spec-changes). The place of an item in a hierarchy, and the group file it is written into, are the
+artifact model's (MOD-group-document). The prompts and output schemas of the drafting kinds are in MOD-job-catalogue.
 
 ## Alternatives
 
@@ -145,12 +147,23 @@ The schema of the approval record (MOD-approvals); the change queue with its ind
   could claim acceptance for a text nobody read.
 - **SPEC changes written directly, reviewed in pull requests.** Rejected: `A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS
   WRITTEN`, with the current text beside the proposal, on the dashboard.
+- **The place of a new requirement in the section's text, or in its rationale.** Rejected: the section is written into
+  the SPEC byte for byte, and the SPEC's headings do not arrange requirements (UC-021); the rationale is prose read by
+  people, and its blob would tie a place to the reasons. A places file of its own beside the section keeps one concern
+  per file and has a blob of its own that an acceptance checks.
+- **The group file written when the entry is written.** Rejected: the requirement hierarchy stays unchanged until the
+  entry is accepted (UC-005, UC-019); the place is decided with the entry, by the same click.
+- **A function of its own for writing places into the group file.** Rejected: `placeItems` is made of the moves
+  `applyMoves` already applies, so that a place and an arrangement follow one set of rules (`DON'T REPEAT YOURSELF`).
 
 ## Consequences
 
 - Any reviewed file edited after acceptance shows as changed since acceptance at once, without anyone resetting a status.
 - Accepting many files is still one commit, so a reviewer's "Accept all N shown" is atomic.
-- The instance's own SPEC can be changed without a token, through its workflow (ARC-039), with the same functions.
+- The instance's own SPEC can be changed without a token, through its workflow (ARC-039), with the same functions; the
+  workflow writes the places as the entry holds them, since a person's other choice exists only on a page.
+- An entry without a places file — one a person typed, among others — proposes no place: its requirements stand at the top level, not yet placed, until the reviewer chooses one or arranges them
+  (UC-021).
 - A new kind of drafted artifact needs a schema in the artifact model and, at most, one more recipe or writer here.
 - A SPEC change is accepted only when every requirement it holds names a source its product links (`A REQUIREMENT HAS A
   REGISTERED SOURCE`). Agent M's own SPEC names its sources in words — its Product Owner, the book *Vibe Coding* —, so

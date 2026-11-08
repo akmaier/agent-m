@@ -77,6 +77,7 @@ It keeps nothing. It owns one format, the approval record; every record is evide
 | `file` | the path of the accepted file; required for every kind except `spec` |
 | `blob` | the 40-hex git blob SHA of the text shown; for `spec`, of the proposal; for a removed decision or module file, the blob of the empty text (`e69de29bb2d1d6434b8b29ae775ad8c2e48c5391`), which is what the default branch holds of it; required |
 | `queue`, `entry`, `proposal`, `target`, `anchor`, `section` | required for `spec`: the queue's folder, the entry's number, the proposal's path, the file it changes, the heading its section starts with, the blob SHA of the section shown beside the proposal |
+| `places` | for `spec`: the blob SHA of the entry's places file shown beside the proposal (MOD-spec-changes); absent for an entry that has none |
 | `limitation` | for `release-report`: one line per failing test or worse rate, `<TST-<nnn> or rate> — <reason>`; zero or more |
 
 Examples:

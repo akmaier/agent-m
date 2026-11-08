@@ -28,8 +28,10 @@ uses:
   - MOD-spec-document.parseSpec
   - MOD-group-document.parseGroupFile
   - MOD-group-document.applyMoves
+  - MOD-group-document.placeItems
   - MOD-group-document.hierarchy
   - MOD-group-document.GroupMove
+  - MOD-group-document.Place
   - MOD-test-document.testFindings
   - MOD-test-document.testDeclarations
   - MOD-test-document.isTestFile
@@ -124,6 +126,7 @@ It keeps the registry of strategies of the program it runs in, in memory, filled
 | `candidate-classes` | check | MOD-documents' `classifyCandidates` of the drafted candidates against the existing artifacts the job's parts carry, each round: an error for a candidate the rule finds a duplicate of an existing artifact while its drafter classed it otherwise, naming that artifact (`EXACT DUPLICATES ARE FOUND WITHOUT A MODEL`), and for a change, a duplicate or a conflict that names no existing artifact or one no part carries (`A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT`). The classes of the last round — the candidates of one key merged, naming every one they came from, and exact duplicates decided by rule — are the result's `classes`. A draft whose parts carry no artifact is classified as any other, against none: each candidate keeps the class its drafter gave, and one classed a change, a duplicate or a conflict is the error above, so that every candidate the loop passes on a product without a requirement is classed `new`, and none is left without a class |
 | `graph-checks` | check | MOD-trace-graph's `graphFindings` on the snapshot with the drafted files put in place of their paths, and its `selfSufficiencyFindings` there against the instance's repository, the `owner/name` of the context's instance, read in the snapshot's batches; a draft that holds no files has none and reads nothing |
 | `requirement-form` | check | MOD-spec-document's `requirementFindings` on every drafted requirement, the candidates written as a SPEC section with the job's `source` as their source and read with `parseSpec` |
+| `candidate-places` | check | the place of every drafted candidate its drafter classed `new` that names one — a MOD-group-document `Place` —, all applied together with `placeItems` to `docs/groups/requirements.md` read from the product's snapshot, the empty tree where it has none: an error under `AN ITEM HAS ONE PLACE IN ITS HIERARCHY` for each place `placeItems` does not apply because its group, or the group a new group is to stand in, is not in the hierarchy, on the candidate's artifact and line as `requirement-form` gives them, its `what` naming the requirement and the group, its `fix` asking for a group the hierarchy holds or for that group proposed as new with the group it stands in (UC-019 step 7). A candidate without a place, and every other class, is not judged: it then stands at the top level until a place is chosen (`AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL`) |
 | `group-rules` | check | the drafted moves — MOD-group-document's `GroupMove`s — applied with `applyMoves` to the group file of the kind the job's parameters name, read from the product's snapshot: each refused move, and the findings `hierarchy` reports for the result against the kind's items, read from the snapshot too |
 | `test-declarations` | check | MOD-test-document's `testFindings` on every declaration in the files the reported branch adds or changes, read with `testDeclarations`, and an error under `A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS` for a file the branch adds that `isTestFile` calls a test file and that declares none. A branch the host does not hold is a finding sent back, since the drafter reported a branch it has not pushed; any other failure of the host is thrown by name |
 
@@ -403,8 +406,8 @@ ONLY WHEN RECORDING IS ON`).
 
 It reads the data files of MOD-job-catalogue through `kindOf`, its own `rounds.schema.md`, the instance's `AGENTS.md`
 through the instance's snapshot, for `test-declarations` the
-branch a coding participant reports, through the host, and for `group-rules` the group file and the items of its kind in
-the product's snapshot. It writes nothing itself: the writers write — its own `proposed-edits` a branch `agent-m/<job>`
+branch a coding participant reports, through the host, for `group-rules` the group file and the items of its kind in
+the product's snapshot, and for `candidate-places` the product's `docs/groups/requirements.md` there. It writes nothing itself: the writers write — its own `proposed-edits` a branch `agent-m/<job>`
 and its pull request, through the product's host —, and the route appends to the job's record.
 
 ## Uses
@@ -418,8 +421,8 @@ and its pull request, through the product's host —, and the route appends to t
   `MOD-documents.artifactSchemaOf`, `MOD-documents.classifyCandidates` and the types `MOD-documents.Candidate` and
   `MOD-documents.Classified`, `MOD-trace-graph.traceGraph`, `MOD-trace-graph.graphFindings`,
   `MOD-trace-graph.selfSufficiencyFindings`, `MOD-spec-document.requirementFindings`, `MOD-spec-document.parseSpec`,
-  `MOD-group-document.parseGroupFile`, `MOD-group-document.applyMoves`, `MOD-group-document.hierarchy` and the type
-  `MOD-group-document.GroupMove`, `MOD-test-document.testFindings`, `MOD-test-document.testDeclarations`,
+  `MOD-group-document.parseGroupFile`, `MOD-group-document.applyMoves`, `MOD-group-document.placeItems`,
+  `MOD-group-document.hierarchy` and the types `MOD-group-document.GroupMove` and `MOD-group-document.Place`, `MOD-test-document.testFindings`, `MOD-test-document.testDeclarations`,
   `MOD-test-document.isTestFile` — the built-in checks.
 - `MOD-documents.loadSchema` — the round record's schema.
 - `MOD-text-tools.finding`, `MOD-text-tools.formatFinding`, `MOD-text-tools.Finding` — findings of its own, such as an
