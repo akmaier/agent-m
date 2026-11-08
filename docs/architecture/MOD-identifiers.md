@@ -44,7 +44,7 @@ It keeps nothing. It owns the scheme:
 
 | Kind | Pattern | Example |
 |---|---|---|
-| requirement | a name in capitals: one line with at least one capital, no lowercase letter, no space at either end and no prefix below | `THE NAME IS THE ID AND IT SURVIVES` |
+| requirement | a name in capitals, as `EVERY ARTIFACT HAS AN IDENTIFIER` gives it: words of capital letters `A`–`Z`, digits, apostrophes `'`, commas, hyphens `-` and dots, separated by single spaces, with at least one capital letter, and no prefix below — no underscore, no lowercase letter, no other character | `THE NAME IS THE ID AND IT SURVIVES`, `EVERY MODEL READS AGENT M'S AGENTS.MD FIRST` |
 | `SRC` | `SRC-<slug>` | `SRC-eu-ai-act` |
 | `UC` | `UC-<nnn>`, three or more digits | `UC-022` |
 | `ARC` | `ARC-<nnn>` | `ARC-048` |

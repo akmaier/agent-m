@@ -33,6 +33,7 @@ provides:
   - versionCommits
   - linkedVersion
   - personAccount
+  - namesAccount
   - readContent
   - affectedRequirements
   - sourceFindings
@@ -170,6 +171,8 @@ and `-`, joined by `.` — with `:` and a port where the server has one, then on
 - `personAccount(instance: Snapshot) -> string | null` — the account `<server>/<account>` of the person who gives an
   instruction, which is their source (`THE PERSON WHO PROMPTS IS A SOURCE`): the owner of the instance's repository on
   its server's host, `github.com` on GitHub. It is `null` where the snapshot names no owner. No request is made.
+- `namesAccount(item: string) -> boolean` — whether an item of a requirement's source names an account, as Data states
+  under *How a requirement names an account*: the one reading `sourceFindings` applies too. Pure.
 - `readContent(version: SourceVersion, open: (source: string) => Promise<Host>) -> Promise<{ name: string, bytes:
   Uint8Array }[]>` — reads every stored file of the version from `docs/sources/<source>/<version>/` of the repository that
   holds it, at its default branch, across the network through the host `open` gives for the version's source — its

@@ -21,11 +21,13 @@ uses:
   - MOD-documents.Candidate
   - MOD-documents.Classified
   - MOD-documents.loadSchema
+  - MOD-documents.artifactSchemaTexts
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.graphFindings
   - MOD-trace-graph.selfSufficiencyFindings
   - MOD-spec-document.requirementFindings
   - MOD-spec-document.parseSpec
+  - MOD-spec-document.requirementForm
   - MOD-group-document.parseGroupFile
   - MOD-group-document.applyMoves
   - MOD-group-document.placeItems
@@ -90,7 +92,8 @@ it holds the edits a participant proposes until a person saves them. It composes
 model Agent M makes — a job's, and a message of the prompt bar's, which is a job too —, and that input begins with Agent
 M's own `AGENTS.md`, the one at the root of the instance repository, in full, whatever repository the job works on; for a
 participant that works in a checkout of the instance, with the file's path there (`EVERY MODEL READS AGENT M'S AGENTS.MD
-FIRST`). It knows no kind and no service by name. It runs unchanged in a browser and in Node.
+FIRST`); the drafter's input then gives the form its draft is checked by, in full, in the tab, on a Bridge and in CI
+alike (`A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY`). It knows no kind and no service by name. It runs unchanged in a browser and in Node.
 
 ## Parts
 
@@ -135,11 +138,27 @@ from the `artifacts` of its parts, and from nothing else, whatever recipe gave t
 `kindOfIdentifier` gives as `requirement` is a requirement, as `UC` a use case, and any other kind is neither. An
 identifier counts once, at the first part that carries it: a requirement shown in two parts is one requirement.
 
-How many of them fit: the room is the participant's context less the kind's prompt and Agent M's `AGENTS.md`, that is,
-the destination's `size` less the sizes of its parts. Taking the parts in the order the destination lists them, a part has its size and the
+How many of them fit: the room is the participant's context less the kind's prompt, Agent M's `AGENTS.md` and the job's
+`form`, that is, the destination's `size` less the sizes of its parts. Taking the parts in the order the destination lists them, a part has its size and the
 artifacts of a part share it equally, each rounded up. An item fits when the sizes of everything before it, its own
 included, are within the room; the count stops at the first item that does not, so that the items after it are counted as
 not fitting. A repeated identifier takes its share of the room and counts nothing. With a `context` of `null` none fits.
+
+**The form a draft is checked by.** Beside `rules`, the runner builds one part of its own, the job's `form`: the
+definitions its kind's built-in checks of form judge a draft by, chosen from the kind's `checks` and from nothing else
+(`A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY`):
+
+| Check the kind names | What the form gives, in full |
+|---|---|
+| `requirement-form` | MOD-spec-document's `requirementForm` of Agent M's `SPEC.md`, read from the instance's snapshot at the root of the instance repository: the paragraph *Form of a requirement* and every requirement `requirementFindings` cites |
+| `document-schema` | MOD-documents' `artifactSchemaTexts`: the text of each schema `documentFindings` judges a drafted document by, under its path |
+
+A kind that names both gets both, in this order; a kind that names neither has no form, `null`. The form is given as its
+text on every route — in the tab, on a Bridge and in CI —, since what it gives of the SPEC is a cut from a file, not a file
+a participant could be pointed to, and one way for both checks keeps one rule. Its text is the heading `## The form your
+draft is checked by`, then each piece under a heading of its own — `### The form of a requirement`, `### <the schema's
+path>` —, each piece byte for byte as its module gives it. It carries no source, as `rules` carries none. The kinds'
+prompts do not state the form again (MOD-job-catalogue).
 
 **The round record.** Every round of the correction loop is kept and recorded with the job (`THE ROUNDS ARE COUNTED AND
 SHOWN`). Its text form, which MOD-job-ledger writes into the end of a job's record and the pages show beside a draft:
@@ -208,7 +227,8 @@ ONLY WHEN RECORDING IS ON`).
   missing or ended with an error, a cancel — and never retries until an answer pleases.
 - `DriverInput` — `{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
   workdir: string | null }`: the prepared job's `rules` — Agent M's `AGENTS.md`, its text or its path in a checkout of
-  the instance, followed by a blank line —, then the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
+  the instance, followed by a blank line —, then, for the drafter, the job's `form` where it has one, followed by a blank
+  line, then the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
   and `(none)` where a recipe gave no part, followed by *The form of your answer*: the envelope every answer is read by,
   as a JSON schema — a driver sends this prompt as it is and does not add the parts again —; the
   parts; the output schema the answer must follow; the findings of the last round with the draft they concern — or, in
@@ -260,10 +280,10 @@ ONLY WHEN RECORDING IS ON`).
   format's key — for a requirement its name and its rule —, against which `candidate-classes` classifies a draft; empty
   for a part that shows none.
 - `Destination` — `{ participant: Participant, role: "drafter" | "reviewer" | "checker", place: string, parts: string[],
-  size: number }`: one participant that will receive something, and what; `size` is the kind's prompt, the job's `rules`
-  and every part it receives, each estimated as a part's size is.
+  size: number }`: one participant that will receive something, and what; `size` is the kind's prompt, the job's `rules`,
+  for the drafter its `form`, and every part it receives, each estimated as a part's size is.
 - `Prepared` — `{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers:
-  Participant[], rules: Part | null, parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
+  Participant[], rules: Part | null, form: Part | null, parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
   number, context: number | null, holds: { requirements: number, useCases: number }, fitting: { requirements: number,
   useCases: number } }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
   what a run panel or the prompt bar shows before the person's click (`THE PAGE NAMES WHERE IT SENDS`); `rules` is Agent
@@ -271,13 +291,16 @@ ONLY WHEN RECORDING IS ON`).
   context names `instance.checkout`, the path of the file in that checkout followed by one sentence asking the participant
   to read it in full first —, `null` where the instance has none: the part with which every input to the drafter and to
   each reviewer begins, before anything else the runner composes, carrying no source, since the restricted-source rules
-  concern requirement sources and it is the instance's own file; `parts` holds the parts of
+  concern requirement sources and it is the instance's own file; `form` the part, as Data states, with which the
+  drafter's input continues after `rules`, `null` for a kind without a check of form — a reviewer's kind, such as
+  `review-architecture`, names none —; `parts` holds the parts of
   the drafter's and the reviewers' recipes, each once; `leftOut` the parts a recipe whose part may be left out could not
   give, each with the failure's words as its reason; a `notFitting` entry's `holds` counts the requirements and use cases
   the destination's parts hold and `fitting` how many of them fit its context, as Data states, so that the difference is
   what does not fit — the pages word the reason from these numbers (UC-019 4a); `blocking` the findings of preconditions,
-  of eligibility, and of a check that needs what the context lacks — `test-declarations` without the product's host —, which keep the job from
-  starting.
+  of eligibility, and of a check that needs what the context lacks — `test-declarations` without the product's host, and
+  `requirement-form` where the instance's `SPEC.md` lacks a piece of the form (`FormMissing`), as an error under `A
+  DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY` naming what it lacks —, which keep the job from starting.
 - `Round` — `{ number: number, findings: Finding[], answers: { finding: Finding, how: "fixed" | "justified" | "answered",
   text: string | null }[], changed: boolean }`.
 - `JobResult` — `{ draft: unknown, raw: string | null, drafter: Participant | null, rounds: Round[], remaining: Finding[],
@@ -306,8 +329,9 @@ ONLY WHEN RECORDING IS ON`).
   results by.
 - `prepareJob(kind: string, context: JobContext, choice: { drafter: Participant | null, reviewers: Participant[], limit?:
   number, selfReview?: boolean }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, reads Agent M's
-  `AGENTS.md` once from the instance's snapshot as the job's `rules`, builds the parts from its recipes, estimates their
-  sizes — the `rules` counted in every destination's size —, and checks each destination with MOD-participant-list's `eligible`: the
+  `AGENTS.md` once from the instance's snapshot as the job's `rules`, builds the job's `form` from the kind's checks as
+  Data states, builds the parts from its recipes, estimates their sizes — the `rules` counted in every destination's
+  size, the `form` in the drafter's —, and checks each destination with MOD-participant-list's `eligible`: the
   capabilities the kind needs, the places every part's sources and the mailbox allow, the context against the size, and
   for a reviewer or checker that it `differs` from the drafter and, for checkers, from each other — except with
   `selfReview`, which only MOD-prompt-bar sets, for a change described in the prompt bar: `reviewers` is then the drafter
@@ -405,7 +429,7 @@ ONLY WHEN RECORDING IS ON`).
 ## Files
 
 It reads the data files of MOD-job-catalogue through `kindOf`, its own `rounds.schema.md`, the instance's `AGENTS.md`
-through the instance's snapshot, for `test-declarations` the
+and, for a kind that names `requirement-form`, the instance's `SPEC.md` through the instance's snapshot, for `test-declarations` the
 branch a coding participant reports, through the host, for `group-rules` the group file and the items of its kind in
 the product's snapshot, and for `candidate-places` the product's `docs/groups/requirements.md` there. It writes nothing itself: the writers write — its own `proposed-edits` a branch `agent-m/<job>`
 and its pull request, through the product's host —, and the route appends to the job's record.
@@ -425,6 +449,7 @@ and its pull request, through the product's host —, and the route appends to t
   `MOD-group-document.hierarchy` and the types `MOD-group-document.GroupMove` and `MOD-group-document.Place`, `MOD-test-document.testFindings`, `MOD-test-document.testDeclarations`,
   `MOD-test-document.isTestFile` — the built-in checks.
 - `MOD-documents.loadSchema` — the round record's schema.
+- `MOD-spec-document.requirementForm`, `MOD-documents.artifactSchemaTexts` — the job's `form`.
 - `MOD-text-tools.finding`, `MOD-text-tools.formatFinding`, `MOD-text-tools.Finding` — findings of its own, such as an
   answer that cannot be read, and their text in the round record.
 - `MOD-identifiers.kindOfIdentifier` — whether an artifact of a part is a requirement or a use case, for the counts of
