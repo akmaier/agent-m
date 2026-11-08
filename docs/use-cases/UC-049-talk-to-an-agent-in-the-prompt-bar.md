@@ -161,7 +161,7 @@ sequenceDiagram
 - **4a. The work belongs to other kinds of job, or needs what the tab cannot do.** A change of requirements, of a use
   case or of the architecture belongs to the kind that owns it, with its checks and its impact list (UC-019, UC-023);
   running code or tests, changing code and reaching the web need what the tab cannot do. The endpoint or CLI session
-  plans the work in the round that answers the message: it selects the pieces the request needs, at most five, each
+  plans the work in the round that answers the message: it selects the pieces the request needs, each
   naming the kind, what it works on and the task in its words, and, for a piece that rests on the result of an earlier
   one — a use case on the requirements it realises, an architecture on the use cases it serves —, that earlier piece.
   Each piece becomes a job of its own, of its kind, run by that kind's definition and recorded (UC-036); a piece's job

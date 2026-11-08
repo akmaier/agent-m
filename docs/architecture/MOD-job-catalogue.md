@@ -131,9 +131,8 @@ data, kept here once like a kind's prompt; the module that owns what a tool does
 | `hand-over` | draft text | add one piece to the plan of the work: hand it on to the kind of the catalogue that owns it — a change of requirements, a use case or the architecture — or that does what the tab cannot — running code or tests, changing code, reaching the web —, naming what it works on, the task in its words, and the earlier pieces whose accepted result it rests on; each piece goes on without a further click as a job of its own, a piece that rests on another once that one is accepted, and what it drafts is a proposal (UC-049 4a) | MOD-job-runner |
 
 Each row also holds the description the drafter reads and the JSON schema of its arguments. `converse` names all five,
-with a `tool_limit` of 30, and its draft may hold, beside `answer` and `edits`, a `handOver`, the plan: a list of at most
-five of the tool's arguments, `{ kind, works_on, task, after }`, the five stated once as the list's `maxItems` in its
-answer schema, so that a drafter offered no tools — a coding agent, or an endpoint without *use tools* —
+with a `tool_limit` of 30, and its draft may hold, beside `answer` and `edits`, a `handOver`, the plan: a list of the
+tool's arguments, `{ kind, works_on, task, after }`, stated once in its answer schema, so that a drafter offered no tools — a coding agent, or an endpoint without *use tools* —
 proposes its plan in its answer as the tool would hold it; its prompt asks it to plan in the round that answers the
 message — the pieces the request needs, the requirements before the use cases that realise them and those before the
 architecture, each with what it rests on —; `change-requirements`, `change-use-case` and `change-architecture` name the three that read
