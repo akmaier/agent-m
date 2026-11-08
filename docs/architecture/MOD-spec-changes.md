@@ -257,7 +257,11 @@ entry of another queue that is not in SPEC creates it.
     that gets an entry. One entry per section the candidates touch, as `entrySections` composes it with the job's
     `source`, appended to that section's queue. A candidate that points to a source the product does not link
     (`linkedVersion` gives none) is not written, and the outcome's notes name it with that source, as the hint to link it
-    first (UC-005 5a). Each rationale names its origin and the impact list; the commit carries the provenance lines.
+    first (UC-005 5a). A candidate of the product's SPEC for which the result's classes hold none is not written either,
+    and a note names it — `<name> has no class; it is not written.` —, as one names a candidate whose class refers to a
+    requirement its SPEC does not hold; a draft that holds no candidate writes nothing, and its one note says so — `the
+    draft holds no requirement; nothing is written.` —, so that a run that writes nothing names why. Each rationale
+    names its origin and the impact list; the commit carries the provenance lines.
     With the job's parameter `issue`, the number of the product's issue the change comes from, each rationale names that
     issue as its origin beside the source, and in its line `**Issue:**`, with the product's address.
 
