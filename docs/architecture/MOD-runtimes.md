@@ -359,8 +359,9 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   alone, each key `agent-m-key-<its name>` and `agent-m-write`, one variable for each scope; the token first, then the
   keys in their order. Pure.
 - `actionsSetup({ product: { address: string, host: Host, tokenKey: string }, instance: { host: Host }, store: Store }) ->
-  Promise<{ missing: { workflow: boolean, secrets: string[] }, outdated: string[], unknown: string[], named: { token:
-  string, keys: string[] }, setUp: () -> Promise<{ commit: string | null, stored: string[] }> }>` — what the product
+  Promise<{ missing: { workflow: boolean, secrets: string[] }, outdated: string[], pins: { instance: string, product:
+  string | null }, unknown: string[], named: { token: string, keys: string[] }, setUp: () -> Promise<{ commit: string |
+  null, stored: string[] }> }>` — what the product
   lacks for the CI route, and its setup (UC-001 step 5, UC-010, UC-049 4c); the one place the pages of settings and the
   prompt bar learn it. `tokenKey` is the key of the product's own token in `store`, which the caller hands, since this module reads no
   rule of the frame. It reads the instance's default branch — its repository and commit, and its participants
@@ -369,9 +370,11 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   CI secret of each participant's route of the form `ci … secret <NAME>` and the `secret` each `endpoint:*` setting of
   `store` names; the runners are the labels of those routes. It compares `jobWorkflowFiles` for them — on GitLab with
   the product's `.gitlab-ci.yml` at that head — with the product's default branch: `missing.workflow` is true where a
-  file is absent, `outdated` names each file that stands with another text. On GitHub it compares the secrets `named`
-  with `ciSecretNames`: `missing.secrets` names each that the repository lacks, the token first, and `unknown` those of
-  them for which this browser keeps no value. On GitLab, which lists no secret this way, both are empty, and the
+  file is absent, `outdated` names each file that stands with another text. `pins.instance` is the instance commit
+  `jobWorkflowFiles` is given, `pins.product` the instance commit the product's job workflow file pins — the one a job
+  queued on the CI route records (Data) —, `null` where that file is absent or names none. On GitHub it compares the
+  secrets `named` with `ciSecretNames`: `missing.secrets` names each that the repository lacks, the token first, and
+  `unknown` those of them for which this browser keeps no value. On GitLab, which lists no secret this way, both are empty, and the
   variables' scopes are the caller's to check (`gitlabVariableScopes`). `setUp`, called only on a person's click
   (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`), commits every file that is absent or outdated in one commit on the
   default branch, on the head that was read, as the person's commit, and then stores, through the product's host with
