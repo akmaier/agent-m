@@ -1,7 +1,7 @@
 // The kinds' data files follow the catalogue's table (ITM-396) — MOD-job-catalogue's table of kinds, column "Draft it expects", and the sentence
 // under it on `change-requirements`, as the accepted text of docs/architecture/MOD-job-catalogue.md states them, against the data files of
 // the three kinds: `derive-requirements`' candidates name, for a candidate, "the source of a rule it points to, where that is not the job's";
-// `change-requirements` has "the same" draft and "takes as its parameter `source` the own source of the person who starts it"; `propose-groups`
+// `change-requirements` has "the same" draft and "takes as its parameter `source` the account `<server>/<account>` of the person who starts it"; `propose-groups`
 // returns "moves, each a `GroupMove` of MOD-group-document". For UC-005 5a, UC-019 step 6, UC-021 1b.
 // Run: node --test tests/job-catalogue-kinds-data.test.mjs
 //
@@ -78,16 +78,16 @@ test("derive-requirements — a candidate may name the source of the rule it poi
 
 // TST-472278 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE PERSON WHO PROMPTS IS A SOURCE; UC-019
-// given: the table's cell "Draft it expects" of `change-requirements`, "the same"; and the sentence under the table, "A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it"
+// given: the table's cell "Draft it expects" of `change-requirements`, "the same"; and the sentence under the table, "A job of `change-requirements` takes as its parameter `source` the account `<server>/<account>` of the person who starts it"
 // input: the draft's schema of both kinds; the purpose of both kinds
-// expect: the two schemas equal; the purpose of `change-requirements` names the parameter `source` as the own source of the person who starts the job; the purpose of `derive-requirements` names no such parameter
-test("change-requirements — the same candidates as a derivation, and the parameter source is the own source of the person who starts it", async () => {
+// expect: the two schemas equal; the purpose of `change-requirements` names the parameter `source` as the account `<server>/<account>` of the person who starts the job; the purpose of `derive-requirements` names no such parameter
+test("change-requirements — the same candidates as a derivation, and the parameter source is the account of the person who starts it", async () => {
   assert.equal(expects("change-requirements"), "the same");
-  assert.match(CATALOGUE, /A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it/);
+  assert.match(CATALOGUE, /A job of `change-requirements` takes as its parameter `source` the account `<server>\/<account>` of the person who\s+starts/);
   const [derive, change] = [await kindOf("derive-requirements"), await kindOf("change-requirements")];
   assert.deepEqual(change.answer, derive.answer);
   assert.match(change.purpose, /parameter `source`/);
-  assert.match(change.purpose, /own source of the person who starts it/);
+  assert.match(change.purpose, /the account `<server>\/<account>` of the\s+person who starts/);
   assert.doesNotMatch(derive.purpose, /parameter `source`/);
 });
 
