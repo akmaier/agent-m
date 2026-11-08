@@ -1,7 +1,7 @@
 // Release tests of the requirements UC-006 "Approve a specification change" realises, each checked from what a reviewer reads on the review page of a SPEC entry and from the requests the fixture server of GitHub received and the commits a temporary git
 // repository holds: the change shown beside the text it replaces, the approved text taken byte for byte, the gate recorded, the approval naming the exact text, the replaced text reachable, a stale approval not applied, the dashboard writing only on a person's
 // click, one click per decision, edits prepared on the dashboard, acceptance as the accepting person's commit, the change written with its approval, the instance's workflow writing it without a token, a queue accepted in its order, several entries accepted in one
-// click, a proposal rejected with a reason and a rejection removing the proposal. TST-371301 maps every requirement UC-006 realises to the release tests that guard it.
+// click, a proposal rejected with a reason, a rejection removing the proposal, and the place of each requirement an entry adds — shown, changed by the reviewer and written into the requirement hierarchy. TST-371301 maps every requirement UC-006 realises to the release tests that guard it.
 // Run: node --test tests/release-uc-006-approve-a-specification-change.test.mjs
 //
 // Module: MOD-review-pages
@@ -21,18 +21,27 @@
 //   - A RULE IS CHECKABLE and NO STATE IN THE SPECIFICATION are guarded only at review (the SPEC says: no automatic check; at review). They are read as: the page puts the proposal whole before the reviewer, no automatic check takes the decision away, and the reviewer can
 //     refuse a proposal on those grounds with a reason.
 //   - "Reject ... for every SPEC change entry it offers to accept" is read as: Reject stands beside every entry that is open, stale or waiting for its anchor, and beside none that is decided.
+//   - "the groups of `docs/groups/requirements.md`" (step 2) and "among groups of requirements only" (3c) are read of what the reviewer reads and chooses: the place shown names the titles of its group,
+//     and Change place offers no group of another kind's group file. "committed directly" (A REGROUPING IS COMMITTED DIRECTLY) is read of the reviewer's own choice of a place: it goes into the commit
+//     Accept writes on the default branch, with no branch, pull request or queue entry of its own.
+//
+// TST-371321 to TST-371324 were added for the accepted change of UC-006 steps 2, 5, 6, 3c, 5b, 4a and its postcondition (the place of each requirement an entry adds) by a release-test participant that
+// implemented none of it — not MOD-spec-changes' places file, placeItems, nor the section Places and Change place of the review page (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER). Their
+// expectations are read from UC-006 and the SPEC, not from the code. The changed passages of 4c and 4d (the places written by the workflow and by Accept ticked) are walked by the system cases of
+// tests/system-uc-006-decide-an-entry.test.mjs, not here: they add no requirement to the map.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { runEntry } from "../src/workflow-entries/main.mjs";
-import { E05, E06, E07, HEAD, LINKS, QUEUE, READING, READING_NEW, ADDED, ADDED_NEW, WRITING, WRITING_NEW, WRITING_OTHER, WRITE_RULE, SPEC, DECISIONS, REGISTER_ENTRY, TOKENS, areaOf, blobOf, boxOf, buttonOf, buttonsNamed, byClass, click,
+import { E05, E06, E07, HEAD, LINKS, QUEUE, READING, READING_NEW, ADDED, ADDED_NEW, SAMPLE, WRITING, WRITING_NEW, WRITING_OTHER, WRITE_RULE, SPEC, DECISIONS, REGISTER_ENTRY, TOKENS, areaOf, badgeOf, blobOf, boxOf, buttonOf, buttonsNamed, byClass, click,
   entry, entryId, fieldsOf, find, git, gitStatus, proposalPath, queueFiles, rationalePath, reasonOf, recordName, recordPath, recordText, resultOf, rowOf, scripted, sectionText, tick, typeInto, until, whyOf, withGitInstance, workflowEnv, world } from "./uc-006-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-006-approve-a-specification-change.md";
 const SELF = "tests/release-uc-006-approve-a-specification-change.test.mjs";
+const GROUPING = "tests/release-uc-021-group-artifacts-into-a-hierarchy.test.mjs";
 const NOW = new Date("2026-03-01T10:00:00Z");
 const text = (...lines) => `${lines.join("\n")}\n`;
 const scriptedClick = (node) => node.dispatchEvent(scripted("click"));
@@ -65,19 +74,24 @@ const EVIDENCE = {
   "SEVERAL FILES ARE ACCEPTED IN ONE CLICK": [[SELF, "TST-371318"]],
   "A PROPOSAL IS REJECTED WITH A REASON": [[SELF, "TST-371319"]],
   "A REJECTION REMOVES THE PROPOSAL": [[SELF, "TST-371320"]],
+  "AN ITEM HAS ONE PLACE IN ITS HIERARCHY": [[SELF, "TST-371321"], [SELF, "TST-371324"], [GROUPING, "TST-738104"]],
+  "A GROUP HOLDS ONE KIND OF ARTIFACT": [[SELF, "TST-371323"], [GROUPING, "TST-738103"], [GROUPING, "TST-738118"]],
+  "EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN": [[SELF, "TST-371322"], [GROUPING, "TST-738105"]],
+  "A REGROUPING IS COMMITTED DIRECTLY": [[SELF, "TST-371323"], [GROUPING, "TST-738107"]],
+  "AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL": [[SELF, "TST-371322"], [SELF, "TST-371324"], [GROUPING, "TST-738108"]],
 };
 // The requirements left without a release test of this battery, and why: the writer touched the code that decides whether a token is stored.
 const LEFT = { "WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK": "ITM-659, by developer-sonnet-j, changed how storedToken computes the key of the stored token, which decides whether the page offers GitHub's pages" };
 
 // TST-371301 · level: release · module: system
 // guards: UC-006
-// given: UC-006 as committed text, whose `realises` lists twenty-one requirements, and the release tests named in EVIDENCE
+// given: UC-006 as committed text, whose `realises` lists twenty-six requirements, and the release tests named in EVIDENCE
 // input: read UC-006's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-006 realises these twenty-one requirements; each has at least one release test named except the one in LEFT, which is named with why; each test named stands in its file with the level release and guards that requirement
+// expect: known positive — UC-006 realises these twenty-six requirements; each has at least one release test named except the one in LEFT, which is named with why; each test named stands in its file with the level release and guards that requirement
 test("TST-371301: UC-006 every requirement it realises has a release test that guards it, or is named as left for another writer", () => {
   const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
-  assert.equal(realised.length, 21, "known positive: UC-006 realises twenty-one requirements");
+  assert.equal(realised.length, 26, "known positive: UC-006 realises twenty-six requirements");
   assert.deepEqual([...realised].sort(), Object.keys(EVIDENCE).sort(), "the map holds exactly the requirements UC-006 realises");
   assert.deepEqual(Object.keys(LEFT), ["WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK"]);
   for (const [requirement, named] of Object.entries(EVIDENCE)) {
@@ -672,4 +686,150 @@ test("TST-371320: a rejection takes the entry out of its queue in one commit wit
   await moved.quiet();
   assert.deepEqual(moved.writes(), []);
   assert.ok(proposalPath(E07) in moved.files(), "the changed entry is still in its queue");
+});
+
+// ---------------------------------------------------------------- the place of each requirement an entry adds
+
+// Entry 09 adds three requirements to "## 1. Reading". Its places file places A READER NAMES A FILE in the group Names inside Shelf, A READER DATES A FILE in a new group
+// titled Names inside Shelf — a title that already stands there —, and proposes no place for A READER COUNTS FILES. The requirement hierarchy holds Shelf, with A SAMPLE
+// RULE and the group Names, which holds A WRITE RULE; the use cases have a hierarchy of their own with the group Flows.
+const block = (name, rule) => text(`**${name}** *(Fixture PO)*`, rule, "*Check:* no automatic check; at review", "");
+const NAMES = "A READER NAMES A FILE", DATES = "A READER DATES A FILE", COUNTS = "A READER COUNTS FILES";
+const ADDS = READING + block(NAMES, "A reader names the file it reads.") + block(DATES, "A reader dates the file it reads.") + block(COUNTS, "A reader counts the files it reads.");
+const E09 = entry(9, "## 1. Reading", ADDS);
+const PLACES_PATH = `${QUEUE}/09-entry-9.plaetze.md`;
+const placesFile = (...rows) => text("# Places — Reading: entry 09", "", "| Requirement | Group | New group |", "|---|---|---|", ...rows);
+const PLACES = placesFile(`| ${NAMES} | Shelf / Names | — |`, `| ${DATES} | Shelf | Names |`);
+const REQUIREMENT_GROUPS = "docs/groups/requirements.md", USE_CASE_GROUPS = "docs/groups/use-cases.md";
+const groupsHead = text("# Requirements — groups", "", "The hierarchy of the requirements, each member by its name.", "");
+const GROUPS = groupsHead + text("- Shelf", `  - ${SAMPLE}`, "  - Names", `    - ${WRITE_RULE}`);
+const FLOWS = text("# Use cases — groups", "", "The hierarchy of the use cases, each member by its identifier.", "", "- Flows", "  - UC-001");
+const placed = (over = {}, entries = [E09]) => world({ entries, files: { [PLACES_PATH]: PLACES, [REQUIREMENT_GROUPS]: GROUPS, [USE_CASE_GROUPS]: FLOWS, ...over } });
+const placeLine = (page, name) => find(page, (node) => node.localName === "li" && node.getAttribute("data-requirement") === name)[0]?.textContent ?? "";
+const changePlace = (page, name) => find(page, (node) => node.localName === "select" && node.getAttribute("aria-label") === `Change place of ${name}`)[0];
+const optionsOf = (select) => find(select, (node) => node.localName === "option").map((option) => option.textContent);
+const choose = (select, label) => { select.value = find(select, (node) => node.localName === "option" && node.textContent === label)[0].value; select.dispatchEvent(new Event("change")); };
+const timesIn = (body, name) => body.split("\n").filter((line) => line.trim() === `- ${name}`).length;
+
+// TST-371321 · level: release · module: system
+// guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-006
+// given: a product on GitHub whose queue holds entry 09, which adds A READER NAMES A FILE, A READER DATES A FILE and A READER COUNTS FILES to "## 1. Reading", with its places, and whose requirement hierarchy holds Shelf with the group Names; the reviewer's token is stored
+// input: open the page of entry 09; press Accept
+// expect: step 2: the page names, for each requirement the entry adds, the place proposed — NAMES in Names of Shelf, DATES in a new group Names in Shelf, COUNTS with none proposed, at the top level —, and showing it writes nothing; steps 5 and 6: one commit holds the record, which names the places it was shown, SPEC.md with the proposal byte for byte and no group title in it, docs/groups/requirements.md and the decision; in the group file NAMES and DATES each stand once, inside the one group Names of Shelf (the new group whose title already stands there is that group), and COUNTS in no group; step 7: the entry is in SPEC
+test("TST-371321: UC-006 the page shows the place of each requirement the entry adds, and Accept writes each into the requirement hierarchy once, with the SPEC, in one commit", async () => {
+  const w = await placed();
+  const page = await w.draw({ id: entryId(E09) });
+  assert.match(placeLine(page, NAMES), /Names/);
+  assert.match(placeLine(page, NAMES), /Shelf/);
+  assert.match(placeLine(page, DATES), /new group[^\n]*Names[^\n]*Shelf/);
+  assert.match(placeLine(page, COUNTS), /top level/);
+  assert.deepEqual(w.writes(), [], "showing the places writes nothing");
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1, "one commit");
+  const [commit] = w.writes();
+  const [record] = recordOf(commit.files);
+  assert.deepEqual(Object.keys(commit.files).sort(), [record, "SPEC.md", REQUIREMENT_GROUPS, `${QUEUE}/entscheidungen.md`].sort());
+  assert.equal(fieldsOf(commit.files[record]).places, blobOf(PLACES), "the record names the places the reviewer was shown");
+  assert.equal(commit.files["SPEC.md"], HEAD + ADDS + WRITING, "the SPEC holds the proposal byte for byte");
+  assert.doesNotMatch(commit.files["SPEC.md"], /Shelf|Names/, "no place stands in the SPEC");
+  const groups = commit.files[REQUIREMENT_GROUPS];
+  assert.equal(timesIn(groups, "Names"), 1, "one group Names");
+  for (const name of [NAMES, DATES, SAMPLE, WRITE_RULE]) assert.equal(timesIn(groups, name), 1, `${name} has one place`);
+  assert.equal(timesIn(groups, COUNTS), 0, "a requirement with no place proposed stands in no group");
+  assert.ok(groups.includes(`- Shelf\n  - ${SAMPLE}\n  - Names\n    - ${WRITE_RULE}\n    - ${NAMES}\n    - ${DATES}\n`), groups);
+  assert.equal(badgeOf(page), "in SPEC");
+});
+
+// TST-371322 · level: release · module: system
+// guards: EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL; UC-006
+// given: the product of TST-371321 without docs/groups/requirements.md, beside its use cases' group file; entry 09's places propose A READER NAMES A FILE in a new group Shelf at the top level and nothing for the other two
+// input: open the page of entry 09; press Accept
+// expect: the page shows the other two at the top level; step 6: the commit creates docs/groups/requirements.md, the requirements' own group file, holding the group Shelf with A READER NAMES A FILE and naming neither of the other two; no other file under docs/groups/ is written, and the use cases' group file is unchanged
+test("TST-371322: UC-006 Accept creates the requirements' own group file where there is none, and a requirement without a place stays at the top level", async () => {
+  const w = await placed({ [PLACES_PATH]: placesFile(`| ${NAMES} | — | Shelf |`), [REQUIREMENT_GROUPS]: null });
+  assert.ok(!(REQUIREMENT_GROUPS in w.files()), "known positive: the product has no group file of requirements");
+  const page = await w.draw({ id: entryId(E09) });
+  for (const name of [DATES, COUNTS]) assert.match(placeLine(page, name), /top level/, `${name} is shown at the top level`);
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1);
+  const [commit] = w.writes();
+  assert.deepEqual(Object.keys(commit.files).filter((path) => path.startsWith("docs/groups/")), [REQUIREMENT_GROUPS], "only the requirements' group file is written");
+  const groups = commit.files[REQUIREMENT_GROUPS];
+  assert.ok(groups.includes(`- Shelf\n  - ${NAMES}\n`), groups);
+  for (const name of [DATES, COUNTS]) assert.equal(timesIn(groups, name), 0, `${name} stands in no group`);
+  assert.equal(w.files()[USE_CASE_GROUPS], FLOWS);
+});
+
+// TST-371323 · level: release · module: system
+// guards: A GROUP HOLDS ONE KIND OF ARTIFACT; A REGROUPING IS COMMITTED DIRECTLY; UC-006
+// given: the product of TST-371321, whose use cases' group file holds the group Flows
+// input: on the page of entry 09, read the choices of Change place of A READER COUNTS FILES and choose Shelf; choose the top level for A READER DATES A FILE; then press Accept
+// expect: 3c: the choices are the top level and the groups of the requirement hierarchy — Shelf and Names in Shelf — and never Flows, a group of use cases; a choice writes nothing and leaves the entry's places file as it was; Accept writes the places as chosen — COUNTS in Shelf, DATES at the top level, NAMES as proposed —, each once, directly onto the default branch: the commit's parent is the head read and the branch main is moved to it, with no branch made, no pull request and no queue entry for the regrouping; the use cases' group file is unchanged
+test("TST-371323: UC-006 Change place offers groups of requirements only, and the reviewer's choice is committed directly with Accept", async () => {
+  const w = await placed();
+  const page = await w.draw({ id: entryId(E09) });
+  const select = changePlace(page, COUNTS);
+  assert.ok(select, "Change place is offered for a requirement the entry adds");
+  const offered = optionsOf(select);
+  assert.ok(offered.includes("the top level"), offered.join(" | "));
+  assert.ok(offered.includes("Shelf") && offered.some((label) => /Shelf/.test(label) && /Names/.test(label)), offered.join(" | "));
+  assert.ok(offered.every((label) => !/Flows/.test(label)), "no group of use cases is offered");
+  choose(select, "Shelf");
+  choose(changePlace(page, DATES), "the top level");
+  await w.quiet();
+  assert.deepEqual(w.writes(), [], "a choice writes nothing");
+  assert.equal(w.files()[PLACES_PATH], PLACES, "the entry is unchanged");
+  const head = w.head();
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1);
+  const groups = w.writes()[0].files[REQUIREMENT_GROUPS];
+  const after = groups.slice(groups.indexOf("\n- Shelf\n") + 1), shelf = after.slice(0, (after.slice(1).search(/^- /m) + 1) || undefined);
+  assert.match(shelf, new RegExp(`^  - ${COUNTS}$`, "m"), "COUNTS stands in Shelf");
+  assert.match(shelf, new RegExp(`^    - ${NAMES}$`, "m"), "NAMES stands in Names of Shelf, as proposed");
+  assert.match(groups, new RegExp(`^- ${DATES}$`, "m"), "DATES stands at the top level");
+  for (const name of [NAMES, DATES, COUNTS]) assert.equal(timesIn(groups, name), 1, `${name} has one place`);
+  assert.deepEqual(commitsOf(w).at(-1).body.parents, [head], "the commit is written on the head read");
+  assert.deepEqual(REF(w).map((request) => request.path), ["/repos/alice/spec-product/git/refs/heads/main"], "the default branch is moved");
+  assert.deepEqual(w.writers().filter((request) => /\/pulls|\/git\/refs$/.test(request.path)), [], "no branch, no pull request");
+  assert.deepEqual(Object.keys(w.writes()[0].files).filter((path) => path.startsWith("docs/spec-freigaben/") && !path.endsWith("entscheidungen.md")), [], "no queue entry for the regrouping");
+  assert.equal(w.files()[USE_CASE_GROUPS], FLOWS);
+});
+
+// TST-371324 · level: release · module: system
+// guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL; UC-006
+// given: the product of TST-371321; after the page of entry 09 is drawn, another writer's commit replaces the requirement hierarchy by one in which Shelf holds A SAMPLE RULE and no group Names; and, apart, another product of TST-371321 whose queue also holds entry 07, so that the queue stays
+// input: press Accept on the page drawn before; and apart, on the page of entry 09, type a reason and press Reject
+// expect: 5b: the entry is written all the same — SPEC.md with the proposal —; the place of A READER DATES A FILE (a new group Names in Shelf, whose group still stands) is applied, so DATES stands in a new group Names of Shelf; the place of A READER NAMES A FILE (Names of Shelf, which no longer stands) is not written: the page names it as not placed and at the top level, and NAMES stands in no group; 4a: Reject removes the entry with its places file — entry 07 stays in the queue — and leaves SPEC.md and the requirement hierarchy as they were
+test("TST-371324: UC-006 a hierarchy changed since the entry was shown: the places that still apply are written, the one that does not is named and stays at the top level; Reject removes the places", async () => {
+  const w = await placed();
+  const page = await w.draw({ id: entryId(E09) });
+  const changed = groupsHead + text("- Shelf", `  - ${SAMPLE}`);
+  await w.land({ [REQUIREMENT_GROUPS]: changed });
+  click(buttonOf(page, "Accept"));
+  await w.quiet();
+  assert.equal(w.writes().length, 1, "the acceptance");
+  const commit = w.writes().at(-1);
+  assert.equal(commit.files["SPEC.md"], HEAD + ADDS + WRITING, "the entry is written all the same");
+  const groups = commit.files[REQUIREMENT_GROUPS];
+  assert.ok(groups.includes(`- Shelf\n  - ${SAMPLE}\n  - Names\n    - ${DATES}\n`), groups);
+  assert.equal(timesIn(groups, NAMES), 0, "the place that no longer applies is not written");
+  const said = resultOf(page);
+  assert.match(said, new RegExp(`${NAMES}[^.]*not placed`), said);
+  assert.match(said, /top level/);
+  assert.doesNotMatch(said, new RegExp(`${DATES}[^.]*not placed`), "the place that applies is not named as not placed");
+
+  const other = await placed({}, [E07, E09]);
+  const shown = await other.draw({ id: entryId(E09) });
+  reasonOf(shown).value = "Not needed.";
+  click(buttonOf(shown, "Reject"));
+  await other.quiet();
+  assert.equal(other.writes().length, 1);
+  assert.ok(other.writes()[0].deleted.includes(PLACES_PATH), "the places file is removed with the entry");
+  assert.ok(!(PLACES_PATH in other.files()) && !(proposalPath(E09) in other.files()));
+  assert.ok(proposalPath(E07) in other.files(), "known positive: the queue stays, with entry 07");
+  assert.equal(other.files()["SPEC.md"], SPEC);
+  assert.equal(other.files()[REQUIREMENT_GROUPS], GROUPS);
 });

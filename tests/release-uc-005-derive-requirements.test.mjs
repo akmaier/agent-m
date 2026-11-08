@@ -2,7 +2,7 @@
 // commits the fixture hosts of the product and of the instance received: the source a requirement names, its four fields, one statement, the check it names, the proposal that a person accepts, where the page sends, the version that
 // produced it, its origin, the queue entering the default branch open, one click for each decision, what a requirement constrains, the existing requirements the participant sees, nothing left out silently, the four classes, exact
 // duplicates, the classification shown to a person, a change under the existing name, a duplicate adding a source, a conflict decided by a person, candidates deduplicated among themselves, the impact list, the current text beside a
-// candidate, the correction loop with its findings, its limit and its rounds, and chapter 8. TST-579301 maps every requirement UC-005 realises to the release tests that guard it.
+// candidate, the correction loop with its findings, its limit and its rounds, chapter 8, the requirement hierarchy the participant receives and the place of a new requirement. TST-579301 maps every requirement UC-005 realises to the release tests that guard it.
 // Run: node --test tests/release-uc-005-derive-requirements.test.mjs
 //
 // Module: MOD-review-pages
@@ -21,6 +21,12 @@
 //   - THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED has a rate that is reported, not gated, in tests/test_derivation_classes.py; the case here checks the part that is not a rate: every classification is shown to a person, who can
 //     change it, and what is written follows the person's class.
 //   - "a participant shown without its place fails" (THE PAGE NAMES WHERE IT SENDS) is read as: the panel prints the place the register declares for each destination, so that two participants of two places print two places.
+//   - "its place in the requirement hierarchy ... named by its path of titles from the top" (step 5) is read of what a person reads: the panel names each title of the path; the format of the
+//     file of its own that holds the places (step 8) is the architecture's, so the cases read only that it stands beside the section, names the requirement with its titles, and is not the section.
+//
+// TST-579331 and TST-579332 were added for the accepted change of UC-005 steps 2, 3, 5, 6.3, 7, 8 and its postcondition (a new requirement's place) by a release-test participant that implemented
+// none of it — not MOD-spec-changes' places file, the check candidate-places, the recipe requirement-hierarchy, nor the panel's place line (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER). Their
+// expectations are read from UC-005 and the SPEC, not from the code.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -32,6 +38,7 @@ import { DRAFTER, INSTANCE_SPEC, LOAN, LOAN_RULE, MAIN_FILE, PRODUCT_FILES, RENE
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-005-derive-requirements-from-a-source.md";
 const SELF = "tests/release-uc-005-derive-requirements.test.mjs";
+const GROUPING = "tests/release-uc-021-group-artifacts-into-a-hierarchy.test.mjs";
 const textOf = (node) => node.textContent;
 test.afterEach(() => restoreFetch());
 
@@ -51,6 +58,8 @@ const EVIDENCE = {
   "ONE CLICK PER DECISION": [[SELF, "TST-579311"]],
   "A REQUIREMENT NAMES WHAT IT CONSTRAINS": [[SELF, "TST-579312"]],
   "DERIVATION SEES THE EXISTING REQUIREMENTS": [[SELF, "TST-579313"], ["tests/test_derivation_context.py", "TST-414100"]],
+  "ARTIFACTS ARE ARRANGED IN NESTED GROUPS": [[SELF, "TST-579331"], [GROUPING, "TST-738101"]],
+  "AN ITEM HAS ONE PLACE IN ITS HIERARCHY": [[SELF, "TST-579332"], [GROUPING, "TST-738104"]],
   "NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY": [[SELF, "TST-579314"], ["tests/test_derivation_context.py", "TST-414101"]],
   "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT": [[SELF, "TST-579315"], ["tests/test_derivation_classes.py", "TST-415100"]],
   "EXACT DUPLICATES ARE FOUND WITHOUT A MODEL": [[SELF, "TST-579316"], ["tests/release-itm-1335-change-of-itself.test.mjs", "TST-1335101"]],
@@ -72,13 +81,13 @@ const EVIDENCE = {
 
 // TST-579301 · level: release · module: system
 // guards: UC-005
-// given: UC-005 as committed text, whose `realises` lists twenty-nine requirements, and the release tests named in EVIDENCE
+// given: UC-005 as committed text, whose `realises` lists thirty-one requirements, and the release tests named in EVIDENCE
 // input: read UC-005's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-005 realises these twenty-nine requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no release case of this file is by a writer of the behaviour it guards (the header names the trailers read)
+// expect: known positive — UC-005 realises these thirty-one requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no release case of this file is by a writer of the behaviour it guards (the header names the trailers read)
 test("TST-579301: UC-005 every requirement it realises has a release test that guards it", () => {
   const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
-  assert.equal(realised.length, 29, "known positive: UC-005 realises twenty-nine requirements");
+  assert.equal(realised.length, 31, "known positive: UC-005 realises thirty-one requirements");
   assert.deepEqual([...realised].sort(), Object.keys(EVIDENCE).sort(), "the map holds exactly the requirements UC-005 realises");
   for (const [requirement, named] of Object.entries(EVIDENCE)) {
     assert.ok(named.length > 0, `${requirement}: a test is named`);
@@ -631,4 +640,68 @@ test("TST-579330: the derivation sends chapter 8 of the book in full", async () 
   const chapter = read("docs/sources/SRC-vibe-coding/2026-10-05/08_requirements-engineering.md");
   assert.ok(chapter.length > 20000, "known positive: the chapter is long");
   assert.ok(w.requests[0].prompt.includes(chapter.trim()), "the whole chapter is in the request");
+});
+
+// ---------------------------------------------------------------- the requirement hierarchy and the place of a new requirement
+
+// The product's requirement hierarchy: the group Circulation holds the group Loans, which holds A LOAN HAS A DUE DATE; A BOOK IS SHELVED stands in no group.
+const GROUPS_PATH = "docs/groups/requirements.md";
+const GROUPS = text("# Requirements — groups", "", "The hierarchy of the requirements, each member by its name.", "", "- Circulation", "  - Loans", `    - ${LOAN}`);
+const GROUPED = { ...PRODUCT_FILES, [GROUPS_PATH]: GROUPS };
+const placeOf = (panel, name) => byClass(itemOf(panel, name), "p", "candidate-place").map(textOf).join("\n");
+
+// TST-579331 · level: release · module: system
+// guards: ARTIFACTS ARE ARRANGED IN NESTED GROUPS; UC-005
+// given: a product whose docs/groups/requirements.md nests the group Loans, holding A LOAN HAS A DUE DATE, in the group Circulation; the endpoint answers A FINE IS CHARGED as new, placed in the group Loans of Circulation; and, apart, the same product without the group file
+// input: show the run panel and press Run; and apart show the run panel of the product without the group file
+// expect: steps 2 and 3: the panel names docs/groups/requirements.md among what it sends; step 4: the request holds the hierarchy whole — every line of the group file, the nesting kept —; step 7: the candidate is shown with its place naming both groups, Loans and Circulation; known negative: without the group file the panel names no docs/groups/requirements.md
+test("TST-579331: UC-005 the participant receives the nested requirement hierarchy, and a new candidate is shown with its place in it", async () => {
+  const fine = candidate("A FINE IS CHARGED", { rule: "A late loan is charged a fine.", place: { group: ["Circulation", "Loans"] } });
+  const { w, prepared, panel } = await derived({ candidates: [fine] }, { files: GROUPED });
+  assert.match(textOf(prepared.panel), /docs\/groups\/requirements\.md/, "the panel names the hierarchy among what it sends");
+  assert.equal(w.requests.length, 1, "the place is held by the hierarchy: no finding sends the draft back");
+  for (const line of GROUPS.split("\n").filter(Boolean)) assert.ok(w.requests[0].prompt.includes(line), `the request holds the line ${JSON.stringify(line)}`);
+  assert.ok(w.requests[0].prompt.includes(`- Circulation\n  - Loans\n    - ${LOAN}`), "the nesting is kept");
+  const shown = placeOf(panel, "A FINE IS CHARGED");
+  assert.match(shown, /Loans/);
+  assert.match(shown, /Circulation/);
+  const bare = await world({ answers: { candidates: [] } });
+  const unprepared = await bare.prepare({ files: [MAIN_FILE] });
+  assert.ok(unprepared.panel, "known positive: the run panel is shown");
+  assert.doesNotMatch(textOf(unprepared.panel), /docs\/groups\/requirements\.md/, "without a group file no hierarchy is named");
+});
+
+// TST-579332 · level: release · module: system
+// guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-005
+// given: the product of TST-579331; the endpoint's first answer places the new A FINE IS CHARGED in "Circulation / Fines", which the hierarchy does not hold and the candidate does not propose as new, and changes A LOAN HAS A DUE DATE with a place "Nowhere"; its second answer proposes Fines as a new group in Circulation
+// input: Run; read the second request and the panel; Write proposals
+// expect: step 6.3: the second request holds one error under [AN ITEM HAS ONE PLACE IN ITS HIERARCHY] naming A FINE IS CHARGED, and none about the change, which keeps the place of the requirement it changes; step 7: the panel shows the new candidate in a new group Fines in Circulation and no place for the change; step 8 and the postcondition: the entry holds the place in a file of its own beside the section, naming A FINE IS CHARGED with Circulation and Fines and not the changed requirement; the section's text names neither group; no commit touches docs/groups/requirements.md, which stays as it was
+test("TST-579332: UC-005 a new candidate's place must be a group the hierarchy holds or a new one; it is written beside the entry, never into the hierarchy", async () => {
+  const change = candidate("A LOAN IS DATED", { class: "change", of: LOAN, rule: "Every loan states the date by which the book is returned, on the receipt.", place: { group: ["Nowhere"] } });
+  const fine = (place) => candidate("A FINE IS CHARGED", { rule: "A late loan is charged a fine.", place });
+  const { w, prepared, panel } = await derived(({ n }) => ({ draft: { candidates: [fine(n === 1 ? { group: ["Circulation", "Fines"] } : { group: ["Circulation"], new: "Fines" }), change] } }), { files: GROUPED });
+  assert.equal(w.requests.length, 2, "the draft goes back once");
+  const placed = findingLines(w.requests[1].prompt).filter((line) => line.includes("[AN ITEM HAS ONE PLACE IN ITS HIERARCHY]"));
+  assert.equal(placed.length, 1, placed.join("\n"));
+  assert.match(placed[0], /^A FINE IS CHARGED:\d+: error: .*Fines/);
+  assert.doesNotMatch(w.requests[1].prompt, /Nowhere[^\n]*\[AN ITEM HAS ONE PLACE IN ITS HIERARCHY\]/, "the change's place is not judged");
+  const shown = placeOf(panel, "A FINE IS CHARGED");
+  assert.match(shown, /new group/);
+  assert.match(shown, /Fines/);
+  assert.match(shown, /Circulation/);
+  assert.equal(placeOf(panel, "A LOAN IS DATED"), "", "a change keeps the place of the requirement it changes");
+  await write(prepared.page);
+  const files = writtenFiles(w);
+  const section = sectionOf(w);
+  assert.match(section, /\*\*A FINE IS CHARGED\*\*/, "known positive: the section adds the new requirement");
+  assert.doesNotMatch(section, /Circulation|Fines/, "no place stands in the section's text");
+  const sectionPath = Object.keys(files).find((path) => path.endsWith("01-lending.md"));
+  const folder = sectionPath.slice(0, sectionPath.lastIndexOf("/") + 1);
+  const beside = Object.entries(files).filter(([path, body]) => path.startsWith(folder) && path !== sectionPath && !/(index|entscheidungen)\.md$|\.begruendung\.md$/.test(path) && body.includes("A FINE IS CHARGED"));
+  assert.equal(beside.length, 1, "one file of its own beside the section holds the place");
+  const [, places] = beside[0];
+  assert.match(places, /A FINE IS CHARGED[^\n]*Circulation[^\n]*Fines/);
+  assert.doesNotMatch(places, new RegExp(LOAN), "the changed requirement proposes no place");
+  assert.deepEqual(w.product.writes().flatMap((change) => change.files.map((file) => file.path)).filter((path) => path.startsWith("docs/groups/")), [], "the hierarchy is not touched");
+  assert.equal(w.product.files()[GROUPS_PATH], GROUPS);
 });
