@@ -70,7 +70,14 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 | `tool_limit` | a number, or left out | the most tool calls of one exchange with the drafter; left out, no number of calls ends the exchange |
 
 Its body is one section, `## Purpose`, saying in a paragraph what the kind does. The prompt is data: plain text with
-named places for the parts, never code. The answer's schema is a small JSON description — `type`, `properties`,
+named places for the parts, never code. A prompt says what the job does and names the fields of its answer; it never
+states the form of what it drafts — what a requirement, a use case, an architecture decision, a module file or a backlog
+item consists of and how each part is written —, which the checks a definition names judge by and MOD-job-runner gives
+the drafter in full as the job's `form` (`A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY`). The form so has
+one definition, the one its check reads: the prompts of `derive-requirements` and `change-requirements` hold no
+wording of a name, a rule, a check or of one statement per requirement, those of `derive-use-cases` and
+`change-use-case` none of the parts of a use case, and those of `derive-architecture` and `change-architecture` none of
+the sections of a decision or a module file. The answer's schema is a small JSON description — `type`, `properties`,
 `required`, `items`, `enum` — of the `draft`; every answer has the same envelope, `{ "draft": …, "answers": [ { "finding":
 <the finding's line>, "how": "fixed" | "justified" | "answered", "text": … } ] }`, so that the runner can read the draft
 and the drafter's answer to every finding of the last round.
@@ -84,7 +91,7 @@ Agent M prepares no job of the kind.
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
 | `derive-requirements` | UC-005 | draft text | | `instruction?`, `source-excerpt`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class, and, for a new one, its place |
-| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | the same |
+| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | the same, without a source passage |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `instruction?`, `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
 | `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `draft?`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `instruction?`, `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
@@ -160,7 +167,10 @@ latter for tests that pass before any code exists (UC-024, UC-034); for `write-t
 A job of `change-requirements` takes as its parameter `source` the account `<server>/<account>` of the person who starts
 it, so that every requirement it drafts names that person's account among its sources (`THE PERSON WHO PROMPTS IS A
 SOURCE`); its precondition `person-source`
-(MOD-spec-changes) keeps a job without one from starting, wherever it runs. A job of `change-requirements` started from
+(MOD-spec-changes) keeps a job without one from starting, wherever it runs. Its candidates name no passage: what they
+come from is the person's instruction, a message of the conversation, which a repository holds only in a conversation
+record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`), so that its prompt asks for none and its answer's schema has none, and the
+account stands alone as the source (MOD-spec-changes' `entrySections`). A job of `change-requirements` started from
 an issue takes as its parameter `issue` that issue's number, as `analyse-issue` and `fix-bug` do: its recipe
 `issue-context?` gives the issue with what it touches, and its writer names the issue as the origin of the queue it
 writes (UC-012 step 6); a job without the parameter `issue`, a change by prompt, gets no part of that recipe.

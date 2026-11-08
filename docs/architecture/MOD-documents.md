@@ -27,6 +27,7 @@ provides:
   - classifyCandidates
   - artifactSchemas
   - artifactSchemaOf
+  - artifactSchemaTexts
 ---
 # MOD-documents Documents, records and registers from their schemas
 
@@ -312,6 +313,10 @@ record, the appended sections in order. **A row** of a table: `{ line, cells }`,
 - `artifactSchemaOf(path: string) -> Schema | null` — the one of these four schemas whose path pattern the path matches,
   with the placeholders as the schema language defines them and as `documentFindings` matches a path, or `null`: so that
   a caller that holds only a path, such as a drafted file's, needs no copy of the patterns.
+- `artifactSchemaTexts() -> { path: string, text: string }[]` — the files of these four schemas as this module read them,
+  each with its path below `src/documents/schemas/` and its text byte for byte, in the order use case, decision, module,
+  item: what `documentFindings` judges a drafted document by, for a drafter to read (`A DRAFTING JOB RECEIVES THE FORM ITS
+  DRAFT IS CHECKED BY`), so that no prompt keeps a copy of them.
 
 ## Files
 

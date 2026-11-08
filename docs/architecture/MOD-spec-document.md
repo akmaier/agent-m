@@ -16,6 +16,7 @@ provides:
   - Requirement
   - parseSpec
   - requirementFindings
+  - requirementForm
   - sectionText
   - replaceSection
   - requirementNamesIn
@@ -84,9 +85,17 @@ version history.
   when its source, rule or check is missing; an error under `A REQUIREMENT NAMES ITS CHECK` when its check names neither
   a test nor review; a warning under `ONE STATEMENT PER REQUIREMENT` when its rule contains "and" or "additionally", which a person then
   splits or keeps with a reason; an error under `THE NAME IS THE ID AND IT SURVIVES` for a name given twice; an error
-  under `EVERY ARTIFACT HAS AN IDENTIFIER` for a name that is not in capitals, which MOD-identifiers' scheme does not read
-  as a requirement's name; and an error under `A DOCUMENT HOLDS NO HISTORY` for each mark of history. Each finding names
+  under `EVERY ARTIFACT HAS AN IDENTIFIER` for a name that MOD-identifiers' scheme does not read as a requirement's name —
+  one not in capitals, or one with a character the scheme does not allow, such as an underscore —, its correction asking
+  for the name in the scheme's form; and an error under `A DOCUMENT HOLDS NO HISTORY` for each mark of history. Each finding names
   the requirement and its line.
+- `requirementForm(specText: string) -> string` — what `requirementFindings` judges a requirement by, cut from the text of
+  Agent M's own `SPEC.md`, for a drafter to read (`A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY`): the
+  preamble's paragraph that begins `**Form of a requirement:**`, then the block of each requirement `requirementFindings`
+  cites, from its head line to the end of its check, in the order that function lists them, each byte for byte and
+  separated by one empty line. The names are those its findings carry, kept once in this module. Throws `FormMissing {
+  missing }`, naming the paragraph or each requirement the text does not hold, so that no drafter receives part of the
+  form. Pure.
 - `sectionText(specText: string, heading: string) -> string | null` — the exact bytes of the section whose heading line is
   `heading`, or `null` when there is none. A caller compares or hashes these bytes; it must not normalise them.
 - `replaceSection(specText: string, heading: string, sectionText: string) -> string` — the SPEC with that section's bytes

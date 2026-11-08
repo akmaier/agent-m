@@ -41,6 +41,7 @@ uses:
   - MOD-source-register.sourceSchemas
   - MOD-source-register.sourceFindings
   - MOD-source-register.linkedVersion
+  - MOD-source-register.namesAccount
   - MOD-text-tools.Finding
   - MOD-text-tools.finding
   - MOD-text-tools.blobSha
@@ -109,8 +110,8 @@ written and never changes; an entry under a renamed heading starts a new queue.
 |---|---|---|
 | `index.md` | `queue-index` | the title line `# SPEC approvals — queue <package> · <heading>`, `<heading>` the section's heading without its number; the line `**Zieldatei aller Einträge:** ` with the target in backticks; and the entry table |
 | `NN-<package>.md` | — | an entry: the complete section as proposed, from its heading line to its end, nothing else; `NN` its number, two digits or more |
-| `NN-<package>.begruendung.md` | `queue-rationale` | the title line `# <section>: <what changes>`, the paragraphs **The change.** and **Why.**, the impact list, and the origin — the source passage and version, a conversation in the prompt bar on the page it names, never a message
-of it (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`), or the issue —; for an entry drafted from an issue, the line `**Issue:** #<number> of <product address>`; for a drafted entry also the Agent M version, the participant, the model, the date and the correction rounds |
+| `NN-<package>.begruendung.md` | `queue-rationale` | the title line `# <section>: <what changes>`, the paragraphs **The change.** and **Why.**, the impact list, and the origin — a registered source with the passages its requirements name and its version; a person's account alone, with a conversation in the prompt bar on the page it names, never a message
+of it nor a passage of one (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`); or the issue —; for an entry drafted from an issue, the line `**Issue:** #<number> of <product address>`; for a drafted entry also the Agent M version, the participant, the model, the date and the correction rounds |
 | `NN-<package>.plaetze.md` | `queue-places` | the places in the requirement hierarchy of the requirements the entry adds: the title line `# Places — <heading>: entry NN`, `<heading>` the section's heading without its number, and the places table; only for an entry that proposes at least one place, never part of the section's text |
 | `entscheidungen.md` | `queue-decisions` | the title line `# Decisions — queue <package> <heading>`, the line `Append-only.`, then one row per decision, appended, never changed |
 
@@ -206,7 +207,12 @@ entry of another queue that is not in SPEC creates it.
   requirement it changes, under its name (`A CHANGE IS PROPOSED UNDER THE EXISTING NAME`); a `duplicate` as an added
   source of the existing requirement (`A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT`); a `conflict` only as the person
   resolved it, an undecided one not at all (`A CONFLICT IS DECIDED BY A PERSON`). Every requirement names `source`, the
-  job's, with the passage it draws on, and, where its candidate points to a rule of another source, that source too.
+  job's, and, where its candidate points to a rule of another source, that source too. A passage is only a locator into
+  the content of a registered source — a chapter, an article, a line —: the job's source is followed by `, ` and each
+  passage its class names, or stands alone where the class names none; a person's account, as MOD-source-register's
+  `namesAccount` tells it, stands alone whatever passage the draft holds, since what a person's account draws on is their
+  instruction, a message of the conversation (`THE PERSON WHO PROMPTS IS A SOURCE`, `A CONVERSATION IS WRITTEN TO A
+  REPOSITORY ONLY WHEN RECORDING IS ON`): `*(github.com/akmaier)*`.
   `draft` is a draft of `derive-requirements` or `change-requirements`, in the form its kind expects (MOD-job-catalogue).
   A section's `places` are those of the candidates `classes` add to it as `new` that name a place — of merged candidates,
   the one whose rule it takes —; every other candidate keeps the place of the requirement it refers to, so it has none.
@@ -346,7 +352,8 @@ entry of another queue that is not in SPEC creates it.
   requirement as stored beside the commit's graph; MOD-trace-graph.storedGraph — the same from the graph itself, where those are not stored;
   MOD-trace-graph.traceGraph — the graph of the head `proposeSection` reads, where none is stored for it.
 - MOD-source-register.sourceSchemas, sourceFindings, linkedVersion — the instance's links and register as the workflow
-  reads them, the requirements that name neither a linked source nor an account, and a candidate's source that the product does not link.
+  reads them, the requirements that name neither a linked source nor an account, and a candidate's source that the product does not link;
+  MOD-source-register.namesAccount — a job's source that is a person's account, which `entrySections` writes alone.
 - MOD-text-tools.Finding, finding, blobSha, lineDiff — findings, blob SHAs and the difference shown.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
   provenance of a drafted queue's commit.
