@@ -18,7 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
-import { INSTRUCTION, LOAN, all, assertProposal, barOf, draft, namedButton, one, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf } from "./uc-019-prompt-bar-harness.mjs";
+import { INSTANCE_COMMIT, INSTRUCTION, LOAN, all, assertProposal, barOf, draft, namedButton, one, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf } from "./uc-019-prompt-bar-harness.mjs";
 import { AGENT, DRAFTER, HANDY, RUN_URL, TOOLER, answer, barText, calls, conversationOf, followClock, declared, endpointOf, free, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
 import { until } from "./review-pages-draft-world.mjs";
 import { readSetting } from "../src/browser-store/index.mjs";
@@ -67,7 +67,7 @@ const COVERED_BY_RELEASE = {
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": [GRAPH, "tests/review-core.test.mjs", "tests/job-runner-tools.test.mjs"],
   "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED": [PAGES, "tests/test_mail_privacy.py"],
   "A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL": [PAGES, "tests/test_mail_privacy.py"],
-  "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT": [GRAPH, "tests/review-core.test.mjs"],
+  "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT": [GRAPH, "tests/review-core.test.mjs", "tests/repository-hosts-ci-secret.test.mjs"],
   "NO SECRET IN THE REPOSITORY": [GRAPH, "tests/prompt-bar-record.test.mjs", "tests/test_no_secret_written.py"],
   "NO SERVER": [GRAPH, "tests/test_no_backend.py"],
   "ONE DEFINITION, THREE DRIVERS": [GRAPH, "tests/runtimes-tab-endpoint-tools.test.mjs", "tests/test_single_definition.py"],
@@ -260,8 +260,8 @@ test("TST-513207: nothing is written on a script's click, and what is saved is a
   for (const button of buttons) { scripted(button); await rest(s); }
   assert.equal(s.product.writes.length, 0, "scripted clicks write nothing");
   await save(s);
-  const text = assertProposal(s);
-  assert.match(text, /SRC-author/);
+  // The person who prompts is a source by their account (UC-019 step 6, THE PERSON WHO PROMPTS IS A SOURCE): assertProposal finds `github.com/akmaier` among the sources.
+  assertProposal(s);
   const [write] = proposalWrites(s);
   const lines = write.message.split("\n");
   for (const wanted of ["Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter", "Agent-M-Model: fixture-model", "Agent-M-Rounds: 1"]) assert.ok(lines.includes(wanted), `${wanted} in the commit message`);
@@ -362,6 +362,43 @@ test("TST-513211: participants are offered by their declared capabilities and pl
   await sendNow(s, "Run the tests.", { participant: "handy" });
   await free(s);
   await until(() => all(barOf(s), "section", "hand-over").length > 0, "the hand-over is proposed");
+  clock.stop();
+  w.stop();
+});
+
+// TST-513212 · level: release · module: MOD-prompt-bar · MOD-runtimes
+// guards: UC-049; UC-010; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION
+// given: the product holds Agent M's job workflow file .github/workflows/agent-m-jobs.yml as another commit of Agent M gives it — it pins the commit 0badc0d…, this instance stands at c0ffee0… —, every CI secret is stored, and handy (CI secret CI_KEY) answers the person's Send by proposing a hand-over
+// input: Send; then the one click on Set up GitHub Actions
+// expect: nothing is handed over — no write, no job record, no workflow started —; the conversation names the file that stands otherwise, the commit it pins and this instance's, and offers Set up GitHub Actions right there; that one click installs the job workflow as this instance's commit gives it and then hands the work over as the Send asked — one job record, the job workflow started once — with nothing else clicked (UC-049 4c: "Nothing is handed over; the conversation says what is missing — of a job workflow of another commit, the commit it pins and this instance's — and offers Set up GitHub Actions (UC-010) right there. That one click sets it up and then hands the work over"; UC-010 Precondition: "one click installs the job workflow as this instance's commit gives it")
+test("TST-513212: a job workflow of another commit of Agent M holds the hand-over back, and Set up GitHub Actions installs this instance's and hands over in one click", async () => {
+  const OTHER = "0badc0de".padEnd(40, "1"), JOBS = ".github/workflows/agent-m-jobs.yml";
+  const s = await scenario({ ...register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
+  const current = s.product.files[JOBS];
+  assert.ok(current.includes(INSTANCE_COMMIT), "known positive: the product's job workflow, as this instance's commit gives it, pins this instance's commit");
+  const outdated = current.replaceAll(INSTANCE_COMMIT, OTHER);
+  assert.ok(outdated !== current && outdated.includes(OTHER) && !outdated.includes(INSTANCE_COMMIT), "the fixture's job workflow pins the other commit only");
+  await s.product.change(JOBS, outdated);
+  const w = watch(s, { script: [answer("I will hand this on.", { handOver: { kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page" } })] });
+  const clock = followClock();
+  await sendNow(s, "Please run the tests of this page.", { participant: "handy" });
+  await free(s);
+  const proposal = () => all(barOf(s), "section", "hand-over")[0];
+  await until(() => proposal() && /Nothing was handed over/.test(proposal().textContent), "the hand-over is held back");
+  const text = proposal().textContent;
+  assert.deepEqual([s.product.writes.length, w.dispatches.length], [0, 0], "nothing is handed over");
+  assert.ok(!Object.keys(s.product.files).some((path) => path.startsWith("docs/jobs/JOB-")), "no job record");
+  assert.ok(text.includes(JOBS), `the file that stands otherwise is named: ${text}`);
+  assert.ok(text.includes(OTHER.slice(0, 7)), `the commit the job workflow pins is named: ${text}`);
+  assert.ok(text.includes(INSTANCE_COMMIT.slice(0, 7)), `this instance's commit is named: ${text}`);
+  const setUp = all(proposal(), "button").filter((node) => node.textContent === "Set up GitHub Actions");
+  assert.equal(setUp.length, 1, `Set up GitHub Actions is offered right there: ${text}`);
+  await press(s, setUp[0]);
+  await until(() => w.dispatches.length > 0, "the work is handed over after the setup");
+  assert.equal(s.product.files[JOBS], current, "the job workflow stands as this instance's commit gives it");
+  assert.ok(Object.keys(s.product.writes[0].files).includes(JOBS), "the setup's commit writes the job workflow");
+  assert.equal(Object.keys(s.product.files).filter((path) => path.startsWith("docs/jobs/JOB-")).length, 1, "one job record");
+  assert.equal(w.dispatches.length, 1, "the job workflow is started once");
   clock.stop();
   w.stop();
 });

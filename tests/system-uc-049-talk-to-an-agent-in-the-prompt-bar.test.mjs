@@ -311,9 +311,7 @@ test("alternative 4b: when the tab is closed the conversation is gone and the jo
 // guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: a product that holds no job workflow
 // input: the participant proposes a hand-over
-// expect: nothing is handed over — no Hand over, no write, no workflow started —; the conversation says what is missing ("Nothing was handed over: akmaier/lending-tool is not set up for
-//   GitHub Actions. Missing: the job workflow") and offers Set up GitHub Actions right there, not a link to settings; its one click commits the job workflow and then hands the work over as
-//   the Send asked — the job's record committed, the job workflow started once — with no further click (flow: UC-049 alternative 4c)
+// expect: nothing is handed over — no Hand over, no write, no workflow started —; the conversation says what is missing ("Nothing was handed over: akmaier/lending-tool is not set up for GitHub Actions. Missing: the job workflow") and offers Set up GitHub Actions right there, not a link to settings; its one click commits the job workflow and then hands the work over as the Send asked — the job's record committed, the job workflow started once — with no further click (flow: UC-049 alternative 4c)
 // What changed: the bar linked the route settings ("Set up the job workflow"); on GitHub it now offers Set up GitHub Actions, which sets up and hands over in one click (UC-049 4c, as
 //   accepted in MOD-prompt-bar).
 test("alternative 4c: a product without the job workflow gets nothing handed over, and Set up GitHub Actions sets it up and hands over in one click", async () => {

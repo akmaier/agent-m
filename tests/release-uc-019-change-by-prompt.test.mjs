@@ -44,7 +44,7 @@ const REALISED = [
   "A PARTICIPANT DECLARES ITS CAPABILITIES", "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA", "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION",
   "EVERY STEP EXPLAINS ITSELF", "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT", "A FINDING READS LIKE A COMPILER MESSAGE",
   "AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED", "WHAT A PERSON DECIDES IS NOT SENT BACK", "THE CORRECTION LOOP HAS A FIXED LIMIT", "THE ROUNDS ARE COUNTED AND SHOWN",
-  "A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING",
+  "A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING", "ARTIFACTS ARE ARRANGED IN NESTED GROUPS", "AN ITEM HAS ONE PLACE IN ITS HIERARCHY",
 ];
 
 function ucRealises() {
@@ -62,6 +62,20 @@ function ucRealises() {
 const ev = (file, id) => ({ file, id });
 
 const COVERED_BY_RELEASE = {
+  // UC-019 realises both as accepted: step 4 gives the drafter "its requirement hierarchy from `docs/groups/requirements.md`", step 6 has a new requirement name "its place
+  // in the requirement hierarchy — a group the hierarchy holds, or a new group with the group it stands in", step 7 sends back a place the hierarchy does not hold, and
+  // step 9 writes "the places of its new requirements beside its section".
+  "ARTIFACTS ARE ARRANGED IN NESTED GROUPS": [
+    ev(RELEASE_REQUIREMENTS, "TST-418128"),
+    ev("tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"),
+    ev("tests/spec-changes-places.test.mjs", "TST-2026110880"),
+  ],
+  "AN ITEM HAS ONE PLACE IN ITS HIERARCHY": [
+    ev(RELEASE_REQUIREMENTS, "TST-418128"),
+    ev("tests/job-runner-candidate-places.test.mjs", "TST-2026110875"),
+    ev(DRAFT, "TST-2026110896"),
+    ev("tests/spec-changes-places.test.mjs", "TST-2026110880"),
+  ],
   "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT": [
     ev(DRAFT, "TST-507020"),
     ev(RELEASE_REQUIREMENTS, "TST-418109"),
@@ -240,10 +254,10 @@ const FINDINGS = {
 // guards: UC-019
 // given: UC-019's realised requirements as committed, REALISED, COVERED_BY_RELEASE and FINDINGS in this release test
 // input: compare the realised requirements with REALISED and with the keys of COVERED_BY_RELEASE
-// expect: UC-019 realises exactly the 35 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
+// expect: UC-019 realises exactly the 37 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
 test("TST-377101: UC-019 release coverage names every realised requirement and its executable evidence", () => {
   const realised = ucRealises();
-  assert.equal(REALISED.length, 35);
+  assert.equal(REALISED.length, 37);
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
   assert.deepEqual(realised.toSorted(), REALISED.toSorted());
   assert.deepEqual(Object.keys(COVERED_BY_RELEASE).sort(), REALISED.toSorted());
