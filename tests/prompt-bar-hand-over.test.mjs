@@ -22,11 +22,12 @@
 import test, { afterEach, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
+import { listSettings, openStore, readSetting, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { approvalStrategies } from "../src/approvals/index.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { startPromptBar } from "../src/prompt-bar/index.mjs";
+import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { tick, until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used
@@ -156,7 +157,8 @@ const UC1 = "docs/use-cases/UC-001-store.md", UC2 = "docs/use-cases/UC-002-pages
 
 // The files every product has: two use cases (UC-001 accepted by a record naming its blob, UC-002 open), two module files, the instance-independent parts of the process.
 function commonFiles() {
-  // Both files of Agent M's job workflow on GitHub: the bar holds a hand-over on the CI route back while one is absent (UC-049 4c); their texts may stand outdated.
+  // Both files of Agent M's job workflow on GitHub: the bar holds a hand-over on the CI route back while one is absent or stands outdated (UC-049 4c); `open` gives each that the files hold
+  // the text this instance's commit gives it (standingCurrent).
   const files = { "SPEC.md": "# Spec\n", [UC1]: "# UC-001 store\n", [UC2]: "# UC-002 pages\n", [WORKFLOW_FILE]: "name: agent-m-jobs\n", [MAIN_CHANGED_FILE]: "name: agent-m-main-changed\n",
     "docs/architecture/MOD-store.md": moduleFile("MOD-store"), "docs/architecture/MOD-pages.md": moduleFile("MOD-pages") };
   files[`docs/approvals/UC-001-${blobOf(files[UC1]).slice(0, 12)}.md`] = "kind: use-case\n";
@@ -258,6 +260,16 @@ afterEach(() => {
 const subjectOf = () => ({ key: "use-case:UC-007", title: "UC-007 Derive use cases", kind: "converse", entry: "use-cases",
   paramsFor: () => ({ page: "The page shows UC-007.", target: "UC-007" }), draftRoute: null, withhold: null, refuses: [] });
 
+// `files` with each file of Agent M's job workflow they hold given the text this instance's commit `commit` gives it, for the secrets the job workflow reads: AGENT_M_TOKEN and the CI secret
+// each endpoint setting of `kept` names, in the order the store lists them (the instance's participant list holds alice alone, whose route names no secret). A file `files` does not hold stays
+// absent.
+function standingCurrent(files, commit, kept) {
+  const keys = [...new Set(listSettings(kept).filter((setting) => setting.key.startsWith("endpoint:")).map((setting) => readSetting(kept, setting.key)?.secret)
+    .filter((secret) => typeof secret === "string"))];
+  const current = jobWorkflowFiles("github", { repository: "alice/agent-m", commit }, { token: "AGENT_M_TOKEN", keys }, []);
+  return { ...files, ...Object.fromEntries(current.filter(({ path }) => path in files).map(({ path, text }) => [path, text])) };
+}
+
 // A page of the product (or of the instance): the instance with its participant list, a store declaring the endpoints dev-ci and tab-only (and `endpoints`), the Bridge lab-pc and its
 // sessions, and the tokens, and the bar started on it.
 function open({ files = scrumFiles(), recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf, endpoints = {}, products = () => [] } = {}) {
@@ -271,7 +283,7 @@ function open({ files = scrumFiles(), recording = false, store = null, went = []
   writeSetting(kept, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
   const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": register(ALICE),
     ...instanceFiles, ...(recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
-  const product = repoOf(PRODUCT_WEB, files);
+  const product = repoOf(PRODUCT_WEB, standingCurrent(files, instance.head(), kept));
   const net = network();
   const target = document.createElement("div");
   const bar = startPromptBar(target, { page: "main", store: kept, instance: { repository: "alice/agent-m", host: instance.host },

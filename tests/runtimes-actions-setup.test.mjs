@@ -169,3 +169,33 @@ test("TST-2026110914: on GitLab actionsSetup lists no secret, and setUp commits 
   assert.deepEqual(repo.writes()[0][1].files.map(({ path, text: body }) => [path, body]), expectedFiles("gitlab", own).map(({ path, text: body }) => [path, body]));
   assert.deepEqual(done.stored, []);
 });
+
+// TST-2026111201 · level: unit · module: MOD-runtimes
+// guards: UC-010; UC-049
+// given: an older instance commit OLD_COMMIT; four products — on GitHub one without the job workflow, one holding every file jobWorkflowFiles gives for INSTANCE_COMMIT, one holding every
+//   file jobWorkflowFiles gives for OLD_COMMIT, and on GitLab one holding every file jobWorkflowFiles gives for OLD_COMMIT and its .gitlab-ci.yml; this browser's store as in TST-2026110911
+// input: actionsSetup for each; setUp is not called
+// expect: pins.instance is INSTANCE_COMMIT for each; pins.product is null for the product without the job workflow, INSTANCE_COMMIT for the current one, and OLD_COMMIT for both older ones;
+//   the older ones name every file of their job workflow as outdated, the current one none; nothing is written
+test("TST-2026111201: actionsSetup gives the instance commit its files pin and the one the product's job workflow file pins, null where that file is absent", async () => {
+  const OLD_COMMIT = "fedcba9876543210fedcba9876543210fedcba98";
+  // The paths of `older` whose text is not the one `current` gives for the same path.
+  const differing = (older, current) => older.filter((file) => current.find((each) => each.path === file.path)?.text !== file.text).map((file) => file.path);
+  const asFiles = (list) => Object.fromEntries(list.map(({ path, text: body }) => [path, body]));
+  const olderOf = (server, gitlabCi = null) => jobWorkflowFiles(server, { ...INSTANCE, commit: OLD_COMMIT }, { token: "AGENT_M_TOKEN", keys: KEYS }, ["gpu"], gitlabCi);
+  const cases = [
+    { name: "absent", server: "github", files: {}, product: null, outdated: [] },
+    { name: "current", server: "github", files: asFiles(expectedFiles("github")), product: INSTANCE_COMMIT, outdated: [] },
+    { name: "older on GitHub", server: "github", files: asFiles(olderOf("github")), product: OLD_COMMIT, outdated: differing(olderOf("github"), expectedFiles("github")) },
+    { name: "older on GitLab", server: "gitlab", files: asFiles(olderOf("gitlab")), product: OLD_COMMIT,
+      outdated: differing(olderOf("gitlab"), expectedFiles("gitlab", asFiles(olderOf("gitlab"))[".gitlab-ci.yml"])) },
+  ];
+  assert.ok(differing(olderOf("github"), expectedFiles("github")).includes(".github/workflows/agent-m-jobs.yml"), "known positive: the older job workflow file stands with another text");
+  for (const each of cases) {
+    const repo = product(each.server, { files: each.files, secrets: ["AGENT_M_TOKEN", ...KEYS] });
+    const setup = await setupOf(each.server, repo, store());
+    assert.deepEqual(setup.pins, { instance: INSTANCE_COMMIT, product: each.product }, each.name);
+    assert.deepEqual(setup.outdated, each.outdated, each.name);
+    assert.deepEqual(repo.writes(), [], `${each.name}: nothing is written without setUp`);
+  }
+});
