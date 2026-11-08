@@ -134,7 +134,8 @@ export function entrySections(spec, draft, classes, source) {
 // queue-entries(result, context) -> WriteOutcome — the candidates of the job's result written by the classes the person left them in, each section they touch as an entry of that section's
 // queue of the SPEC it belongs in: a candidate that constrains the development process in the instance's SPEC, every other in the product's; one commit for each of the two that gets an entry.
 // Where the module file leaves a reading open, this file states the one it takes:
-//   - A candidate's class is the one in `result.classes` for its name; one without a class is not written. A process candidate's class is decided anew with classifyCandidates over the
+//   - A candidate's class is the one in `result.classes` for its name; one without a class is not written, and a note names it (`<name> has no class; it is not written.`); a
+//     draft that holds no candidate writes nothing, its one note `the draft holds no requirement; nothing is written.`. A process candidate's class is decided anew with classifyCandidates over the
 //     instance's SPEC and the requirements of its open queues, with the name and the rule as the key; a candidate that restates a requirement only an open entry holds, or that changes,
 //     adds a source to or contradicts one its SPEC does not hold, is not written and the outcome's notes name it.
 //   - A candidate's `source` names a source it points to; `linkedVersion` over the product's links and the instance's register gives none for one the product does not link, and the candidate
@@ -242,6 +243,8 @@ export async function queueEntries(result, context) {
   const page = typeof context.params?.page === "string" && context.params.page.trim() ? context.params.page.trim() : null;
   const issue = /^[1-9]\d*$/.test(String(context.params?.issue ?? "").trim()) ? { number: Number(context.params.issue), product: context.product.address } : null;
   const notes = [];
+  // A draft that holds no candidate writes nothing, and its one note says so, so that a run that writes nothing names why.
+  if (drafted.length === 0) return { commits: [], files: [], pullRequest: null, shown: null, notes: ["the draft holds no requirement; nothing is written."] };
 
   // The sources the product links.
   const { entry: entrySchema, links: linksSchema } = sourceSchemas();
@@ -295,7 +298,13 @@ export async function queueEntries(result, context) {
         if (each.class !== "new" && held) notes.push(`${each.refs[0]} restates or changes ${held.id}, which only the open queue ${held.queue} holds; it is not written.`);
       }
     } else {
-      decided = mine.map((candidate) => classes.find((each) => each.refs?.includes(candidate.name))).filter(Boolean);
+      // A candidate of the product's SPEC for which the classes hold none is not written, and a note names it.
+      decided = [];
+      for (const candidate of mine) {
+        const found = classes.find((each) => each.refs?.includes(candidate.name));
+        if (found) decided.push(found);
+        else notes.push(`${candidate.name} has no class; it is not written.`);
+      }
     }
     const composable = decided.filter((each) => each.class === "new" || spec.requirements.has(each.of));
     for (const each of decided) {

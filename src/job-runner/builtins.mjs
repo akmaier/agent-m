@@ -68,11 +68,11 @@ function draftedOf(draft) {
 
 // The classes of a draft against the artifacts the job's parts carry, and the findings on the classes its drafter gave. A candidate that the rule finds a duplicate of an existing artifact while
 // its drafter classed it otherwise than as a duplicate of that artifact is an error naming it; so is a change, a duplicate or a conflict that names no artifact a part carries. A draft whose
-// parts carry no artifact has nothing to classify.
+// parts carry no artifact is classified as any other, against none: each candidate keeps the class its drafter gave, and a change, a duplicate or a conflict is the error above.
 function classification(draft, parts) {
   const existing = parts.flatMap((part) => part.artifacts ?? []);
   const drafted = draftedOf(draft);
-  if (existing.length === 0 || drafted.length === 0) return { classes: [], findings: [] };
+  if (drafted.length === 0) return { classes: [], findings: [] };
   const classes = [], decisions = new Map();
   for (const kind of [...new Set(drafted.map((each) => each.kind))]) {
     const group = drafted.filter((each) => each.kind === kind);

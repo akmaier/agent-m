@@ -123,16 +123,19 @@ test("candidate-classes — a drafted file of no key's match keeps its class, a 
 
 // TST-472314 · level: unit · module: MOD-job-runner
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-// given: the same part; a draft of files that are tests — a path under tests/, with a text that has the title of UC-001 —, and a draft whose part shows no artifact, of a use case with UC-001's title
+// given: the same part; a draft of files that are tests — a path under tests/, with a text that has the title of UC-001 —, and a draft whose part shows no artifact, of a use case with UC-001's title classed new, and — the counter-proof — of a use case classed a change of UC-001
 // input: the check on each
-// expect: the first: no finding and no class — a draft of tests has no key and is not classified, nor is a use case whose title is missing; the second: nothing to classify, no class and no finding
-test("candidate-classes — a draft of tests is not classified, nor a draft whose parts show no artifact", async () => {
+// expect: the first: no finding and no class — a draft of tests has no key and is not classified, nor is a use case whose title is missing; the second is classified as any other, against none: no finding, and its one class new, decided by its participant; the change of UC-001, which no part carries there, is an error under A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
+test("candidate-classes — a draft of tests is not classified, and a draft whose parts show no artifact is classified against none", async () => {
   const tests = await check(FILES, { files: [file("tests/export.test.mjs", `---\ntitle: Export a report\n---\ntest("x", () => {});\n`)] });
   assert.deepEqual([tests.remaining, tests.classes], [[], []]);
   const keyless = await check(FILES, { files: [file("docs/use-cases/UC-080-x.md", "no front matter, so no title\n")] });
   assert.deepEqual([keyless.remaining, keyless.classes], [[], []], "a document with no value of its key has none to classify");
   const bare = await check(FILES, { files: [file("docs/use-cases/UC-051-x.md", useCase("UC-051", "Export a report"))] }, []);
-  assert.deepEqual([bare.remaining, bare.classes], [[], []]);
+  assert.deepEqual(bare.remaining, []);
+  assert.deepEqual(bare.classes.map((each) => [each.refs, each.class, each.of, each.decidedBy]), [[["docs/use-cases/UC-051-x.md"], "new", null, "participant"]]);
+  const changed = await check(FILES, { files: [file("docs/use-cases/UC-001-x.md", useCase("UC-001", "Export a report as PDF"), "change", "UC-001")] }, []);
+  assert.deepEqual(brief(changed.remaining), [["docs/use-cases/UC-001-x.md", "error", NAMED]]);
 });
 
 // TST-472315 · level: unit · module: MOD-job-runner

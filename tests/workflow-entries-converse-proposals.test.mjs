@@ -442,6 +442,56 @@ test("TST-2026271045: a hand-over followed in the hosted job whose answer has no
   });
 });
 
+// ---------------------------------------------------------------- a hand-over that writes nothing names why
+
+// The result lines of the job's end: its `results:` list, one item each. An item's comma is written as a semicolon (product.mjs), as every item of the list is.
+const resultLines = (end) => (/^results: (.*)$/m.exec(end)?.[1] ?? "").split(", ").filter(Boolean);
+
+// TST-2026111104 · level: component · module: MOD-workflow-entries · MOD-spec-changes
+// guards: UC-049; UC-019
+// given: a hosted converse job with the person's source; the endpoint answers the conversation with a hand-over { kind change-requirements, works_on [the requirement], task "say the due date" } and the change of requirements with a draft that holds no candidate, `{ candidates: [] }`; known positive: the same hand-over answered with a candidate is run and its writer's commit listed (TST-1360101)
+// input: onRecordsChanged
+// expect: outcome `done`; the change of requirements ran once; the end lists `note: the draft holds no requirement; nothing is written.` — the writer's note — and no `change-requirements: no change`; nothing but the job's own record is written
+test("TST-2026111104: a hand-over whose writer writes nothing lists the writer's note, not no change", async () => {
+  await withWorkspace({}, async (w) => {
+    const world = fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { candidates: [] } }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    assert.equal(world.prompted("change-requirements"), 1, "the change of requirements ran");
+    const lines = resultLines(endOf(w));
+    assert.ok(lines.includes("note: the draft holds no requirement; nothing is written."), lines.join("\n"));
+    assert.ok(!lines.includes("change-requirements: no change"), lines.join("\n"));
+    assert.deepEqual(touched(w), [`docs/jobs/${JOB}.md`]);
+  });
+});
+
+// TST-2026111105 · level: component · module: MOD-workflow-entries
+// guards: UC-049; THE CORRECTION LOOP HAS A FIXED LIMIT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: a hosted converse job (limit 2) with the person's source; the endpoint answers the conversation with the hand-over of TST-2026111104 and the change of requirements, in every round, with one candidate A LOAN HAS A GRACE DAY classed a change of A GHOST REQUIREMENT, which no part shows — so that candidate-classes' error is left when the loop ends unchanged —; known positive: TST-1360101, whose candidate passes, lists no `left:`
+// input: onRecordsChanged
+// expect: outcome `done`; the end lists one line `left: ` followed by that finding in MOD-text-tools' one form — `A LOAN HAS A GRACE DAY:1: error: "A LOAN HAS A GRACE DAY" is classed change of "A GHOST REQUIREMENT"; which no part of the job shows [A CANDIDATE IS NEW; A CHANGE; A DUPLICATE OR A CONFLICT] — name an existing artifact that a part shows; or class it new.`, its commas written as the list's semicolons —; and no `change-requirements: no change`
+test("TST-2026111105: each finding a hand-over's correction loop left is listed in the end as left: <finding>", async () => {
+  await withWorkspace({}, async (w) => {
+    fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }),
+      "change-requirements": { candidates: [{ name: "A LOAN HAS A GRACE DAY", rule: "Every loan has one day of grace.", check: "`tests/loan.test.mjs`", constrains: "product",
+        passage: "§2", class: "change", of: "A GHOST REQUIREMENT" }] } }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    const lines = resultLines(endOf(w));
+    const left = lines.filter((line) => line.startsWith("left: "));
+    assert.deepEqual(left, ['left: A LOAN HAS A GRACE DAY:1: error: "A LOAN HAS A GRACE DAY" is classed change of "A GHOST REQUIREMENT"; which no part of the job shows '
+      + "[A CANDIDATE IS NEW; A CHANGE; A DUPLICATE OR A CONFLICT] — name an existing artifact that a part shows; or class it new."], lines.join("\n"));
+    assert.ok(!lines.includes("change-requirements: no change"), lines.join("\n"));
+  });
+  await withWorkspace({}, async (w) => {
+    fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }),
+      "change-requirements": { candidates: [{ name: RULE, rule: `${RULE_TEXT} The member is told the date.`, check: "`tests/loan.test.mjs`", constrains: "product", passage: "§2",
+        class: "change", of: RULE }] } }, w);
+    await run(w);
+    assert.deepEqual(resultLines(endOf(w)).filter((line) => line.startsWith("left: ")), [], "known positive: a hand-over whose loop passes leaves nothing");
+  });
+});
+
 // ---------------------------------------------------------------- the job whose task travels with its hand-over (the endpoint's own job spawned by the bar)
 
 // TST-1360108 · level: component · module: MOD-workflow-entries
@@ -492,4 +542,59 @@ test("TST-1360108: the endpoint's own converse job, dispatched with its task, ru
       for (const name of ["PATH", "FIXTURE_KEY"]) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; }
     }
   });
+});
+
+// The lines between `from` and `to` in `text`, or null where it holds no such block.
+const between = (text, from, to) => {
+  const lines = text.split("\n"), start = lines.indexOf(from), end = lines.indexOf(to, start + 1);
+  return start === -1 || end === -1 ? null : lines.slice(start + 1, end).join("\n");
+};
+
+// TST-2026111106 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: the dispatched converse job of TST-1360108, whose endpoint answers the conversation "Done as you asked." with a hand-over to change-use-case, and the change of the use case with UC-001's new text; and, as the counter-proof, the same job whose endpoint answers the conversation with no hand-over
+// input: onDispatch with the inputs job, task, endpoint and secret FIXTURE_KEY, the run's log being what the entry writes to the console and its summary the file GITHUB_STEP_SUMMARY names
+// expect: the log holds the conversation's answer between `--- answer of <id> ---` and `--- end of the answer of <id> ---`, "Done as you asked."; and the answer of the job handed on — its draft, naming UC-001's path — between `--- answer handed on in <id> ---` and `--- end of the answer handed on in <id> ---`, which the first block does not hold; the summary holds both answers; no file of the product holds the handed-on answer's marker. The counter-proof's log holds the first block and no `--- answer handed on in` line
+test("TST-2026111106: a dispatched job leaves the answer of the job handed on from it in the run's log and summary, between its own lines", async () => {
+  const TASK = "Tell the member the due date, token heron-1361";
+  const declared = (agentM) => ({ ...converseStart(agentM, { endpoint: undefined, instruction: undefined }), participant: "fixture-endpoint", task: "with the hand-over",
+    declares: { context: 100000, capabilities: ["draft text", "read the repository"] }, destinations: [{ participant: "fixture-endpoint", place: "GitHub's hosted runners", parts: ["instruction"] }] });
+  const dispatched = async (drafts) => {
+    let log = "", summary = "";
+    await withWorkspace(declared, async (w) => {
+      fakeWorld(drafts, w);
+      const bin = join(w.root, "bin");
+      mkdirSync(bin);
+      writeFileSync(join(bin, "git"), `#!/bin/sh\nexec ${REAL_GIT} "$@"\n`, { mode: 0o755 });
+      writeFileSync(join(bin, "sleep"), `#!/bin/sh\nexec ${REAL_SLEEP} "$@"\n`, { mode: 0o755 });
+      const saved = { PATH: process.env.PATH, FIXTURE_KEY: process.env.FIXTURE_KEY }, said = console.log;
+      Object.assign(process.env, { PATH: bin, FIXTURE_KEY: KEY });
+      console.log = (...args) => { log += `${args.join(" ")}\n`; };
+      try {
+        const payload = join(w.root, "event.json"), summaryFile = join(w.root, "summary.md");
+        writeFileSync(payload, JSON.stringify({ inputs: { job: JOB, task: TASK, endpoint: JSON.stringify({ kind: ENDPOINT.kind, baseUrl: ENDPOINT.baseUrl, model: ENDPOINT.model }), secret: "FIXTURE_KEY" } }));
+        const status = await runEntry("onDispatch", environment(w, { GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_EVENT_PATH: payload, GITHUB_STEP_SUMMARY: summaryFile }), { now: NOW });
+        console.log = said;
+        assert.equal(status.outcome, "done", status.summary);
+        summary = readFileSync(summaryFile, "utf8");
+        const everything = madeSince(w).map((sha) => git(w.product, "show", sha)).join("\n");
+        assert.ok(!everything.includes("answer handed on in"), "the answer handed on goes to no file");
+      } finally {
+        console.log = said;
+        for (const name of ["PATH", "FIXTURE_KEY"]) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; }
+      }
+    });
+    return { log, summary };
+  };
+
+  const { log, summary } = await dispatched({ converse: answer({ kind: "change-use-case", works_on: ["UC-001"], task: "tell the due date" }),
+    "change-use-case": { files: [{ path: UC_PATH, text: UC_AFTER, class: "change", of: "UC-001" }] } });
+  assert.equal(between(log, `--- answer of ${JOB} ---`, `--- end of the answer of ${JOB} ---`), "Done as you asked.", log);
+  const handedOn = between(log, `--- answer handed on in ${JOB} ---`, `--- end of the answer handed on in ${JOB} ---`);
+  assert.ok(handedOn !== null && handedOn.includes(UC_PATH), `the log holds the answer handed on, naming UC-001's path:\n${log}`);
+  assert.ok(summary.includes("Done as you asked.") && summary.includes(UC_PATH), summary);
+
+  const plain = await dispatched({ converse: answer(null) });
+  assert.equal(between(plain.log, `--- answer of ${JOB} ---`, `--- end of the answer of ${JOB} ---`), "Done as you asked.", "counter-proof: the run's own answer is left");
+  assert.ok(!plain.log.includes("--- answer handed on in"), "counter-proof: without a hand-over, no answer handed on is left");
 });

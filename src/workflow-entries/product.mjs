@@ -28,6 +28,7 @@ import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { testsOfRow } from "../test-schedule/index.mjs";
 import { composeProduct, composeTestJob, composeTestRun, keyAvailable } from "./compose.mjs";
 import { packResult, readResult, checkResult, writeBranches, pendingPullRequest } from "./result.mjs";
+import { formatFinding } from "../text-tools/index.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
 
@@ -129,11 +130,13 @@ const resultsOf = (outcome) => (outcome ? [...outcome.commits, ...outcome.files,
 // The hand-over a job's draft holds (UC-049 4f), run in the same run, by its kind's definition, where its kind is not the job's own: its parameters the job's source, those
 // handOverParams gives for what it works on, and its task as instruction; prepared with its kind's preconditions — no start rule of the product's process applies — and run
 // unattended, so that its writer writes at once. `handOn(kind, params)` gives the participant, the driver and the context it runs with, and the notes that go with them.
-// -> the lines the job's end lists: what its writer wrote, or `not run: <kind> — <why>`.
+// -> { lines, answer }: the lines the job's end lists — what its writer wrote and noted, each finding its correction loop left as `left: <finding>` in MOD-text-tools' one form,
+// and `<kind>: no change` only where none of these is listed; or `not run: <kind> — <why>` —; and the answer of the job handed on, as it was received, for the run's log and summary
+// (null where it did not run).
 async function handedOver(handOver, context, record, handOn) {
   const worksOn = [handOver.works_on].flat().filter(Boolean).map(String);
   // One line each, as the record's `results` holds them: a failure's own text may span several, as git's does.
-  const notRun = (why) => [`not run: ${handOver.kind} — ${String(why).replace(/\s*\n\s*/g, " ")}`];
+  const notRun = (why) => ({ lines: [`not run: ${handOver.kind} — ${String(why).replace(/\s*\n\s*/g, " ")}`], answer: null });
   let kind;
   try {
     kind = await kindOf(handOver.kind);
@@ -153,10 +156,13 @@ async function handedOver(handOver, context, record, handOn) {
       return notRun(prepared.blocking.map((found) => `${found.what} [${found.rule}] — ${found.fix}`).join("; ") || "the job does not fit its participant");
     }
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context: nested });
+    // An answer that could not be read is left as it was received (MOD-workflow-entries, onDispatch).
+    const answer = answerOf(result.written?.shown ?? result.draft ?? result.raw);
     const failed = failedBecause(result);
-    if (failed) return [`failed: ${handOver.kind} — ${failed}`];
-    const written = resultsOf(result.written);
-    return [...notes.map((note) => `note: ${note}`), ...(written.length > 0 ? written : [`${handOver.kind}: no change`])];
+    if (failed) return { lines: [`failed: ${handOver.kind} — ${failed}`], answer };
+    // Its rounds stand in no record, so what the loop left is listed here.
+    const listed = [...resultsOf(result.written), ...(result.remaining ?? []).map((found) => `left: ${formatFinding(found)}`)];
+    return { lines: [...notes.map((note) => `note: ${note}`), ...(listed.length > 0 ? listed : [`${handOver.kind}: no change`])], answer };
   } catch (error) {
     return notRun(error?.message ?? String(error));
   }
@@ -188,11 +194,13 @@ function answerOf(draft) {
 }
 
 // A hand-over's answer, left in the run's summary — the file GITHUB_STEP_SUMMARY names where it is set — and in the log, between the lines
-// `--- answer of <id> ---` and `--- end of the answer of <id> ---`, by which the prompt bar finds it in the run's log (MOD-prompt-bar). It goes to no record.
-function leaveAnswer(env, id, answer) {
+// `--- answer of <id> ---` and `--- end of the answer of <id> ---`, by which the prompt bar finds it in the run's log (MOD-prompt-bar); with `handedOn`, the answer of the job
+// handed on from it in the same run, the same way, between `--- answer handed on in <id> ---` and `--- end of the answer handed on in <id> ---`. It goes to no record.
+function leaveAnswer(env, id, answer, { handedOn = false } = {}) {
   if (!answer) return;
-  console.log(`--- answer of ${id} ---\n${answer}\n--- end of the answer of ${id} ---`);
-  if (env.job.summaryFile) fs.appendFileSync(env.job.summaryFile, `## ${id}\n\n${answer}\n`);
+  const what = handedOn ? `answer handed on in ${id}` : `answer of ${id}`;
+  console.log(`--- ${what} ---\n${answer}\n--- end of the ${what} ---`);
+  if (env.job.summaryFile) fs.appendFileSync(env.job.summaryFile, `## ${handedOn ? `Handed on in ${id}` : id}\n\n${answer}\n`);
 }
 
 // One job: taken, prepared, run, ended in its record. -> { id, state, summary }. `handOver` is { task, endpoint } for a job whose task travels with its hand-over: the
@@ -262,7 +270,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
       return { participant: own, context: nested, notes: why ? [`bash is not offered: ${why}`] : [],
         driver: endpointDriver(model, own, undefined, { system: await checkoutPrompt({ folder: nested.product.checkout, now: env.now }) }) };
     };
-    const passed = result.draft?.handOver ? await handedOver(result.draft.handOver, context, record, handOn) : [];
+    const { lines: passed, answer: handedOnAnswer } = result.draft?.handOver ? await handedOver(result.draft.handOver, context, record, handOn) : { lines: [], answer: null };
     // On the agent's machine the branch is not on the server yet: the writing machine refuses a result whose commits or pull request hold the task (result.mjs).
     if (handOver && !composed.result) {
       const refused = await refusedBranch(product.host, outcome, handOver.task, context.product.snapshot.commit);
@@ -270,7 +278,10 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     }
     // An answer that could not be read is left as it was received, where the prompt bar reads the answer; the record keeps only why (A CONVERSATION IS WRITTEN TO A
     // REPOSITORY ONLY WHEN RECORDING IS ON).
-    if (handOver) leaveAnswer(env, record.id, answerOf(outcome?.shown ?? result.draft ?? result.raw));
+    if (handOver) {
+      leaveAnswer(env, record.id, answerOf(outcome?.shown ?? result.draft ?? result.raw));
+      leaveAnswer(env, record.id, handedOnAnswer, { handedOn: true });
+    }
     const failed = failedBecause(result);
     const handedBack = context.kind.writer === "return-draft";
     const made = outcome ? [...outcome.commits, ...(handOver || outcome.pullRequest ? [...outcome.files, ...(outcome.pullRequest ? [outcome.pullRequest] : [])] : [])] : [];

@@ -942,6 +942,50 @@ test("Spawn job hands the message to GitHub Actions with the endpoint and the na
   assert.equal(following(it).includes("PLANTED-ANSWER-NV7 ok"), false, "the answer stands once, in the conversation, not again under the run");
 });
 
+// The log of a run that also handed work on in the same run (MOD-workflow-entries): the run's own answer, then the answer of the job handed on from it, each between its lines.
+const HANDED_ON_LOG = (id) => [ANSWER_LOG(id).trimEnd(), `2026-10-16T12:08:01.0000000Z --- answer handed on in ${id} ---`,
+  "2026-10-16T12:08:01.0000000Z {", '2026-10-16T12:08:01.0000000Z   "draft": "PLANTED-HANDED-ON-NV8"', "2026-10-16T12:08:01.0000000Z }",
+  `2026-10-16T12:08:01.0000000Z --- end of the answer handed on in ${id} ---`, ""].join("\n");
+
+// TST-2026111107 · level: component · module: MOD-prompt-bar
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: the page of TST-1200002, nvidia chosen, recording off; the person's Spawn job; the run, once taken, leaves in its log its own answer "PLANTED-ANSWER-NV7 ok" and, between `--- answer handed on in <id> ---` and `--- end of the answer handed on in <id> ---`, the answer of the job it handed on, three lines holding PLANTED-HANDED-ON-NV8; its record ends done with that run's address; and, as the counter-proof, the same with a log that holds only the run's own answer
+// input: 15 seconds pass after the end
+// expect: the run's own answer joins the conversation; the answer handed on does not — the conversation holds no PLANTED-HANDED-ON-NV8 —, and stands folded under the followed job: a `details` element whose summary names it and which holds the three lines as the run received them, without the server's time stamps; the run's log is read once. The counter-proof shows no such `details`
+test("TST-2026111107: the answer of the job handed on in the run is shown folded under the followed job, and does not join the conversation", async () => {
+  const followedTo = async (log) => {
+    const it = open({ endpoints: ON_ACTIONS });
+    let reads = 0;
+    const read = it.product.host.ciRunLog;
+    it.product.host.ciRunLog = async (id) => { reads += 1; return read(id); };
+    await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+    choose(it, "nvidia");
+    one(it.target, "instruction").value = TASK;
+    one(it.target, "send").dispatchEvent(personal());
+    await until(() => following(it).includes("State:"), "the job is followed");
+    takes(it, RUN_URL);
+    it.product.runs.push(ciRun("succeeded"));
+    const id = /docs\/jobs\/(JOB-[^/]+)\.md$/.exec(it.product.jobPath())[1];
+    it.product.logs.set("7", log(id));
+    ends(it, "done", [], null, RUN_URL);
+    await after(15000);
+    await until(() => textOf(one(it.target, "conversation")).includes("PLANTED-ANSWER-NV7 ok"), "the run's own answer joins the conversation");
+    return { it, reads: () => reads };
+  };
+  const { it, reads } = await followedTo(HANDED_ON_LOG);
+  assert.equal(textOf(one(it.target, "conversation")).includes("PLANTED-HANDED-ON-NV8"), false, "the answer handed on does not join the conversation");
+  const folded = all(one(it.target, "following"), (node) => node.localName === "details");
+  assert.equal(folded.length, 1, following(it));
+  const [summary] = all(folded[0], (node) => node.localName === "summary");
+  assert.ok(summary && /handed on/i.test(textOf(summary)), "the fold names the answer handed on");
+  assert.ok(textOf(folded[0]).includes('{\n  "draft": "PLANTED-HANDED-ON-NV8"\n}'), textOf(folded[0]));
+  assert.ok(!textOf(folded[0]).includes("2026-10-16T12:08:01"), "the server's time stamps are not shown");
+  assert.equal(reads(), 1, "the run's log is read once");
+
+  const plain = await followedTo((id) => ANSWER_LOG(id));
+  assert.deepEqual(all(one(plain.it.target, "following"), (node) => node.localName === "details"), [], "counter-proof: a log without an answer handed on shows no fold");
+});
+
 // What changed: on GitHub, Spawn job toward a product without the job workflow said "Nothing was spawned" and linked the route settings; the bar now asks MOD-runtimes' actionsSetup
 // before it spawns and offers Set up GitHub Actions (UC-049 4c, as accepted in MOD-prompt-bar); the setup's click is proven in tests/prompt-bar-actions-setup.test.mjs.
 // TST-1200003 · level: component · module: MOD-prompt-bar

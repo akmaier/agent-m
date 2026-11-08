@@ -286,8 +286,10 @@ export function startPromptBar(target, setup) {
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
+    // The answer of the job handed on in the run, folded below the results as the run received it; it does not join the conversation.
+    const handedOn = view.handedOn ? [el("details", "handed-on", el("summary", null, "The answer handed on in the run"), el("pre", null, view.handedOn))] : [];
     followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
-      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
+      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...handedOn, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
       ...(view.problem ? [problem(view.problem)] : []));
     // The run's answer joins the conversation once (UC-049 4a.4).
     if (view.answer && state.answered !== view.id) {
