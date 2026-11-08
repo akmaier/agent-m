@@ -1,6 +1,6 @@
 // A product's trace page whose graph is not stored yet says how to get it stored (ITM-1261): the file that runs onMainChanged in a product is written by
 // Install on its Settings page (MOD-runtimes' jobWorkflowFiles), so where the page shows a GraphNotStored on a product's page it adds the step
-// "This product's graph is not stored yet: press Install on its Settings page."; on the instance's own page, whose workflow "main changed" stores its graph,
+// "This product's graph is not stored yet: set up its job workflow on its Settings page."; on the instance's own page, whose workflow "main changed" stores its graph,
 // GraphNotStored's line stands alone, as before.
 //
 // Run: node --test tests/trace-pages-graph-not-stored-step.test.mjs
@@ -38,14 +38,14 @@ async function gapsOf(context) {
   };
 }
 const LINE = /^The gaps could not be read: the trace graph of [0-9a-f]{12} is not stored yet — the workflow "main changed" builds it on every push to the default branch/;
-const STEP = "This product's graph is not stored yet: press Install on its Settings page.";
+const STEP = "This product's graph is not stored yet: set up its job workflow on its Settings page.";
 
 // TST-1261301 · level: unit · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the gaps view of a product, acme/library on github.com, shown from the instance alice/agent-m, whose branch trace-cache holds no graph of main's commit
 // input: the route trace with key gaps at main
-// expect: the page shows GraphNotStored's line, "The gaps could not be read: the trace graph of <commit, 12 characters> is not stored yet — the workflow "main changed" builds it on every push to the default branch …", and after it the one line "This product's graph is not stored yet: press Install on its Settings page."
-test("a product's page whose graph is not stored shows GraphNotStored's line and the step: press Install on its Settings page", async () => {
+// expect: the page shows GraphNotStored's line, "The gaps could not be read: the trace graph of <commit, 12 characters> is not stored yet — the workflow "main changed" builds it on every push to the default branch …", and after it the one line "This product's graph is not stored yet: set up its job workflow on its Settings page."
+test("a product's page whose graph is not stored shows GraphNotStored's line and the step: set up its job workflow on its Settings page", async () => {
   const host = notStored("product");
   const { problems, steps } = await gapsOf({ instance: { repository: "alice/agent-m", host: notStored("instance-for-product") },
     product: { address: "https://github.com/acme/library", host } });
@@ -90,7 +90,7 @@ async function openedOf(context) {
 // guards: UC-020; UC-025
 // given: the modules view as #arc draws it under the architecture — the context { instance: { host }, product: { host } } — of the instance itself, the product's host being the instance's own, whose trace-cache holds no graph of main's commit; and, as the counter-proof, the same context of a product, whose host is another than the instance's
 // input: the route trace with key modules at main, in each context
-// expect: the instance's page shows "The modules could not be read: the trace graph of <commit> is not stored yet — the workflow "main changed" builds it …" alone, with no Install line; counter-proof: the product's page shows that line and "This product's graph is not stored yet: press Install on its Settings page."
+// expect: the instance's page shows "The modules could not be read: the trace graph of <commit> is not stored yet — the workflow "main changed" builds it …" alone, with no Install line; counter-proof: the product's page shows that line and "This product's graph is not stored yet: set up its job workflow on its Settings page."
 test("#arc of the instance itself shows GraphNotStored's line alone; of a product, the line and the step", async () => {
   const instanceHost = notStored("arc-instance");
   const own = await modulesOf(reviewContext(instanceHost, instanceHost));
@@ -107,7 +107,7 @@ test("#arc of the instance itself shows GraphNotStored's line alone; of a produc
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the specification as #spec draws it under the open SPEC changes — the context { instance: { host }, product: { host } } — of the instance itself, whose trace-cache holds no graph of main's commit; and, as the counter-proof, the same context of a product, whose host is another than the instance's
 // input: the route trace with key specification at main, then a click on ALPHA RULE, in each context
-// expect: the opened requirement of the instance says "What traces to this requirement could not be read: …" with GraphNotStored's line, naming the workflow "main changed", and no Install line; counter-proof: the product's opened requirement shows that and "This product's graph is not stored yet: press Install on its Settings page."
+// expect: the opened requirement of the instance says "What traces to this requirement could not be read: …" with GraphNotStored's line, naming the workflow "main changed", and no Install line; counter-proof: the product's opened requirement shows that and "This product's graph is not stored yet: set up its job workflow on its Settings page."
 test("#spec of the instance itself shows GraphNotStored's line alone under an opened requirement; of a product, the line and the step", async () => {
   const instanceHost = notStored("spec-instance");
   const own = await openedOf(reviewContext(instanceHost, instanceHost));

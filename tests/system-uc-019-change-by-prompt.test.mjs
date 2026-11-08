@@ -44,9 +44,9 @@ const FLOW_EVIDENCE = {
     uc: "With a requirement open in the specification browser (UC-020)",
     evidence: [[REQUIREMENTS, "TST-418007"]],
   },
-  "4b-specification-browser-source": {
-    uc: "the author has no source of their own that the product links",
-    evidence: [[REQUIREMENTS, "TST-418008"]],
+  "6-specification-browser-account-source": {
+    uc: "names among its sources the author's account",
+    evidence: [[REQUIREMENTS, "TST-418004"], [REQUIREMENTS, "TST-418008"]],
   },
   "main-1-3-instruction-in-the-prompt-bar": {
     uc: "writes the instruction in the prompt bar (UC-049)",

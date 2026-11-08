@@ -117,7 +117,7 @@ const ofInstance = (context) => (context.product?.host !== undefined && context.
   || (typeof context.instance?.repository === "string"
     && String(context.product?.address ?? "").replace(/(\.git)?\/*$/, "") === `https://github.com/${context.instance.repository}`);
 const notStoredStep = (failure, context) => (failure?.name === "GraphNotStored" && !ofInstance(context)
-  ? [el("p", "graph-not-stored-step", "This product's graph is not stored yet: press Install on its Settings page.")] : []);
+  ? [el("p", "graph-not-stored-step", "This product's graph is not stored yet: set up its job workflow on its Settings page.")] : []);
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
 
 // The graph of a commit is read once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
