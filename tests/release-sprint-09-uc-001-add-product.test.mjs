@@ -2,10 +2,20 @@
 // Module: MOD-settings-pages
 // Guards: UC-001; EVERY STEP EXPLAINS ITSELF; A MANAGED PRODUCT NEEDS NO PAGES SITE; ONE REVIEW LAYOUT FOR EVERY PRODUCT; THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; EVERY PRODUCT HAS ITS OWN VERSION LINE; CONFIGURATION LIVES IN THE BROWSER; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; ONE GITHUB TOKEN SERVES EVERY FEATURE; A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT; A TOKEN IS SCOPED TO WHAT IT WRITES; THE SHARED PAGES ORIGIN IS DISCLOSED; THE PAGE NAMES WHERE IT SENDS; A PRODUCT IS NAMED BY ITS ADDRESS; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
 // Level: release
+//
+// TST-286 was revised for accepted UC-001 step 5 by a participant who implemented none of it (RELEASE TESTS ARE NOT WRITTEN BY THE
+// IMPLEMENTER). Its expectations are read from the use case, not from the code: "writes the missing review layout into the product
+// repository's default branch"; "on GitHub, sets up GitHub Actions for the product as UC-010's Set up GitHub Actions does: installs Agent M's
+// workflows — among them the one that stores the product's trace graph on every push — and stores the secrets this browser keeps a value
+// for; a secret it keeps none for is named with a link to the repository's secrets page"; "shows the commit as a link"; UC-010's
+// Precondition: "the product's token as `AGENT_M_TOKEN`, an endpoint's key under the secret its configuration names"; and A TOKEN GOES
+// ONLY TO THE SERVER THAT ISSUED IT. Left open by the texts and so not asserted: whether the workflows are a commit of their own or part of
+// the layout's, and the order in which the secrets are stored.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repoServer, openDashboard, richDocument, press, settle, REPO, TOKEN } from "./app-harness.mjs";
+import { repoServer, openDashboard, richDocument, press, settle, setting, REPO, TOKEN } from "./app-harness.mjs";
+import { blake2b, box, scalarMultBase } from "../src/repository-hosts/vendor/nacl-blake.mjs";
 
 const PRODUCT = "alice/thesis-tool";
 const GH = `https://github.com/${PRODUCT}`;
@@ -31,24 +41,73 @@ async function page(address) {
   return main;
 }
 
+// The product repository's Actions secrets, as GitHub answers them (docs.github.com/en/rest/actions/secrets): the public key to seal to —
+// made here from a fixed secret key, so that the test can open what is sealed —, the list of names, and each PUT noted with its body.
+const RECIPIENT_SECRET = Uint8Array.from({ length: 32 }, (_, at) => at + 1);
+const RECIPIENT_PUBLIC = Buffer.from(scalarMultBase(RECIPIENT_SECRET)).toString("base64");
+const KEY_ID = "568250167242549743";
+// Opens a sealed box with the recipient's secret key, as libsodium's crypto_box_seal_open does; null if it does not open.
+function unseal(sealedBase64) {
+  const sealed = Uint8Array.from(Buffer.from(String(sealedBase64), "base64"));
+  if (sealed.length < 48) return null;
+  const ephemeral = sealed.subarray(0, 32), both = new Uint8Array(64);
+  both.set(ephemeral); both.set(scalarMultBase(RECIPIENT_SECRET), 32);
+  const opened = box.open(sealed.subarray(32), blake2b(both, undefined, 24), ephemeral, RECIPIENT_SECRET);
+  return opened === null ? null : new TextDecoder().decode(opened);
+}
+const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+// What this browser keeps beside the instance's token: the endpoint nvidia, whose configuration names its key's secret NVIDIA_API_KEY.
+const NVIDIA_KEY = "nvapi-RELEASE-KEY-0123456789";
+const ENDPOINT = setting("endpoint:nvidia", { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nemotron", key: NVIDIA_KEY, secret: "NVIDIA_API_KEY" });
+// The instance's participants: one CI agent that reads the secret HOSTED_KEY, for which this browser keeps no value.
+const PARTICIPANTS = ["# Participants of this instance", "", "**REGISTER**", "",
+  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
+  "|---|---|---|---|---|---|---|---|",
+  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | hosted runner | ci hosted secret HOSTED_KEY |", ""].join("\n");
+const SECRETS_PAGE = `${GH}/settings/secrets/actions`;
+const LAYOUT = ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"];
+const WORKFLOW = /^\.github\/workflows\/[^/]+\.ya?ml$/;
+
+// The repository a GitHub API request is about: its /repos/<owner>/<name> path, or for POST /graphql the owner and name its variables give.
+function repositoryOf(url, body) {
+  if (url.origin !== API) return null;
+  if (url.pathname === "/graphql") {
+    try { const { owner, name } = JSON.parse(String(body)).variables ?? {}; return owner && name ? `${owner}/${name}` : null; } catch { return null; }
+  }
+  const m = /^\/repos\/([^/]+\/[^/]+)(?:\/|$)/.exec(url.pathname);
+  return m ? m[1] : null;
+}
+
+// The instance's server and the product's behind one fetch: a request goes to the product's server when it is about the product's
+// repository. Every request is noted with its address, body, authorisation and the repository it is about.
 async function releaseWorld(files = { "README.md": "# Product\n" }) {
-  const requests = [];
+  const requests = [], secrets = [];
   const product = await repoServer({ repo: PRODUCT, files, handlers: [
     (url) => url.pathname === `/repos/${PRODUCT}`
-      ? new Response(JSON.stringify({ visibility: "public", private: false, default_branch: "main", permissions: { push: true } }), { headers: { "Content-Type": "application/json" } })
+      ? json({ visibility: "public", private: false, default_branch: "main", permissions: { push: true } })
       : undefined,
-  ] });
-  const instance = await repoServer({ files: {}, handlers: [
     (url, init) => {
-      requests.push({ url: url.href, method: init.method ?? "GET", body: String(init.body ?? ""), authorization: new Headers(init.headers ?? {}).get("Authorization") });
-      return url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`) ? product.fetch(url.href, init) : undefined;
+      const base = `/repos/${PRODUCT}/actions/secrets`;
+      if (url.origin !== API || !url.pathname.startsWith(base)) return undefined;
+      if (init.method === "GET" && url.pathname === `${base}/public-key`) return json({ key_id: KEY_ID, key: RECIPIENT_PUBLIC });
+      if (init.method === "GET" && url.pathname === base) return json({ total_count: secrets.length, secrets: secrets.map(({ name }) => ({ name })) });
+      if (init.method === "PUT") { secrets.push({ name: decodeURIComponent(url.pathname.slice(base.length + 1)), body: JSON.parse(String(init.body)) }); return new Response(null, { status: 201 }); }
+      return undefined;
     },
   ] });
-  return { instance, product, requests };
+  const instance = await repoServer({ files: { "docs/participants.md": PARTICIPANTS }, handlers: [
+    (url, init) => {
+      const repository = repositoryOf(url, init.body);
+      requests.push({ url: url.href, method: init.method ?? "GET", body: String(init.body ?? ""), authorization: new Headers(init.headers ?? {}).get("Authorization"), repository });
+      return repository === PRODUCT ? product.fetch(url.href, init) : undefined;
+    },
+  ] });
+  return { instance, product, requests, secrets };
 }
 
 async function addProduct(world) {
-  await openDashboard({ server: world.instance, hash: "#add" });
+  await openDashboard({ server: world.instance, hash: "#add", entries: ENDPOINT });
   const main = richDocument().byId("main"), address = main.querySelector("input.address");
   address.value = GH; address.fire("input", { isTrusted: true });
   const ack = main.querySelector("input.ack"), token = main.querySelector("input.token");
@@ -60,7 +119,6 @@ async function addProduct(world) {
 async function gitlabReleaseWorld() {
   const base = `/api/v4/projects/${encodeURIComponent("fau-ai-taskforce/tools/thesis-tool")}`;
   const files = { "README.md": "# Product\n" }, requests = [], writes = [];
-  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
   const instance = await repoServer({ files: {}, handlers: [(url, init = {}) => {
     const token = new Headers(init.headers ?? {}).get("private-token");
     requests.push({ url: url.href, token, authorization: new Headers(init.headers ?? {}).get("Authorization") });
@@ -133,37 +191,87 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
 });
 
 // TST-286 · level: release · module: MOD-settings-pages
-// guards: UC-001; ONE CLICK PER DECISION; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: a browser with its instance token and a public GitHub product containing no review layout
+// guards: UC-001; ONE CLICK PER DECISION; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A MANAGED PRODUCT NEEDS NO PAGES SITE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: a browser with its instance token and the endpoint nvidia (key, secret NVIDIA_API_KEY); an instance whose participant hosted-ci reads HOSTED_KEY, kept by no value here; a public GitHub product with no review layout, no workflow and no Actions secret, whose server answers its Actions secrets with a public key
 // input: store the product token, fire a synthetic Add product event, then make one trusted Add product click
-// expect: only the trusted click writes the complete missing layout and canonical browser list; the instance repository remains untouched; the product token goes to the product's API only — its repository requests and the read-only POST /graphql for greenToMerge (ITM-1170), which names the product — and the instance token to none of them
+// expect: the synthetic event writes nothing and stores no secret; the trusted click writes the complete missing layout first, then Agent M's workflows — one of them run on every push and storing the trace graph — and nothing else, no Pages site; it stores AGENT_M_TOKEN (the product's token) and NVIDIA_API_KEY (the endpoint's key), each sealed to the product repository's public key, and names HOSTED_KEY with a link to the repository's secrets page; the page shows the layout's commit as a link; the product's token goes only to GitHub's API for the product repository, the instance's token only to GitHub's API for the instance repository's reads; no token or key is in clear in any body or address; the instance repository is not written
 test("TST-286 UC-001 release transaction guards product writes and browser state", async () => {
   const synthetic = await releaseWorld();
   let main = await addProduct(synthetic);
   main.querySelector("button.add").fire("click", { isTrusted: false });
   await settle(synthetic.instance);
-  assert.equal(synthetic.product.writes.length, 0, "a synthetic event cannot write the product layout");
+  assert.equal(synthetic.product.writes.length, 0, "a synthetic event cannot write the product layout or a workflow");
+  assert.deepEqual(synthetic.secrets, [], "a synthetic event cannot store an Actions secret");
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "a synthetic event cannot change the product list");
 
   const trusted = await releaseWorld({ "README.md": "# Product\n", "CHANGELOG.md": "# Changelog of alice/thesis-tool\n\n## 1.0\n" });
   main = await addProduct(trusted);
   await press(trusted.instance, main.querySelector("button.add"));
-  assert.equal(trusted.product.writes.length, 1, "one trusted decision creates one layout commit");
-  for (const path of ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"])
-    assert.ok(trusted.product.files[path], `the product receives required review-layout part ${path}`);
+  await settle(trusted.instance);
+
+  // The layout: "writes the missing review layout into the product repository's default branch …, skipping whatever already exists".
+  const writes = trusted.product.writes, written = (write) => Object.keys(write.files);
+  const layoutWrites = writes.filter((write) => written(write).some((path) => LAYOUT.includes(path)));
+  assert.equal(layoutWrites.length, 1, "the missing layout is written in one commit");
+  assert.equal(writes[0], layoutWrites[0], "the layout's commit comes first");
+  for (const path of LAYOUT) assert.ok(trusted.product.files[path], `the product receives required review-layout part ${path}`);
   assert.match(trusted.product.files["docs/use-cases/README.md"], /status is derived from the approval records/i, "the layout is self-sufficient rather than a product-site placeholder");
   assert.equal(trusted.product.files["CHANGELOG.md"], "# Changelog of alice/thesis-tool\n\n## 1.0\n", "an existing product keeps its independent version line");
   assert.equal(trusted.product.files["README.md"], "# Product\n", "the existing product content is preserved");
-  assert.ok(!Object.keys(trusted.product.files).some((path) => /CNAME|pages|\.github\/workflows/i.test(path)), "adding the review layout creates no product Pages-site setup");
-  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [GH], "the dashboard keeps only the product address in this browser");
-  assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`)).value, PRODUCT_TOKEN, "the canonical browser store keeps the product key with its product address");
-  const greenRequests = trusted.requests.filter((request) => request.url === `${API}/graphql`);
-  assert.ok(greenRequests.length > 0 && greenRequests.every((request) => request.method === "POST" && request.authorization === `Bearer ${PRODUCT_TOKEN}` && JSON.stringify(JSON.parse(request.body).variables) === JSON.stringify({ owner: PRODUCT.split("/")[0], name: PRODUCT.split("/")[1] })),
-    "the read-only POST /graphql for greenToMerge (ITM-1170) names the product and carries its token");
-  assert.ok(trusted.requests.filter((request) => request.url.includes(`/repos/${PRODUCT}`)).every((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), "the product credential is sent only on product API requests");
-  const tokenRequests = trusted.requests.filter((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`);
-  assert.ok(tokenRequests.length > 0 && tokenRequests.every((request) => request.url.startsWith(`${API}/repos/${PRODUCT}`) || greenRequests.includes(request)), "every GitHub product-token request stays at its issuing product API, the read-only greenToMerge request included");
-  assert.ok(!trusted.requests.some((request) => request.authorization === `Bearer ${TOKEN}` && request.url.includes(`/repos/${PRODUCT}`)), "the instance key is absent from product requests");
+
+  // The workflows: "on GitHub, sets up GitHub Actions … installs Agent M's workflows — among them the one that stores the product's
+  // trace graph on every push"; the postcondition: "the review layout and, on GitHub, Agent M's workflows; it has no Pages site".
+  const workflows = writes.flatMap(written).filter((path) => WORKFLOW.test(path));
+  assert.ok(workflows.length > 0, "Add product on GitHub installs Agent M's workflows");
+  assert.ok(writes.every((write) => written(write).every((path) => LAYOUT.includes(path) || WORKFLOW.test(path))), "nothing but the layout and the workflows is written");
+  assert.ok(!Object.keys(trusted.product.files).some((path) => /CNAME|pages/i.test(path)), "Add product creates no product Pages-site setup");
+  // A workflow runs on every push when its `on:` block names `push:` with nothing under it (no branches or paths that narrow it).
+  const onEveryPush = (text) => {
+    const lines = String(text).split("\n"), at = lines.findIndex((line) => /^on:\s*$/.test(line));
+    if (at < 0) return false;
+    for (let i = at + 1; i < lines.length && (/^\s/.test(lines[i]) || lines[i] === ""); i += 1) {
+      const push = /^(\s+)push:\s*(#.*)?$/.exec(lines[i]);
+      if (!push) continue;
+      const below = lines.slice(i + 1).find((line) => line.trim() !== "" && !/^\s*#/.test(line));
+      return !below || below.search(/\S/) <= push[1].length;
+    }
+    return false;
+  };
+  assert.ok(workflows.some((path) => onEveryPush(trusted.product.files[path]) && /trace graph|trace-cache/i.test(trusted.product.files[path])),
+    "among the workflows is one that runs on every push and stores the product's trace graph");
+
+  // The secrets: "stores the secrets this browser keeps a value for" — UC-010: "the product's token as AGENT_M_TOKEN, an endpoint's key under
+  // the secret its configuration names" — "through the server's API with the product's token; no value is shown, typed or written to a file".
+  assert.deepEqual(trusted.secrets.map(({ name }) => name).sort(), ["AGENT_M_TOKEN", "NVIDIA_API_KEY"], "the secrets this browser keeps a value for are stored, and no other");
+  const sealed = Object.fromEntries(trusted.secrets.map(({ name, body }) => [name, body]));
+  for (const [name, value] of [["AGENT_M_TOKEN", PRODUCT_TOKEN], ["NVIDIA_API_KEY", NVIDIA_KEY]]) {
+    assert.equal(sealed[name].key_id, KEY_ID, `${name} names the product repository's public key`);
+    assert.equal(unseal(sealed[name].encrypted_value), value, `${name} is its value sealed to the product repository's public key`);
+  }
+  const secretPuts = trusted.requests.filter((request) => request.method === "PUT" && request.url.startsWith(`${API}/repos/${PRODUCT}/actions/secrets/`));
+  assert.ok(secretPuts.length === 2 && secretPuts.every((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), "each secret is stored through GitHub's API with the product's token");
+  // "a secret it keeps none for is named with a link to the repository's secrets page".
+  assert.ok(main.innerHTML.includes("HOSTED_KEY"), "the secret this browser keeps no value for is named");
+  const hrefs = [...main.innerHTML.matchAll(/<a\b[^>]*\shref="([^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, "&"));
+  assert.ok(hrefs.includes(SECRETS_PAGE), "with a link to the repository's secrets page");
+  // "shows the commit as a link".
+  assert.ok(hrefs.some((href) => new RegExp(`^${GH}/commit/[0-9a-z]{40}$`).test(href)), "the commit is shown as a link");
+
+  // A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT: "as the authorisation header of its requests, or sealed to the public key of one of
+  // that server's repositories as that repository's CI secret". The product's token is issued for the product repository; the instance's
+  // token for the instance repository, which Add product only reads (its participants, for the secrets they name).
+  const productTokenRequests = trusted.requests.filter((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`);
+  assert.ok(productTokenRequests.length > 0 && productTokenRequests.every((request) => request.repository === PRODUCT), "the product's token goes only to GitHub's API for the product repository");
+  assert.ok(trusted.requests.filter((request) => request.repository === PRODUCT).every((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), "every request about the product repository carries the product's token");
+  const instanceTokenRequests = trusted.requests.filter((request) => request.authorization === `Bearer ${TOKEN}`);
+  assert.ok(instanceTokenRequests.every((request) => request.repository === REPO && (request.method === "GET" || request.url === `${API}/graphql`)),
+    "the instance's token goes only to GitHub's API for reads of the instance repository");
+  assert.ok(!trusted.requests.some((request) => request.authorization && request.repository === null), "no token goes to an address that is not a repository's API on its server");
+  for (const value of [PRODUCT_TOKEN, TOKEN, NVIDIA_KEY]) {
+    const encoded = Buffer.from(value).toString("base64");
+    assert.ok(!trusted.requests.some((request) => request.url.includes(value) || request.body.includes(value) || request.body.includes(encoded)), "no token or key travels in clear in a body or an address");
+    assert.equal(main.innerHTML.includes(value), false, "no value is shown on the page");
+  }
   assert.deepEqual(trusted.instance.writes, [], "the instance repository is never named or written during Add product");
   assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token`)).value, TOKEN,
     "the canonical instance credential remains distinct from the product credential");
