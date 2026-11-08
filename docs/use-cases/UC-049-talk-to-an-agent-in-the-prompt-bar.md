@@ -155,7 +155,9 @@ sequenceDiagram
   exactly one product the instance manages — "a specification in the Alien Invasion repo" — and the page shows
   another, or the instance's own, the message is about the product it names: Agent M gives that product as the context
   in place of the page, says above the answer which product it took, and its work and any hand-over (4a) go to that
-  product's repository. A message that names none, or several, is about the page.
+  product's repository. A message that names none, or several, is about the page. Where that product cannot take the
+  work — this browser keeps no token for it, or it lacks the job workflow or a CI secret the route needs —, nothing is
+  sent; the bar names the product, what it requires, and links where that is set up (4c).
 - **4a. The work belongs to another kind of job, or needs what the tab cannot do.** A change of requirements, of a use
   case or of the architecture belongs to the kind that owns it, with its checks and its impact list (UC-019, UC-023);
   running code or tests, changing code and reaching the web need what the tab cannot do. The endpoint or CLI session
@@ -172,7 +174,9 @@ sequenceDiagram
   4. The prompt bar says *waiting for GitHub Actions* with the run's address and its state, until the run has ended.
   5. The run's answer appears in the conversation, with what it wrote, as the job's record lists it: a change of
      requirements as an open entry of a SPEC change queue, a use case or an architecture file committed as open, an
-     edit of another document or a change of code as a pull request. In most cases that ends the conversation.
+     edit of another document or a change of code as a pull request; a hand-over that was not run, with why and what it
+     requires to run — "register the person as a source" —, so that the author can supply it and ask again. In most
+     cases that ends the conversation.
 - **4b. The tab is closed or loses its connection** while the endpoint or CLI session works. The conversation is gone. A
   run in GitHub Actions, or an agent on a Bridge, ends with what it has committed; the job's record shows it (UC-036).
 - **4c. The product has no job workflow or no CI secrets yet.** Nothing is handed over; the conversation says what is
