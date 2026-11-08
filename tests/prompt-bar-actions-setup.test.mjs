@@ -139,7 +139,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 // session. Every other address is stray.
 function network() {
   const state = { handOver: null, seen: [], stray: [] };
-  const envelope = () => JSON.stringify({ draft: { answer: "I hand this on.", ...(state.handOver ? { handOver: state.handOver } : {}) }, answers: [] });
+  // The plan the answer proposes: the one piece the test gives, which rests on none.
+  const envelope = () => JSON.stringify({ draft: { answer: "I hand this on.", ...(state.handOver ? { handOver: [{ after: [], ...state.handOver }] } : {}) }, answers: [] });
   globalThis.fetch = async (url, init = {}) => {
     const where = new URL(String(url));
     const method = init.method ?? "GET";

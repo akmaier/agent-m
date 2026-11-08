@@ -26,7 +26,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { lineDiff } from "../src/text-tools/index.mjs";
 import { buttonsNamed, until } from "./review-pages-draft-world.mjs";
 import { LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, goTo, keptDraft, messageLines, namedButton, onUseCase, one, press, recordTexts, rest, review, scenario,
-  send, sentText, statusOf, useCaseSection, useCases } from "./uc-019-prompt-bar-harness.mjs";
+  send, sentText, statusOf, useCaseSection, useCases, writesBeyondRecords } from "./uc-019-prompt-bar-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
@@ -259,7 +259,7 @@ test("TST-377004: UC-019 1-3 the instruction is written in the prompt bar and th
   assert.ok(section.indexOf(`### ${UC7_PATH}`) >= 0 && section.indexOf(`### ${UC8_PATH}`) > section.indexOf(`### ${UC7_PATH}`), "UC-007 is the target, UC-008 another use case");
   assert.ok(section.includes(`### ${LOAN}`), "the requirement UC-007 realises");
   assert.match(statusOf(s).textContent, /^Sent to:drafter — this machine/);
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
 });
 
 // TST-377005
@@ -275,10 +275,10 @@ test("TST-377005: UC-019 5 and 5a Send is the decision to send", async () => {
   one(barOf(s), "textarea", "instruction").value = "add error handling to UC-007";
   await rest(s);
   assert.equal(s.endpointRequests.length, 0, "without Send nothing is sent");
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
   await send(s, "add error handling to UC-007");
   assert.equal(s.endpointRequests.length, 1, "Send makes one request");
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
 });
 
 // TST-377006
@@ -298,7 +298,7 @@ test("TST-377006: UC-019 4a a context that does not fit sends nothing and names 
   assert.match(said, /No offered participant has a larger context\./);
   assert.doesNotMatch(said, /observer/);
   assert.equal(s.endpointRequests.length, 0);
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
 });
 
 // TST-377007
@@ -322,7 +322,7 @@ test("TST-377007: UC-019 8 a follow-up instruction in the prompt bar goes with t
   assert.equal(s.endpointRequests.length, asked + 1);
   assert.ok(sentText(s, asked).includes("make 2b say what is logged"));
   assert.ok(sentText(s, asked).includes("2b. The service fails."), "the draft as it stands is given with the follow-up");
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
 });
 
 // TST-377008
@@ -333,7 +333,7 @@ test("TST-377007: UC-019 8 a follow-up instruction in the prompt bar goes with t
 // input: the author presses Send
 // expect: the bar shows the proposal with its kind, what it works on and its task; it offers no button *Hand over*, and nothing is queued or written - no job record, no commit
 test("TST-377008: UC-019 6b a proposed hand-over is shown and nothing is queued", async () => {
-  const proposal = { answer: "This needs a run of the tests.", handOver: { kind: "implement-item", works_on: ["ITM-001"], task: "Run the tests of UC-007." } };
+  const proposal = { answer: "This needs a run of the tests.", handOver: [{ kind: "implement-item", works_on: ["ITM-001"], task: "Run the tests of UC-007.", after: [] }] };
   const s = await scenario({ extraFiles: useCases, answers: [proposal] });
   await goTo(s, `#use-case/product=${encodeURIComponent(s.address)}`);
   await send(s, "run the tests");
@@ -342,7 +342,7 @@ test("TST-377008: UC-019 6b a proposed hand-over is shown and nothing is queued"
   assert.match(hand.textContent, /Works on: ITM-001/);
   assert.match(hand.textContent, /Task: Run the tests of UC-007\./);
   assert.equal(all(barOf(s), "button").filter((button) => /Hand over/.test(button.textContent)).length, 0, "the bar offers no Hand over");
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
   assert.equal(recordTexts(s).length, 0);
 });
 
@@ -358,17 +358,19 @@ test("TST-377009: UC-019 9 Save records the participant, model, version and roun
   await onUseCase(s);
   await send(s, ALIGN);
   await review(s);
-  assert.equal(s.product.writes.length, 0, "a draft alone writes nothing");
+  assert.equal(writesBeyondRecords(s).length, 0, "a draft alone writes nothing");
   await press(s, namedButton(all(s.target, "div", "draft")[0], "Save"));
-  assert.equal(s.product.writes.length, 1, "one commit");
-  const [write] = s.product.writes;
+  assert.equal(writesBeyondRecords(s).length, 1, "one commit beside the piece's record");
+  const [write] = writesBeyondRecords(s);
   assert.deepEqual(Object.keys(write.files), [UC7_PATH, UC8_PATH]);
   const lines = messageLines(write);
   for (const wanted of ["Agent-M-Kind: change-use-case", "Agent-M-Participant: drafter", "Agent-M-Model: fixture-model", "Agent-M-Rounds: 1"]) assert.ok(lines.includes(wanted), `${wanted} in ${write.message}`);
   assert.ok(lines.some((line) => line.startsWith("Agent-M-Version: ")), `a version line in ${write.message}`);
   assert.ok(lines.every((line) => !line.includes(ALIGN) && !line.startsWith("Agent-M-Instruction")), "no line names the instruction");
   assert.ok(Object.values(write.files).every((body) => !body.includes(ALIGN) && !body.includes("Agent-M-")), "no file names the instruction or a trailer");
-  assert.equal(recordTexts(s).length, 0);
+  // The one job record is the piece's own, run in this tab (UC-049 4a.1): it holds no word of the conversation.
+  assert.equal(recordTexts(s).length, 1);
+  assert.ok(recordTexts(s).every((text) => /^route: tab$/m.test(text) && !text.includes(ALIGN)), recordTexts(s).join("\n"));
   assert.equal(conversationRecords(s).length, 0, "recording is off: nothing of the conversation is written");
 });
 
@@ -407,7 +409,7 @@ test("TST-377015: UC-019 6c an unusable answer is named, its raw text folded, an
   assert.ok(!folded.open, "the raw answer is folded");
   assert.equal(one(folded, "pre").textContent, raw);
   assert.equal(all(barOf(s), "button", "review").length, 0);
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0);
   assert.equal(keptDraft(s), null);
 });
 
@@ -519,7 +521,7 @@ const HANDED_TASK = "Add the alternative flow 2b to UC-007: when the service fai
 const MESSAGE = "please run the correction loop for this change on GitHub Actions";
 const ANSWER = "This is work for GitHub Actions, where the correction loop runs.";
 test("TST-377013: UC-019 6b the work the tab does not run is handed to GitHub Actions from the bar, without a further click", async () => {
-  const proposal = { answer: ANSWER, handOver: { kind: "derive-use-cases", works_on: [LOAN], task: HANDED_TASK } };
+  const proposal = { answer: ANSWER, handOver: [{ kind: "derive-use-cases", works_on: [LOAN], task: HANDED_TASK, after: [] }] };
   // This browser's endpoint drafter is called through the Bridge release-bridge and names the CI secret FIXTURE_KEY, so its message goes through the Bridge and its route is "endpoint drafter secret FIXTURE_KEY", which a hand-over takes as "ci hosted"; the product answers its pull requests with [] and records each start of the workflow.
   const s = await scenario({ extraFiles: useCases, answers: [proposal], bridge: true, secret: "FIXTURE_KEY" });
   const starts = [], served = s.product.fetch;

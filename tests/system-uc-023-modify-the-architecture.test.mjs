@@ -22,7 +22,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { buttonsNamed, until } from "./review-pages-draft-world.mjs";
 import { ACCEPTED, ARC1, ARC1_PATH, ARC2, ARC2_PATH, DESK, DESK_PATH, LOAN, REPORT, REPORT_PATH, SHELF_MOD, SHELF_PATH, SPEC, SYNC, SYNC_PATH, UC1, UC2, UC3, all, barOf, edit,
-  goTo, impactOf, lines, module_, namedButton, onFile, one, pageText, press, readOriginal, review, scenario, send, statusOf, typeInto } from "./uc-023-harness.mjs";
+  goTo, impactOf, lines, module_, namedButton, onFile, one, pageText, press, readOriginal, review, scenario, send, statusOf, typeInto, writesBeyondRecords } from "./uc-023-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const exists = (path) => existsSync(new URL(`../${path}`, import.meta.url));
@@ -116,12 +116,12 @@ test("TST-739002: UC-023 1, 3, 4, 5 the author edits a module file and saves, th
   assert.equal(pageText(s).includes("accepted"), true);
   assert.equal(all(s.target, "a", "edit-link").length, 1, "the file offers the route Edit");
   await edit(s, "module", "MOD-sync", (body) => body.replace("  - pull\n", "").replace(`${PULL_LINE}\n`, ""));
-  assert.equal(s.product.writes.length, 0, "nothing is written before Save");
+  assert.equal(writesBeyondRecords(s).length, 0, "nothing is written before Save");
   assert.ok(!one(s.target, "div", "preview").textContent.includes("pull(since)"), "the live preview shows the text as edited");
   const opened = s.product.head;
   await press(s, namedButton(s.target, "Save"));
-  assert.equal(s.product.writes.length, 1, "Save is one click and one commit");
-  assert.deepEqual(writtenPaths(s.product.writes[0]), [SYNC_PATH], "the edited file alone, no record");
+  assert.equal(writesBeyondRecords(s).length, 1, "Save is one click and one commit");
+  assert.deepEqual(writtenPaths(writesBeyondRecords(s)[0]), [SYNC_PATH], "the edited file alone, no record");
   assert.equal(s.product.files[SYNC_PATH], SYNC_WITHOUT_PULL, "the text as edited");
   assert.notEqual(s.product.head, opened, "the default branch moved on");
 
@@ -138,10 +138,10 @@ test("TST-739002: UC-023 1, 3, 4, 5 the author edits a module file and saves, th
   assert.deepEqual(linesOfImpact(impact), ["Affected modules", "Requirements and use cases — newly named: — · no longer named: —", "Items — ITM-901, ITM-902"]);
 
   const shown = await blobSha(SYNC_WITHOUT_PULL);
-  const written = s.product.writes.length;
+  const written = writesBeyondRecords(s).length;
   await press(s, namedButton(s.target, "Accept"));
-  assert.equal(s.product.writes.length, written + 1, "Accept is one click and one commit");
-  const accept = s.product.writes.at(-1);
+  assert.equal(writesBeyondRecords(s).length, written + 1, "Accept is one click and one commit");
+  const accept = writesBeyondRecords(s).at(-1);
   assert.deepEqual(writtenPaths(accept), [await approvalOf("MOD-sync", SYNC_PATH, SYNC_WITHOUT_PULL)], "the record alone, and no code file");
   assert.equal(accept.files[await approvalOf("MOD-sync", SYNC_PATH, SYNC_WITHOUT_PULL)], `kind: module\nfile: ${SYNC_PATH}\nblob: ${shown}\n`);
   assert.deepEqual(lines(accept.message).slice(0, 3), ["accept MOD-sync (Agent M dashboard)", "", "Accepted by github.com/reviewer."]);
@@ -174,16 +174,16 @@ test("TST-739003: UC-023 1, 2, 3 the author describes the change, the participan
     assert.ok(sent.includes(headingOf(`docs/sources/SRC-vibe-coding/2026-10-05/${chapter}`)), `${chapter} is in what the drafter is sent`);
   }
   assert.ok(!sent.includes(headingOf("docs/sources/SRC-vibe-coding/2026-10-05/13_software-testing.md")), "chapter 13 is not");
-  assert.equal(s.product.writes.length, 0, "nothing is written by Send");
+  assert.equal(writesBeyondRecords(s).length, 0, "nothing is written by Send");
 
   await review(s);
   assert.match(s.location.hash, /^#draft\//);
   assert.equal(all(s.target, "div", "draft").length, 2, "both files are drafts on the page");
   assert.equal(all(s.target, "section", "change-impact").length, 2, "each with its impact list");
-  assert.equal(s.product.writes.length, 0, "nothing is written before Save");
+  assert.equal(writesBeyondRecords(s).length, 0, "nothing is written before Save");
   await press(s, namedButton(s.target, "Save"));
-  assert.equal(s.product.writes.length, 1, "Save is one commit");
-  const [write] = s.product.writes;
+  assert.equal(writesBeyondRecords(s).length, 1, "Save is one commit");
+  const [write] = writesBeyondRecords(s);
   assert.deepEqual(writtenPaths(write), [DESK_PATH, SYNC_PATH]);
   assert.equal(write.files[SYNC_PATH], SYNC_WITHOUT_PULL);
   assert.equal(write.files[DESK_PATH], DESK_WITHOUT_PULL);
@@ -236,11 +236,11 @@ test("TST-739004: UC-023 1b and 5 a split of a module is reviewed as a whole and
   assert.match(impact.textContent, /Tests — TST-9001 \(guards A LOAN HAS A DUE DATE\)/, "and every test that still names it");
 
   await press(s, namedButton(s.target, "Accept all 6 shown"));
-  assert.equal(s.product.writes.length, 1, "one click, one commit");
-  const records = Object.entries(s.product.writes[0].files);
+  assert.equal(writesBeyondRecords(s).length, 1, "one click, one commit");
+  const records = Object.entries(writesBeyondRecords(s)[0].files);
   assert.equal(records.length, 6, "six records and nothing else");
   assert.ok(records.every(([path]) => path.startsWith("docs/approvals/")), "no code file");
-  assert.equal(s.product.writes[0].files["docs/approvals/MOD-sync-e69de29bb2d1.md"], `kind: module\nfile: ${SYNC_PATH}\nblob: ${EMPTY_BLOB}\n`, "the removal names the empty text");
+  assert.equal(writesBeyondRecords(s)[0].files["docs/approvals/MOD-sync-e69de29bb2d1.md"], `kind: module\nfile: ${SYNC_PATH}\nblob: ${EMPTY_BLOB}\n`, "the removal names the empty text");
   assert.ok(await approvalOf("MOD-sync", SYNC_PATH, ACCEPTED[SYNC_PATH]) in s.product.files, "the old record stays");
   assert.deepEqual(Object.keys(s.product.files).filter((path) => /\/MOD-sync\.md$/.test(path)), [], "the identifier is given to nothing else");
   assert.equal(s.product.files["src/sync/pull.mjs"], ACCEPTED["src/sync/pull.mjs"], "moving the code files is an implementation job");
@@ -274,7 +274,7 @@ test("TST-739005: UC-023 2a a new identifier for something that exists is sent b
   assert.equal(all(s.target, "li", "left").length, 0, "no finding is left");
   assert.match(pageText(s), /one synchronisation module, which retries\./);
   await press(s, namedButton(s.target, "Save"));
-  assert.deepEqual(writtenPaths(s.product.writes[0]), [ARC1_PATH], "ARC-001 alone is saved");
+  assert.deepEqual(writtenPaths(writesBeyondRecords(s)[0]), [ARC1_PATH], "ARC-001 alone is saved");
 });
 
 // TST-739006 · level: system · module: MOD-trace-graph
@@ -292,7 +292,7 @@ test("TST-739006: UC-023 4a a removed interface lists the module that uses it fi
   assert.equal(accept.length, 1);
   assert.ok(!accept[0].disabled, "Accept is enabled");
   await press(s, accept[0]);
-  assert.deepEqual(writtenPaths(s.product.writes[0]), [await approvalOf("MOD-sync", SYNC_PATH, SYNC_WITHOUT_PULL)]);
+  assert.deepEqual(writtenPaths(writesBeyondRecords(s)[0]), [await approvalOf("MOD-sync", SYNC_PATH, SYNC_WITHOUT_PULL)]);
 });
 
 const SHELF_ON_OPEN = SHELF_MOD.replace("  - A BOOK IS SHELVED\n", "  - A BOOK IS SHELVED\n  - UC-003\n");
@@ -315,7 +315,7 @@ test("TST-739007: UC-023 4b a file that names a use case that is not accepted ca
   assert.equal(buttonsNamed(s.target, "Accept").filter((button) => !button.disabled).length, 0, "no Accept can be pressed");
   await onFile(s, "decision", "all");
   await press(s, namedButton(s.target, "Accept all 1 shown"));
-  assert.equal(s.product.writes.length, 0, "nothing is written");
+  assert.equal(writesBeyondRecords(s).length, 0, "nothing is written");
   assert.match(pageText(s), /MOD-shelf: rests on what is not accepted \(UC-003\)/);
 });
 
@@ -347,15 +347,15 @@ test("TST-739009: UC-023 5a an edit before accepting is saved as in step 3 and t
   assert.deepEqual(modulesOf(impactOf(s)).map(([id]) => id), ["MOD-desk", "MOD-sync"], "before the edit");
   await edit(s, "module", "MOD-sync", () => SYNC_RETRY);
   await press(s, namedButton(s.target, "Save"));
-  assert.equal(s.product.writes.length, 1, "Save is one commit");
-  assert.deepEqual(writtenPaths(s.product.writes[0]), [SYNC_PATH]);
+  assert.equal(writesBeyondRecords(s).length, 1, "Save is one commit");
+  assert.deepEqual(writtenPaths(writesBeyondRecords(s)[0]), [SYNC_PATH]);
   await onFile(s, "module", "MOD-sync");
   const impact = impactOf(s);
   assert.deepEqual(modulesOf(impact).map(([id, head]) => [id, head]), [["MOD-sync", "MOD-sync — changed"]], "derived again for the new text");
   assert.equal(all(impact, "span", "breaks").length, 0);
   assert.deepEqual(all(one(s.target, "section", "accepted-diff"), "span", "dadd").map((node) => node.textContent), ["+ It synchronises the loans, and retries."]);
   await press(s, namedButton(s.target, "Accept"));
-  assert.deepEqual(writtenPaths(s.product.writes.at(-1)), [await approvalOf("MOD-sync", SYNC_PATH, SYNC_RETRY)], "the record names the edited text");
+  assert.deepEqual(writtenPaths(writesBeyondRecords(s).at(-1)), [await approvalOf("MOD-sync", SYNC_PATH, SYNC_RETRY)], "the record names the edited text");
 });
 
 // ---------------------------------------------------------------- the findings

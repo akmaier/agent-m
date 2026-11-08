@@ -110,7 +110,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     const kind = Array.isArray(shown?.candidates) ? "change-requirements" : files.some((path) => path.startsWith("docs/architecture/")) || /^#(decision|module)\//.test(hash)
       ? "change-architecture" : files.length > 0 || /^#use-case\//.test(hash) ? "change-use-case" : "change-requirements";
     const task = /## The person's message\n\n(?:### [^\n]*\n\n)?([^]*?)\n\n## /.exec(textOfRequest(body))?.[1] ?? "";
-    return { answer: `Handed on to ${kind}.`, handOver: { kind, works_on: [], task } };
+    return { answer: `Handed on to ${kind}.`, handOver: [{ kind, works_on: [], task, after: [] }] };
   };
   const handler = async (url, init) => {
     // A controlled Bridge of the test (`bridgeFetch`) answers in place of the fixture below.
@@ -220,6 +220,10 @@ export const namedButton = (root, text) => { const found = buttonsNamed(root, te
 export const row = (s, name = CHANGED) => { const found = all(s.target, "li", "candidate").find((node) => node.getAttribute("data-name") === name); assert.ok(found, `candidate ${name} is shown: ${s.target.textContent}`); return found; };
 export const proposalWrites = (s) => s.product.writes.filter((write) => Object.keys(write.files).some((path) => path.endsWith(".begruendung.md")));
 export const proposalTexts = (s) => proposalWrites(s).flatMap((write) => Object.entries(write.files).filter(([path]) => /\/\d\d-[^/]+\.md$/.test(path) && !path.endsWith(".begruendung.md")).map(([, text]) => text));
+// The product's commits other than those of the record of a piece of a plan run in this tab — its start with its taking, and its end —, which MOD-prompt-bar writes for every
+// such piece ("its record is queued on the tab's route with MOD-runtimes' `queueJob` … and it runs with `runOnTab` and that record, which gains its end"); a record holds no word of the
+// conversation, which recordTexts lets a test check.
+export const writesBeyondRecords = (s) => s.product.writes.filter((write) => !Object.keys(write.files).every((path) => /^docs\/jobs\/JOB-[^/]+\.md$/.test(path)));
 export const recordTexts = (s) => Object.entries(s.product.files).filter(([path]) => /^docs\/jobs\/JOB-.*\.md$/.test(path)).map(([, text]) => text);
 export const conversationRecords = (s) => Object.entries(s.instance.files).concat(Object.entries(s.product.files)).filter(([path]) => path.startsWith("docs/conversations/"));
 

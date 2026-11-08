@@ -198,7 +198,8 @@ async function handOverPieces(env, composed, path, pieces, inputs) {
         person: record.startedBy ?? null, now: env.now, agentM: record.agentM, jobId: id };
       const prepared = await prepareJob(piece.kind, context, { drafter: participant, reviewers: [] });
       if (prepared.blocking.length > 0) throw Object.assign(new Error("the job does not start"), { name: "NotStartable", findings: prepared.blocking });
-      const start = { id, kind: piece.kind, worksOn: piece.works_on, participant: participant.name, model: participant.model ?? record.model ?? null, route: routeOf(env.job.runner),
+      // A piece that works on nothing yet — something new, whose place its task names — is a job that works on the product, by its address.
+      const start = { id, kind: piece.kind, worksOn: piece.works_on.length ? piece.works_on : [product.address], participant: participant.name, model: participant.model ?? record.model ?? null, route: routeOf(env.job.runner),
         run: null, retries: null, startedBy: record.id, start: env.now, agentM: record.agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
         task: "with the hand-over", conversation: record.conversation ?? null,
         destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })), params,

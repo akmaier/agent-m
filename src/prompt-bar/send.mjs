@@ -1,20 +1,21 @@
-// MOD-prompt-bar, send.mjs — preparing and running a message as a job in this tab (docs/architecture/MOD-prompt-bar.md: Parts,
-// Interfaces: startPromptBar). A message is a job of the bar's one kind, `converse`, whatever the page, with the subject's parameters as its
-// context and the person's words, the conversation so far, the subject's menu entry and the tools it refuses; a hand-over the tab runs is a
-// job of the kind it names, prepared the same way; each is prepared with MOD-job-runner's prepareJob in a MOD-runtimes tabContext and run
-// with runOnTab, without a job record.
+// MOD-prompt-bar, send.mjs — preparing and running a message, or a piece of a plan of a kind whose result waits for the person, as a job in this tab (docs/architecture/MOD-prompt-bar.md:
+// Parts, Interfaces: startPromptBar). A message is a job of the bar's one kind, `converse`, whatever the page, with the subject's parameters as its
+// context and the person's words, the conversation so far, the subject's menu entry and the tools it refuses; a piece the tab runs is a
+// job of the kind it names, prepared the same way with `hand-over` among its refuses; each is prepared with MOD-job-runner's prepareJob in a MOD-runtimes tabContext and run
+// with runOnTab — a message without a job record, a piece with its record, queued on the tab's route (queueHere).
 //
 // Module: MOD-prompt-bar
 //
 // The connections handed to runOnTab are built as the review pages build theirs: an endpoint's configuration and its Bridge from its
-// setting, each Bridge with settingsOf and then bridgeAt. prepareJob and runOnTab write nothing: the only write of a message is the
-// conversation record (record.mjs), which the bar makes first, where recording is on.
+// setting, each Bridge with settingsOf and then bridgeAt. prepareJob writes nothing; the only write of a message is the conversation record (record.mjs), which the bar makes
+// first, where recording is on, and a piece's only writes are its record's start, taking and end, which hold none of its task's words.
 
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { handOverParams, prepareJob, taskRefusal } from "../job-runner/index.mjs";
-import { runOnTab, tabContext } from "../runtimes/index.mjs";
+import { queueJob, runOnTab, tabContext } from "../runtimes/index.mjs";
+import { newJobId } from "../job-ledger/index.mjs";
 import { BAR_KIND, readParticipants } from "./offer.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { personAccount, registerPaths, restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
@@ -112,8 +113,48 @@ export async function prepareHandOver({ handOver, subject, participant, conversa
   const reviewed = (await kindOf(handOver.kind)).reviewer !== null;
   return prepareIn(handOver.kind, (snapshot) => {
     const { page: _page, ...context } = subject.paramsFor(participant);
-    return { ...context, ...handOverParams(handOver.works_on, snapshot), instruction: String(handOver.task ?? ""), conversation, entry: subject.entry, refuses: subject.refuses };
+    // A piece of a plan hands nothing on: `hand-over` is among its refuses (MOD-job-runner's hand-over).
+    return { ...context, ...handOverParams(handOver.works_on, snapshot), instruction: String(handOver.task ?? ""), conversation, entry: subject.entry,
+      refuses: [...new Set([...(subject.refuses ?? []), "hand-over"])] };
   }, { participant, store, instance, product }, reviewed ? { reviewers: [participant], selfReview: true } : { reviewers: [] });
+}
+
+// A job record's path under docs/jobs/, with the job's identifier.
+const JOB_RECORD = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
+
+/**
+ * queueHere(ready: Ready, piece: { kind, works_on }, { conversation, source }) -> Promise<{ id: string, path: string, run: null }> — the record of a piece of a plan that runs in this tab
+ * (UC-049 4a.1): queued on the tab's route with MOD-runtimes' queueJob — its start and its taking one commit, as the person's commit on the head the page's repository has now —, the
+ * task travelling with the hand-over and none of its words in the record: its parameters are the bar's `source`, those MOD-job-runner's handOverParams gives for what it works on, and
+ * `refuses` naming hand-over. `conversation` is the path of the conversation record it names, or null. The prepared context then carries the job's identifier. Throws NoToken where this
+ * browser keeps no token that writes to the page's repository, and what queueJob throws; nothing is written then.
+ */
+export async function queueHere(ready, piece, { conversation = null, source } = {}) {
+  if (ready.person === null) throw Object.assign(new Error("no token that writes to this repository is stored in this browser"), { name: "NoToken" });
+  const { host } = ready.page;
+  const snapshot = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+  const now = new Date();
+  const id = newJobId(now, new Set(snapshot.paths.map((path) => JOB_RECORD.exec(path)?.[1]).filter(Boolean)));
+  const worksOn = [piece.works_on].flat().filter(Boolean).map(String);
+  const { prepared } = ready;
+  const drafter = prepared.drafter;
+  // A piece that works on nothing yet — something new, whose place its task names — is a job that works on the repository the page is held on, by its web address.
+  const start = { id, kind: prepared.kind.name, worksOn: worksOn.length ? worksOn : [snapshot.repository.web], participant: drafter.name, model: drafter.model ?? null, route: "tab", run: null, retries: null, startedBy: ready.person,
+    start: now, agentM: ready.context.agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "with the hand-over", conversation,
+    destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })),
+    params: { ...(source === undefined || source === null ? {} : { source }), ...handOverParams(worksOn, snapshot), refuses: ["hand-over"] },
+    ...(ready.participants.some((each) => each.name === drafter.name) ? {} : { declares: { context: drafter.context ?? null, capabilities: drafter.capabilities ?? [] } }) };
+  const { path } = await queueJob(host, start, { kind: "tab" }, snapshot.commit);
+  ready.context.jobId = id;
+  return { id, path, run: null };
+}
+
+/**
+ * runHere(ready: Ready, record: { id, path, run: null }, { signal }) -> Promise<JobResult> — runs a piece of a plan in this tab, attended, with its record, which gains its end — `waits for
+ * a person` for its draft — through the page's host (MOD-runtimes' runOnTab). Throws a driver's failure by name, and Cancelled when the signal is aborted.
+ */
+export function runHere(ready, record, { signal }) {
+  return runOnTab(ready.prepared, ready.context, ready.connections, { host: ready.page.host, record, signal });
 }
 
 // A job of `kind` prepared in this tab's context, its parameters `paramsOf(snapshot of the page's repository)`, drafted by the participant and reviewed as `review`

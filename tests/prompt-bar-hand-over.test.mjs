@@ -1019,8 +1019,8 @@ const pieceOf = (kind, works_on, task, after = []) => ({ kind, works_on, task, a
 const piecesShown = (it) => byClass(one(it.target, "plan") ?? new Element("section"), "hand-over");
 const whereOf = (node) => textOf(one(node, "where") ?? new Element("p"));
 const WAITS_FOR_1 = "waits for 1 to be accepted: it can start only once that is accepted — tell me here when it is";
-// The records the bar's commits added, in their order.
-const recordsCommitted = (it) => it.product.attempts.flatMap((attempt) => attempt.files).filter((file) => /^docs\/jobs\/JOB-.*\.md$/.test(file.path)).map((file) => file.text);
+// The records the bar's commits added, in their order: each record's text as the commit that added it held it (a later commit appends to it).
+const recordsCommitted = (it) => { const first = new Map(); for (const file of it.product.attempts.flatMap((attempt) => attempt.files)) if (/^docs\/jobs\/JOB-.*\.md$/.test(file.path) && !first.has(file.path)) first.set(file.path, file.text); return [...first.values()]; };
 
 // TST-2026114909 · level: component · module: MOD-prompt-bar
 // guards: UC-049; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
