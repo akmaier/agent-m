@@ -91,6 +91,7 @@ function workflowInstanceHost(participants = PARTICIPANTS_WITH_CI) {
     async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
     async readSnapshot() {
       return {
+        repository: { server: "github", origin: "https://github.com", path: "fixture/instance", web: "https://github.com/fixture/instance" },
         commit: INSTANCE_COMMIT,
         paths: ["docs/participants.md"],
         blob: () => "b".repeat(40),
@@ -111,12 +112,16 @@ function workflowProduct(writes, initial = {}) {
       async readSnapshot() {
         const opened = new Map(files), head = commit;
         return {
+          repository: { server: "github", origin: "https://github.com", path: "fixture/product", web: "https://github.com/fixture/product" },
           commit: head,
           paths: [...opened.keys()],
           blob(path) { return opened.has(path) ? blob(opened.get(path)) : null; },
           async read(path) { return opened.get(path) ?? null; },
         };
       },
+      // The product's Actions secrets: AGENT_M_TOKEN, HOSTED_KEY and GPU_KEY are stored, so that what the line offers rests on the workflow's files alone.
+      async ciSecretNames() { return ["AGENT_M_TOKEN", "HOSTED_KEY", "GPU_KEY"]; },
+      async setCiSecret() { throw new Error("no secret is to be stored"); },
       async commitFiles(change) {
         writes.push(change);
         for (const file of change.files) files.set(file.path, file.text);
@@ -139,8 +144,8 @@ async function renderWithInstance(browserStore, product, instanceHost) {
 // module: MOD-settings-pages
 // guards: UC-010; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; EVERY SETTING IS REACHED FROM ONE PAGE; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // given: a writable chosen GitHub product, the instance at a commit with two CI participants, and a product-token setting
-// input: the person opens Repositories, reads Agent M's job workflow line, and clicks Install
-// expect: without the workflow files Install commits exactly jobWorkflowFiles' generated files in one product commit; with the same files the line says installed; with stale bytes Install is offered again; the secrets are named with a secrets-page link, no secret value field, and a folded explanation
+// input: the person opens Repositories, reads Agent M's job workflow line, and clicks its button, which on GitHub reads Set up GitHub Actions (MOD-settings-pages); the product holds every secret the workflow reads
+// expect: without the workflow files the button commits exactly jobWorkflowFiles' generated files in one product commit; with the same files the line says installed and offers no button; with stale bytes the button is offered again; the secrets are named with a secrets-page link, no secret value field, and a folded explanation
 test("TST-351001: product Settings installs Agent M's job workflow and names only its secrets", async () => {
   const productStore = () => {
     const browserStore = store();

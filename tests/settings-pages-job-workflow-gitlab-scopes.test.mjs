@@ -57,7 +57,7 @@ const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**",
 const instanceHost = {
   async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
   async readSnapshot() {
-    return { commit: INSTANCE_COMMIT, paths: ["docs/participants.md"], blob: () => "b".repeat(40), async read(path) { return path === "docs/participants.md" ? PARTICIPANTS : null; } };
+    return { repository: { server: "github", origin: "https://github.com", path: "fixture/instance", web: "https://github.com/fixture/instance" }, commit: INSTANCE_COMMIT, paths: ["docs/participants.md"], blob: () => "b".repeat(40), async read(path) { return path === "docs/participants.md" ? PARTICIPANTS : null; } };
   },
 };
 const VALUE = "sk-THE-VALUE-NEVER-SHOWN-0123456789";
@@ -67,7 +67,7 @@ const gitlabProduct = ({ variables = [], refusal = null }) => ({
   address: "https://gitlab.example.test/fixture/product",
   host: {
     async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
-    async readSnapshot() { return { commit: "1".repeat(40), paths: [], blob: () => null, async read() { return null; } }; },
+    async readSnapshot() { return { repository: { server: "gitlab", origin: "https://gitlab.example.test", path: "fixture/product", web: "https://gitlab.example.test/fixture/product" }, commit: "1".repeat(40), paths: [], blob: () => null, async read() { return null; } }; },
     async commitFiles() { throw new Error("nothing is written here"); },
     async ciVariableScopes() {
       if (refusal) throw refusal;

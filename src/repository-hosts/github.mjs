@@ -5,7 +5,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref, folders),
 // readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), listIssues(filter), readIssue(number), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), setCiSecret(name, value), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), setCiSecret(name, value), ciSecretNames(), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 import { sealToBase64 } from "./sealed-box.mjs";
@@ -545,6 +545,14 @@ export function githubAdapter(address, { token, tokenName }, links) {
       const options = { permission: "Secrets", what: `the Actions secrets of ${address.web}` };
       const key = await read(`${repo}/actions/secrets/public-key`, options);
       await call("PUT", `${repo}/actions/secrets/${encodeURIComponent(name)}`, { ...options, body: { encrypted_value: sealToBase64(value, key.key), key_id: key.key_id } });
+    },
+
+    // The names of the repository's Actions secrets ("List repository secrets": GET …/actions/secrets, the answer's secrets, 100 to a page, read page by page), each once; of each secret
+    // only its name is taken — GitHub sends no value. A token that may not read them is PermissionMissing naming Secrets.
+    async ciSecretNames() {
+      const options = { permission: "Secrets", what: `the Actions secrets of ${address.web}` };
+      const listed = await everyPage(`${repo}/actions/secrets`, options, (answer) => answer.secrets ?? []);
+      return [...new Set(listed.map((secret) => secret.name))];
     },
 
     // The runs ("List workflow runs for a workflow" where a workflow is given, else "List workflow runs for a repository"; branch and head_sha from the filter's branch and commit; the

@@ -242,9 +242,15 @@ export function endpoint({ files = [{ path: UC1, text: UC1_CHANGED, class: "chan
   requests.elsewhere = [];
   requests.outside = [];
   globalThis.fetch = async (address, init = {}) => {
-    // The server's API, which the writer asks for the repository's history: a repository whose history lists no commit that removed a file. Every other request goes to the model endpoint.
+    // The server's API, which the writer asks for the repository's history: a repository whose history lists no commit that removed a file. Its Actions secrets, which the Settings page's
+    // Set up GitHub Actions lists and stores (MOD-runtimes' actionsSetup): "List repository secrets" answers none, "Get a repository public key" a fixed key, "Create or update a repository
+    // secret" 201. Every other request goes to the model endpoint.
     if (new URL(String(address)).origin === "https://api.github.com") {
       requests.elsewhere.push({ address: String(address), method: init.method ?? "GET" });
+      const path = new URL(String(address)).pathname;
+      if (path.endsWith("/actions/secrets")) return new Response(JSON.stringify({ total_count: 0, secrets: [] }), { status: 200, headers: { "content-type": "application/json" } });
+      if (path.endsWith("/actions/secrets/public-key")) return new Response(JSON.stringify({ key_id: "1", key: Buffer.alloc(32, 9).toString("base64") }), { status: 200, headers: { "content-type": "application/json" } });
+      if (/\/actions\/secrets\/[A-Za-z_][A-Za-z0-9_]*$/.test(path) && init.method === "PUT") return new Response("{}", { status: 201, headers: { "content-type": "application/json" } });
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     }
     if (new URL(String(address)).origin !== ENDPOINT_ORIGIN) {
@@ -410,7 +416,7 @@ export async function openSettings(w) {
 /** The line of Agent M's job workflow on the Settings page. */
 export const workflowLine = (target) => withClass(target, "settings-job-workflow")[0];
 
-/** Install pressed on the line, and the line drawn again once the commit is made. -> the line. */
+/** The line's button pressed — Set up GitHub Actions on GitHub —, and the line drawn again once the commit is made. -> the line. */
 export async function install(target, w) {
   const before = w.subjects().length;
   click(withClass(workflowLine(target), "settings-job-workflow-install")[0]);

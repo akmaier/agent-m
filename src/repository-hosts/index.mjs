@@ -1,5 +1,5 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, listIssues, readIssue, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setCiSecret, setPipelineSchedule, ciVariableScopes, listCiRuns,
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, listIssues, readIssue, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setCiSecret, ciSecretNames, setPipelineSchedule, ciVariableScopes, listCiRuns,
 // cancelCiRun, ciRunLog, ciRunLabels and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
@@ -481,6 +481,15 @@ export function connect(address, credentials = {}) {
       if (!github) throw new HostError("NotSupported", { what: "storing a CI secret on a GitLab server" }, "A CI variable of a GitLab project is set on the project's own page.");
       if (!token || !rest.setCiSecret) throw new HostError("NotSupported", { what: "storing a CI secret without a token" }, "A CI secret is stored only with a token that may write the repository's secrets; store one first.");
       return rest.setCiSecret(name, value);
+    },
+
+    // ciSecretNames() -> string[] — on GitHub, the names of this repository's Actions secrets, each once, never a value: GitHub's listing of them, page after page. On a GitLab
+    // server and without a token it fails with NotSupported, before any request, as setCiSecret. Crosses the network; fails with PermissionMissing { permission: "Secrets" } for a
+    // token that may not read them, TokenRefused, RateLimited, Unreachable.
+    async ciSecretNames() {
+      if (!github) throw new HostError("NotSupported", { what: "listing CI secrets on a GitLab server" }, "A GitLab project lists no CI secret this way; its CI/CD variables are listed by ciVariableScopes.");
+      if (!token || !rest.ciSecretNames) throw new HostError("NotSupported", { what: "listing CI secrets without a token" }, "The CI secrets are listed only with a token that may read the repository's secrets; store one first.");
+      return rest.ciSecretNames();
     },
 
     // setPipelineSchedule(schedule) -> { id, url } — on a GitLab server, creates the project's pipeline schedule with this description or updates the one that has it, so that saving again

@@ -2,7 +2,7 @@
 // workflow line, as UC-003 (step 2, 4a) and docs/architecture/MOD-settings-pages.md state them: the form asks the place, the context and the name of the CI
 // secret of the key; a test the browser refuses says plainly that the host does not accept calls from a web page; for such an endpoint whose key this browser keeps,
 // one click stores the key as a GitHub Actions secret of the repository, keeps the secret's name with the endpoint beside the key, which stays in this browser, and spawns a
-// test job there; and the job workflow's Install names the CI secret each of this browser's endpoints names.
+// test job there; and the job workflow's line (Set up GitHub Actions) names the CI secret each of this browser's endpoints names.
 // Run: node --test tests/settings-pages-endpoints-actions.test.mjs
 //
 // Module: MOD-settings-pages
@@ -165,15 +165,18 @@ test("one click stores the key as the GitHub secret, keeps it in this browser an
 // guards: UC-010; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
 // given: a GitHub product without the job workflow and a token that writes to it; this browser keeps endpoint:nvidia naming the CI secret NVIDIA_API_KEY, and endpoint:plain naming none
 // input: the Settings page's product tab, its job workflow line
-// expect: the secrets it names are AGENT_M_TOKEN and NVIDIA_API_KEY, and nothing for plain; Install commits .github/workflows/agent-m-jobs.yml, whose job reads `NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}` and lists it in AGENT_M_KEY_NAMES
-test("the job workflow's Install names the CI secret each of this browser's endpoints names", async () => {
+// expect: the secrets it names are AGENT_M_TOKEN and NVIDIA_API_KEY, and nothing for plain; Set up GitHub Actions commits .github/workflows/agent-m-jobs.yml, whose job reads `NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}` and lists it in AGENT_M_KEY_NAMES
+test("the job workflow's Set up GitHub Actions names the CI secret each of this browser's endpoints names", async () => {
   const store = freshStore(), repo = instanceRepository(), writes = [];
   writeSetting(store, "endpoint:nvidia", { ...NVIDIA, place: "NVIDIA, USA", context: 128000, secret: "NVIDIA_API_KEY" });
   writeSetting(store, "endpoint:plain", { ...NVIDIA, key: KEY });
   writeSetting(store, "github-token:fixture/product", { value: "github_pat_FIXTURE0123456789abcdef", name: "alice", expires: "2027-01-01" });
-  const product = { address: "https://github.com/fixture/product", host: {
+  const repository = { server: "github", origin: "https://github.com", path: "fixture/product", web: "https://github.com/fixture/product" };
+  const product = { address: repository.web, host: {
     async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
-    async readSnapshot() { return { commit: "1".repeat(40), paths: [], blob: () => null, async read() { return null; } }; },
+    async readSnapshot() { return { repository, commit: "1".repeat(40), paths: [], blob: () => null, async read() { return null; } }; },
+    async ciSecretNames() { return []; },
+    async setCiSecret() {},
     async commitFiles(change) { writes.push(change); return { commit: "2".repeat(40) }; },
   } };
   const page = document.createElement("div");

@@ -85,8 +85,8 @@ test("TST-373201: UC-010 every flow has a system test that walks it", () => {
 // TST-373202 · level: system · module: system
 // guards: UC-010; NO SECRET IN THE REPOSITORY; EVERY SETTING IS REACHED FROM ONE PAGE; ONE CLICK PER DECISION
 // given: the product alice/thesis-tool without the job workflow, the instance with the CI agent ci-bot whose key is the secret FIXTURE_KEY, and the person's token stored in the browser
-// input: the person opens the Repositories tab of the Settings page, reads the line of Agent M's job workflow, and presses Install
-// expect: before the click the line says Not installed and names the secrets AGENT_M_TOKEN and FIXTURE_KEY, with a link to the product's Actions secrets page and no field for a value; Install makes one commit on main that adds exactly the files the generated job workflow consists of; afterwards the line says Installed; the committed files hold neither the person's token nor the key, and name each secret as an Actions secret
+// input: the person opens the Repositories tab of the Settings page, reads the line of Agent M's job workflow, and presses its button, Set up GitHub Actions
+// expect: before the click the line says Not installed and names the secrets AGENT_M_TOKEN and FIXTURE_KEY, with a link to the product's Actions secrets page and no field for a value; the click makes one commit on main that adds exactly the files the generated job workflow consists of; afterwards the line says Installed; the committed files hold neither the person's token nor the key, and name each secret as an Actions secret
 test("TST-373202: UC-010 precondition — the job workflow is installed in one click and its secrets are named, never asked for", async () => {
   endpoint();
   await world({}, async (w) => {

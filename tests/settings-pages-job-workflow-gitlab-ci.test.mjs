@@ -64,7 +64,7 @@ const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**",
 const instanceHost = {
   async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
   async readSnapshot() {
-    return { commit: INSTANCE_COMMIT, paths: ["docs/participants.md"], blob: () => "b".repeat(40), async read(path) { return path === "docs/participants.md" ? PARTICIPANTS : null; } };
+    return { repository: { server: "github", origin: "https://github.com", path: "fixture/instance", web: "https://github.com/fixture/instance" }, commit: INSTANCE_COMMIT, paths: ["docs/participants.md"], blob: () => "b".repeat(40), async read(path) { return path === "docs/participants.md" ? PARTICIPANTS : null; } };
   },
 };
 
@@ -78,7 +78,7 @@ function gitlabProduct(writes, initial = {}) {
       async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
       async readSnapshot() {
         const opened = new Map(files), head = commit;
-        return { commit: head, paths: [...opened.keys()], blob(path) { return opened.has(path) ? blob(opened.get(path)) : null; }, async read(path) { return opened.get(path) ?? null; } };
+        return { repository: { server: "gitlab", origin: "https://gitlab.example.test", path: "fixture/product", web: "https://gitlab.example.test/fixture/product" }, commit: head, paths: [...opened.keys()], blob(path) { return opened.has(path) ? blob(opened.get(path)) : null; }, async read(path) { return opened.get(path) ?? null; } };
       },
       async commitFiles(change) {
         writes.push(change);

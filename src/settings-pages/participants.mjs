@@ -746,7 +746,7 @@ export const route = {
       const route = text(cells.Route);
       // The schema's form `ci hosted secret <NAME>` / `ci runner:<label> secret <NAME>`, and the form saved earlier,
       // `workflow <file> on github-hosted|self-hosted secret <NAME>`, whose self-hosted runner names no label: every
-      // self-hosted runner carries the label self-hosted (as settings.mjs's ciRoute reads it).
+      // self-hosted runner carries the label self-hosted.
       const current = /^ci (?:hosted|runner:(\S+)) secret (\S+)$/.exec(route);
       const earlier = /^workflow (.*?) on (github-hosted|self-hosted) secret (.*)$/.exec(route);
       const ci = current ? { runner: current[1] === undefined ? "github-hosted" : "self-hosted", label: current[1] ?? "", secret: current[2] }

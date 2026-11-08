@@ -26,6 +26,7 @@ import { bridgeNamed, cancelBridgeJob, followBridgeLog, handOverAgain, listedOnB
 
 export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles, gitlabVariableScopes } from "./ci.mjs";
+export { actionsSetup } from "./actions-setup.mjs";
 export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
 export { jobTrail, revertAfterCancel } from "./trail.mjs";

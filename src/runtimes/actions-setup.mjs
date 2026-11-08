@@ -1,0 +1,98 @@
+// actionsSetup — what a product lacks of the CI route, and its setup (docs/architecture/MOD-runtimes.md, Parts and Interfaces; UC-010, Precondition; UC-049 4c): the job
+// workflow's files against jobWorkflowFiles, and the CI secrets they read against the repository's Actions secrets; setUp, on a person's click, commits the files and stores each
+// missing secret this browser keeps a value for. The one place the settings page and the prompt bar learn it.
+//
+// Module: MOD-runtimes
+//
+// Private to MOD-runtimes; index.mjs exports actionsSetup. It reads MOD-documents, MOD-participant-list and MOD-browser-store through their index.mjs, and the hosts it is handed.
+
+import { readRegister } from "../documents/index.mjs";
+import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { listSettings, readSetting } from "../browser-store/index.mjs";
+import { jobWorkflowFiles } from "./ci.mjs";
+
+const TOKEN_SECRET = "AGENT_M_TOKEN";
+const PARTICIPANTS = "docs/participants.md";
+// A participant's CI route, `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>`: its runner's label, null for the server's runners, and the secret of its key.
+const CI_ROUTE = /^ci\s+(hosted|runner:(\S+))\s+secret\s+(\S+)$/;
+const PLAIN_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// The endpoint settings of `store` that name a CI secret: [{ secret, key }], key null where this browser keeps none.
+function endpointSecrets(store) {
+  return listSettings(store).filter((setting) => setting.key.startsWith("endpoint:"))
+    .map((setting) => readSetting(store, setting.key))
+    .filter((setting) => typeof setting?.secret === "string" && PLAIN_NAME.test(setting.secret))
+    .map((setting) => ({ secret: setting.secret, key: typeof setting.key === "string" && setting.key !== "" ? setting.key : null }));
+}
+
+// The value this browser keeps for the CI secret `name`: the product's token for AGENT_M_TOKEN, else the key of the endpoint setting whose secret names it; null where it keeps none.
+function valueOf(store, tokenKey, name) {
+  if (name === TOKEN_SECRET) {
+    const value = readSetting(store, tokenKey)?.value;
+    return typeof value === "string" && value !== "" ? value : null;
+  }
+  return endpointSecrets(store).find((endpoint) => endpoint.secret === name && endpoint.key !== null)?.key ?? null;
+}
+
+/**
+ * actionsSetup({ product: { address, host, tokenKey }, instance: { host }, store }) -> Promise<{ missing: { workflow, secrets }, outdated, unknown, named: { token, keys }, setUp }>
+ * (MOD-runtimes, Interfaces). It reads the instance's default branch — its repository, commit and participants — and the product's; `named` is what the job workflow reads:
+ * AGENT_M_TOKEN and, without a name twice, the CI secret of each participant's `ci … secret <NAME>` route and the `secret` each endpoint setting of `store` names; the runners are
+ * the labels of those routes. `missing.workflow` is true where a file jobWorkflowFiles gives is absent, `outdated` names each that stands with another text. On GitHub
+ * `missing.secrets` names each secret `named` that ciSecretNames does not list, the token first, and `unknown` those for which this browser keeps no value; on GitLab both are empty.
+ * `setUp`, called only on a person's click, commits every absent or outdated file in one commit on the default branch on the head that was read, as the person's commit, then stores
+ * with setCiSecret each missing secret this browser keeps a value for; it returns the commit, null where no file was written, and the names stored, never a value. Crosses the
+ * network; fails as readSnapshot and ciSecretNames fail, and setUp as commitFiles and setCiSecret fail; what it wrote before a failure stays written.
+ */
+export async function actionsSetup({ product, instance, store }) {
+  const { defaultBranch: instanceBranch } = await instance.host.repositoryInfo();
+  const instanceSnapshot = await instance.host.readSnapshot(instanceBranch);
+  const register = await instanceSnapshot.read(PARTICIPANTS);
+  const participants = register ? participantsOf(readRegister(participantSchema(), PARTICIPANTS, register).document) : [];
+  const routes = participants.map((participant) => CI_ROUTE.exec(String(participant.route ?? "").trim())).filter(Boolean);
+  const keys = [...new Set([...routes.map((route) => route[3]), ...endpointSecrets(store).map((endpoint) => endpoint.secret)])];
+  const runners = [...new Set(routes.map((route) => route[2]).filter(Boolean))];
+  const named = { token: TOKEN_SECRET, keys };
+
+  const { defaultBranch } = await product.host.repositoryInfo();
+  const snapshot = await product.host.readSnapshot(defaultBranch);
+  const server = snapshot.repository.server;
+  const gitlabCi = server === "gitlab" ? (await snapshot.read(".gitlab-ci.yml")) ?? null : null;
+  const files = jobWorkflowFiles(server, { repository: instanceSnapshot.repository.path, commit: instanceSnapshot.commit }, named, runners, gitlabCi);
+  const standing = await Promise.all(files.map((file) => snapshot.read(file.path)));
+  const absent = files.filter((_, at) => standing[at] === null || standing[at] === undefined);
+  const outdated = files.filter((file, at) => standing[at] !== null && standing[at] !== undefined && standing[at] !== file.text).map((file) => file.path);
+  // Every file that is absent or stands with another text, in the order jobWorkflowFiles gives them.
+  const toWrite = files.filter((file, at) => standing[at] !== file.text);
+
+  let missingSecrets = [];
+  if (server === "github") {
+    const listed = new Set(await product.host.ciSecretNames());
+    missingSecrets = [named.token, ...named.keys].filter((name) => !listed.has(name));
+  }
+  const unknown = missingSecrets.filter((name) => valueOf(store, product.tokenKey, name) === null);
+
+  async function setUp() {
+    let commit = null;
+    if (toWrite.length > 0) {
+      ({ commit } = await product.host.commitFiles({ branch: defaultBranch, expectedHead: snapshot.commit,
+        files: toWrite.map(({ path, text }) => ({ path, text })), message: "Install Agent M job workflow" }));
+    }
+    const stored = [];
+    for (const name of missingSecrets) {
+      const value = valueOf(store, product.tokenKey, name);
+      if (value === null) continue;
+      await product.host.setCiSecret(name, value);
+      stored.push(name);
+    }
+    return { commit, stored };
+  }
+
+  return {
+    missing: { workflow: absent.length > 0, secrets: missingSecrets },
+    outdated,
+    unknown,
+    named,
+    setUp,
+  };
+}

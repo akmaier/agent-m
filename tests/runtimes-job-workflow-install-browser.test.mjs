@@ -1,7 +1,8 @@
-// The Settings page's Install writes Agent M's job workflow in a browser (ITM-1202): MOD-runtimes' jobWorkflowFiles, which the page's
-// line "whether Agent M's job workflow is installed, with Install" calls (MOD-settings-pages), gives the job workflow's files where the
+// The Settings page's button writes Agent M's job workflow in a browser (ITM-1202): MOD-runtimes' jobWorkflowFiles, which the page's
+// line of the job workflow reaches through MOD-runtimes' actionsSetup (MOD-settings-pages), gives the job workflow's files where the
 // module is loaded as a browser loads it — without a disk, reading its templates workflow/github.yml and workflow/gitlab.yml from its own
-// address (MOD-runtimes, Parts; Responsibility: "The page uses it in a browser") —, and one click on Install commits them
+// address (MOD-runtimes, Parts; Responsibility: "The page uses it in a browser") —, and one click on the line's button — Set up GitHub
+// Actions on GitHub, Install on GitLab — commits them
 // (ONE CLICK PER DECISION). The files the page commits are the ones jobWorkflowFiles gives in Node on the same fixture.
 // Run: node --test tests/runtimes-job-workflow-install-browser.test.mjs
 //
@@ -87,13 +88,16 @@ const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**",
 const instanceHost = {
   async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
   async readSnapshot() {
-    return { commit: INSTANCE_COMMIT, paths: ["docs/participants.md"], blob: () => "b".repeat(40), async read(path) { return path === "docs/participants.md" ? PARTICIPANTS : null; } };
+    return { repository: { server: "github", origin: "https://github.com", path: "fixture/instance", web: "https://github.com/fixture/instance" }, commit: INSTANCE_COMMIT,
+      paths: ["docs/participants.md"], blob: () => "b".repeat(40), async read(path) { return path === "docs/participants.md" ? PARTICIPANTS : null; } };
   },
 };
 
-// A writable product on `address` with the files given, no job workflow among them; its host notes each commit.
-function product(address, writes, initial = {}) {
+// A writable product on `address` with the files given, no job workflow among them, and no Actions secret; its host notes each commit, and each secret it stores in `secrets`.
+function product(address, writes, initial = {}, secrets = []) {
   const files = new Map(Object.entries(initial));
+  const url = new URL(address), server = url.hostname === "github.com" ? "github" : "gitlab";
+  const repository = { server, origin: url.origin, path: url.pathname.slice(1), web: address };
   let commit = "1".repeat(40);
   const blob = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
   return {
@@ -102,8 +106,10 @@ function product(address, writes, initial = {}) {
       async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
       async readSnapshot() {
         const opened = new Map(files), head = commit;
-        return { commit: head, paths: [...opened.keys()], blob(path) { return opened.has(path) ? blob(opened.get(path)) : null; }, async read(path) { return opened.get(path) ?? null; } };
+        return { repository, commit: head, paths: [...opened.keys()], blob(path) { return opened.has(path) ? blob(opened.get(path)) : null; }, async read(path) { return opened.get(path) ?? null; } };
       },
+      async ciSecretNames() { return []; },
+      async setCiSecret(name) { secrets.push(name); },
       async commitFiles(change) {
         writes.push(change);
         for (const file of change.files) files.set(file.path, file.text);
@@ -132,25 +138,26 @@ const OWN_GITLAB_CI = 'stages:\n  - build\n\ninclude:\n  - local: ".gitlab/agent
 // TST-1202201 · level: unit · module: MOD-runtimes
 // guards: UC-010; ONE CLICK PER DECISION; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: ci.mjs loaded as a browser loads it, without a disk; the instance fixture/instance at INSTANCE_COMMIT, whose participants register has the CI participants hosted-ci (key HOSTED_KEY) and gpu-ci (runner gpu, key GPU_KEY); a writable GitHub product with no job workflow, and a writable GitLab product whose own .gitlab-ci.yml has stages, an include list and a job
-// input: for each product, the person opens Repositories on the Settings page, reads the job workflow line, and clicks Install once
-// expect: ci.mjs read workflow/github.yml and workflow/gitlab.yml from its own address with fetch as it loaded; the line says not installed and offers Install; the click is one product commit on main whose files are, path for path and byte for byte, those ci.mjs?node — loaded with the disk — gives for the same server, instance, secrets AGENT_M_TOKEN, HOSTED_KEY and GPU_KEY, the runner gpu and, on GitLab, the product's own .gitlab-ci.yml
-test("TST-1202201: in a browser, Install on the Settings page commits the job workflow files Node gives, on GitHub and on GitLab", async () => {
+// input: for each product, the person opens Repositories on the Settings page, reads the job workflow line, and clicks its button once — Set up GitHub Actions on GitHub, Install on GitLab (MOD-settings-pages)
+// expect: ci.mjs read workflow/github.yml and workflow/gitlab.yml from its own address with fetch as it loaded; the line says not installed and offers its button, labelled Set up GitHub Actions on GitHub and Install on GitLab; the click is one product commit on main whose files are, path for path and byte for byte, those ci.mjs?node — loaded with the disk — gives for the same server, instance, secrets AGENT_M_TOKEN, HOSTED_KEY and GPU_KEY, the runner gpu and, on GitLab, the product's own .gitlab-ci.yml
+test("TST-1202201: in a browser, the Settings page's button commits the job workflow files Node gives, on GitHub and on GitLab", async () => {
   for (const address of TEMPLATE_FILES) assert.ok(fetched.includes(address), `ci.mjs read ${address} from its own address, as a browser does`);
   const cases = [
-    ["github", "https://github.com/fixture/product", "github-token:fixture/product", {}, null],
-    ["gitlab", "https://gitlab.example.test/fixture/product", "gitlab-token:gitlab.example.test/fixture/product", { ".gitlab-ci.yml": OWN_GITLAB_CI }, OWN_GITLAB_CI],
+    ["github", "https://github.com/fixture/product", "github-token:fixture/product", {}, null, "Set up GitHub Actions"],
+    ["gitlab", "https://gitlab.example.test/fixture/product", "gitlab-token:gitlab.example.test/fixture/product", { ".gitlab-ci.yml": OWN_GITLAB_CI }, OWN_GITLAB_CI, "Install"],
   ];
-  for (const [server, address, tokenKey, initial, gitlabCi] of cases) {
+  for (const [server, address, tokenKey, initial, gitlabCi, label] of cases) {
     const expected = inNode.jobWorkflowFiles(server, INSTANCE, SECRETS, ["gpu"], gitlabCi);
     const writes = [];
     const line = await jobWorkflowLine(product(address, writes, initial), tokenKey);
     assert.ok(line, `${server}: failure node: the product settings section shows Agent M's job workflow line`);
     assert.match(line.textContent, /not installed|different/i, `${server}: ${line.textContent}`);
     const install = byClass(line, "settings-job-workflow-install")[0];
-    assert.ok(install, `${server}: the line offers Install: ${line.textContent}`);
+    assert.ok(install, `${server}: the line offers its button: ${line.textContent}`);
+    assert.equal(install.textContent, label);
 
     await click(install, true);
-    assert.equal(writes.length, 1, `${server}: Install is one product commit`);
+    assert.equal(writes.length, 1, `${server}: the click is one product commit`);
     assert.equal(writes[0].branch, "main");
     assert.deepEqual(Object.fromEntries(writes[0].files.map((file) => [file.path, file.text])),
       Object.fromEntries(expected.map((file) => [file.path, file.text])), `${server}: the files committed are those Node gives`);

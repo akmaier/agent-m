@@ -3,7 +3,7 @@
 import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readExport, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
-import { confirmDecision, explain } from "../site-frame/index.mjs";
+import { confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema } from "../product-process/index.mjs";
@@ -12,7 +12,7 @@ import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf, namedPersonFindings } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { endpointLacks, recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
-import { gitlabVariableScopes, jobWorkflowFiles } from "../runtimes/index.mjs";
+import { actionsSetup, gitlabVariableScopes } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
@@ -928,35 +928,6 @@ function sessionLine(target, context, info) {
   return el("section", "settings-session panel", el("h3", null, info.label), status, el("p", null, test, " ", change, " ", clear), result);
 }
 
-function ciRoute(text) {
-  const route = String(text ?? "").trim();
-  const current = /^ci\s+(hosted|runner:(\S+))\s+secret\s+(\S+)$/.exec(route);
-  if (current) return { runner: current[2] ?? null, secret: current[3] };
-  const legacy = /^workflow\s+\S+\s+on\s+(github-hosted|self-hosted)\s+secret\s+(\S+)$/.exec(route);
-  if (legacy) return { runner: legacy[1] === "github-hosted" ? null : legacy[1], secret: legacy[2] };
-  return null;
-}
-
-async function jobWorkflowInput(context) {
-  if (!context.instance?.host) throw new Error("The instance repository is not connected.");
-  const { defaultBranch } = await context.instance.host.repositoryInfo();
-  const snapshot = await context.instance.host.readSnapshot(defaultBranch);
-  const participants = await snapshot.read("docs/participants.md");
-  const rows = participants ? readRegister(participantSchema(), "docs/participants.md", participants).rows : [];
-  const ci = rows.map(({ cells }) => ciRoute(cells.Route)).filter(Boolean);
-  // Beside the CI secrets of the participants' routes, the CI secret each of this browser's endpoints names (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS
-  // PARTICIPANTS ARE; ITM-1188's decision): the job workflow reads only keys it names.
-  const endpointSecrets = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
-    .map((setting) => readSetting(context.store, setting.key)?.secret).filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
-  const keys = [...new Set([...ci.map((route) => route.secret), ...endpointSecrets])];
-  const runners = [...new Set(ci.map((route) => route.runner).filter(Boolean))];
-  return {
-    instance: { repository: context.instance.repository, commit: snapshot.commit },
-    secrets: { token: "AGENT_M_TOKEN", keys },
-    runners,
-  };
-}
-
 // On GitLab, which gives a job every CI/CD variable not scoped to an environment, the scope each variable the job workflow reads needs (MOD-runtimes'
 // gitlabVariableScopes), and the state of the project's variables as its server lists them — names and scopes, never a value. The setup is called safe only
 // where every variable stands with exactly the scopes it needs; a variable missing a scope, one with another scope, and a list the server refuses are named.
@@ -983,47 +954,50 @@ async function gitlabScopes(host, secrets) {
   return [list, state];
 }
 
-async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canWrite }) {
+// The line of Agent M's job workflow for the product, from MOD-runtimes' actionsSetup with the key tokenKeyOf gives for the product's token (UC-010, Precondition): what is missing —
+// the job workflow, each file that stands with another text than this instance commit gives, on GitHub each secret by name, those this browser keeps no value for with the
+// repository's secrets page —, and while anything setUp can set up is missing and the product's token can write, one button whose person's click runs setUp: on GitHub
+// Set up GitHub Actions, on GitLab Install, beside the environment scopes its variables need. It names the commit and the secrets stored, never a value.
+async function jobWorkflowLine(context, { address, canWrite }) {
+  const github = address.server === "github";
   const status = el("p", "settings-job-workflow-status");
   const result = el("p", "settings-job-workflow-result");
   const secretList = el("p", "settings-job-workflow-secrets");
+  const missingSecrets = el("p", "settings-job-workflow-missing");
+  const unknownSecrets = el("p", "settings-job-workflow-unknown");
   const secretsPage = el("a", "settings-job-workflow-secrets-link", "Open the repository's secrets page");
   secretsPage.href = connect(address, {}).webLinks().secrets;
-  const install = el("button", "settings-job-workflow-install btn primary", "Install");
-  let offerInstall = false, scopes = null;
-  let files = [], expectedHead = snapshot.commit;
+  const button = el("button", "settings-job-workflow-install btn primary", github ? "Set up GitHub Actions" : "Install");
+  let offer = false, scopes = null, setup = null;
+  const showSecrets = (missing, unknown) => {
+    missingSecrets.textContent = missing.length ? `Missing secrets: ${missing.join(", ")}.` : "Every secret the job workflow reads is stored.";
+    unknownSecrets.textContent = unknown.length ? `This browser keeps no value for ${unknown.join(", ")}: add ${unknown.length > 1 ? "them" : "it"} on the repository's secrets page.` : "";
+  };
   try {
-    const input = await jobWorkflowInput(context);
-    // On GitLab the product's own .gitlab-ci.yml at this head is given to be added to, as the other files are read below; null where it has none.
-    const gitlabCi = address.server === "gitlab" ? (await snapshot.read(".gitlab-ci.yml")) ?? null : null;
-    files = jobWorkflowFiles(address.server, input.instance, input.secrets, input.runners, gitlabCi);
-    const current = await Promise.all(files.map(async (file) => [file.path, await snapshot.read(file.path)]));
-    const missing = current.filter(([, text]) => text === null || text === undefined).map(([path]) => path);
-    const different = current.filter(([, text], index) => text !== null && text !== undefined && text !== files[index].text).map(([path]) => path);
-    const installed = missing.length === 0 && different.length === 0;
+    if (!context.instance?.host) throw new Error("The instance repository is not connected.");
+    setup = await actionsSetup({ product: { address: context.product.address, host: context.product.host, tokenKey: tokenKeyOf(address) },
+      instance: { host: context.instance.host }, store: context.store });
+    const installed = !setup.missing.workflow && setup.outdated.length === 0;
     status.textContent = installed ? "Installed for this instance commit."
-      : missing.length === files.length ? "Not installed."
-        : `Workflow files are different from this instance commit: ${[...missing, ...different].join(", ")}.`;
-    secretList.textContent = `Secrets named: ${[input.secrets.token, ...input.secrets.keys].join(", ") || input.secrets.token}. `;
-    if (address.server === "gitlab") scopes = await gitlabScopes(context.product.host, input.secrets);
-    offerInstall = !installed && canWrite;
+      : `${setup.missing.workflow ? "Not installed." : ""}${setup.outdated.length ? `${setup.missing.workflow ? " " : ""}Workflow files are different from this instance commit: ${setup.outdated.join(", ")}.` : ""}`;
+    secretList.textContent = `Secrets named: ${[setup.named.token, ...setup.named.keys].join(", ")}. `;
+    if (github) showSecrets(setup.missing.secrets, setup.unknown);
+    else scopes = await gitlabScopes(context.product.host, setup.named);
+    const storable = setup.missing.secrets.some((name) => !setup.unknown.includes(name));
+    offer = canWrite && (!installed || storable);
   } catch (error) {
     status.textContent = `The workflow state cannot be read: ${error.message}`;
     secretList.textContent = "Secrets named: AGENT_M_TOKEN.";
   }
-  install.addEventListener("click", async (event) => {
-    if (!event.isTrusted) return;
+  button.addEventListener("click", async (event) => {
+    if (!event.isTrusted || !setup) return;
     try {
-      const { commit } = await context.product.host.commitFiles({
-        branch: defaultBranch,
-        expectedHead,
-        files,
-        message: "Install Agent M job workflow",
-      });
+      const { commit, stored } = await setup.setUp();
       status.textContent = "Installed for this instance commit.";
-      install.hidden = true;
-      install.disabled = true;
-      result.textContent = commit ? `Committed ${commit}.` : "Committed.";
+      button.hidden = true;
+      button.disabled = true;
+      if (github) showSecrets(setup.missing.secrets.filter((name) => !stored.includes(name)), setup.unknown);
+      result.textContent = `${commit ? `Committed ${commit}.` : "Every workflow file stands already."}${stored.length ? ` Stored the secrets ${stored.join(", ")}.` : ""}`;
     } catch (error) {
       result.textContent = error.message;
     }
@@ -1032,10 +1006,11 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
     el("h4", null, "Agent M's job workflow"),
     status,
     secretList,
+    ...(github ? [missingSecrets, unknownSecrets] : []),
     ...(scopes ?? []),
     el("p", null, secretsPage),
     explain("settings-job-workflow"),
-    ...(offerInstall ? [el("p", null, install)] : []),
+    ...(offer ? [el("p", null, button)] : []),
     result,
   );
 }
@@ -1079,7 +1054,7 @@ async function productControls(context) {
   const credential = credentialsFor(context.store, address);
   const canWrite = Boolean(credential?.token && repository.canWrite === true);
   const snapshot = await context.product.host.readSnapshot(defaultBranch);
-  const workflow = await jobWorkflowLine(context, { address, defaultBranch, snapshot, canWrite });
+  const workflow = await jobWorkflowLine(context, { address, canWrite });
   const settingsText = await snapshot.read(settings.path);
   const collaboratorsText = await snapshot.read(collaborators.path);
   const legacyOff = (text) => /(^|\n)- pseudonymisation: off(?:\n|$)/.test(text ?? "");
