@@ -692,3 +692,21 @@ test("queue-entries — a draft that holds no candidate writes nothing, and its 
   assert.equal(known.product.host.commits.length, 1);
   assert.ok(!written.notes.some((note) => note.includes("holds no requirement")), written.notes.join("\n"));
 });
+
+// TST-2026110887 · level: unit · module: MOD-spec-changes
+// guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-005
+// given: a result whose new candidate A WRITER NAMES ITS FILE names its place, a new group "Files" in ["2. Writing"], beside a change of A SAMPLE RULE that names a place too; known positive: the same new candidate without a place writes its entry and no places file
+// input: the writer
+// expect: the commit holds docs/spec-freigaben/writing/01-writing.plaetze.md — "# Places — Writing: entry 01", the places table with the one row "| A WRITER NAMES ITS FILE | 2. Writing | Files |" —, and no places file for the queue reading, whose entry holds the change only; neither SPEC.md nor docs/groups/requirements.md is written
+test("TST-2026110887: queue-entries writes the places entrySections gives a section in its entry's places file", async () => {
+  const plain = fixture();
+  await writer(resultOf([NEW]), plain.context);
+  assert.ok(Object.keys(filesOf(plain.product.host.commits[0])).includes(`${WRITING_Q}/01-writing.md`), "known positive: the entry is written");
+  assert.ok(!Object.keys(filesOf(plain.product.host.commits[0])).some((path) => path.endsWith(".plaetze.md")), "a candidate without a place writes no places file");
+  const f = fixture();
+  await writer(resultOf([{ ...NEW, place: { group: ["2. Writing"], new: "Files" } }, { ...CHANGE, place: { group: ["Elsewhere"] } }]), f.context);
+  const written = filesOf(f.product.host.commits[0]);
+  assert.equal(written[`${WRITING_Q}/01-writing.plaetze.md`], text("# Places — Writing: entry 01", "", "| Requirement | Group | New group |", "|---|---|---|", "| A WRITER NAMES ITS FILE | 2. Writing | Files |"));
+  assert.ok(!(`${READING_Q}/01-reading.plaetze.md` in written), "the change proposes no place");
+  assert.ok(!("SPEC.md" in written) && !("docs/groups/requirements.md" in written));
+});

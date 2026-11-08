@@ -211,3 +211,32 @@ test("onApprovalsCommitted — a missing token gives not run, naming it, before 
     assert.equal((await run(f)).outcome, "done", "known positive: with the token the approval is applied");
   });
 });
+
+// The places of an entry that adds two requirements to section 2: one in the group Writing the group file holds, one in a group Gone it does not.
+const ADDING = WRITING + "\n" + text("**A NEW WRITE RULE** *(Fixture PO)*", "A writer names its file.", "*Check:* no automatic check; at review")
+  + "\n" + text("**A SECOND WRITE RULE** *(Fixture PO)*", "A writer keeps its file.", "*Check:* no automatic check; at review");
+const PLACES_FILE = `${QUEUE}/07-entry-7.plaetze.md`;
+const PLACES = text("# Places — Writing: entry 07", "", "| Requirement | Group | New group |", "|---|---|---|", "| A NEW WRITE RULE | Writing | — |", "| A SECOND WRITE RULE | Gone | — |");
+const GROUPS = text("# Requirements — groups", "", "The hierarchy of the requirements, each member by its name.", "", "- Writing", "  - A WRITE RULE");
+const ADDING_RECORD = `docs/approvals/spec-2026-03-01_sample-07-${gitBlob(ADDING).slice(0, 12)}.md`;
+const addingRecord = () => text("kind: spec", `queue: ${QUEUE}`, "entry: 07", `proposal: ${PROPOSAL}`, `blob: ${gitBlob(ADDING)}`, "target: SPEC.md",
+  "anchor: ## 2. Writing", `section: ${gitBlob(WRITING)}`, `places: ${gitBlob(PLACES)}`);
+
+// TST-2026110888 · level: unit · module: MOD-workflow-entries
+// guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-006
+// given: an instance whose entry 07 adds A NEW WRITE RULE and A SECOND WRITE RULE to section 2, its places file placing the first in the group Writing of docs/groups/requirements.md and the second in a group Gone the file does not hold, and the approval record a person committed without a token, naming the places file's blob
+// input: onApprovalsCommitted with the token
+// expect: outcome `done`; one commit that changes SPEC.md, the decisions and docs/groups/requirements.md and nothing else; the group file holds A NEW WRITE RULE in Writing after A WRITE RULE and not A SECOND WRITE RULE; the summary and the commit's message name A SECOND WRITE RULE as not placed
+test("TST-2026110888: onApprovalsCommitted writes the places as the entry holds them, and names a place that does not apply", async () => {
+  const files = { ...instanceFiles({ extra: { [ADDING_RECORD]: addingRecord(), [PLACES_FILE]: PLACES, "docs/groups/requirements.md": GROUPS } }), [PROPOSAL]: ADDING };
+  await withInstance(files, async (f) => {
+    const status = await run(f);
+    assert.equal(status.outcome, "done", status.summary);
+    const after = headOf(f);
+    assert.deepEqual(git(f.origin, "diff", "--name-only", f.head, after).split("\n").sort(), ["SPEC.md", `${QUEUE}/entscheidungen.md`, "docs/groups/requirements.md"].sort());
+    assert.equal(git(f.origin, "show", `${after}:docs/groups/requirements.md`).concat("\n"), GROUPS + "  - A NEW WRITE RULE\n");
+    assert.match(status.summary, /A SECOND WRITE RULE/);
+    assert.match(status.summary, /not placed/);
+    assert.match(git(f.origin, "log", "-1", "--format=%B", after), /A SECOND WRITE RULE/);
+  });
+});
