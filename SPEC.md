@@ -1786,6 +1786,18 @@ fixture instance and a fixture product, in the browser and in a checkout of the 
 begins with the instance's `AGENTS.md`, as its text or as its path in the checkout; counter-proof: an input that leaves
 it out, puts it later, or gives the product's file in its place fails.
 
+**A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY** *(PO A. Maier)*
+The input Agent M sends with a job whose draft it checks for the form of a requirement or the schema of a document gives,
+in full, what that check judges by: the paragraph *Form of a requirement* of Agent M's own `SPEC.md`, the one at the root
+of the instance repository, with every requirement of it that the check of a requirement cites, or the schema of every
+kind of document that the check of a document reads.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job whose definition names a check of a
+requirement's form or of a document's schema, for a fixture instance and a fixture product, in the browser and in a
+checkout of the instance, and compares it with the fixture instance's `SPEC.md` and with the schema files. It checks that
+each input gives, word for word, the paragraph and every requirement the check of a requirement cites, or every schema the
+check of a document reads, whichever its kind's checks name; counter-proof: an input that leaves one of them out, or gives
+the product's `SPEC.md` in place of the instance's, fails.
+
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
 decision of that gate's decider is recorded.
