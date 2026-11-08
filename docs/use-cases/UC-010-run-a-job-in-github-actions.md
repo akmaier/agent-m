@@ -31,14 +31,19 @@ endpoint does not accept browser calls.
 
 ## Precondition
 
-- The product repository holds the agent's or endpoint's key as an Actions secret, not in any file. The
-  dashboard names the secret and opens the repository's secrets page for it; it never asks for the value.
+- The product repository holds the agent's or endpoint's key as an Actions secret, not in any file.
 - The product repository also holds the person's Agent M token as an Actions secret, so that the job's
   pushes and pull requests start CI like the person's own (GitHub starts no run, or waits for approval,
-  for what the workflow's built-in token does); the dashboard names this secret and opens its page too.
+  for what the workflow's built-in token does).
   This is Agent M's first level: nothing is installed on the author's computer (UC-044 explains both
   levels), and the calls are billed per use by the agent's provider — the run panel says so.
 - The job workflow of Agent M is installed in the product repository.
+
+Where any of these is missing, the dashboard names what is missing — the job workflow, and each secret by name — and
+offers **Set up GitHub Actions**: one click installs the job workflow and stores each missing secret from what this
+browser keeps — the product's token as `AGENT_M_TOKEN`, an endpoint's key under the secret its configuration names —,
+through the server's API with the product's token; no value is shown, typed or written to a file. A secret this browser
+keeps no value for is named with a link to the repository's secrets page, where the author adds it.
 
 ## Main flow
 
