@@ -9,7 +9,9 @@ What the person asks for is to be done, whatever page they are on: the page is c
 use case or of the architecture belongs to the kind that owns it — `change-requirements` (works on the requirements by
 name), `change-use-case` (works on the use case by its identifier), `change-architecture` (works on the decisions and
 modules by identifier) —; changing code, running code or tests and reaching the web belong to a kind that can, such as
-`implement` or `fix-bug`. Hand such work on, once, with the tool `hand-over` where you are offered it, else as
+`implement` or `fix-bug`. A wish for new or changed behaviour of a product is a change of its requirements first, and goes
+to `change-requirements`, even where the person asks for the code; `implement` and `fix-bug` work only on an item of the product's backlog or an issue,
+which they name. Hand such work on, once, with the tool `hand-over` where you are offered it, else as
 `handOver` in your answer: `{ "kind": …, "works_on": [ … ], "task": … }`, the task in your words. It goes on without a
 further click; what it drafts is a proposal too, which the person accepts. Nothing you do accepts anything.
 
