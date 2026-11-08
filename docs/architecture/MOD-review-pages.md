@@ -36,6 +36,7 @@ uses:
   - MOD-group-document.parseGroupFile
   - MOD-group-document.groupFileText
   - MOD-group-document.applyMoves
+  - MOD-group-document.Place
   - MOD-group-document.hierarchy
   - MOD-trace-graph.storedGraph
   - MOD-trace-graph.latestGraph
@@ -139,7 +140,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `jobs.mjs` — preparing, starting and following the drafting jobs of a kind, and letting a result that waits for the
   person go on.
 - `sections.mjs` — the extra sections a descriptor names: the architecture's rounds and due diligence, a SPEC entry's
-  current text, rationale and impact list, an architecture change's impact list, a report's limitations.
+  current text, rationale, impact list and places, an architecture change's impact list, a report's limitations.
 - `arrange.mjs` — the hierarchy of a group file, moves, pending changes.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `tests/dashboard-spec-impact.test.mjs`, `tests/review-core.d/dashboard-reads.test.mjs`, `tests/review-pages-edit-entry.test.mjs`, `tests/uc-006-batched-reads-harness.mjs`: their headers name this module; a test of only a removed view goes with it.
@@ -171,7 +172,7 @@ ReviewKind = {
 | use case | `docs/use-cases/UC-<nnn>-<slug>.md`, schema `useCase` | `derive-use-cases`; `change-use-case` | file | records | — |
 | decision | `docs/architecture/ARC-<nnn>-<slug>.md`, schema `decision` | `derive-architecture`; `change-architecture` | file | records | rounds, due diligence, impact list of a change, what it rests on that is not accepted |
 | module | `docs/architecture/MOD-<slug>.md`, schema `module` | `derive-architecture`; `change-architecture` | file | records | rounds, impact list of a change, what it rests on that is not accepted |
-| SPEC entry | `docs/spec-freigaben/<queue>/`, read by MOD-spec-changes | `derive-requirements`; `change-requirements` | entry | queue | the current section beside the proposal with the difference, rationale, impact list, other proposals on the same section, the queue's order and anchors |
+| SPEC entry | `docs/spec-freigaben/<queue>/`, read by MOD-spec-changes | `derive-requirements`; `change-requirements` | entry | queue | the current section beside the proposal with the difference, rationale, impact list, the place of each requirement it adds, other proposals on the same section, the queue's order and anchors |
 | release test report | `docs/tests/releases/v<version>.md` | — | never edited | release | the limitations — a reason for every failing test and every worse rate — and the changelog entry the person confirms |
 
 ## Interfaces
@@ -183,8 +184,9 @@ ReviewKind = {
   - `<k>` — first, only while a file of the kind is open or changed since acceptance, those files, each with its status
     and a tick, and no such part where none is; then every file of the kind with its status — open, accepted, changed
     since acceptance —; and a link to `<k>/history`. A
-    SPEC entry's tick names the blob of its proposal, from the tree, and the blob of the section that holds now, from the
-    SPEC read once with `sectionText` and `blobSha`; the list builds no impact list, which is built for an entry only
+    SPEC entry's tick names the blob of its proposal and of its places file, from the tree, and the blob of the section
+    that holds now, from the SPEC read once with `sectionText` and `blobSha`; *Accept ticked* writes each entry's places
+    as the entry holds them (UC-006 4d); the list builds no impact list, which is built for an entry only
     when it is opened. An entry of the instance's own SPEC whose approval record is committed but whose section is not
     written, because the instance's workflows are not turned on, is shown *approved*, not *in SPEC*, with why and a link
     to the Actions step of MOD-settings-pages' `get-your-own` (UC-014 step 4, 4a).
@@ -233,6 +235,16 @@ ReviewKind = {
   - Once *Accept* has recorded changed or removed decision or module files, the page lists the modules of the impact
     lists it showed for them, each with the plan steps and backlog items of those lists that name it in the graph of the
     commit shown (`storedGraph`) (UC-023 step 6).
+  - For a SPEC entry, on `<k>/<id>` and in `<k>/all`, the section *Places* shows, for each requirement the entry adds,
+    the place `entryView` gives it — a group of `docs/groups/requirements.md` by its path of titles, a new group with the
+    group it stands in, the top level, or none proposed, the requirement then standing at the top level, not yet placed —,
+    with the explanation `requirement-places` folded beside it (`EVERY STEP EXPLAINS ITSELF`). On `<k>/<id>`, *Change
+    place* lets the person choose, from the hierarchy of the group file the page read (`parseGroupFile`, `hierarchy`),
+    another group of requirements, a new group with its title and the group it stands in, or the top level; the choice
+    is kept on the page alone and changes nothing in the entry (UC-006 3c). *Accept* hands `acceptEntries` the places as
+    shown and the blob of the places file read; once written, the page names every place `notPlaced` returns, with its
+    reason and that its requirement stands at the top level, not yet placed (UC-006 5b), and a refusal because the places
+    file changed is shown as any stale entry (UC-006 5a).
   - For a SPEC entry, on `<k>/<id>` and for its subject, the page reads the entry's own queue (`queueAt`, the folder
     from the entry's identifier), and the other proposals on the same section from the queues MOD-progress-measures'
     `waitingQueues` gives, with its line `As of <commit>` while they are of an earlier commit; the editor of a
@@ -249,11 +261,12 @@ ReviewKind = {
     the person came from, shown against the current text before anything can be saved (`A DRAFTED CHANGE IS SHOWN AGAINST
     THE CURRENT TEXT`) — files each in the editor as their difference, a use case with a changed identifier the loop left
     restored first with `keptIdentifier` (UC-019 7a); requirements as the sections `entrySections` composes from the
-    draft and its classes as the author leaves them, each requirement beside the one it refers to with its class, a
-    conflict undecided kept out of what is saved (UC-019 8a); an architecture file with its rounds, the due diligence and
+    draft and its classes as the author leaves them, each requirement beside the one it refers to with its class, a new
+    one with the place `entrySections` gives it, which this route does not change — a follow-up instruction or the
+    acceptance does (UC-019 step 8) —, a conflict undecided kept out of what is saved (UC-019 8a); an architecture file with its rounds, the due diligence and
     the impact list of a change, as the descriptor's sections show them —, with the rounds and the findings the loop
     left. *Save* saves the draft as an edit of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b),
-    each section with `proposeSection` as an entry of its queue —, only on the text the job
+    each section with `proposeSection` as an entry of its queue, with its `places` —, only on the text the job
     read, with GitHub's pages without a token, and with the job's provenance lines, which name no message of the
     conversation (UC-019 step 9, 9a); *Discard* drops the draft. A further change is asked for in the prompt bar: the subject carries
     the draft as it stands as `draft`, the conversation hands the change on to the draft's kind with it (UC-049 4a.1),
@@ -271,7 +284,8 @@ ReviewKind = {
     the drafting and the reviewing participant — a reviewer offered only if it differs from the drafter in participant
     and model —; then the run panel and *Run*. A job the person starts here and waits for runs in this tab, attended: a
     kind whose result waits for a person ends with its draft — the candidates of a derivation of requirements, grouped by
-    class beside the requirement each refers to, with their classes changeable and every conflict decided, and a
+    class beside the requirement each refers to, a new one with its place, with their classes changeable and every
+    conflict decided, and a
     candidate whose source the product does not link listed apart as the hint to link it first (UC-005 5a); the
     architecture as a whole with its rounds, the findings left and the due diligence, its reuse candidates choosable —,
     and *Write proposals* lets it go on, writing the draft as the person left it; while a step leaves an error — a reuse
@@ -311,7 +325,8 @@ and `docs/participants.md` of the instance.
   MOD-spec-document.sectionText, MOD-spec-document.requirementFindings — requirements, their sections and marks;
   MOD-test-document.testDeclarations — the tests to arrange.
 - MOD-group-document.parseGroupFile, MOD-group-document.groupFileText, MOD-group-document.applyMoves,
-  MOD-group-document.hierarchy — arranging.
+  MOD-group-document.hierarchy — arranging, and the groups a person may choose as a SPEC entry's places;
+  MOD-group-document.Place — the places shown and handed to `acceptEntries`.
 - MOD-trace-graph.storedGraph, MOD-trace-graph.graphFindings, MOD-trace-graph.coverageGaps,
   MOD-trace-graph.requirementImpact, MOD-trace-graph.architectureImpact — the marks across artifacts, the requirements
   no use case realises, and the impact lists; MOD-trace-graph.storedImpacts and MOD-repository-hosts.readFileAt — the

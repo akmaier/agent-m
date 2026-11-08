@@ -29,6 +29,10 @@ uses:
   - MOD-spec-document.replaceSection
   - MOD-spec-document.requirementNamesIn
   - MOD-spec-document.renamedRequirements
+  - MOD-group-document.Place
+  - MOD-group-document.parseGroupFile
+  - MOD-group-document.groupFileText
+  - MOD-group-document.placeItems
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.storedGraph
   - MOD-trace-graph.storedReferences
@@ -70,7 +74,9 @@ change queue under `docs/spec-freigaben/` — the whole section as proposed, bes
 written into the SPEC byte for byte, with its approval record and its decision, in one commit, only when a person
 accepts it on the text that was shown (`A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN`, `THE APPROVED TEXT IS
 TAKEN VERBATIM`, `AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL`); an entry a person rejects leaves its queue
-(`A REJECTION REMOVES THE PROPOSAL`). It keeps every change to a section in that
+(`A REJECTION REMOVES THE PROPOSAL`). An entry that adds requirements holds their proposed places in the requirement
+hierarchy beside its section, and its acceptance writes them into `docs/groups/requirements.md` in the same commit,
+never into the SPEC. It keeps every change to a section in that
 section's queue and an edit of an open entry in that entry, composes the sections that drafted candidates change and writes
 them as entries, applies approvals committed without a token for the instance's workflow, and tells each requirement's
 history. It runs in the browser and in Node.
@@ -78,8 +84,8 @@ history. It runs in the browser and in Node.
 ## Parts
 
 - `index.mjs` — the interface.
-- `queue-index.schema.md`, `queue-rationale.schema.md`, `queue-decisions.schema.md` — the schemas of a queue's files, in
-  MOD-documents' schema language.
+- `queue-index.schema.md`, `queue-rationale.schema.md`, `queue-places.schema.md`, `queue-decisions.schema.md` — the
+  schemas of a queue's files, in MOD-documents' schema language.
 - `queues.mjs` — reading queues and the state of each entry.
 - `propose.mjs` — writing an entry into its section's queue, saving an open entry in place, the sections that
   classified candidates change, and the writer of classified candidates.
@@ -105,6 +111,7 @@ written and never changes; an entry under a renamed heading starts a new queue.
 | `NN-<package>.md` | — | an entry: the complete section as proposed, from its heading line to its end, nothing else; `NN` its number, two digits or more |
 | `NN-<package>.begruendung.md` | `queue-rationale` | the title line `# <section>: <what changes>`, the paragraphs **The change.** and **Why.**, the impact list, and the origin — the source passage and version, a conversation in the prompt bar on the page it names, never a message
 of it (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`), or the issue —; for an entry drafted from an issue, the line `**Issue:** #<number> of <product address>`; for a drafted entry also the Agent M version, the participant, the model, the date and the correction rounds |
+| `NN-<package>.plaetze.md` | `queue-places` | the places in the requirement hierarchy of the requirements the entry adds: the title line `# Places — <heading>: entry NN`, `<heading>` the section's heading without its number, and the places table; only for an entry that proposes at least one place, never part of the section's text |
 | `entscheidungen.md` | `queue-decisions` | the title line `# Decisions — queue <package> <heading>`, the line `Append-only.`, then one row per decision, appended, never changed |
 
 The entry table of `index.md`, a register with exactly these columns:
@@ -117,6 +124,19 @@ The entry table of `index.md`, a register with exactly these columns:
 
 `Anker` is the heading line the section starts with, verbatim; `bis (exklusiv)` an end heading where the section ends
 before another heading than the next one of its level, `—` otherwise; `Commits` is `—`.
+
+The places table of `NN-<package>.plaetze.md`, a register with exactly these columns, one row per requirement:
+
+```text
+| Requirement | Group | New group |
+|---|---|---|
+| EXPORT HAS A TITLE PAGE | 3. Requirements / Export | — |
+| A CANDIDATE NAMES ITS PLACE | 3. Requirements | Derivation |
+| A RULE OF ITS OWN | — | — |
+```
+
+Each row is one MOD-group-document `Place`: `Group` its `group`, the titles from the top separated by ` / `, `—` for the
+top level; `New group` its `new`, `—` for none. A requirement the entry adds that no row names proposes no place.
 
 A row of `entscheidungen.md`, a register without a header row:
 
@@ -135,10 +155,12 @@ entry of another queue that is not in SPEC creates it.
 
 - `Queue` — `{ folder: string, title: string, target: string,
   entries: Array<{ number: number, file: string, anchor: string, until: string | null, proposal: { path: string, blob:
-  string }, rationale: string, record: string | null, decision: string | null, state: "open" | "approved" | "in SPEC"
+  string }, rationale: string, places: { path: string, blob: string } | null, record: string | null, decision: string |
+  null, state: "open" | "approved" | "in SPEC"
   | "stale" | "waiting for its anchor", createdBy: { queue: string, entry: number } | null, issue: { number: number,
   product: string } | null }> }`, where `createdBy` is the entry, in whichever queue, whose proposal creates the anchor,
-  and `issue` the issue its rationale's line `**Issue:**` names, `null` without that line.
+  `issue` the issue its rationale's line `**Issue:**` names, `null` without that line, and `places` its places file,
+  `null` where it has none.
 - `queues(snapshot: Snapshot) -> Promise<Queue[]>` — every queue of a snapshot with every entry and its state, in the
   order of their folders' names: the entries with their anchors from each queue's `index.md`, the issue each names from
   its rationale, its decisions from `entscheidungen.md`, the records
@@ -148,11 +170,12 @@ entry of another queue that is not in SPEC creates it.
   `docs/spec-freigaben/<queue>`, as `queues` gives it, read from that queue's files and what its entries name alone;
   `null` where the snapshot holds no such queue. Crosses the network and fails as `queues`.
 - `proposeSection(host: Host, change: { target: string, anchor: string, until: string | null, text: string,
-  why: string, origin: string, person: string, openedBlob: string, openedHead: string, trailers?: string[] }) -> Promise<{ commit: string, queue: string,
+  why: string, origin: string, person: string, openedBlob: string, openedHead: string, trailers?: string[], places?:
+  Array<{ requirement: string, place: Place }> }) -> Promise<{ commit: string, queue: string,
   entry: number, alsoReplacing: Array<{ queue: string, entry: number }> } | { refused: "changed meanwhile", current:
   string } | { fallback: Array<{ url: string, path: string, text: string, differs: boolean }> }>` — writes one edited
   section as an entry, in one commit under the person's account: appended to its section's queue, or as the first entry
-  of a new one. The impact list of
+  of a new one, with its places file where `places` holds a place. The impact list of
   every requirement the edit changes, withdraws or adds is computed from the trace graph of the head it reads, which it
   builds where none is stored for that head, and written with the rationale (`A REQUIREMENT IS NOT
   CHANGED WITHOUT AN IMPACT LIST`); a changed name is proposed as the old name withdrawn and the new one added (`A RENAMED
@@ -175,36 +198,52 @@ entry of another queue that is not in SPEC creates it.
   rationale's impact list computed anew. No second queue is made, since the entry already is a proposal (UC-006 3a,
   UC-018 1a). Refuses when the proposal's blob on the default branch differs from `openedBlob`, returning the newer text
   (`A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE`, `A REFUSED SAVE KEEPS THE EDIT`), and when the entry is no longer
-  open, naming its state. Without a token, as `proposeSection`. Considers: called only on a person's click. Crosses the
+  open, naming its state; its places file stays as it is. Without a token, as `proposeSection`. Considers: called only on a person's click. Crosses the
   network. Errors: those of `proposeSection`.
 - `entrySections(spec: string, draft: unknown, classes: Classified[], source: string) -> Array<{ anchor: string, until:
-  string | null, text: string }>` — the sections of `spec` that the draft's candidates change, each as the whole
+  string | null, text: string, places: Array<{ requirement: string, place: Place }> }>` — the sections of `spec` that the draft's candidates change, each as the whole
   section's new text, composed by `classes`: a `new` candidate added to its section; a `change` in the section of the
   requirement it changes, under its name (`A CHANGE IS PROPOSED UNDER THE EXISTING NAME`); a `duplicate` as an added
   source of the existing requirement (`A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT`); a `conflict` only as the person
   resolved it, an undecided one not at all (`A CONFLICT IS DECIDED BY A PERSON`). Every requirement names `source`, the
   job's, with the passage it draws on, and, where its candidate points to a rule of another source, that source too.
   `draft` is a draft of `derive-requirements` or `change-requirements`, in the form its kind expects (MOD-job-catalogue).
+  A section's `places` are those of the candidates `classes` add to it as `new` that name a place — of merged candidates,
+  the one whose rule it takes —; every other candidate keeps the place of the requirement it refers to, so it has none.
   Every other byte of a section stays as it is. Pure. Throws `TwoChanges { requirement, candidates }` when two
   candidates change the requirement `requirement`, since one block would replace the other, and composes nothing.
 - `entryView(queue: string, entry: number, snapshot: Snapshot) -> { current: { text: string, blob: string } | null,
   proposal: { text: string, blob: string }, difference: LineDiff, rationale: string, impact: Array<{ name: string,
   change: "changed" | "withdrawn" | "added", referencedBy: string[] }>, state: string, createdBy: { queue: string,
-  entry: number } | null }` —
+  entry: number } | null, places: { blob: string | null, rows: Array<{ requirement: string, place: Place | null }> } }` —
   what the reviewer sees: the section that holds now beside the proposal, their difference, the rationale and the impact
-  list (`NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT`), the impact list as `entryImpact` gives it. `LineDiff` is the
+  list (`NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT`), the impact list as `entryImpact` gives it, and, for each
+  requirement the impact list names `added`, the place its places file proposes, `null` where it proposes none; `blob` is
+  the places file's, `null` where the entry has none. `LineDiff` is the
   result of MOD-text-tools' `lineDiff`.
 - `entryImpact(queue: string, entry: number, snapshot: Snapshot) -> Promise<Array<{ name: string, change: "changed" |
   "withdrawn" | "added", referencedBy: string[] }>>` — what one entry changes, withdraws or adds, each requirement with
   what names it, from the entry's queue, its target and its proposal; it reads no rationale. Crosses the network and
   fails as `queues`; a name's `referencedBy` comes from the graph stored for the snapshot's commit (MOD-trace-graph).
-- `acceptEntries(host: Host, shown: Array<{ queue: string, entry: number, proposalBlob: string, sectionBlob: string }>,
-  person: string, now: Date, sources: { links: Document, register: Document[] }) -> Promise<{ commit: string } | {
-  refused: Array<{ queue: string, entry: number, reason: string }> }>` — accepts the entries shown, in one commit under the person's account: for each, in the order of its
-  queue's index, its approval record, the target's section replaced by the proposal byte for byte, and its decision row
-  (`A QUEUE IS ACCEPTED IN ITS ORDER`). An entry whose anchor another entry creates is accepted only together with or
-  after that entry. If any entry's proposal or section no longer has the blob that was shown, nothing is written and every
-  such entry is named (`A STALE APPROVAL IS NOT APPLIED`). Nothing is written either while a requirement of a proposal
+- `acceptEntries(host: Host, shown: Array<{ queue: string, entry: number, proposalBlob: string, sectionBlob: string,
+  placesBlob: string | null, places: Array<{ requirement: string, place: Place }> }>, person: string, now: Date, sources:
+  { links: Document, register: Document[] }) -> Promise<{ commit: string, notPlaced: Array<{ queue: string, entry:
+  number, requirement: string, place: Place, reason: string }> } | { refused: Array<{ queue: string, entry: number,
+  reason: string }> }>` — accepts the entries shown, in one commit under the person's account: for each, in the order of its
+  queue's index, its approval record, the target's section replaced by the proposal byte for byte, its places written
+  into `docs/groups/requirements.md`, and its decision row (`A QUEUE IS ACCEPTED IN ITS ORDER`). `places` are the places
+  as the page showed them — the entry's, or the person's own choice, which changes nothing in the entry (UC-006 3c) —;
+  only those of requirements the entry adds count — the names its proposal holds and the section it replaces does not,
+  those `entryImpact` names `added`. They are applied with
+  MOD-group-document's `placeItems` to the group file as it stands on the head the commit is written on — the empty tree
+  where there is none, so that the commit creates the file — and written as `groupFileText` writes it; the group file is
+  in the commit only where a place was applied. A place that does not apply there is not written, and `notPlaced` names
+  it with the reason: that requirement stands at the top level, not yet placed (UC-006 5b). No place is written into the
+  SPEC. Each record names in its `places` the blob of the places file shown, none for an entry without one, also the
+  record that the instance's workflow applies. An entry whose anchor another entry creates is accepted only together with or
+  after that entry. If any entry's proposal, places file — `placesBlob`, `null` for none — or section no longer has the
+  blob that was shown, nothing is written and every such entry is named (`A STALE APPROVAL IS NOT APPLIED`); a group file
+  changed since is no reason to refuse. Nothing is written either while a requirement of a proposal
   names neither a source the product links nor an account: the entry is named with the requirement, from MOD-source-register's
   `sourceFindings` over the product's links and the instance's register in `sources` (`A REQUIREMENT HAS A REGISTERED
   SOURCE`). Considers: called only on a person's click; without a token,
@@ -212,20 +251,23 @@ entry of another queue that is not in SPEC creates it.
   `applyApproved`. Crosses the network. Errors: `Moved`, `TokenRefused`, `PermissionMissing`, `RateLimited`,
   `Unreachable`.
 - `applyApproved(snapshot: Snapshot, now: Date) -> { files: Record<string, string>, applied: string[],
-  refused: Array<{ record: string, reason: string }> }` — for every record of kind `spec` that no decision row names yet
+  refused: Array<{ record: string, reason: string }>, notPlaced: Array<{ record: string, requirement: string, reason:
+  string }> }` — for every record of kind `spec` that no decision row names yet
   and whose queue the snapshot holds, in the order of its queue's index: checks that the proposal and the section still have the blobs the record names and
   that the record's anchor is the queue's anchor for that entry, and that every requirement of the proposal names a source
   the instance links in its `docs/sources.md`, from its register in `docs/sources/`, or an account (`A REQUIREMENT HAS A
-  REGISTERED SOURCE`), and returns the target with the section replaced and the
-  decision row appended. A record that fails a check changes nothing and is named. It writes nothing itself: the
+  REGISTERED SOURCE`), and that the entry's places file still has the blob the record's `places` names — none where the
+  record names none —, and returns the target with the section replaced, `docs/groups/requirements.md` with the places
+  as the entry holds them applied as `acceptEntries` applies them, and the decision row appended; a place that does not
+  apply is not written and is named in `notPlaced`. A record that fails a check changes nothing and is named. It writes nothing itself: the
   instance's workflow commits `files` (`WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE`).
 - `rejectEntry(host: Host, shown: { queue: string, entry: number, proposalBlob: string, sectionBlob: string }, person:
   string, reason: string) -> Promise<{ commit: string } | { fallback: Array<{ url: string, path: string, text: string |
   null, differs: boolean }> }>` — the entry that was shown leaves its queue, through MOD-approvals' `commitRejection`: in
-  one commit under the person's account, with the reason in its message, its proposal and its rationale are deleted and
-  its row of the index removed, every other byte of the index as it was; where it was the queue's last entry, every file
+  one commit under the person's account, with the reason in its message, its proposal, its rationale and its places file
+  are deleted and its row of the index removed, every other byte of the index as it was; where it was the queue's last entry, every file
   of the queue's folder is deleted with it, since a queue of no entry decides nothing (UC-006 4a). No approval record and
-  no decision row is written, and the target is not touched. Without a token, GitHub's pages for the same files come back
+  no decision row is written, and neither the target nor `docs/groups/requirements.md` is touched. Without a token, GitHub's pages for the same files come back
   — the page that deletes each, the editor of the index with its new text. Throws, before anything is written: a
   TypeError for a missing or blank reason; `ChangedSinceShown { queue, entry }` when the queue no longer holds the entry,
   or its proposal or the section beside it no longer has the blob shown (`A STALE APPROVAL IS NOT APPLIED`);
@@ -240,6 +282,9 @@ entry of another queue that is not in SPEC creates it.
   - recipe `spec-with-queues` — every requirement of the SPEC and of every open entry of every queue, each with its
     section and state (`DERIVATION SEES THE EXISTING REQUIREMENTS`); its part carries each of them as an artifact, keyed
     by its name and its rule, against which `candidate-classes` classifies a draft;
+  - recipe `requirement-hierarchy` — the product's `docs/groups/requirements.md` as it stands, as one part that carries no
+    artifact, since its requirements are those of `spec-with-queues`; no part where the product has no group file of
+    requirements, every requirement then standing at the top level;
   - recipe `whole-spec` — the SPEC as it stands, as one part;
   - recipe `named-requirements` — the requirements the job's parameters name, each with its whole section; each part
     carries its requirement as an artifact, as `spec-with-queues` does — its name as the identifier, its name and its
@@ -255,7 +300,7 @@ entry of another queue that is not in SPEC creates it.
     constraining the development process goes to the instance's SPEC, its class decided against that SPEC and
     its open queues as for the product's, every other candidate to the product's SPEC — one commit for each of the two
     that gets an entry. One entry per section the candidates touch, as `entrySections` composes it with the job's
-    `source`, appended to that section's queue. A candidate that points to a source the product does not link
+    `source`, appended to that section's queue, with the places `entrySections` gives it in its places file. A candidate that points to a source the product does not link
     (`linkedVersion` gives none) is not written, and the outcome's notes name it with that source, as the hint to link it
     first (UC-005 5a). A candidate of the product's SPEC for which the result's classes hold none is not written either,
     and a note names it — `<name> has no class; it is not written.` —, as one names a candidate whose class refers to a
@@ -269,13 +314,15 @@ entry of another queue that is not in SPEC creates it.
 
 ## Files
 
-- Reads `docs/spec-freigaben/*/` — `index.md`, entries, rationales, `entscheidungen.md` —, `docs/approvals/spec-*.md`,
-  the target of each queue (`SPEC.md`), and every artifact the trace graph needs for an impact list.
-- Writes, in one commit each time: a new entry with its rationale and index row, in a new queue folder where its
-  section has none; on acceptance,
-  `docs/approvals/spec-<queue>-<NN>-<blob12>.md`, the target's section and a row of `entscheidungen.md`; on a rejection,
-  through MOD-approvals' `commitRejection`, the entry's proposal and rationale deleted and its index row removed, or, for
-  the queue's last entry, every file of the queue's folder deleted.
+- Reads `docs/spec-freigaben/*/` — `index.md`, entries, rationales, places files, `entscheidungen.md` —,
+  `docs/approvals/spec-*.md`, the target of each queue (`SPEC.md`), `docs/groups/requirements.md`, and every artifact the
+  trace graph needs for an impact list.
+- Writes, in one commit each time: a new entry with its rationale, its places file where it proposes a place, and its
+  index row, in a new queue folder where its section has none; on acceptance,
+  `docs/approvals/spec-<queue>-<NN>-<blob12>.md`, the target's section, `docs/groups/requirements.md` where a place
+  applies, and a row of `entscheidungen.md`; on a rejection, through MOD-approvals' `commitRejection`, the entry's
+  proposal, rationale and places file deleted and its index row removed, or, for the queue's last entry, every file of
+  the queue's folder deleted.
 
 ## Uses
 
@@ -292,6 +339,8 @@ entry of another queue that is not in SPEC creates it.
   `entrySections` composes a section.
 - MOD-spec-document.parseSpec, sectionText, replaceSection, requirementNamesIn, renamedRequirements — the requirements,
   a section's exact bytes and its replacement, the names an edit touches.
+- MOD-group-document.Place, parseGroupFile, groupFileText, placeItems — the places of an entry, applied to the group
+  file of requirements on acceptance and written in its canonical form.
 - MOD-trace-graph.traceGraph, requirementImpact, coverageGaps — impact lists, and the requirements no use case realises, in a job;
   MOD-trace-graph.storedReferences — the impact list of an entry on a page (entryView, proposeSection, saveEntry), from what names each
   requirement as stored beside the commit's graph; MOD-trace-graph.storedGraph — the same from the graph itself, where those are not stored;

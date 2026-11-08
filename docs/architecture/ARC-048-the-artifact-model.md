@@ -117,7 +117,7 @@ classes of candidates, the trace graph, coverage gaps, impact lists and the modu
 | MOD-identifiers | `kindOfIdentifier`, `identifiersIn`, `nextIdentifier`, `instanceOfPagesAddress` |
 | MOD-spec-document | `Requirement`, `parseSpec`, `requirementFindings`, `sectionText`, `replaceSection`, `requirementNamesIn`, `renamedRequirements`, `specSkeleton` |
 | MOD-test-document | `TestDeclaration`, `isTestFile`, `isNamedTestFile`, `testDeclarations`, `testFindings`, `testHeader` |
-| MOD-group-document | `parseGroupFile`, `groupFileText`, `applyMoves`, `hierarchy` |
+| MOD-group-document | `Place`, `parseGroupFile`, `groupFileText`, `applyMoves`, `placeItems`, `hierarchy` |
 | MOD-trace-graph | `Graph`, `traceGraph`, `graphFindings`, `tracesTo`, `coverageGaps`, `requirementImpact`, `architectureImpact`, `moduleOrder`, `moduleRows`, `compareGraphs`, `selfSufficiencyFindings` |
 
 ### Its modules
@@ -129,7 +129,7 @@ classes of candidates, the trace graph, coverage gaps, impact lists and the modu
 | MOD-identifiers | `src/identifiers/` | the identifier scheme, where each identifier stands, the next free identifier of a kind — never one the version history holds —, references by position |
 | MOD-spec-document | `src/spec-document/` | the SPEC: sections and requirements in their form, their checks, a section's exact bytes and its replacement byte for byte, names and renames, the skeleton of a new product's SPEC |
 | MOD-test-document | `src/test-document/` | the declaration of a test case in any test file — identifier, level, what it guards, the module it exercises, precondition, input, expected result — and its checks |
-| MOD-group-document | `src/group-document/` | group files: the nested groups of one kind, moves, and the hierarchy with every item in one place |
+| MOD-group-document | `src/group-document/` | group files: the nested groups of one kind, moves, the first place of a new item, and the hierarchy with every item in one place |
 | MOD-trace-graph | `src/trace-graph/` | the graph of all identifiers and what names them; the checks across artifacts; traces, coverage gaps, impact lists, the order of modules by their uses, the module rows, the comparison of two versions, references to what exists only inside Agent M |
 
 ```mermaid
