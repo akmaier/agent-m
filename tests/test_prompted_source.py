@@ -3,8 +3,9 @@
 # Level: release
 """SPEC section 1 - the check named tests/test_prompted_source.py.
 
-The cases live in tests/test_prompted_source.md. This file loads them and asks MOD-source-register for the prompting
-person's source and MOD-spec-changes for the sections that would be saved.
+The cases live in tests/test_prompted_source.md. This file loads them, takes the prompting person's account from
+MOD-source-register's personAccount, asks MOD-spec-changes for the sections a prompted change would save, and judges
+those sections with sourceFindings against a product that neither registers nor links that account.
 """
 import json
 import re
@@ -38,12 +39,14 @@ function linksDocument(linked) {
 function promptedSourceResult(input) {
   const links = linksDocument(input.linked ?? []);
   const register = (input.entries ?? []).map(entryDocument);
-  const source = sourceRegister.personSource(links, register, input.account);
-  if (source === null) return { source, sections: [] };
-  return {
-    source,
-    sections: specChanges.entrySections(input.spec, { candidates: input.candidates ?? [] }, input.classes ?? [], source)
-  };
+  // The person's account, as personAccount gives it for the instance's snapshot: the owner of the instance's repository.
+  const source = sourceRegister.personAccount({ repository: { server: "github", path: input.instance } });
+  const sections = specChanges.entrySections(input.spec, { candidates: input.candidates ?? [] }, input.classes ?? [], source);
+  // Counter-proof: the same sections with the account taken out of every source.
+  const saved = sections.map((section) => input.dropAccount ? section.text.split(`; ${source}, `).join("; Unlinked Source, ").split(`(${source}, `).join("(Unlinked Source, ") : section.text);
+  const spec = specDocument.parseSpec(saved.join("\\n"));
+  const findings = sourceRegister.sourceFindings([...spec.requirements.values()], links, register).map((found) => found.rule);
+  return { source, sections: input.dropAccount ? [] : sections, findings };
 }
 """
 
@@ -75,11 +78,12 @@ def result(case: dict) -> dict:
 
 class TestPromptedSource(unittest.TestCase):
     # TST-416100 · level: release · module: system
-    # guards: THE PERSON WHO PROMPTS IS A SOURCE
-    # given: Markdown fixture cases with source register entries, links, a product SPEC and prompted candidates
-    # input: personSource followed by entrySections when the prompting person has a linked source
-    # expect: a linked person's source is added to every drafted requirement, and an unlinked person sends no sections
-    def test_prompted_requirement_changes_use_the_persons_linked_source(self):
+    # guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS A REGISTERED SOURCE
+    # given: Markdown fixture cases: an instance owned by alice, a register with only bob's person entry, a product that links nothing,
+    #   a product SPEC and prompted candidates
+    # input: personAccount, entrySections, then sourceFindings over the saved sections
+    # expect: every drafted requirement names github.com/alice and passes; counter-proof: with the account taken out, each fails
+    def test_prompted_requirement_changes_use_the_persons_account(self):
         loaded = cases()
         self.assertEqual(len(loaded), 2)
         for item in loaded:
@@ -88,15 +92,16 @@ class TestPromptedSource(unittest.TestCase):
 
     # TST-416101 · level: release · module: system
     # guards: THE PERSON WHO PROMPTS IS A SOURCE
-    # given: the linked and unlinked prompt cases
+    # given: the two prompt cases
     # input: the loaded expected results
-    # expect: the data contains both the positive source path and the no-send path for a person without a linked source
-    def test_cases_cover_linked_source_and_no_send_path(self):
+    # expect: the data holds the account path, with the account in every section and no finding, and the counter-proof with findings
+    def test_cases_cover_the_account_and_its_counter_proof(self):
         expected = [case["case"]["expected"] for case in cases()]
-        linked = next(item for item in expected if item["source"] == "SRC-alice")
-        self.assertTrue(linked["sections"])
-        self.assertTrue(all("SRC-alice, prompt" in section["text"] for section in linked["sections"]))
-        self.assertIn({"source": None, "sections": []}, expected)
+        named = next(item for item in expected if item["sections"])
+        self.assertEqual(named["source"], "github.com/alice")
+        self.assertTrue(all("github.com/alice, prompt" in section["text"] for section in named["sections"]))
+        self.assertEqual(named["findings"], [])
+        self.assertTrue(any(item["findings"] for item in expected))
 
 
 if __name__ == "__main__":
