@@ -148,16 +148,19 @@ organisation, standard or system is built into Agent M.
 *Check:* `tests/test_source_model.py` — no source identifier appears in Agent M's own code.
 
 **A REQUIREMENT HAS A REGISTERED SOURCE** *(PO A. Maier)*
-Every requirement names at least one source linked to its product; a requirement without one cannot
-be accepted.
-*Check:* `tests/test_requirement_has_source.py`
+Every requirement names at least one source linked to its product or the account `<server>/<account>` of a person; a
+requirement without one cannot be accepted.
+*Check:* `tests/test_requirement_has_source.py` — a requirement naming `github.com/akmaier` passes for a product that
+registers and links no source of that account; counter-proof: one naming a source that is neither linked nor an account
+fails.
 
 **THE PERSON WHO PROMPTS IS A SOURCE** *(PO A. Maier)*
-A requirement that a participant drafts from a person's instruction names that person's registered source among its
-sources.
+A requirement that a participant drafts from a person's instruction names that person's account `<server>/<account>`
+among its sources.
 *Check:* `tests/test_prompted_source.py` — drafts a change of a requirement by prompt with a fixture participant, for a
-person whose source the fixture product registers and links, and composes the sections the change would save. It checks
-that every drafted requirement names that person's source among its sources.
+person whose account the fixture product neither registers nor links, and composes the sections the change would save. It
+checks that every drafted requirement names that person's account among its sources; counter-proof: a drafted requirement that
+does not name it fails.
 
 **A SOURCE DECLARES ITS AUTHORITY** *(PO A. Maier)*
 A source declares whether it is `normative`, `advisory` or `informational`; the declaration is
