@@ -196,7 +196,18 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     notice with its tick, the token and its expiry, *Store and check*, and *Import settings* beside it.
   - `add-product` — the address recognised as GitHub or GitLab; the token's step for that server with the names filled
     in, or the GitLab project access token; *Check*; *Add product*, which writes the missing review layout and adds the
-    address to this browser's list; each step with its explanation.
+    address to this browser's list; each step with its explanation. Before its click, Step C states what the click
+    writes where: the layout into the product's default branch, the address into this browser's list, and, for a GitHub
+    product, Agent M's job workflow into that branch and the secrets this browser keeps a value for into the
+    repository's Actions secrets. The click, the person's one click (`ONE CLICK PER DECISION`), commits the layout with
+    `reviewLayoutCommit` through the product's host connected with the key Step C reads it with, then adds the address;
+    for a GitHub product it then calls MOD-runtimes' `actionsSetup` for the product — that host, and the key `tokenKeyOf`
+    gives for its token, as the job workflow's line of `settings` does — on the head the layout's commit left, and runs
+    its `setUp` in the same click. The panel shows the layout's commit as a link, then the commit `setUp` made and the
+    secrets it stored, never a value, and names each secret this browser keeps no value for (`unknown`) with the link to
+    the repository's secrets page. A failure of `actionsSetup` or of `setUp` is named in the panel; it undoes neither the
+    layout's commit nor the address in the list, and the job workflow's line of `settings` and its *Set up GitHub
+    Actions* finish the setup. For a GitLab product the click writes the layout and adds the address, nothing else.
   - `endpoints` — address, model and key of a model endpoint, the place where it processes data, the model's context in
     tokens and the name of the CI secret that holds its key, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
@@ -280,7 +291,7 @@ It writes, on a person's click and as that person's commit: the instance's `docs
 `docs/settings.md` and `docs/collaborators.md`, with `saveFile`; the source register's entries and content under `docs/sources/` of the instance,
 and restricted content in the repository the person names, as the commit plans of MOD-source-register say; a product's
 review layout when it is added; Agent M's job workflow files of a product and its Actions secrets, through MOD-runtimes'
-`actionsSetup`; a resource's check job's start record through
+`actionsSetup`, from the job workflow's line of `settings` and when a GitHub product is added; a resource's check job's start record through
 MOD-runtimes. It writes this browser's settings through MOD-browser-store, the switch of the notifications through
 MOD-notifications. It reads the instance's and the products' snapshots, the Bridge's releases, and what each test
 reaches.
@@ -339,7 +350,7 @@ reaches.
   product's pseudonymisation and collaborators, and the files that still name a collaborator who withdrew.
 - MOD-job-runner.prepareJob, MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob — a resource's check
   job on its runner; MOD-runtimes.actionsSetup — what a product lacks of the job workflow and its CI secrets, and their
-  setup; MOD-site-frame.tokenKeyOf — the key of the product's token handed to it; MOD-runtimes.gitlabVariableScopes — on
+  setup, on the job workflow's line of `settings` and in *Add product* of a GitHub product; MOD-site-frame.tokenKeyOf — the key of the product's token handed to it; MOD-runtimes.gitlabVariableScopes — on
   GitLab, the environment scopes its variables need.
 - MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
   MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
