@@ -32,7 +32,6 @@ provides:
   - registrationCommits
   - versionCommits
   - linkedVersion
-  - personSource
   - personAccount
   - readContent
   - affectedRequirements
@@ -54,8 +53,8 @@ sources (`THE INSTANCE KEEPS THE SOURCE REGISTER`) — each source a typed recor
 overwritten —; where a version's content lies, in the instance only where its licence permits republishing
 (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`); a product's links to the versions and parts that apply to it
 (`A PRODUCT LINKS THE SOURCES THAT APPLY`); a version's content read only with its hashes checked; the places a
-restricted source's content may go; the source of a person, found by their account (`THE PERSON WHO PROMPTS IS A
-SOURCE`); EU legal texts recognised by their CELEX number or ELI and fetched from the EU's publication repository; the
+restricted source's content may go; the account of the person who gives an instruction, which is their source (`THE
+PERSON WHO PROMPTS IS A SOURCE`); EU legal texts recognised by their CELEX number or ELI and fetched from the EU's publication repository; the
 recipe that gives a job the excerpt of a linked version; and the recipes that give a job the chapters of the book *Vibe
 Coding* for its kind of work (`A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING`, `A TEST JOB
 RECEIVES THE CHAPTER ON TESTING`, `AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND
@@ -69,8 +68,7 @@ in a browser and in Node; fetching a legal text runs in Node, in the instance's 
 - `source.schema.md` — the schema of a register entry, in the schema language of MOD-documents.
 - `links.schema.md` — the schema of a product's links file.
 - `content.mjs` — where the register's entries and a version's files lie, and reading them with their hashes checked.
-- `person.mjs` — the person who gives an instruction: their account (`personAccount`) and their own source
-  (`personSource`).
+- `person.mjs` — the person who gives an instruction: their account (`personAccount`), which is their source.
 - `legal-text.mjs` — recognising an EU legal text, and fetching it.
 - `strategies.mjs` — the recipe `source-excerpt`, and the four recipes of the book's chapters, each with the chapters
   of its kind of work.
@@ -87,7 +85,7 @@ in a browser and in Node; fetching a legal text runs in Node, in the instance's 
 | `authority` | `normative`, `advisory` or `informational`, as declared (`A SOURCE DECLARES ITS AUTHORITY`) | always |
 | `licence` | `may be republished`, `restricted`, or `unknown`, which counts as restricted, and the licence's name or terms (`A SOURCE DECLARES ITS LICENCE`) | always |
 | `designation` | a standard's full designation with edition and amendments, for example `IEC 62304:2006+AMD1:2015` (`A STANDARD IS REGISTERED BY ITS DESIGNATION`) | for a standard |
-| `identifier` | an EU legal text's CELEX number or ELI; a repository's address; a person's account on a repository server, `<server>/<account>`, by which a page finds the source of the person who gives it an instruction | for those three |
+| `identifier` | an EU legal text's CELEX number or ELI; a repository's address; a person's account on a repository server, `<server>/<account>` | for those three |
 | `content_repository` | the repository the person named for restricted content | for restricted content kept as files |
 | `places` | the processing places its content may be given to | for restricted content |
 
@@ -134,7 +132,14 @@ A chapter is the file of the version whose name begins with the chapter's number
 names the register entry whose identifier, title or — for a standard — designation the item begins with, the longest
 such match, followed by the end of the item or by `, ` and the part it draws on: `Vibe Coding, ch. 9` names the entry
 titled `Vibe Coding`, and `SRC-eu-ai-act, Art. 13` the entry `SRC-eu-ai-act`. An item that begins with no entry's name
-names no source.
+names no register entry.
+
+**How a requirement names an account.** An item of a requirement's source names an account when it is, alone or followed
+by `, ` and the part it draws on, `<server>/<account>`: `<server>` a host name — two or more labels of letters, digits
+and `-`, joined by `.` — with `:` and a port where the server has one, then one `/`, then `<account>` — letters, digits,
+`-`, `_` and `.`, holding no `/` and no space —, as `personAccount` writes it, such as `github.com/akmaier` or
+`gitlab.example.org:8443/akmaier, issue 12`. An account is a source of every product without a register entry or a link
+(`A REQUIREMENT HAS A REGISTERED SOURCE`), whether or not a register entry also names it.
 
 ## Interfaces
 
@@ -162,12 +167,9 @@ names no source.
   link names, or `null` when it names no register entry, the product links none, or the entry records no version the link
   names. The version carries the hash the product's link records, since a hash is not computed synchronously; `readContent`
   checks each of its files against its own SHA-256 when the version is read.
-- `personSource(links: Document, register: Document[], account: string) -> string | null` — the identifier of the
-  register entry of kind `person` whose `identifier` is the account `<server>/<account>` and which the product links, or
-  `null`: the source of the person who gives an instruction (`THE PERSON WHO PROMPTS IS A SOURCE`).
 - `personAccount(instance: Snapshot) -> string | null` — the account `<server>/<account>` of the person who gives an
-  instruction, which `personSource` takes: the owner of the instance's repository on its server's host, `github.com` on
-  GitHub. It is `null` where the snapshot names no owner. No request is made.
+  instruction, which is their source (`THE PERSON WHO PROMPTS IS A SOURCE`): the owner of the instance's repository on
+  its server's host, `github.com` on GitHub. It is `null` where the snapshot names no owner. No request is made.
 - `readContent(version: SourceVersion, open: (source: string) => Promise<Host>) -> Promise<{ name: string, bytes:
   Uint8Array }[]>` — reads every stored file of the version from `docs/sources/<source>/<version>/` of the repository that
   holds it, at its default branch, across the network through the host `open` gives for the version's source — its
@@ -180,8 +182,8 @@ names no source.
   the item names, by identifier, title or a standard's designation, is the entry `source` names, as `linkedVersion` and
   `sourceFindings` read an item.
 - `sourceFindings(requirements: Requirement[], links: Document, register: Document[]) -> Finding[]` — an error under `A
-  REQUIREMENT HAS A REGISTERED SOURCE` for each requirement none of whose source items names a source the product links,
-  naming the requirement, its line and its items; and an error under `A RESOURCE'S TERMS ENTER AS A SOURCE` for each
+  REQUIREMENT HAS A REGISTERED SOURCE` for each requirement none of whose source items names a source the product links
+  or an account (Data, *How a requirement names an account*), naming the requirement, its line and its items; and an error under `A RESOURCE'S TERMS ENTER AS A SOURCE` for each
   resource entry, `RES-<slug>`, that a source item names, beside a linked source or not.
 - `changedPassages(before: string, after: string) -> DiffLine[]` — the passages that changed between two versions of a
   text, line by line.
@@ -239,6 +241,6 @@ returns what to write, and the caller commits it. Its own schema files are data.
 - `MOD-text-tools.sha256`, `MOD-text-tools.lineDiff`, `MOD-text-tools.DiffLine` — the hashes of files and versions, and the
   passages that changed.
 - `MOD-spec-document.parseSpec` and the type `MOD-spec-document.Requirement` — the requirements and the sources they name.
-- `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — a requirement that names no linked source.
+- `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — a requirement that names neither a linked source nor an account.
 - `MOD-repository-hosts.Snapshot`, `MOD-repository-hosts.Host` — the repositories that hold content.
 - `MOD-job-runner.Strategies`, `MOD-job-runner.JobContext`, `MOD-job-runner.Part` — the recipe it offers.

@@ -73,8 +73,6 @@ uses:
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
   - MOD-source-register.restrictedPlaces
-  - MOD-source-register.personSource
-  - MOD-source-register.personAccount
   - MOD-source-register.sourceStrategies
   - MOD-reuse-facts.reuseStrategies
   - MOD-participant-list.participantSchema
@@ -260,9 +258,8 @@ ReviewKind = {
     conversation (UC-019 step 9, 9a); *Discard* drops the draft. A further change is asked for in the prompt bar: the subject carries
     the draft as it stands as `draft`, the conversation hands the change on to the draft's kind with it (UC-049 4a.1),
     and this route then shows the newer draft. For a change of
-    requirements, the subject's parameters carry the person's own source, which `personSource` names among the product's
-    linked sources; without one, the change does not start and names the step that is missing (UC-004, UC-015,
-    UC-019 4b). A draft of the kind `converse` — documents the participant proposed — is shown and saved the same way,
+    requirements, the person's account is its `source`, which the prompt bar gives (MOD-prompt-bar); no subject of these
+    routes gives one. A draft of the kind `converse` — documents the participant proposed — is shown and saved the same way,
     each file with `saveFile` after its owner's schema found no error. A draft handed to CI or a Bridge arrives as an
     open file, a queue entry or a pull request instead.
   - `<k>/draft` — drafting: for use cases, the requirements to cover — by default those no use case realises —; for
@@ -335,7 +332,7 @@ and `docs/participants.md` of the instance.
   MOD-spec-changes.saveEntry, MOD-spec-changes.entrySections, MOD-spec-changes.entryView, MOD-spec-changes.acceptEntries —
   the list and *Review all* of SPEC entries, one entry's own queue, SPEC edits, an open entry
   saved in place, the sections a draft of the conversation holds, SPEC entries and their acceptance in the queue's order, with the product's links and
-  the instance's register, so that an entry whose requirement names no linked source is named and not accepted;
+  the instance's register, so that an entry whose requirement names neither a linked source nor an account is named and not accepted;
   MOD-spec-changes.rejectEntry — rejecting an entry.
 - MOD-progress-measures.waitingQueues — the other open proposals beside one entry and beside a requirement's editor.
 - MOD-artifact-edits.saveFile, MOD-artifact-edits.saveGroupFile, MOD-artifact-edits.fallbackEditLinks — saves;
@@ -346,8 +343,7 @@ and `docs/participants.md` of the instance.
   prepares, over every restricted source of the register and not only the linked ones, so that a drafter's tools refuse a
   restricted source's content at a place it does not permit wherever the product holds it; the offer of participants for
   a job is judged against the places of the sources the product links, which the job's parts can carry, and the module
-  keeps no copy of the rule that computes them; MOD-source-register.personSource, MOD-source-register.personAccount — the source of
-  the person who gives an instruction.
+  keeps no copy of the rule that computes them.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.
 - MOD-participant-list.participantSchema, MOD-participant-list.eligible, MOD-participant-list.differs — who may draft and

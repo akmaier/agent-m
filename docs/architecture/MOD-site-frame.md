@@ -85,7 +85,8 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   `start.mjs` and the live page's app (`dashboard-app.mjs`) both register with it.
 - `attachPromptBar` (index.mjs) — MOD-prompt-bar's bar started in a footer fixed to the bottom of the window, which takes the
   bar's height: `startPage` attaches it on the main page, and `dashboard-app.mjs` on every review page once its load has read
-  the instance, with the subject of what the page shows (`subjectOf`) (UC-049 step 1).
+  the instance, with the subject of what the page shows (`subjectOf`) (UC-049 step 1), and on both with the products this
+  browser manages, each entry of `products` with the host `productHostFollowingStore` gives for it (UC-049 3d).
 - `preloads.mjs` — the block of preloads in the `<head>` of each entry page, `index.html` and `docs/index.html`, so that a
   browser asks for every file the page loads as it starts at once, not level by level as it finds the imports: a
   `<link rel="modulepreload">` for each module of the static import closure of the page's module script and of the views its
@@ -211,8 +212,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
   `chosenProduct` read back. On the same pages it draws the footer after the route and before the page's foot. In
   the page's foot it starts MOD-prompt-bar's `startPromptBar`, handing it
-  the store, the instance, the chosen product, the subject of the route shown at each moment, its own `explain` and its
-  navigation, so that the prompt bar uses neither the frame nor a view. Called by `start.mjs`, and by the Bridge's
+  the store, the instance, the chosen product, the products this browser manages — each entry of `products` with the host
+  `productHostFollowingStore` gives for it, read at each call —, the subject of the route shown at each moment, its own
+  `explain` and its navigation, so that the prompt bar uses neither the frame nor a view. Called by `start.mjs`, and by the Bridge's
   window with its own routes, where no prompt bar is drawn.
 - `embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void>` — renders a route of
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
@@ -238,7 +240,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
   used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
 - `productHostFollowingStore(page: { store: Store }) -> (product: string) -> Host` — the host of a product by its entry in
-  `products`, for a caller that checks the products beside the page's route, as the notification checks do: each call of
+  `products`, for a caller that checks the products beside the page's route, as the notification checks and the prompt bar
+  do: each call of
   its functions goes through a connection made with the product's own token, its name and the stored secrets this browser
   holds at that call — the connection `chosenProduct` makes —, so that a token cleared or replaced since is not used and a
   commit that holds a stored secret is refused (`A CLEAR IS A REAL CLEAR`, `NO SECRET IN THE REPOSITORY`). One host for

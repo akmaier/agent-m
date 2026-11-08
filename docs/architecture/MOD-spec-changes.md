@@ -205,7 +205,7 @@ entry of another queue that is not in SPEC creates it.
   (`A QUEUE IS ACCEPTED IN ITS ORDER`). An entry whose anchor another entry creates is accepted only together with or
   after that entry. If any entry's proposal or section no longer has the blob that was shown, nothing is written and every
   such entry is named (`A STALE APPROVAL IS NOT APPLIED`). Nothing is written either while a requirement of a proposal
-  names no source the product links: the entry is named with the requirement, from MOD-source-register's
+  names neither a source the product links nor an account: the entry is named with the requirement, from MOD-source-register's
   `sourceFindings` over the product's links and the instance's register in `sources` (`A REQUIREMENT HAS A REGISTERED
   SOURCE`). Considers: called only on a person's click; without a token,
   the record alone is committed through MOD-approvals' GitHub page and the instance's workflow writes the rest with
@@ -215,8 +215,8 @@ entry of another queue that is not in SPEC creates it.
   refused: Array<{ record: string, reason: string }> }` — for every record of kind `spec` that no decision row names yet
   and whose queue the snapshot holds, in the order of its queue's index: checks that the proposal and the section still have the blobs the record names and
   that the record's anchor is the queue's anchor for that entry, and that every requirement of the proposal names a source
-  the instance links in its `docs/sources.md`, from its register in `docs/sources/` (`A REQUIREMENT HAS A REGISTERED
-  SOURCE`), and returns the target with the section replaced and the
+  the instance links in its `docs/sources.md`, from its register in `docs/sources/`, or an account (`A REQUIREMENT HAS A
+  REGISTERED SOURCE`), and returns the target with the section replaced and the
   decision row appended. A record that fails a check changes nothing and is named. It writes nothing itself: the
   instance's workflow commits `files` (`WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE`).
 - `rejectEntry(host: Host, shown: { queue: string, entry: number, proposalBlob: string, sectionBlob: string }, person:
@@ -247,9 +247,9 @@ entry of another queue that is not in SPEC creates it.
   - recipe `chosen-requirements` — the requirements the person chose; without a choice, every requirement of the SPEC
     that no use case realises;
   - precondition `person-source` — an error finding under `THE PERSON WHO PROMPTS IS A SOURCE` when the job's parameter
-    `source` names no source, naming the steps that are missing: registering the person as a source and linking that
-    source to the product (UC-019 4b); none otherwise, so that a change of requirements by prompt starts only with the
-    person's own source, wherever it runs;
+    `source` is missing or blank — the person's account `<server>/<account>` could not be told —, whose `fix` names what
+    is required: an instance repository whose address names its owner, the account Agent M takes; none otherwise,
+    so that a change of requirements by prompt starts only with the person's account as its source, wherever it runs;
   - writer `queue-entries` — writes the candidates by the result's classes, as the person left them, as entries of
     the SPEC each belongs in, where it stands being what it constrains (MOD-spec-document): a candidate classed as
     constraining the development process goes to the instance's SPEC, its class decided against that SPEC and
@@ -293,7 +293,7 @@ entry of another queue that is not in SPEC creates it.
   requirement as stored beside the commit's graph; MOD-trace-graph.storedGraph — the same from the graph itself, where those are not stored;
   MOD-trace-graph.traceGraph — the graph of the head `proposeSection` reads, where none is stored for it.
 - MOD-source-register.sourceSchemas, sourceFindings, linkedVersion — the instance's links and register as the workflow
-  reads them, the requirements that name no linked source, and a candidate's source that the product does not link.
+  reads them, the requirements that name neither a linked source nor an account, and a candidate's source that the product does not link.
 - MOD-text-tools.Finding, finding, blobSha, lineDiff — findings, blob SHAs and the difference shown.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
   provenance of a drafted queue's commit.

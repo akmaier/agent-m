@@ -233,7 +233,10 @@ so; a model's command there reaches what that user can.
   where a restricted source refuses it —, and where the record holds `declares`, the participant built from it is built
   for the kind handed on, as `onDispatch` states. A hand-over of the job's own kind, of a kind that takes
   no instruction (MOD-job-runner's `taskRefusal`, its rule named), or one whose job does not start, is not run, and the
-  job's end names it with why, as `not run: <kind> — <why>`; one whose run fails by MOD-job-runner's `failedBecause` is
+  job's end names it with why, as `not run: <kind> — <why>`; where a finding of its preparation keeps it from starting,
+  `<why>` is each such finding as `<what> [<rule>] — <fix>`, joined by `; `, so that the end names what the hand-over
+  requires to run (UC-049 4a.5) — `not run: change-requirements — <what> [THE PERSON WHO PROMPTS IS A SOURCE] — <fix>`;
+  one whose run fails by MOD-job-runner's `failedBecause` is
   listed as `failed: <kind> — <why>`. The end lists every result of both: their commits,
   their files and pull requests, and their writers' notes. The entry resumes each
   job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`). A job whose run ends by MOD-job-runner's `failedBecause` — an answer that could not be

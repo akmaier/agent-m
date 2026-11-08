@@ -58,8 +58,6 @@ uses:
   - MOD-product-process.gateStates
   - MOD-release-evidence.auditDocument
   - MOD-artifact-edits.saveFile
-  - MOD-source-register.personSource
-  - MOD-source-register.personAccount
   - MOD-prompt-bar.Subject
 provides:
   - view
@@ -96,8 +94,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
   strategies, only when a job is prepared (`loadStrategies`).
 - `flow.mjs` — the template method: version choice and comparison, tree or table, filters, a row's detail, links.
-- `subject.mjs` — the subject the specification view gives the prompt bar: the page, what is open, its draft route, the
-  person's own source.
+- `subject.mjs` — the subject the specification view gives the prompt bar: the page, what is open, its draft route.
 - `views.mjs` — the five descriptors.
 - `diagram.mjs` — the component diagram of the modules view, as Mermaid.
 - `tests.mjs` — the tests view: the tests of the version as a tree or grouped, their filters, the incomplete ones, and the comparison of two
@@ -129,7 +126,7 @@ TraceView = {
 
 | View | Versions | Shape and rows | Opening a row | Extras |
 |---|---|---|---|---|
-| specification | branch and tags | first, only while an entry of a change queue waits for acceptance, those entries, each with its status and a link to it (MOD-review-pages' `spec-entry/<id>`), and nothing where none waits; then the tree of `docs/groups/requirements.md`, every requirement once with its status, one that no group names at the top level, marked *not yet placed* (UC-021 3b) — in SPEC, change proposed, removal proposed, proposed — and, where MOD-source-register's `affectedRequirements` names it for a source the product moved to a newer version after its section last changed, *source changed* until its section changes (UC-016 step 5), each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* once for each section of the SPEC, listed beside the tree and not within it, each of which opens `requirements/new` for that section (UC-018 3d), and *Arrange*; *History of SPEC changes*, which opens MOD-review-pages' `spec-entry/history`. Its subject for the prompt bar is context only (MOD-prompt-bar's `Subject`): the page and, at the current state — the default branch, or the earlier version shown while the head's graph is stored —, the open requirement, or the group with the names it holds, as `requirements`, the person's own source where the product links one, and the review pages' `draft` as its draft route (UC-019 step 1); at a released version, the requirement as it read there, and no draft route (UC-020 1a, UC-049 2a) |
+| specification | branch and tags | first, only while an entry of a change queue waits for acceptance, those entries, each with its status and a link to it (MOD-review-pages' `spec-entry/<id>`), and nothing where none waits; then the tree of `docs/groups/requirements.md`, every requirement once with its status, one that no group names at the top level, marked *not yet placed* (UC-021 3b) — in SPEC, change proposed, removal proposed, proposed — and, where MOD-source-register's `affectedRequirements` names it for a source the product moved to a newer version after its section last changed, *source changed* until its section changes (UC-016 step 5), each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* once for each section of the SPEC, listed beside the tree and not within it, each of which opens `requirements/new` for that section (UC-018 3d), and *Arrange*; *History of SPEC changes*, which opens MOD-review-pages' `spec-entry/history`. Its subject for the prompt bar is context only (MOD-prompt-bar's `Subject`): the page and, at the current state — the default branch, or the earlier version shown while the head's graph is stored —, the open requirement, or the group with the names it holds, as `requirements`, and the review pages' `draft` as its draft route (UC-019 step 1); at a released version, the requirement as it read there, and no draft route (UC-020 1a, UC-049 2a) |
 | gaps | branch and tags | table of requirements realised by no use case and named by no module or test, use cases realising none, names matching nothing | the artifact as it read in that version | what became covered and what lost its coverage between two versions |
 | modules | branch | table of modules: subsystem, the requirements its tests guard with their statuses, its file, code, tests; and every gap | the module's file and folder | component diagram: one box per module in its subsystem's box, one arrow per use, gaps marked, a missing provider as a box marked *missing*; *Change the architecture* and *Implement* |
 | tests | branch and tags | tree by level, file and case, or by requirement, use case or module, each test with its outcome on the latest commit | its declaration, its schedule, its counter-proof, its code, its history across commits and releases | comparing two releases |
@@ -151,7 +148,7 @@ It writes one file, and only on a person's click: the audit document under `docs
 It reads the product's snapshot at the chosen version through its host — the SPEC, the group files, use cases,
 architecture files, code files, tests, approval records, the product's links to sources —, the history of the SPEC and
 the result records on the branch `test-results`. The specification asks at once what does not wait for another read —
-the snapshot, the default branch and the tags; then the SPEC, the person's source, the entries waiting, the group file,
+the snapshot, the default branch and the tags; then the SPEC, the entries waiting, the group file,
 the stored graph and the history of the links —, reads the change queues through MOD-progress-measures' `waitingQueues`,
 and of each entry waiting its proposal and what it changes, never its rationale; the rationales that MOD-spec-changes'
 `queues` reads for each entry's issue, where `waitingQueues` derives the queues through it, are `queues`' reads. For the audit it reads the product's `docs/process.md` and `docs/gates/`
@@ -184,8 +181,8 @@ narrowed to them (`readSnapshot` with `folders`), in one batch; *Earlier runs* r
   MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the text of a file at the commits
   of its history, the release tags, a test's code (`WebLinks`' `file`, the page of the test's file at the version shown)
   and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
-  MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
-  the instance's links are read for the person's own source; MOD-repository-hosts.ciRunLog — whether the server still keeps a
+  MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing;
+  MOD-repository-hosts.ciRunLog — whether the server still keeps a
   run's log, once the person opens it (UC-029 5b).
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-spec-document.parseSpec, MOD-group-document.parseGroupFile,
   MOD-group-document.hierarchy, MOD-test-document.testDeclarations — the artifacts of the version.
@@ -197,9 +194,7 @@ narrowed to them (`readSnapshot` with `folders`), in one batch; *Earlier runs* r
 - MOD-progress-measures.waitingQueues — the change queues with an entry not in the SPEC yet, of which the specification
   lists those waiting for acceptance.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — a requirement's sources with version and part;
-  MOD-source-register.affectedRequirements — the requirements marked *source changed*;
-  MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a
-  requirement carries.
+  MOD-source-register.affectedRequirements — the requirements marked *source changed*.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar.
 - MOD-test-schedule.occasionsOf — when the schedule runs a test; MOD-test-schedule.scheduleSchema reads the product's
   `docs/tests/schedule.md` at the version shown, and MOD-test-schedule.defaultSchedule gives the book's schedule where the
