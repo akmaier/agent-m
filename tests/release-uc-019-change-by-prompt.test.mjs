@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, messageLines, namedButton, onUseCase, one, press, proposalTexts, proposalWrites, review, run, scenario,
-  send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
+  recordTexts, send, statusOf, useCases, writesBeyondRecords } from "./uc-019-prompt-bar-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
@@ -353,7 +353,9 @@ test("TST-377106: UC-019 A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN REC
   const off = await scenario({ extraFiles: useCases, answers });
   await onUseCase(off); await send(off, ALIGN); await review(off);
   await press(off, namedButton(all(off.target, "div", "draft")[0], "Save"));
-  assert.equal(off.product.writes.length, 1, "known positive: the draft was saved");
+  // The piece the conversation hands on runs in this tab with its record (UC-049 4a.1: "it runs in this tab at once, on the page's context, with its record"); beyond it, the Save's commit.
+  assert.equal(writesBeyondRecords(off).length, 1, "known positive: the draft was saved");
+  assert.ok(recordTexts(off).length > 0, "known positive: the tab piece's record is in the product");
   assert.equal(committed(off).some((body) => body.includes(ALIGN) || body.includes("is ready to review")), false, "recording off: nothing of the conversation in any commit");
   assert.equal(conversationRecords(off).length, 0);
 
@@ -382,13 +384,13 @@ test("TST-377107: UC-019 AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT", asyn
   await press(useCase, namedButton(all(useCase.target, "div", "draft")[0], "Save"));
   const requirement = await scenario(); await run(requirement);
   await press(requirement, namedButton(requirement.target, "Save"));
-  const commits = [useCase.product.writes[0], proposalWrites(requirement)[0]];
+  const commits = [useCase.product.writes.find((write) => UC7_PATH in write.files), proposalWrites(requirement)[0]];
   for (const write of commits) {
     const lines = messageLines(write);
     assert.ok(lines.some((line) => /^Agent-M-Version: [0-9a-f]{40}, commit [0-9a-f]{40}$/.test(line)), `a version line in ${write.message}`);
     assert.ok(lines.includes("Agent-M-Participant: drafter") && lines.includes("Agent-M-Model: fixture-model"), write.message);
   }
-  for (const body of [...Object.values(useCase.product.writes[0].files), ...proposalTexts(requirement)]) {
+  for (const body of [...Object.values(commits[0].files), ...proposalTexts(requirement)]) {
     assert.ok(!/Agent-M-|fixture-model|drafter/.test(body), "the artifact's own text names neither the version, the participant nor the model");
   }
 });
@@ -399,14 +401,14 @@ test("TST-377107: UC-019 AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT", asyn
 // guards: UC-019; ONE CLICK PER DECISION
 // given: a draft whose inputs are complete
 // input: the author presses Save once
-// expect: that click alone writes the commit - one commit, with every file, and no second click or dialog is asked for
+// expect: that click alone writes the commit - one commit, with every file, and no second click or dialog is asked for; before it nothing but the record of the piece the tab runs (UC-049 4a.1) is written
 test("TST-377108: UC-019 ONE CLICK PER DECISION", async () => {
   const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
   await onUseCase(s); await send(s, ALIGN); await review(s);
-  assert.equal(s.product.writes.length, 0);
+  assert.equal(writesBeyondRecords(s).length, 0, "before Save only the tab piece's record is written");
   await press(s, namedButton(all(s.target, "div", "draft")[0], "Save"));
-  assert.equal(s.product.writes.length, 1, "one click, one commit");
-  assert.deepEqual(Object.keys(s.product.writes[0].files), [UC7_PATH, UC8_PATH], "both files in it");
+  assert.equal(writesBeyondRecords(s).length, 1, "one click, one commit");
+  assert.deepEqual(Object.keys(writesBeyondRecords(s)[0].files), [UC7_PATH, UC8_PATH], "both files in it");
   assert.equal(all(s.body, "dialog").length, 0, "no dialog asks for a second click");
 });
 

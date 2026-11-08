@@ -149,7 +149,7 @@ const leaks = (s, needle) => writtenTexts(s).filter((text) => String(text).inclu
 test("TST-513203: with recording off a conversation that reads, saves and hands over leaves no message in any commit or record", async () => {
   const s = await scenario({ ...register(TOOLER, HANDY, DRAFTER), answers: [draft()] });
   const w = watch(s, { script: [calls({ id: "c1", name: "read-file", args: { path: "SPEC.md" } }), answer("I read the SPEC and found two rules."),
-    answer("Here is a draft.", { handOver: { kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page" } })] });
+    answer("Here is a draft.", { handOver: [{ kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page", after: [] }] })] });
   const clock = followClock();
   const messages = [`${PLANTED} (one)`, `${PLANTED} (two)`];
   await sendNow(s, messages[0], { participant: "tooler" });
@@ -251,14 +251,18 @@ test("TST-513206: a token goes only to the server that issued it, and only the r
 // guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A GENERATED ARTIFACT IS A PROPOSAL; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: a draft of a change of a requirement on the route draft, and a proposed hand-over in the bar
 // input: a click that a script makes on every button of the draft page and of the bar's hand-over, one after the other; then the person's click on Save
-// expect: the scripted clicks write nothing (no commit, no job record, no workflow started); the person's Save writes one proposal that leaves SPEC.md as it was and carries no acceptance, and its commit message names the Agent M version, the kind, the participant, its model and the rounds, and no message of the conversation
+// expect: the person's Send wrote only the record of the piece the tab runs (UC-049 4a.1); the scripted clicks write nothing more (no commit, no job record, no workflow started); the person's Save writes one proposal that leaves SPEC.md as it was and carries no acceptance, and its commit message names the Agent M version, the kind, the participant, its model and the rounds, and no message of the conversation
 test("TST-513207: nothing is written on a script's click, and what is saved is a proposal that names the version and no message", async () => {
   const s = await scenario({ answers: [draft()] });
   await run(s);
   const buttons = all(s.target, "button").filter((node) => /Save|Discard|Accept/.test(node.textContent));
   assert.ok(buttons.length > 0, "known positive: the draft page has its decisions");
+  // The piece the conversation handed on ran in this tab with its record (UC-049 4a.1: "it runs in this tab at once, on the page's context, with its record"), on the person's Send.
+  const before = s.product.writes.length;
+  assert.ok(recordTexts(s).length > 0, "known positive: the tab's piece is recorded");
+  assert.ok(s.product.writes.every((write) => Object.keys(write.files).every((path) => /^docs\/jobs\/JOB-[^/]+\.md$/.test(path))), "before the clicks only the record is written");
   for (const button of buttons) { scripted(button); await rest(s); }
-  assert.equal(s.product.writes.length, 0, "scripted clicks write nothing");
+  assert.equal(s.product.writes.length, before, "scripted clicks write nothing");
   await save(s);
   // The person who prompts is a source by their account (UC-019 step 6, THE PERSON WHO PROMPTS IS A SOURCE): assertProposal finds `github.com/akmaier` among the sources.
   assertProposal(s);
@@ -299,7 +303,7 @@ test("TST-513208: the tab and the Bridge are driven by one definition of the kin
 // expect: the record is in the product's repository; neither the record, nor a commit, nor the workflow's inputs hold the key's value or the token's value; the agent of the run was given the key by the name of the secret (the run's environment), not by its value in an argument; the run's end names the cost as unknown — no number — because handy declares no price
 test("TST-513209: a hand-over is recorded in the product, the run authenticates with CI secrets, and no cost is guessed", async () => {
   const s = await scenario({ ...register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
-  const w = watch(s, { script: [answer("Handing on.", { handOver: { kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page" } })] });
+  const w = watch(s, { script: [answer("Handing on.", { handOver: [{ kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page", after: [] }] })] });
   const clock = followClock();
   await sendNow(s, "Please run the tests.", { participant: "handy" });
   await free(s);
@@ -351,7 +355,7 @@ test("TST-513210: the message carries the chapters of the book for the kind of w
 test("TST-513211: participants are offered by their declared capabilities and places, and each step explains itself", async () => {
   const s = await scenario({ ...register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
   assert.deepEqual(readSetting(s.store, "session:release-bridge:observer").capabilities, ["read the repository"], "known positive: the observer session is declared, and reads the repository only");
-  const w = watch(s, { script: [answer("Handing on.", { handOver: { kind: "converse", works_on: [LOAN], task: "Run the tests" } })] });
+  const w = watch(s, { script: [answer("Handing on.", { handOver: [{ kind: "converse", works_on: [LOAN], task: "Run the tests", after: [] }] })] });
   const text = barText(s);
   assert.ok(text.includes("drafter — this machine") && text.includes("handy — GitHub Actions in the USA"));
   assert.ok(!text.includes("observer"), "observer cannot draft text and is not offered");
@@ -379,7 +383,7 @@ test("TST-513212: a job workflow of another commit of Agent M holds the hand-ove
   const outdated = current.replaceAll(INSTANCE_COMMIT, OTHER);
   assert.ok(outdated !== current && outdated.includes(OTHER) && !outdated.includes(INSTANCE_COMMIT), "the fixture's job workflow pins the other commit only");
   await s.product.change(JOBS, outdated);
-  const w = watch(s, { script: [answer("I will hand this on.", { handOver: { kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page" } })] });
+  const w = watch(s, { script: [answer("I will hand this on.", { handOver: [{ kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page", after: [] }] })] });
   const clock = followClock();
   await sendNow(s, "Please run the tests of this page.", { participant: "handy" });
   await free(s);
