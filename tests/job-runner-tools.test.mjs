@@ -182,7 +182,7 @@ test("a tool not offered, and arguments the tool's schema refuses, are answered 
     ["read-file", {}],
     ["read-file", { path: 5 }],
     ["read-file", null],
-    ["hand-over", { kind: "implement", works_on: [7], task: "do it" }],
+    ["hand-over", { kind: "implement", works_on: [7], task: "do it", after: [] }],
     ["read-file", { path: "docs/a.md" }],
   ]);
   assert.deepEqual(answers, [

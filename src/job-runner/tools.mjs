@@ -32,7 +32,7 @@ export async function offerTools(kind, drafter, context) {
   await registeredAll();
   const refuses = Array.isArray(context.params.refuses) ? context.params.refuses : [];
   const definitions = (await toolsOf(named)).filter((tool) => drafter.capabilities.includes(tool.needs) && registered("tools", tool.name) && !refuses.includes(tool.name));
-  const held = { edits: new Map(), handOver: null };
+  const held = { edits: new Map(), handOver: [] };
   const here = { ...context, exchange: { drafter, held } };
   const call = async (name, args) => {
     const tool = definitions.find((each) => each.name === name);
@@ -46,7 +46,8 @@ export async function offerTools(kind, drafter, context) {
 
 /**
  * withHeld(draft, held, refuses = []) -> unknown — the draft with what its exchange held: the edits proposed by `propose-edit` added to the draft's own
- * `edits`, the later edit of a path replacing the earlier in its place, and the proposed hand-over as `handOver`. What the draft holds of a tool
+ * `edits`, the later edit of a path replacing the earlier in its place, and the plan `hand-over` held — its pieces in the order of the calls — as `handOver`, in place of
+ * the plan the answer gave. What the draft holds of a tool
  * `refuses` names — `edits` for `propose-edit`, `handOver` for `hand-over` — is dropped, whether the exchange held it or the answer gave it
  * (MOD-job-runner, ToolUse). A draft that is not an object leaves it as it is.
  */
@@ -64,7 +65,7 @@ export function withHeld(draft, held, refuses = []) {
     for (const [path, text] of held.edits) edits.set(path, { path, text });
     added.edits = [...edits.values()];
   }
-  if (held.handOver && !refused("hand-over")) added.handOver = held.handOver;
+  if (held.handOver.length > 0 && !refused("hand-over")) added.handOver = [...held.handOver];
   return { ...draft, ...added };
 }
 
@@ -157,8 +158,13 @@ export const tools = {
     context.exchange.held.edits.set(path, text);
     return `proposed: ${path} is held for the person, who may save it`;
   },
-  // Holds a proposed hand-over in the exchange and queues nothing itself: the prompt bar, or the program that runs an unattended job, carries it out (UC-049 4a, 4f).
-  "hand-over": async ({ kind, works_on, task }, context) => {
+  // Adds one piece to the plan the exchange holds, in the order of the calls, and queues nothing itself: the prompt bar, or the program that runs an unattended job,
+  // carries the plan out (UC-049 4a, 4f). `after` names the earlier pieces, by their numbers from 1, whose accepted result this one rests on; a number that names no
+  // earlier piece is refused.
+  "hand-over": async ({ kind, works_on, task, after = [] }, context) => {
+    const pieces = context.exchange.held.handOver;
+    const stray = after.find((number) => !Number.isInteger(number) || number < 1 || number > pieces.length);
+    if (stray !== undefined) return refusal(`after names no earlier piece: ${stray}`);
     let definition;
     try {
       definition = await kindOf(kind);
@@ -167,7 +173,7 @@ export const tools = {
       throw error;
     }
     if (definition.participant === "none") return refusal(`${kind} has no participant`);
-    context.exchange.held.handOver = { kind, works_on, task };
+    pieces.push({ kind, works_on, task, after });
     return `proposed: a job of ${kind} goes on once you have answered: what it drafts is a proposal for the person`;
   },
 };
