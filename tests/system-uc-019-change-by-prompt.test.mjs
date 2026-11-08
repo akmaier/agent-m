@@ -56,6 +56,26 @@ const FLOW_EVIDENCE = {
     uc: "the use case, every requirement it realises, and every other use case",
     evidence: [["tests/approvals-strategies.test.mjs", "TST-472023"], [SELF, "TST-377004"]],
   },
+  "main-4-hierarchy": {
+    uc: "with its requirement hierarchy from `docs/groups/requirements.md`",
+    evidence: [["tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"]],
+  },
+  "main-6-place": {
+    uc: "A new requirement also names its place in the requirement hierarchy",
+    evidence: [["tests/job-catalogue-kinds-data.test.mjs", "TST-2026110878"]],
+  },
+  "main-7-place-finding": {
+    uc: "which the hierarchy does not hold [AN ITEM HAS ONE PLACE IN ITS HIERARCHY]",
+    evidence: [["tests/job-runner-candidate-places.test.mjs", "TST-2026110875"]],
+  },
+  "main-8-place": {
+    uc: "a new one with its place, which the author changes by a follow-up instruction",
+    evidence: [["tests/review-pages-conversation-draft.test.mjs", "TST-2026110896"]],
+  },
+  "main-9-places": {
+    uc: "with the places of its new requirements beside its section",
+    evidence: [["tests/review-pages-conversation-draft.test.mjs", "TST-2026110896"], ["tests/spec-changes-places.test.mjs", "TST-2026110880"]],
+  },
   "main-5-send": {
     uc: "The author presses **Send**",
     evidence: [[SELF, "TST-377005"]],

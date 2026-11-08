@@ -61,7 +61,7 @@ test("entrySections — a change replaces the requirement under its existing nam
   const old = block("A SAMPLE RULE", "Fixture PO", "A reader reads a file whole.", "`tests/sample.test.mjs`");
   const changed = block("A SAMPLE RULE", "Fixture PO; Job Source, ch. 8", "A reader reads a file whole, or says why not.", "`tests/better.test.mjs`");
   assert.ok(SECTION_1.includes(old), "the fixture holds the old block");
-  assert.deepEqual(result, [{ anchor: "## 1. Reading", until: null, text: SECTION_1.replace(old, changed) }]);
+  assert.deepEqual(result, [{ anchor: "## 1. Reading", until: null, places: [], text: SECTION_1.replace(old, changed) }]);
 });
 
 // TST-473032 · level: unit · module: MOD-spec-changes
@@ -72,11 +72,11 @@ test("entrySections — a change replaces the requirement under its existing nam
 test("entrySections — a duplicate adds the job's source with each passage to the existing requirement, nothing else", () => {
   const item = candidate("RESTATES IT", { class: "duplicate", of: "ANOTHER SAMPLE RULE" });
   const result = compose([item], [classed(item, "duplicate", "ANOTHER SAMPLE RULE", ["ch. 8", "ch. 9"])]);
-  assert.deepEqual(result, [{ anchor: "## 1. Reading", until: null,
+  assert.deepEqual(result, [{ anchor: "## 1. Reading", until: null, places: [],
     text: SECTION_1.replace("*(Fixture PO; Other Source, Art. 2)*", "*(Fixture PO; Other Source, Art. 2; Job Source, ch. 8; Job Source, ch. 9)*") }]);
 
   const other = candidate("RESTATES THE WRITE RULE", { class: "duplicate", of: "A WRITE RULE" });
-  assert.deepEqual(compose([other]), [{ anchor: "## 2. Writing", until: null, text: SECTION_2.replace("*(Fixture PO)*", "*(Fixture PO; Job Source, ch. 8)*") }]);
+  assert.deepEqual(compose([other]), [{ anchor: "## 2. Writing", until: null, places: [], text: SECTION_2.replace("*(Fixture PO)*", "*(Fixture PO; Job Source, ch. 8)*") }]);
 });
 
 // TST-473033 · level: unit · module: MOD-spec-changes
@@ -100,14 +100,14 @@ test("entrySections — a section that a draft leaves as it is is not returned",
 test("entrySections — a new requirement is added at the end of its section", () => {
   const last = candidate("A NEW RULE", { rule: "A thing happens.", check: "`tests/new.test.mjs`" });
   const added = block("A NEW RULE", "Job Source, ch. 8", "A thing happens.", "`tests/new.test.mjs`");
-  assert.deepEqual(compose([last]), [{ anchor: "## 2. Writing", until: null, text: `${SECTION_2}\n${added}\n` }], "the last section");
+  assert.deepEqual(compose([last]), [{ anchor: "## 2. Writing", until: null, places: [], text: `${SECTION_2}\n${added}\n` }], "the last section");
 
   const near = candidate("A NEARBY RULE", { rule: "A thing happens.", check: "`tests/new.test.mjs`", of: "ANOTHER SAMPLE RULE" });
   const nearBlock = block("A NEARBY RULE", "Job Source, ch. 8", "A thing happens.", "`tests/new.test.mjs`");
-  assert.deepEqual(compose([near]), [{ anchor: "## 1. Reading", until: null, text: `${SECTION_1}${nearBlock}\n\n` }], "the section of the neighbour");
+  assert.deepEqual(compose([near]), [{ anchor: "## 1. Reading", until: null, places: [], text: `${SECTION_1}${nearBlock}\n\n` }], "the section of the neighbour");
 
   const bare = SPEC.slice(0, -1);
-  assert.deepEqual(compose([last], undefined, JOB, bare), [{ anchor: "## 2. Writing", until: null, text: `${SECTION_2.slice(0, -1)}\n\n${added}` }], "no final line end");
+  assert.deepEqual(compose([last], undefined, JOB, bare), [{ anchor: "## 2. Writing", until: null, places: [], text: `${SECTION_2.slice(0, -1)}\n\n${added}` }], "no final line end");
 });
 
 // TST-473035 · level: unit · module: MOD-spec-changes
@@ -137,8 +137,8 @@ test("entrySections — one candidate of each class are composed into their sect
     .replace(block("A SAMPLE RULE", "Fixture PO", "A reader reads a file whole.", "`tests/sample.test.mjs`"),
       block("A SAMPLE RULE", "Fixture PO; Job Source, ch. 8", "A reader reads a file whole, or says why not.", "`tests/changed.test.mjs`"))
     + `${block("A NEARBY RULE", "Job Source, ch. 8", "A thing happens.", "`tests/new.test.mjs`")}\n\n`;
-  assert.deepEqual(result, [{ anchor: "## 1. Reading", until: null, text: section1 },
-    { anchor: "## 2. Writing", until: null, text: SECTION_2.replace("*(Fixture PO)*", "*(Fixture PO; Job Source, ch. 8)*") }]);
+  assert.deepEqual(result, [{ anchor: "## 1. Reading", until: null, places: [], text: section1 },
+    { anchor: "## 2. Writing", until: null, places: [], text: SECTION_2.replace("*(Fixture PO)*", "*(Fixture PO; Job Source, ch. 8)*") }]);
   assert.ok(result[0].text.includes("Some prose about reading.\n\n"), "the prose stays");
 });
 
@@ -270,8 +270,8 @@ test("entrySections — one change of each requirement is composed as before", (
   const old = (name, rule, check) => block(name, "Fixture PO", rule, check);
   const changed = (name, rule) => block(name, "Fixture PO; Job Source, ch. 8", rule, "`tests/changed.test.mjs`");
   assert.deepEqual(compose([first, second]), [
-    { anchor: "## 1. Reading", until: null, text: SECTION_1.replace(old("A SAMPLE RULE", "A reader reads a file whole.", "`tests/sample.test.mjs`"), changed("A SAMPLE RULE", "A reader reads a file whole, or says why not.")) },
-    { anchor: "## 2. Writing", until: null, text: SECTION_2.replace(old("A WRITE RULE", "A writer writes a file whole.", "no automatic check; at review"), changed("A WRITE RULE", "A writer writes a file whole, or says why not.")) }]);
+    { anchor: "## 1. Reading", until: null, places: [], text: SECTION_1.replace(old("A SAMPLE RULE", "A reader reads a file whole.", "`tests/sample.test.mjs`"), changed("A SAMPLE RULE", "A reader reads a file whole, or says why not.")) },
+    { anchor: "## 2. Writing", until: null, places: [], text: SECTION_2.replace(old("A WRITE RULE", "A writer writes a file whole.", "no automatic check; at review"), changed("A WRITE RULE", "A writer writes a file whole, or says why not.")) }]);
 });
 
 // TST-636004 · level: unit · module: MOD-spec-changes
@@ -284,7 +284,7 @@ test("entrySections — a change and a duplicate of one requirement are not two 
   const duplicate = candidate("RESTATES IT", { class: "duplicate", of: "A SAMPLE RULE", passage: "ch. 9" });
   const old = block("A SAMPLE RULE", "Fixture PO", "A reader reads a file whole.", "`tests/sample.test.mjs`");
   const expected = block("A SAMPLE RULE", "Fixture PO; Job Source, ch. 8; Job Source, ch. 9", "A reader reads a file whole, or says why not.", "`tests/changed.test.mjs`");
-  assert.deepEqual(compose([change, duplicate]), [{ anchor: "## 1. Reading", until: null, text: SECTION_1.replace(old, expected) }]);
+  assert.deepEqual(compose([change, duplicate]), [{ anchor: "## 1. Reading", until: null, places: [], text: SECTION_1.replace(old, expected) }]);
 });
 
 // TST-636005 · level: unit · module: MOD-spec-changes

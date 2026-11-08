@@ -17,6 +17,7 @@ import { blobSha } from "../text-tools/index.mjs";
 import { registerPaths, sourceSchemas } from "../source-register/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
+import { hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { entrySections } from "./sections.mjs";
 import { el } from "./common.mjs";
 
@@ -54,13 +55,27 @@ const sequenceOf = (rows) => {
   }
   return rows.filter((row) => inside.has(row.id));
 };
-const shownOf = (queue, item, view) => ({ queue: queue.folder, entry: item.number, proposalBlob: view.proposal.blob, sectionBlob: view.current?.blob ?? "" });
-// The tick of the list: the proposal's blob from the queue's tree, the section that holds now from its target read once (no impact list).
+// What a click accepts of an entry: the blobs of its proposal, of its places file (null for none) and of the section beside it, and the places as shown — the entry's own.
+const shownOf = (queue, item, view) => ({ queue: queue.folder, entry: item.number, proposalBlob: view.proposal.blob, sectionBlob: view.current?.blob ?? "",
+  placesBlob: view.places?.blob ?? null, places: (view.places?.rows ?? []).filter((row) => row.place).map(({ requirement, place }) => ({ requirement, place })) });
+// The tick of the list: the blobs of the proposal and of the places file from the queue's tree, the section that holds now from its target read once (no impact list); Accept
+// ticked writes the places as the entry holds them (UC-006 4d), so the tick names no places of its own.
 const tickOf = async (queue, item, readOnce) => {
   const targetText = await readOnce(item.file);
   const heldNow = typeof targetText === "string" ? sectionText(targetText, item.anchor) : null;
-  return { queue: queue.folder, entry: item.number, proposalBlob: item.proposal.blob, sectionBlob: heldNow === null ? "" : await blobSha(heldNow) };
+  return { queue: queue.folder, entry: item.number, proposalBlob: item.proposal.blob, sectionBlob: heldNow === null ? "" : await blobSha(heldNow), placesBlob: item.places?.blob ?? null };
 };
+
+// The groups of the requirement hierarchy a person may choose as a place (UC-006 3c), each by its path of titles from the top: those of the group file of requirements the page
+// read (MOD-group-document's parseGroupFile and hierarchy), in the order they stand; none without the file.
+const GROUPS = "docs/groups/requirements.md";
+async function requirementGroups(snapshot) {
+  const text = await snapshot.read(GROUPS);
+  const { tree } = hierarchy(parseGroupFile(GROUPS, text ?? ""), []);
+  const paths = [];
+  (function walk(node, path) { for (const group of node.groups) { paths.push([...path, group.title]); walk(group, [...path, group.title]); } })(tree, []);
+  return paths;
+}
 
 // The files the entry page reads from `snapshot` for its sources: the product's links file and, on a page that shows the instance itself, the register beside it.
 const LINKS = "docs/sources.md";
@@ -89,14 +104,18 @@ export async function sourcesOf({ snapshot, context, instanceSnapshot }) {
 
 // One entry as its page draws it: its sections beside the other proposals on the same section — those of the queues `around`, of the earlier commit `asOf` or of the snapshot's
 // own (null) — and its queue's order, what holds it back or what a click accepts.
-async function described({ around, asOf }, queue, item, snapshot, context, hrefOf) {
+async function described({ around, asOf, choosing = false }, queue, item, snapshot, context, hrefOf) {
   const id = idOf(queue, item.number);
   const view = await entryView(queue.folder, item.number, snapshot);
   const others = around.flatMap((other) => other.entries.filter((each) => idOf(other, each.number) !== id && each.anchor === item.anchor && each.state !== "in SPEC")
     .map((each) => ({ id: idOf(other, each.number), state: each.state })));
   const order = queue.entries.map((each) => ({ number: each.number, anchor: each.anchor, state: each.state }));
+  // On the page of one entry the person may choose another place (UC-006 3c): the choice is kept here alone, changes nothing in the entry, and goes with Accept.
+  const chosen = new Map();
+  const choose = choosing && acceptable(item) && view.places.rows.length
+    ? { groups: await requirementGroups(snapshot), chosen: (requirement, place) => { if (place) chosen.set(requirement, place); else chosen.delete(requirement); } } : null;
   const result = { title: `${shortOf(queue.folder)} · entry ${pad2(item.number)}`, status: view.state.replaceAll(" ", "-"), label: view.state,
-    nodes: entrySections(view, others, order, hrefOf, asOf), hold: null, shown: null, record: null, edit: view.state === "open" };
+    nodes: entrySections(view, others, order, hrefOf, asOf, choose), hold: null, shown: null, record: null, edit: view.state === "open" };
   if (view.state === "waiting for its anchor") {
     result.shown = [shownOf(queue, item, view)];
     result.hold = el("p", "waits", view.createdBy === null ? "Its heading is in no entry of the queue: it cannot be accepted."
@@ -105,11 +124,17 @@ async function described({ around, asOf }, queue, item, snapshot, context, hrefO
   }
   if (!acceptable(item)) return result;
   result.shown = [shownOf(queue, item, view)];
-  // Without a token the instance's own SPEC is written by its workflow from the record alone; a product has no such workflow.
+  // What Accept hands acceptEntries: the entry as shown, with the places the person chose in place of those proposed.
+  if (choose) {
+    result.chosen = () => result.shown.map((each) => ({ ...each, places: view.places.rows
+      .map(({ requirement, place }) => ({ requirement, place: chosen.get(requirement) ?? place })).filter((row) => row.place) }));
+  }
+  // Without a token the instance's own SPEC is written by its workflow from the record alone; a product has no such workflow. The record names the places file shown, and the
+  // workflow writes the places as the entry holds them.
   if (!context.product && view.current !== null) {
     result.record = { path: `docs/approvals/${id}-${view.proposal.blob.slice(0, 12)}.md`,
       text: writeDocument(approvalSchema, { fields: { kind: "spec", queue: queue.folder, entry: pad2(item.number), proposal: item.proposal.path,
-        blob: view.proposal.blob, target: item.file, anchor: item.anchor, section: view.current.blob } }) };
+        blob: view.proposal.blob, target: item.file, anchor: item.anchor, section: view.current.blob, ...(view.places.blob ? { places: view.places.blob } : {}) } }) };
   }
   return result;
 }
@@ -146,9 +171,9 @@ export const queueService = {
     if (!found) return null;
     const { queue, item } = found;
     // The files the entry's page and its subject read, asked for in one batch: the target, the proposal, the rationale, and the sources the subject needs.
-    await snapshot.readMany?.([item.file, item.proposal.path, item.rationale, ...sourcePaths(snapshot, context)].filter(Boolean));
+    await snapshot.readMany?.([item.file, item.proposal.path, item.rationale, item.places?.path, ...(snapshot.paths.includes(GROUPS) ? [GROUPS] : []), ...sourcePaths(snapshot, context)].filter(Boolean));
     const { queues: around, asOf } = await waitingQueues(snapshot);
-    return described({ around, asOf }, queue, item, snapshot, context, hrefOf);
+    return described({ around, asOf, choosing: true }, queue, item, snapshot, context, hrefOf);
   },
 
   // Review all: every entry a click may accept (open, or stale) or that waits for an entry of the sequence, each as view gives it, in the order of the entries' identifiers; the files of all of them are asked for in one batch.
@@ -157,7 +182,7 @@ export const queueService = {
     const rows = all.flatMap((queue) => queue.entries.map((item) => ({ queue, item, id: idOf(queue, item.number), state: item.state,
       after: item.createdBy ? entryId(item.createdBy.queue, item.createdBy.entry) : null })));
     const reviewable = sequenceOf(rows).sort((a, b) => a.id.localeCompare(b.id));
-    await snapshot.readMany?.([...new Set(reviewable.flatMap(({ item }) => [item.file, item.proposal.path, item.rationale]).concat(sourcePaths(snapshot, context)).filter(Boolean))]);
+    await snapshot.readMany?.([...new Set(reviewable.flatMap(({ item }) => [item.file, item.proposal.path, item.rationale, item.places?.path]).concat(sourcePaths(snapshot, context)).filter(Boolean))]);
     const entries = [];
     for (const { queue, item, id, after } of reviewable) entries.push({ id, after, ...(await described({ around: all, asOf: null }, queue, item, snapshot, context, hrefOf)) });
     return entries;
@@ -173,7 +198,7 @@ export const queueService = {
     const left = [];
     for (const each of shown) {
       const view = await entryView(each.queue, each.entry, now);
-      if (view.proposal.blob !== each.proposalBlob || (view.current?.blob ?? "") !== each.sectionBlob) {
+      if (view.proposal.blob !== each.proposalBlob || (view.current?.blob ?? "") !== each.sectionBlob || (view.places?.blob ?? null) !== (each.placesBlob ?? null)) {
         left.push({ path: entryId(each.queue, each.entry), reason: "it changed after it was shown", names: [] });
       }
     }
@@ -186,7 +211,9 @@ export const queueService = {
     if (result.refused) {
       return { refusal: result.refused.map(({ queue, entry, reason }) => `entry ${pad2(entry)} of ${shortOf(queue)}: ${reason}`).join(" ") };
     }
-    return { commit: result.commit, leftOut: [] };
+    // A place that did not apply to the group file as it stood is named with its reason (UC-006 5b).
+    return { commit: result.commit, leftOut: [], notes: (result.notPlaced ?? []).map(({ queue, entry, requirement, reason }) =>
+      `${requirement} (entry ${pad2(entry)} of ${shortOf(queue)}) is not placed: ${reason}.`) };
   },
 
   // The entry shown, rejected with the person's reason by rejectEntry: { commit }, or, without a token, GitHub's pages { fallback }.

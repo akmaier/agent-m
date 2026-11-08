@@ -2,7 +2,7 @@
 //
 // Module: MOD-spec-changes
 //
-// A PROPOSAL IS REJECTED WITH A REASON · A REJECTION REMOVES THE PROPOSAL (UC-006 4a): the entry's proposal, its rationale and its row of the queue's
+// A PROPOSAL IS REJECTED WITH A REASON · A REJECTION REMOVES THE PROPOSAL (UC-006 4a): the entry's proposal, its rationale, its places file and its row of the queue's
 // index leave in one commit, through MOD-approvals' commitRejection — under the person's account, the reason in its message, or, without a token,
 // GitHub's pages for the same files. No approval record and no decision row is written, and the SPEC is not touched. A queue whose last entry leaves
 // goes with it, every file of its folder: a queue of no entry decides nothing, and the entries the index keeps are those no rejection took. A STALE
@@ -58,7 +58,7 @@ export async function rejectEntry(host, shown, person, reason) {
   if ((section === null ? "" : await blobSha(section)) !== shown.sectionBlob) throw changed("had its SPEC section changed");
 
   const last = queue.entries.length === 1;
-  const own = [entry.proposal.path, entry.rationale].filter((path) => path && head.paths.includes(path));
+  const own = [entry.proposal.path, entry.rationale, entry.places?.path].filter((path) => path && head.paths.includes(path));
   const deleted = last ? head.paths.filter((path) => path.startsWith(`${queue.folder}/`)) : own;
   const files = deleted.map((path) => ({ path, delete: true }));
   if (!last) files.push({ path: `${queue.folder}/index.md`, text: withoutRow((await head.read(`${queue.folder}/index.md`)) ?? "", entry.number) });

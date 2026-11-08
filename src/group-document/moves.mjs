@@ -1,4 +1,5 @@
-// moves.mjs — the moves a person makes to a group file (MOD-group-document, Parts; Interfaces: GroupMove, applyMoves). Of it,
+// moves.mjs — the moves a person makes to a group file, and the first places of new items (MOD-group-document, Parts; Interfaces:
+// GroupMove, applyMoves, Place, placeItems). placeItems is made of the moves `create` and `move`. Of it,
 // ITM-381 builds applyMoves, which applies the moves in order to a new tree and refuses, with a reason, the move it cannot
 // make.
 //
@@ -125,4 +126,40 @@ export function applyMoves(tree, moves) {
     else refused.push({ move, reason });
   }
   return { tree: next, applied, refused };
+}
+
+// Whether a tree, or a group of it, names the identifier anywhere.
+const names = (node, id) => node.members.some((member) => member.id === id) || node.groups.some((group) => names(group, id));
+
+// placeItems(tree: GroupTree, places: Array<{ item, place: Place }>) -> { tree, placed, notApplied } — each item given its first place, in
+// order, on a copy of the tree, each on the result of the one before. A place is made of the moves `create` and `move` of applyMoves, so that a
+// place and an arrangement keep one set of rules: the item is moved into the group `place.group` names, or, with `place.new`, into the group of
+// that title standing there — created first where none stands there yet. A place is not applied, with its reason, when the tree names the item
+// already, which keeps the place it has (a first place moves nothing: no item of the file is regrouped by it), when its group does not stand in
+// the tree (`noGroup`), or when applyMoves refuses one of its moves — a new group titled by an identifier, an item of another kind. The tree
+// given is not changed.
+export function placeItems(tree, places) {
+  let next = structuredClone(tree);
+  const placed = [], notApplied = [];
+  for (const each of places) {
+    const { item, place } = each;
+    const refuse = (reason, noGroup = false) => notApplied.push({ item, place, reason, noGroup });
+    if (names(next, item)) { refuse(`the group file names ${item} already, and it keeps the place it has`); continue; }
+    const into = groupAt(next, place?.group);
+    if (!into) { refuse(nowhere(place?.group), true); continue; }
+    const moves = [];
+    let to = place.group;
+    if (place.new !== null && place.new !== undefined) {
+      const { title, reason } = titleOf(place.new);
+      if (reason) { refuse(reason); continue; }
+      if (!into.groups.some((group) => group.title === title)) moves.push({ op: "create", title, in: place.group });
+      to = [...place.group, title];
+    }
+    moves.push({ op: "move", item, to });
+    const result = applyMoves(next, moves);
+    if (result.refused.length) { refuse(result.refused[0].reason); continue; }
+    next = result.tree;
+    placed.push(each);
+  }
+  return { tree: next, placed, notApplied };
 }

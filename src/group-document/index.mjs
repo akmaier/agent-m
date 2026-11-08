@@ -1,7 +1,7 @@
 // MOD-group-document — group files and the hierarchy of one kind (docs/architecture/MOD-group-document.md): its
 // interface. `GroupTree` and `parseGroupFile`, a group file read into its groups, their members and their lines;
 // `groupFileText`, a tree written as the canonical group file; `GroupMove` and `applyMoves`, the moves a person makes applied
-// in order to a new tree; `Hierarchy` and `hierarchy`, the tree with every item of the kind in its one place and the findings.
+// in order to a new tree; `Place` and `placeItems`, the first place of a new item, made of those moves; `Hierarchy` and `hierarchy`, the tree with every item of the kind in its one place and the findings.
 //
 // Module: MOD-group-document
 //
@@ -44,6 +44,12 @@
  */
 
 /**
+ * Where a new item is to stand: in the group `group` names by its path of titles from the top, `[]` being the top level; with `new`, in a
+ * new group of that title standing in `group` — or in the group of that title that stands there already.
+ * @typedef {{ group: string[], new: string | null }} Place
+ */
+
+/**
  * The hierarchy of the items of one kind: the tree with every item in its one place, the identifiers of the items that no
  * group named and that stand at the top level of the tree now, the identifiers of the members that match no item, and the
  * findings, each a MOD-text-tools `Finding`. A group the moves create, and a member placed for an item the file did not
@@ -57,5 +63,5 @@
  */
 
 export { parseGroupFile, groupFileText } from "./group-file.mjs";
-export { applyMoves } from "./moves.mjs";
+export { applyMoves, placeItems } from "./moves.mjs";
 export { hierarchy } from "./hierarchy.mjs";

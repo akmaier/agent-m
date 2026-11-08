@@ -63,12 +63,12 @@ const CANDIDATE = { name: "A THING IS DONE", rule: "A thing is done.", check: "A
 // guards: ONE DEFINITION, THREE DRIVERS; UC-005
 // given: the table's cell "Draft it expects" of `derive-requirements`, which adds to a candidate's name, rule, check, what it constrains, source passage and class "the source of a rule it points to, where that is not the job's"; and the draft's schema of the kind
 // input: kindOf("derive-requirements").answer; candidates without and with a `source`, and with a `source` that is not a text
-// expect: the candidate keeps its seven fields, the six required as before, and `source` is a text that may be left out; a candidate naming a source is accepted and one without is too; a source that is a number is refused
+// expect: the candidate keeps its fields — with `place`, TST-2026110878 —, the six required as before, and `source` is a text that may be left out; a candidate naming a source is accepted and one without is too; a source that is a number is refused
 test("derive-requirements — a candidate may name the source of the rule it points to", async () => {
   assert.match(expects("derive-requirements"), /source of a rule it points to, where that is not the job's/, "known positive: the table's cell is read");
   const { answer } = await kindOf("derive-requirements");
   const candidate = answer.properties.candidates.items;
-  assert.deepEqual(Object.keys(candidate.properties).sort(), ["check", "class", "constrains", "name", "of", "passage", "rule", "source"]);
+  assert.deepEqual(Object.keys(candidate.properties).sort(), ["check", "class", "constrains", "name", "of", "passage", "place", "rule", "source"]);
   assert.equal(candidate.properties.source.type, "string");
   assert.deepEqual(candidate.required, ["name", "rule", "check", "constrains", "passage", "class"]);
   assert.equal(fits({ candidates: [CANDIDATE] }, answer), null, "known positive: a candidate without a source");
@@ -89,6 +89,33 @@ test("change-requirements — the same candidates as a derivation, and the param
   assert.match(change.purpose, /parameter `source`/);
   assert.match(change.purpose, /own source of the person who starts it/);
   assert.doesNotMatch(derive.purpose, /parameter `source`/);
+});
+
+// TST-2026110878 · level: unit · module: MOD-job-catalogue
+// guards: ONE DEFINITION, THREE DRIVERS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-005; UC-019
+// given: the table's cell "Draft it expects" of `derive-requirements`, which ends "class, and, for a new one, its place", and the sentence under the table: a candidate classed `new` names its place as `place`, a MOD-group-document `Place` — `group`, a path of titles, `[]` for the top level, and `new`, the title of a new group standing in `group`, or `null` —; "their prompts ask for it, and for no place on a candidate of another class"
+// input: the draft's schema and the prompt of both kinds; candidates with a place in a group, in a new group, at the top level, without one, and with a group written as one text
+// expect: `place` is an object that requires `group`, a list of texts, beside `new`, a text that may be left out or be null; the first four fit, the last is refused as not a list; each prompt holds the place {{requirement-hierarchy}}, asks a `new` candidate for its `place` with `group` and `new`, and asks no place of a candidate of another class
+test("TST-2026110878: derive-requirements and change-requirements — a new candidate names its place in the requirement hierarchy", async () => {
+  assert.match(expects("derive-requirements"), /class, and, for a new one, its place$/, "known positive: the table's cell is read");
+  assert.match(CATALOGUE, /names its place in the requirement hierarchy\nthe recipe `requirement-hierarchy` shows, as `place`/);
+  for (const name of ["derive-requirements", "change-requirements"]) {
+    const { answer, prompt } = await kindOf(name);
+    const place = answer.properties.candidates.items.properties.place;
+    assert.equal(place?.type, "object", `${name}: place is an object`);
+    assert.deepEqual(place.required, ["group"]);
+    assert.deepEqual([place.properties.group.type, place.properties.group.items.type, place.properties.new.type], ["array", "string", "string"]);
+    for (const where of [{ group: ["3. Requirements", "Export"] }, { group: ["3. Requirements"], new: "Derivation" }, { group: [], new: null }]) {
+      assert.equal(fits({ candidates: [{ ...CANDIDATE, place: where }] }, answer), null, JSON.stringify(where));
+    }
+    assert.equal(fits({ candidates: [CANDIDATE] }, answer), null, "a candidate without a place");
+    assert.match(fits({ candidates: [{ ...CANDIDATE, place: { group: "3. Requirements" } }] }, answer), /group is not a list/);
+    assert.match(prompt, /\{\{requirement-hierarchy\}\}/, name);
+    assert.match(prompt, /`place`/, name);
+    assert.match(prompt, /`group`/, name);
+    assert.match(prompt, /`new`/, name);
+    assert.match(prompt, /no `place`/, `${name}: no place for another class`);
+  }
 });
 
 // The six operations of GroupMove, as MOD-group-document's file lists them.

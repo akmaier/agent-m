@@ -12,6 +12,10 @@ a test verifies, without example values, whether it `constrains` the `product` o
 
 Where a candidate points to a rule of another source than this one, give that source as `source`; leave it out otherwise.
 
+A `new` candidate also names its `place` in the requirement hierarchy below: `group`, the titles of a group the hierarchy holds
+from the top, `[]` for the top level, and `new`, the title of a new group standing in `group`, or `null`. Give no `place` for a
+candidate of another class: it keeps the place of the requirement it refers to.
+
 Write one statement per requirement; a rule that needs "and" is two requirements. Invent nothing the excerpt does not
 say.
 
@@ -28,6 +32,12 @@ The task, where one is given, is the work asked for, within what the inputs belo
 ## The existing requirements: the SPEC and its open queues
 
 {{spec-with-queues}}
+
+## The requirement hierarchy: the groups of `docs/groups/requirements.md`
+
+Where none is given, every requirement stands at the top level.
+
+{{requirement-hierarchy}}
 
 ## Chapter 8 of the book *Vibe Coding*, on requirements engineering
 

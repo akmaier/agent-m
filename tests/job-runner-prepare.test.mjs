@@ -55,7 +55,7 @@ const recipe = (parts) => async () => parts.map((part) => ({ ...part }));
 const STAND_INS = {
   preconditions: { "architecture-ready": async (context) => (context.params.notReady ? NOT_READY : null) },
   recipes: { "whole-spec": recipe([SPEC_PART]), "accepted-use-cases": recipe(USE_CASES), "whole-architecture": recipe([]), "source-excerpt": recipe([EXCERPT]),
-    "spec-with-queues": recipe([SPEC_PART]), "chapters-for-architecture": recipe([CHAPTERS]),
+    "spec-with-queues": recipe([SPEC_PART]), "requirement-hierarchy": recipe([]), "chapters-for-architecture": recipe([CHAPTERS]),
     "chapters-for-requirements": recipe([CHAPTER_8]) },
   checks: Object.fromEntries(["document-schema", "graph-checks", "candidate-classes", "requirement-form"]
     .map((name) => [name, () => []])),

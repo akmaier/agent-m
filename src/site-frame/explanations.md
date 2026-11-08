@@ -755,6 +755,16 @@ requirement's is classified as a duplicate by Agent M without a model, whatever 
 candidates by class, each beside the requirement it refers to, and you can move a candidate to another class, for example from
 *new* to *duplicate* of a requirement.
 
+## requirement-places
+
+A requirement the entry adds needs a place in the requirement hierarchy, the groups of `docs/groups/requirements.md`. The entry
+proposes one for each new requirement: a group the hierarchy holds, a new group with the group it stands in, or the top level.
+The place is kept beside the entry, never in the SPEC's text; the hierarchy stays as it is until you accept. With *Change place*
+you choose another group of requirements, or type the title of a new group to stand in the group you choose; your choice changes
+nothing in the entry and goes with *Accept*. *Accept* writes the places into the group file in the same commit as the SPEC. A place
+whose group no longer stands in the group file is not written, and the page names it: that requirement stands at the top level,
+not yet placed, until you arrange it.
+
 ## candidate-correction
 
 Before you see the candidates, Agent M checks them without a model and sends what it finds back to the participant, one line each,

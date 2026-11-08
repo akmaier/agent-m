@@ -19,27 +19,30 @@ const SOURCE_ENTRY = /^docs\/sources\/SRC-[^/]+\.md$/;
 /**
  * onApprovalsCommitted(env: CiEnvironment) -> Promise<EntryStatus> — in the instance: applies, in one commit, every approval of the
  * instance's own SPEC that no decision row names yet, with applyApproved, which the dashboard's acceptance shares its bytes with; nothing
- * for an approval whose text is stale. A missing token ends the entry at once as `not run`, before anything is written. The status names
- * what was applied and what was refused; `failed` when an approval was refused or the commit could not be made.
+ * for an approval whose text is stale. The places of the requirements an entry adds are written as the entry holds them; the status and the
+ * commit's message name every place applyApproved names as not applied, with its requirement. A missing token ends the entry at once as `not run`,
+ * before anything is written. The status names what was applied and what was refused; `failed` when an approval was refused or the commit could not be made.
  */
 export async function onApprovalsCommitted(env) {
   if (!env.token) return { outcome: "not run", summary: "GITHUB_TOKEN is missing: the workflow's own token is passed to the step as GITHUB_TOKEN. Nothing was written.", findings: [] };
   if (!env.branch) return { outcome: "not run", summary: "GITHUB_REF_NAME is missing: the branch the workflow runs for. Nothing was written.", findings: [] };
   const { host } = composeInstance(env);
   const snapshot = await host.readSnapshot(env.branch);
-  const { files, applied, refused } = await applyApproved(snapshot, env.now);
+  const { files, applied, refused, notPlaced = [] } = await applyApproved(snapshot, env.now);
   const stale = refused.map(({ record, reason }) => finding({ artifact: record, line: 1, kind: "error", rule: RULE, what: reason, fix: "approve the change again on its current text" }));
   const refusedLines = refused.map(({ record, reason }) => `refused ${record.split("/").pop()}: ${reason}`);
+  // A place of a requirement an entry adds that does not apply to the group file is not written; its requirement stands at the top level (UC-006 5b).
+  const unplacedLines = notPlaced.map(({ record, requirement, reason }) => `not placed ${requirement} of ${record.split("/").pop()}: ${reason}`);
   if (applied.length === 0) {
     return refused.length === 0 ? { outcome: "nothing to do", summary: "No approval of the SPEC is waiting to be applied.", findings: [] }
       : { outcome: "failed", summary: `Nothing was applied. ${refusedLines.join(" ")}`, findings: stale };
   }
   const names = applied.map((record) => record.split("/").pop());
-  const message = ["spec(freigabe): approved changes written by the apply-approvals entry", "", ...names.map((name) => `applied ${name}`), ...refusedLines,
+  const message = ["spec(freigabe): approved changes written by the apply-approvals entry", "", ...names.map((name) => `applied ${name}`), ...unplacedLines, ...refusedLines,
     ...(env.agentM.commit ? ["", `Agent-M-Commit: ${env.agentM.commit}`] : [])].join("\n") + "\n";
   await host.commitFiles({ branch: env.branch, expectedHead: snapshot.commit,
     files: Object.entries(files).map(([path, text]) => ({ path, text })), message });
-  return { outcome: refused.length ? "failed" : "done", summary: [`Applied ${names.join(", ")}.`, ...refusedLines].join(" "), findings: stale };
+  return { outcome: refused.length ? "failed" : "done", summary: [`Applied ${names.join(", ")}.`, ...unplacedLines, ...refusedLines].join(" "), findings: stale };
 }
 
 function isWaitingLegalText(entry) {

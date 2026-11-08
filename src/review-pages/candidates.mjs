@@ -7,6 +7,7 @@
 
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { el } from "./common.mjs";
+import { placeText } from "./sections.mjs";
 
 export const inputsOf = (root, name, className) => {
   const found = [];
@@ -41,6 +42,13 @@ export const classOf = (candidate, classes) => classes?.find((each) => each.refs
  * as its first candidate, and the others it names are not.
  */
 export const shownOnPanel = (candidate, classes) => classOf(candidate, classes).refs[0] === candidate.name;
+
+/**
+ * placeLine(candidate, decided) -> Element | "" — the line that names the place in the requirement hierarchy a candidate classed new proposes (UC-005 step 7, UC-019 step 8);
+ * nothing for a candidate of another class, which keeps the place of the requirement it refers to, or for one that names no place.
+ */
+export const placeLine = (candidate, decided) => (decided.class === "new" && candidate.place && Array.isArray(candidate.place.group)
+  ? el("p", "candidate-place", `Place: ${placeText({ group: candidate.place.group, new: candidate.place.new || null })}.`) : "");
 
 /** passagesLine(decided) -> Element | "" — the line that names every passage of a class that merged candidates; nothing for a class of one candidate. */
 export const passagesLine = (decided) => (decided.refs.length > 1 && decided.from.length ? el("p", "candidate-passages", `Passages: ${decided.from.join(", ")}.`) : "");
@@ -86,7 +94,7 @@ export function candidateRows(panel, outcome, parsed, source, register, onChange
     refresh();
     const item = el("li", "candidate", el("section", "candidate-draft", el("span", "candidate-name", candidate.name),
       el("label", null, " Class ", select), el("label", null, " of ", of), el("label", null, "Rule", rule),
-      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source, register)}.`), passagesLine(decided)), current, difference);
+      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source, register)}.`), passagesLine(decided), placeLine(candidate, decided)), current, difference);
     item.setAttribute("data-name", candidate.name);
     panel.append(item);
   }

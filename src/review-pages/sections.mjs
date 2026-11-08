@@ -99,10 +99,55 @@ export function roundsSection(rounds, stopped = null) {
   return section;
 }
 
+// How a page names a place in the requirement hierarchy — a MOD-group-document Place, or null for none proposed.
+const quoted = (path) => `“${path.join(" / ")}”`;
+export function placeText(place) {
+  if (!place) return "none proposed — it stands at the top level, not yet placed";
+  if (place.new) return `in a new group “${place.new}” ${place.group.length ? `in ${quoted(place.group)}` : "at the top level"}`;
+  return place.group.length ? `in the group ${quoted(place.group)}` : "at the top level";
+}
+
+// The section Places of a SPEC entry: for each requirement it adds, the place its entry proposes, with the folded explanation. With `choose` — the page
+// of one entry —, Change place beside each: the top level or a group of the hierarchy the page read (`choose.groups`, paths of titles), and the title of a
+// new group to stand there; `choose.chosen(requirement, place)` is told each choice, a choice back to "as proposed" with null. Nothing is written here.
+function placesSection(view, choose) {
+  const list = el("ul", "places");
+  for (const { requirement, place } of view.places.rows) {
+    const shown = el("span", "place-text", placeText(place));
+    const item = el("li", "place", el("strong", null, requirement), " — ", shown);
+    item.setAttribute("data-requirement", requirement);
+    if (choose) {
+      const select = el("select", "change-place");
+      select.setAttribute("aria-label", `Change place of ${requirement}`);
+      const option = (value, label) => { const node = el("option", null, label); node.value = value; select.append(node); };
+      option("", "as proposed");
+      option(JSON.stringify([]), "the top level");
+      for (const path of choose.groups) option(JSON.stringify(path), path.join(" / "));
+      select.value = "";
+      const title = el("input", "new-group");
+      title.setAttribute("aria-label", `New group for ${requirement}`);
+      title.value = "";
+      const changed = () => {
+        const named = String(title.value ?? "").trim();
+        if (select.value === "" && named === "") { choose.chosen(requirement, null); shown.textContent = placeText(place); return; }
+        const group = select.value === "" ? (place?.group ?? []) : JSON.parse(select.value);
+        const chosen = { group, new: named || null };
+        choose.chosen(requirement, chosen);
+        shown.textContent = `${placeText(chosen)} (your choice)`;
+      };
+      select.addEventListener("change", changed);
+      title.addEventListener("input", changed);
+      item.append(" ", el("label", null, "Change place ", select), " ", el("label", null, "New group ", title));
+    }
+    list.append(item);
+  }
+  return el("section", "places", el("h3", null, "Places"), explain("requirement-places"), list);
+}
+
 // A SPEC change entry's sections, drawn from its view as MOD-spec-changes gives it: the section that holds now, the proposal, their difference, the
-// rationale, the impact list, the other open proposals on the same section — [{ id, state }], with the line As of while they are of the earlier commit `asOf` — and the queue's
-// order — [{ number, anchor, state }].
-export function entrySections(view, others, order, hrefOf, asOf = null) {
+// rationale, the impact list, the places of the requirements it adds (with Change place where `choose` is given), the other open proposals on the same
+// section — [{ id, state }], with the line As of while they are of the earlier commit `asOf` — and the queue's order — [{ number, anchor, state }].
+export function entrySections(view, others, order, hrefOf, asOf = null, choose = null) {
   const impact = el("ul", "impact");
   for (const each of view.impact) impact.append(el("li", null, `${each.name} — ${each.change}${each.referencedBy.length ? `, named by ${each.referencedBy.join(", ")}` : ""}`));
   const otherList = el("ul", "others");
@@ -119,6 +164,7 @@ export function entrySections(view, others, order, hrefOf, asOf = null) {
     el("section", "difference", el("h3", null, "Difference"), showDifference(view.current?.text ?? "", view.proposal.text)),
     el("section", "rationale", el("h3", null, "Why"), renderArtifact(view.rationale)),
     el("section", "impact-list", el("h3", null, "Impact list"), impact),
+    ...(view.places?.rows?.length ? [placesSection(view, choose)] : []),
     el("section", "others-list", el("h3", null, "Other open proposals on this section"), ...[asOfLine(asOf)].filter(Boolean), otherList),
     el("section", "queue-order", el("h3", null, "The queue's order"), orderList),
   ];

@@ -11,10 +11,12 @@ recipes:
   - instruction?
   - source-excerpt
   - spec-with-queues
+  - requirement-hierarchy
   - chapters-for-requirements
 checks:
   - requirement-form
   - candidate-classes
+  - candidate-places
 person_decides:
   - A CONFLICT IS DECIDED BY A PERSON
 steps:

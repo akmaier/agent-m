@@ -66,7 +66,7 @@ function countingSnapshot() {
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: a queue of three entries (two open, one waiting for its anchor) over a snapshot of 1,400 artifacts that name the requirements
 // input: queueService.groups with a token; the snapshot counts its reads
-// expect: fewer than 20 reads, none of the 1,400 artifacts read; the ticks name the proposals' blobs and the sections' blobs
+// expect: fewer than 20 reads, none of the 1,400 artifacts read; the ticks name the proposals' blobs, the sections' blobs and the places files' (null: none)
 test("TST-478101: groups reads the queue and the SPEC once and builds no impact list", async () => {
   const { snapshot, reads } = countingSnapshot();
   const groups = await queueService.groups({ snapshot, token: { value: "t" } });
@@ -75,8 +75,8 @@ test("TST-478101: groups reads the queue and the SPEC once and builds no impact 
   assert.ok(reads.length < 20, `failure node: groups made ${reads.length} reads`);
   const ticks = groups[0].entries.map((item) => item.tick);
   assert.deepEqual(ticks, [
-    { queue: QUEUE, entry: 5, proposalBlob: blobOf(entries[0].proposal), sectionBlob: blobOf(READING) },
-    { queue: QUEUE, entry: 6, proposalBlob: blobOf(entries[1].proposal), sectionBlob: "" },
-    { queue: QUEUE, entry: 7, proposalBlob: blobOf(entries[2].proposal), sectionBlob: blobOf(WRITING) },
+    { queue: QUEUE, entry: 5, proposalBlob: blobOf(entries[0].proposal), sectionBlob: blobOf(READING), placesBlob: null },
+    { queue: QUEUE, entry: 6, proposalBlob: blobOf(entries[1].proposal), sectionBlob: "", placesBlob: null },
+    { queue: QUEUE, entry: 7, proposalBlob: blobOf(entries[2].proposal), sectionBlob: blobOf(WRITING), placesBlob: null },
   ]);
 });

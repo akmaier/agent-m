@@ -38,6 +38,7 @@ for (const [category, strategies] of Object.entries({
   recipes: {
     "source-excerpt": async () => { if (excerptFails) throw excerptFails; return [part("SRC-iec-62304 2006")]; },
     "spec-with-queues": async () => { if (excerptFails?.name === "SpecUnreadable") throw excerptFails; return [part("SPEC.md")]; },
+    "requirement-hierarchy": async () => [],
     "chapters-for-requirements": async () => [part("08_requirements-engineering.md")],
   },
   checks: { "requirement-form": () => [], "candidate-classes": () => [] },

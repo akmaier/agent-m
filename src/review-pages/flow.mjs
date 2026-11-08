@@ -86,6 +86,7 @@ const reasonOf = (out) => `${out.reason}${out.names.length ? ` (${out.names.join
 function acceptedMessage(result, idOf) {
   const message = el("p", "result", `Accepted in commit ${result.commit.slice(0, 7)}.`);
   for (const out of result.leftOut) message.append(el("br"), `${idOf(out.path)} was left out: ${reasonOf(out)}.`);
+  for (const note of result.notes ?? []) message.append(el("br"), note);
   return message;
 }
 // What a decision came to: a refusal as the service gives it, else the commit and each file left out.
@@ -572,7 +573,8 @@ export function reviewRoute(kind) {
     accept.addEventListener("click", async () => {
       accept.disabled = true;
       try {
-        await redraw(where, { id }, settled(await service.accept(where, entry.shown, token.name), (path) => idOf(path, snapshot)));
+        // The entry as shown, with what the person chose on the page where the service offers a choice (UC-006 3c).
+        await redraw(where, { id }, settled(await service.accept(where, entry.chosen?.() ?? entry.shown, token.name), (path) => idOf(path, snapshot)));
       } catch (failure) {
         accept.disabled = false;
         target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));

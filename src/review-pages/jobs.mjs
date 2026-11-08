@@ -22,7 +22,7 @@ import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, latestGraph, storedGraph } from "../trace-graph/index.mjs";
-import { editedResult, flagged, passagesLine, shownOnPanel, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
+import { editedResult, flagged, passagesLine, placeLine, shownOnPanel, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
 import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
@@ -423,7 +423,7 @@ function candidateItem(candidate, decided, linked, { parsed, register, onClass, 
   const refresh = () => showCurrent(current, parsed.requirements.get(of.value.trim()), register);
   of.addEventListener("input", refresh);
   refresh();
-  item.append(of, el("p", "candidate-rule", candidate.rule), passagesLine(decided));
+  item.append(of, el("p", "candidate-rule", candidate.rule), passagesLine(decided), placeLine(candidate, decided));
   if (candidate.constrains === "process") item.append(el("p", "constrains-process", "Constrains the process."));
   if (decided.class === "conflict" && linked?.source?.fields?.authority) {
     item.append(el("p", "normative", `${linked.source.id} is ${linked.source.fields.authority}.`));

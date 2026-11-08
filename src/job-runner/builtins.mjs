@@ -1,12 +1,12 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
 // `instruction`, `conversation`, `page` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form`,
-// `test-declarations`, `candidate-classes`, `group-rules` and `graph-checks`, what a built-in check needs of a job's context,
+// `test-declarations`, `candidate-classes`, `candidate-places`, `group-rules` and `graph-checks`, what a built-in check needs of a job's context,
 // the classes `candidate-classes` finds, and whether a kind takes a handed-over task through the recipe `instruction` (taskRefusal).
 //
 // Module: MOD-job-runner
 
 import { artifactSchemaOf, classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
-import { applyMoves, hierarchy, parseGroupFile } from "../group-document/index.mjs";
+import { applyMoves, hierarchy, parseGroupFile, placeItems } from "../group-document/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 import { isTestFile, testDeclarations, testFindings } from "../test-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
@@ -39,6 +39,7 @@ const EXPECTED_RESULT = "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS";
 const GOES_BACK = "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT";
 const EXACT_DUPLICATE = "EXACT DUPLICATES ARE FOUND WITHOUT A MODEL";
 const CLASS_NAMES_ARTIFACT = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT";
+const ONE_PLACE = "AN ITEM HAS ONE PLACE IN ITS HIERARCHY";
 // The kind of node, in MOD-trace-graph's graph, that the group file of each kind arranges.
 const ARRANGED = { requirements: "requirement", "use-cases": "UC", architecture: "ARC", modules: "MOD", tests: "TST" };
 
@@ -206,6 +207,26 @@ export const builtins = {
     // runJob hands to a check as its third argument: the findings of `classification`. The classes of the last round are the
     // result's, which runJob asks of classesOf.
     "candidate-classes": (draft, context, parts = []) => classification(draft, parts).findings,
+    // The places of the drafted candidates classed new that name one, all applied together with MOD-group-document's placeItems to the
+    // product's docs/groups/requirements.md — the empty tree where it has none —: an error under AN ITEM HAS ONE PLACE IN ITS HIERARCHY for
+    // each place whose group, or the group its new group is to stand in, the hierarchy does not hold, on the candidate's artifact and line
+    // as requirement-form gives them. A candidate without a place, and every other class, is not judged.
+    "candidate-places": async (draft, context) => {
+      const candidates = Array.isArray(draft?.candidates) ? draft.candidates : [];
+      const placed = candidates.filter((candidate) => candidate?.class === "new" && candidate.place && typeof candidate.place === "object");
+      if (placed.length === 0) return [];
+      const path = "docs/groups/requirements.md";
+      const tree = parseGroupFile(path, (await context.product.snapshot.read(path)) ?? "");
+      const { notApplied } = placeItems(tree, placed.map((candidate) => ({ item: folded(candidate.name), place: candidate.place })));
+      const lines = parseSpec(["## Candidates", ...candidates.map((candidate) => written(candidate, folded(context.params.source)))].join("\n\n")).requirements;
+      return notApplied.filter((each) => each.noGroup).map(({ item, place }) => {
+        const missing = Array.isArray(place.group) ? place.group.join(" / ") : String(place.group);
+        const into = place.new ? `a new group "${folded(place.new)}" in "${missing}"` : `"${missing}"`;
+        return finding({ artifact: item, line: lines.get(item)?.line ?? 1, kind: "error", rule: ONE_PLACE,
+          what: `"${item}" is placed in ${into}, which the hierarchy does not hold`,
+          fix: `name a group it holds, or propose "${missing}" as a new group with the group it stands in` });
+      });
+    },
     // MOD-group-document's applyMoves of the drafted moves on the group file of the kind the job's parameter `kind` names,
     // read from the product's snapshot — a product with none yet has an empty one —: each refused move is an error under A
     // DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT, on the place of the move in the answer; and then the findings
