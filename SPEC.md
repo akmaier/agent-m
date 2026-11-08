@@ -50,9 +50,12 @@ Agent M is published under the MIT licence, stated in a `LICENSE` file at the ro
 ## 1. Identity and traceability
 
 **EVERY ARTIFACT HAS AN IDENTIFIER** *(PO A. Maier)*
-Every artifact Agent M produces carries an identifier: a requirement its name, every other artifact
-one from the scheme `SRC-` · `UC-` · `ARC-` · `MOD-` · `TST-` · `ITM-` · `RES-` · `JOB-`.
-*Check:* `tests/test_identifiers.py`
+Every artifact Agent M produces carries an identifier: a requirement its name in capitals — words of capital letters,
+digits, apostrophes, commas, hyphens and dots, separated by single spaces —, every other artifact one from the scheme
+`SRC-` · `UC-` · `ARC-` · `MOD-` · `TST-` · `ITM-` · `RES-` · `JOB-`.
+*Check:* `tests/test_identifiers.py` — a requirement named `A_NAME_WITH_UNDERSCORES`, one with a lowercase letter and one
+with two spaces in a row are each reported as a name that is no requirement's name; counter-proof:
+`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST` and `A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT` pass.
 
 **THE NAME IS THE ID AND IT SURVIVES** *(PO A. Maier)*
 An identifier travels with its artifact when the artifact moves between sections or files, and a
