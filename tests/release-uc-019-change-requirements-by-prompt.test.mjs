@@ -23,8 +23,8 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { ask, bridgeAt } from "../src/bridge-client/index.mjs";
 import { startRecord } from "../src/job-ledger/index.mjs";
-import { scenario, onRequirementPage, run, send, review, save, goTo, press, rest, statusOf, barOf, keptDraft, sentText, targetsOf, messageLines, all, one, row, namedButton, draft, candidate,
-  SOURCE, ACCOUNT, LOAN, SHELF, CONFLICT, CHANGED, INSTRUCTION, SPEC, GROUPS, CURRENT_RULE, proposalWrites, proposalTexts, recordTexts, writesBeyondRecords, assertProposal } from "./uc-019-prompt-bar-harness.mjs";
+import { scenario, onRequirementPage, run, send, review, save, goTo, press, rest, statusOf, barOf, keptDraft, sentText, targetsOf, messageLines, all, one, draftBox, editorText, namedButton, draft, candidate,
+  SOURCE, ACCOUNT, LOAN, SHELF, CONFLICT, CHANGED, INSTRUCTION, SPEC, GROUPS, CURRENT_RULE, WHY, proposalWrites, proposalTexts, recordTexts, writesBeyondRecords, assertProposal } from "./uc-019-prompt-bar-harness.mjs";
 
 // UC-only exclusions from this requirements battery:
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT: UC-019 6b applies this to a reviewed use-case file;
@@ -33,6 +33,8 @@ import { scenario, onRequirementPage, run, send, review, save, goTo, press, rest
 // NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY: the use-case context branch is distinct from the requirement context.
 // AN EDITED FILE KEEPS ITS IDENTIFIER: its SPEC rule enumerates use cases, architecture decisions and tests;
 //   requirement names follow the separate change/rename rules below.
+// A prompted change of requirements is the drafter's new text of each section, open entry's proposal and group file it changes, checked by the
+// requirement form and written as open entries (UC-019 steps 6, 7 and 9): it has no candidate classes, places or conflicts, which these tests therefore do not look for.
 
 const resultOf = (s) => one(s.target, "section", "requirements-result");
 const roundsOf = (s) => keptDraft(s).result.rounds;
@@ -88,18 +90,22 @@ test("TST-418102: a named Bridge endpoint uses the Bridge transport from the bar
 
 // TST-418103
 // level: release
-// module: MOD-review-pages; MOD-source-register
-// guards: UC-019; A CONFLICT IS DECIDED BY A PERSON
-// given: a candidate drafted from the author's prompt, whose source is the account github.com/akmaier (UC-019 step 6), conflicts with LOAN from SRC-policy (normative)
-// input: Send, Review the draft and inspect the undecided conflict beside the existing requirement (UC-019 8a)
-// expect: both sources and both authorities are visible in that conflict's panel before any decision or write
-test("TST-418103: the conflict panel shows both sources and their authority", async () => {
-  const s = await scenario({ answers: [draft(candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))] });
+// module: MOD-review-pages; MOD-markdown-render
+// guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE PERSON WHO PROMPTS IS A SOURCE
+// given: a draft of the section Lending in which A LOAN HAS A DUE DATE, from SRC-policy, is renamed and changed, its sources naming the author's account github.com/akmaier beside SRC-policy (UC-019 step 6)
+// input: Send and Review the draft (UC-019 step 8)
+// expect: before any write the one drafted text is the section "## Lending", its editor holding the drafted section byte for byte; its difference shows the current head line with
+//   "*(SRC-policy)*" removed and the drafted one with "*(SRC-policy; github.com/akmaier)*" added; the Why field holds the draft's why; the page offers no class to choose
+test("TST-418103: the drafted section stands against the current one, with the sources of both", async () => {
+  const s = await scenario();
   await run(s);
-  const conflict = row(s, CONFLICT);
-  // The candidate's source is the author's account (UC-019 step 6), shown with what is known of its authority; the existing requirement's source with its declared authority.
-  assert.match(one(conflict, "p", "candidate-source").textContent, /github\.com\/akmaier \([^)]+\)/, "the conflict shows the candidate's source with its authority");
-  assert.match(one(conflict, "section", "current-requirement").textContent, /SRC-policy \(normative\)/, "the conflict shows the existing requirement's source with its authority");
+  const box = draftBox(s);
+  assert.deepEqual(all(s.target, "div", "draft").map((node) => node.getAttribute("data-path")), ["## Lending"], "one drafted text: the section");
+  assert.equal(editorText(box), draft().sections[0], "the editor holds the drafted section byte for byte");
+  assert.ok(box.textContent.includes(`- **${LOAN}** *(SRC-policy)*`), `the current head line is shown removed: ${box.textContent}`);
+  assert.ok(box.textContent.includes(`+ **${CHANGED}** *(SRC-policy; github.com/akmaier)*`), `the drafted head line is shown added: ${box.textContent}`);
+  assert.equal(one(resultOf(s), "textarea", "why").value, WHY);
+  assert.equal(all(resultOf(s), "select", "class").length, 0, "a prompted change has no class to choose");
   assert.equal(proposalWrites(s).length, 0);
 });
 
@@ -152,12 +158,13 @@ test("TST-418105: offered participants, processing places and folded explanation
 // TST-418106
 // level: release
 // module: MOD-prompt-bar; MOD-spec-changes; MOD-job-runner
-// guards: UC-019; DERIVATION SEES THE EXISTING REQUIREMENTS; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; THE PAGE NAMES WHERE IT SENDS
-// given: two SPEC requirements and an actual open proposal generated by the bar's draft and its Save
+// guards: UC-019; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; THE PAGE NAMES WHERE IT SENDS
+// given: two SPEC requirements in the section Lending and an actual open entry, generated by the bar's draft and its Save, whose proposal adds A LOAN IS RENEWABLE beside A LOAN HAS A DUE DATE
 // input: on a new page of that repository write the instruction in the bar; Send
-// expect: no send before Send; the bar names "drafter — this machine" as the destination; the endpoint receives the instruction, both SPEC rules, the queued rule, and chapter 8 byte-for-byte
-test("TST-418106: complete SPEC, open queues and the whole original chapter reach the participant", async () => {
-  const queued = await scenario({ answers: [draft(candidate({ name: "A LOAN IS RENEWABLE", class: "new", of: undefined, rule: "Every loan permits renewal." }))] });
+// expect: no send before Send; the bar names "drafter — this machine" as the destination; the endpoint receives the instruction, the section with both SPEC rules, the proposal of the open
+//   entry that proposes A LOAN HAS A DUE DATE with its queued rule (UC-019 step 4: "the proposal of each open entry that proposes one of them"), and chapter 8 byte-for-byte
+test("TST-418106: the section, the open entry's proposal of the requirement and the whole original chapter reach the participant", async () => {
+  const queued = await scenario({ answers: [draft(candidate({ name: "A LOAN IS RENEWABLE", replaces: null, rule: "Every loan permits renewal." }))] });
   await run(queued); await save(queued);
   const extraFiles = Object.fromEntries(Object.entries(queued.product.files).filter(([path]) => path.startsWith("docs/spec-freigaben/")));
   assert.ok(Object.keys(extraFiles).length >= 4, "known positive: a real open queue was generated");
@@ -192,39 +199,37 @@ test("TST-418107: a too-small context stops without truncation or a send", async
 
 // TST-418108
 // level: release
-// module: MOD-review-pages; MOD-job-runner; MOD-documents
-// guards: UC-019; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
-// given: one new, changed, restated and conflicting candidate, with the restatement wrongly classed new
-// input: Send through the deterministic correction loop, correcting the duplicate classification, and Review the draft
-// expect: the duplicate finding names LOAN before any extra model classification; the draft exposes all four actual classes
-test("TST-418108: deterministic duplicate correction retains the four candidate classes", async () => {
-  const fresh = candidate({ name: "A LOAN IS RENEWABLE", rule: "Every loan permits renewal.", class: "new", of: undefined });
-  const duplicate = candidate({ name: "A DUE DATE IS STATED", rule: CURRENT_RULE, class: "new", of: undefined });
-  const conflict = candidate({ name: CONFLICT, rule: "Every loan may hide its due date.", class: "conflict" });
-  const s = await scenario({ answers: [draft(fresh, candidate(), duplicate, conflict), draft(fresh, candidate(), { ...duplicate, class: "duplicate", of: LOAN }, conflict)] });
+// module: MOD-prompt-bar; MOD-job-runner; MOD-spec-document
+// guards: UC-019; EVERY ARTIFACT HAS AN IDENTIFIER; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+// given: the drafter first renames A LOAN HAS A DUE DATE to "A Due date_visible", a name outside the scheme of identifiers, then to A DUE DATE IS VISIBLE
+// input: Send through the correction loop, and Review the draft
+// expect: two exchanges; the second carries the finding "A Due date_visible:<line>: error: … [EVERY ARTIFACT HAS AN IDENTIFIER]", the first carries none; the editor holds the corrected
+//   section under A DUE DATE IS VISIBLE; the page offers no class to choose (a prompted change has none)
+test("TST-418108: a drafted name outside the scheme of identifiers goes back, and the draft has no classes", async () => {
+  const s = await scenario({ answers: [draft(candidate({ name: "A Due date_visible" })), draft()] });
   await run(s);
   assert.equal(s.endpointRequests.length, 2);
-  assert.match(sentText(s, 1), /EXACT DUPLICATES ARE FOUND WITHOUT A MODEL/);
-  assert.match(sentText(s, 1), /class it as duplicate of A LOAN HAS A DUE DATE/);
-  assert.deepEqual(all(resultOf(s), "select", "class").map((node) => node.value), ["new", "change", "duplicate", "conflict"]);
+  assert.doesNotMatch(sentText(s, 0), /\[EVERY ARTIFACT HAS AN IDENTIFIER\]/, "known negative: the first request carries no such finding");
+  assert.match(sentText(s, 1), /A Due date_visible:\d+: error: [^\n]*\[EVERY ARTIFACT HAS AN IDENTIFIER\]/);
+  assert.equal(editorText(draftBox(s)), draft().sections[0]);
+  assert.equal(all(resultOf(s), "select", "class").length, 0, "a prompted change has no class to choose");
 });
 
 // TST-418109
 // level: release
 // module: MOD-review-pages; MOD-spec-changes; MOD-markdown-render
-// guards: UC-019; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
-// given: a changed candidate whose display name differs from its existing target
-// input: inspect its current-text difference on the route draft, then Save
-// expect: old and new lines are shown before Save; the proposal retains LOAN, excludes the candidate name, and preserves SHELF
-test("TST-418109: a changed rule is compared and proposed under its existing identifier", async () => {
+// guards: UC-019; A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: the drafter renames A LOAN HAS A DUE DATE to A DUE DATE IS VISIBLE in the section Lending and changes its rule (UC-019 step 6: "A renamed requirement stands under its new name")
+// input: inspect the drafted section's difference on the route draft, then Save
+// expect: before Save the current rule is shown removed and the drafted rule added; the proposal holds the section under the new name and not the old one, with A BOOK IS SHELVED as it stands; SPEC unchanged
+test("TST-418109: a renamed requirement is compared and proposed under its new name", async () => {
   const s = await scenario(); await run(s);
-  assert.ok(one(row(s), "section", "current-requirement").textContent.includes(CURRENT_RULE));
-  const difference = one(row(s), "section", "candidate-difference");
-  assert.ok(difference.textContent.includes(CURRENT_RULE));
-  assert.ok(difference.textContent.includes(candidate().rule));
+  const box = draftBox(s);
+  assert.ok(box.textContent.includes(`- ${CURRENT_RULE}`), `the current rule is shown removed: ${box.textContent}`);
+  assert.ok(box.textContent.includes(`+ ${candidate().rule}`), `the drafted rule is shown added: ${box.textContent}`);
   await save(s);
   const text = assertProposal(s);
-  assert.ok(text.includes(`**${LOAN}**`)); assert.ok(!text.includes(`**${CHANGED}**`));
+  assert.ok(text.includes(`**${CHANGED}**`)); assert.ok(!text.includes(`**${LOAN}**`));
   assert.ok(text.includes(`**${SHELF}** *(SRC-policy)*\nEvery book has a shelf.`));
 });
 
@@ -263,32 +268,44 @@ test("TST-418110: explicit Send and one Save preserve proposal state and complet
 // expect: zero additional write and the exact draft retained beside that newer section
 test("TST-418111: stale Save retains the exact edit beside the newer baseline", async () => {
   const s = await scenario(); await run(s);
-  const edit = one(row(s), "textarea", "candidate-rule"); edit.value = "Every loan shows the person's retained edit."; edit.dispatchEvent(new Event("input"));
+  const edit = all(draftBox(s), "textarea")[0]; edit.value = edit.value.replace(candidate().rule, "Every loan shows the person's retained edit."); edit.dispatchEvent(new Event("input"));
+  const edited = edit.value;
+  assert.ok(edited.includes("Every loan shows the person's retained edit."), "known positive: the edit is in the editor");
   await s.product.change("SPEC.md", SPEC.replace(CURRENT_RULE, "Every loan states its revised due date."));
   const before = s.product.writes.length; await save(s);
   assert.equal(s.product.writes.length, before);
-  assert.equal(edit.value, "Every loan shows the person's retained edit.");
-  assert.match(one(s.target, "div", "newer").textContent, /Every loan states its revised due date\./);
+  assert.equal(edit.value, edited);
+  assert.ok(all(s.target, "div", "newer").some((node) => /Every loan states its revised due date\./.test(node.textContent)), "the newer section stands beside the draft");
 });
 
 // TST-418112
 // level: release
-// module: MOD-review-pages; MOD-job-runner
-// guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; WHAT A PERSON DECIDES IS NOT SENT BACK
-// given: one otherwise valid conflicting requirement beside a valid change
-// input: Send, Review the draft, Save while undecided; in a second page choose new and Save
-// expect: one endpoint call and one correction round in each, no automatic conflict correction; undecided: the proposal does not hold the conflict's rule; decided: it holds the person's exact decision
-test("TST-418112: the person alone decides a conflict without another participant call", async () => {
-  const answers = [draft(candidate(), candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))];
-  const undecided = await scenario({ answers }); await run(undecided);
-  assert.equal(undecided.endpointRequests.length, 1);
-  assert.equal(one(undecided.target, "p", "rounds").textContent, "Correction rounds: 1");
-  await save(undecided);
-  assert.ok(!assertProposal(undecided).includes("Every loan may hide its due date."));
-  assert.equal(undecided.endpointRequests.length, 1);
-  const decided = await scenario({ answers }); await run(decided);
-  const choice = one(row(decided, CONFLICT), "select", "class"); choice.value = "new"; choice.dispatchEvent(new Event("change"));
-  await save(decided); assert.match(assertProposal(decided), /Every loan may hide its due date\./); assert.equal(decided.endpointRequests.length, 1);
+// module: MOD-review-pages; MOD-job-runner; MOD-spec-changes
+// guards: UC-019; WHAT A PERSON DECIDES IS NOT SENT BACK; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: a draft of the section Lending that changes A LOAN HAS A DUE DATE and adds A DUE DATE MAY BE HIDDEN — the drafter's new text, with no class (UC-019 step 6)
+// input: Send, Review the draft, Save as drafted; in a second page the person deletes the added requirement in the editor before Save
+// expect: one endpoint call and one correction round in each, no class to decide; as drafted: the proposal holds both rules; edited: it holds the changed rule and not "Every loan may hide its due date.",
+//   and nothing of the person's edit went back to the participant
+test("TST-418112: the person's edit of the drafted text is saved without another participant call", async () => {
+  const hidden = candidate({ name: CONFLICT, replaces: null, rule: "Every loan may hide its due date." });
+  const answers = [draft(candidate(), hidden)];
+  const drafted = await scenario({ answers }); await run(drafted);
+  assert.equal(drafted.endpointRequests.length, 1);
+  assert.equal(one(drafted.target, "p", "rounds").textContent, "Correction rounds: 1");
+  assert.equal(all(resultOf(drafted), "select", "class").length, 0, "no class to decide");
+  await save(drafted);
+  const both = assertProposal(drafted);
+  assert.match(both, /Every loan visibly displays its due date\./); assert.match(both, /Every loan may hide its due date\./);
+  assert.equal(drafted.endpointRequests.length, 1);
+  const edited = await scenario({ answers }); await run(edited);
+  const area = all(draftBox(edited), "textarea")[0];
+  area.value = area.value.replace(`\n\n**${CONFLICT}** *(SRC-policy; github.com/akmaier)*\nEvery loan may hide its due date.\n*Check:* \`tests/loan.test.mjs\``, "");
+  area.dispatchEvent(new Event("input"));
+  assert.ok(!area.value.includes("Every loan may hide its due date."), "known positive: the person deleted the added requirement");
+  await save(edited);
+  const kept = assertProposal(edited);
+  assert.match(kept, /Every loan visibly displays its due date\./); assert.ok(!kept.includes("Every loan may hide its due date."));
+  assert.equal(edited.endpointRequests.length, 1);
 });
 
 // TST-418113
@@ -304,7 +321,8 @@ test("TST-418113: an invalid draft goes back with its complete compiler finding"
   const correction = sentText(s, 1);
   assert.match(correction, /A DUE DATE IS VISIBLE:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
   assert.match(correction, /Current draft to change/);
-  assert.equal(one(row(s), "textarea", "candidate-check").value, candidate().check);
+  assert.equal(editorText(draftBox(s)), draft().sections[0], "only the corrected draft reaches the editor");
+  assert.ok(editorText(draftBox(s)).includes(`*Check:* ${candidate().check}`));
   assert.equal(one(s.target, "p", "rounds").textContent, "Correction rounds: 2");
   assert.equal(roundsOf(s).length, 2);
   assert.match(JSON.stringify(roundsOf(s)[0].findings), /A REQUIREMENT HAS FOUR FIELDS/);
@@ -328,7 +346,8 @@ test("TST-418114: a warning ends only after its one-line justification", async (
   assert.equal(s.endpointRequests.length, 2);
   assert.equal(all(one(s.target, "ul", "left"), "li").length, 0);
   assert.match(JSON.stringify(roundsOf(s)), /Both displays form one visible state\./);
-  assert.equal(one(row(s), "textarea", "candidate-rule").value, both.candidates[0].rule);
+  assert.equal(editorText(draftBox(s)), both.sections[0], "the author's rule is not rewritten");
+  assert.ok(editorText(draftBox(s)).includes("Every loan shows its due date and its renewal limit."));
 });
 
 // TST-418115
@@ -408,7 +427,7 @@ test("TST-418118: a manual requirement rename is proposed as withdrawal plus add
 // guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE PAGE NAMES WHERE IT SENDS
 // given: a draft, then a newer SPEC section while the author is still on the page, and the page drawn again
 // input: write a further instruction in the bar, Send, Review the draft, inspect the current text, then Save
-// expect: the new message carries the newer section, the draft shows the newer section as the current text, and Save writes one proposal on it without a refusal
+// expect: the new message carries the newer section, the draft shows the newer section as the current text (its rule shown removed), and Save writes one proposal on it without a refusal
 test("TST-418119: a message sent after the section changed uses the latest section as its Save baseline", async () => {
   const s = await scenario({ answers: [draft(), draft(candidate({ rule: "Every loan displays its final due date." }))] }); await run(s);
   const newer = SPEC.replace(CURRENT_RULE, "Every loan states its revised due date."); await s.product.change("SPEC.md", newer);
@@ -417,7 +436,7 @@ test("TST-418119: a message sent after the section changed uses the latest secti
   await review(s);
   assert.equal(s.endpointRequests.length, 2);
   assert.match(sentText(s, 1), /Every loan states its revised due date\./);
-  assert.match(one(row(s), "section", "current-requirement").textContent, /Every loan states its revised due date\./);
+  assert.ok(draftBox(s).textContent.includes("- Every loan states its revised due date."), `the newer section is the current text: ${draftBox(s).textContent}`);
   await save(s); assert.equal(proposalWrites(s).length, 1); assert.equal(s.product.files["SPEC.md"], newer);
 });
 
@@ -450,7 +469,8 @@ async function withWorkflow(s, answers, verify) {
     const record = startRecord({ id, kind: "change-requirements", worksOn: [LOAN], participant: "ci-drafter", model: "ci-model", route: "ci hosted",
       run: null, retries: null, startedBy: "github.com/akmaier", start: new Date("2026-10-14T09:00:00Z"), agentM,
       inputs: [LOAN], limit: 5, destinations: [{ participant: "ci-drafter", place: "GitHub Actions in the USA", parts: [LOAN] }],
-      params: { requirements: [LOAN], source: SOURCE, instruction: INSTRUCTION,
+      // The parameter `source` is the account of the person who starts the job (the kind change-requirements; UC-019 step 6), which the drafted requirements name.
+      params: { requirements: [LOAN], source: ACCOUNT, instruction: INSTRUCTION,
         endpoint: { name: "fixture", kind: "openai-compatible", baseUrl: "https://fixture-endpoint.example.test/v1", model: "ci-model" } } });
     const product = workflowRepository(root, "product", { ...Object.fromEntries(Object.entries(s.product.files).filter(([path]) => !path.startsWith("docs/jobs/"))), [record.path]: record.text });
     const environment = { GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "push", GITHUB_WORKSPACE: join(root, "ws"),
@@ -610,33 +630,51 @@ test("TST-418126: a finding left on the draft page reads like a compiler message
 
 // TST-418128
 // level: release
-// module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages; MOD-spec-changes
-// guards: UC-019; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; ARTIFACTS ARE ARRANGED IN NESTED GROUPS
-// given: the product's hierarchy docs/groups/requirements.md holds the group "Lending" alone; the drafter first returns a new requirement A RETURN IS RECORDED placed in "Export", which the hierarchy does not hold, then the same requirement placed in a new group "Returns" that stands in "Lending"
+// module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages; MOD-artifact-edits; MOD-spec-changes
+// guards: UC-019; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A REGROUPING IS COMMITTED DIRECTLY
+// given: the product's hierarchy docs/groups/requirements.md holds the group "Lending" with both requirements; the drafter adds A RETURN IS RECORDED to the section Lending and returns the
+//   new text of docs/groups/requirements.md with a new group "Returns" in "Lending" that holds it (UC-019 step 6: "and of `docs/groups/requirements.md` where it moves a requirement or names a group")
 // input: Send, Review the draft, Save
-// expect: UC-019 step 7 — the second request to the drafter carries the finding of the first draft under [AN ITEM HAS ONE PLACE IN ITS HIERARCHY]; step 8 — the new requirement stands on the draft page with its place, naming "Returns" and "Lending"; step 9 — the one proposal commit holds, beside its entry, the places of its new requirements, a row naming A RETURN IS RECORDED, "Lending" and "Returns", and SPEC.md and docs/groups/requirements.md stay byte-identical ("A new requirement also names its place in the requirement hierarchy — a group the hierarchy holds, or a new group with the group it stands in"; "a queue entry is written, with the places of its new requirements beside its section … and the SPEC and docs/groups/requirements.md stay unchanged")
-test("TST-418128: a new requirement names its place in the hierarchy, a place the hierarchy does not hold goes back, and Save writes the places beside the entry", async () => {
+// expect: step 4 — the request carries the hierarchy; one exchange; step 8 — two drafted texts, the section "## Lending" and docs/groups/requirements.md, the latter's editor holding the drafted
+//   group file; step 9 — one proposal commit for the section, SPEC.md byte-identical, and docs/groups/requirements.md committed as drafted, in a commit of its own that writes no queue entry
+//   ("a changed `docs/groups/requirements.md` is committed as an arrangement is (UC-021)"), A RETURN IS RECORDED standing in it once
+test("TST-418128: a drafted group file stands beside the section and is committed as an arrangement, the SPEC untouched", async () => {
   const RETURN = "A RETURN IS RECORDED";
-  const placed = (place) => draft(candidate({ name: RETURN, rule: "Every return is recorded with its date.", check: "`tests/return.test.mjs`", class: "new", of: null, place }));
-  const s = await scenario({ answers: [placed({ group: ["Export"] }), placed({ group: ["Lending"], new: "Returns" })] });
+  const groups = `- Lending\n  - ${LOAN}\n  - ${SHELF}\n  - Returns\n    - ${RETURN}\n`;
+  const added = draft(candidate({ name: RETURN, rule: "Every return is recorded with its date.", check: "`tests/return.test.mjs`", replaces: null }));
+  const s = await scenario({ answers: [{ ...added, groups }] });
   await run(s);
-  assert.equal(s.endpointRequests.length, 2, "the first draft went back once");
-  assert.match(sentText(s, 1), /\[AN ITEM HAS ONE PLACE IN ITS HIERARCHY\]/, "the finding of the place the hierarchy does not hold is sent back");
-  assert.doesNotMatch(sentText(s, 0), /\[AN ITEM HAS ONE PLACE IN ITS HIERARCHY\]/, "known negative: the first request carries no such finding");
-  const place = one(row(s, RETURN), "p", "candidate-place").textContent;
-  assert.ok(place.includes("Returns") && place.includes("Lending"), `the new requirement stands with its place: ${place}`);
+  assert.equal(s.endpointRequests.length, 1, "the draft passes at once");
+  assert.ok(sentText(s, 0).includes(GROUPS.trim()), "the request carries the requirement hierarchy");
+  assert.deepEqual(all(s.target, "div", "draft").map((node) => node.getAttribute("data-path")), ["## Lending", "docs/groups/requirements.md"]);
+  assert.equal(editorText(draftBox(s, "docs/groups/requirements.md")), groups);
   await save(s);
-  assert.equal(proposalWrites(s).length, 1, "one proposal commit");
-  const [write] = proposalWrites(s);
-  // The place's row: the requirement, then the group it stands in, then the new group.
-  const ROW = new RegExp(`^\\|\\s*${RETURN}\\s*\\|[^\\n]*Lending[^\\n]*\\|[^\\n]*Returns[^\\n]*\\|\\s*$`, "m");
-  const places = Object.entries(write.files).filter(([, text]) => ROW.test(text));
-  assert.equal(places.length, 1, `one file of the commit holds the place: ${Object.keys(write.files).join(", ")}`);
-  assert.ok(places[0][0].startsWith("docs/spec-freigaben/"), `the places stand beside the entry: ${places[0][0]}`);
-  assert.ok(!places[0][1].includes("Every return is recorded with its date."), "the places stand beside the section's text, not in it");
+  assert.equal(proposalWrites(s).length, 1, "one proposal commit, for the section");
   assert.equal(s.product.files["SPEC.md"], SPEC, "SPEC.md stays byte-identical");
-  assert.equal(s.product.files["docs/groups/requirements.md"], GROUPS, "docs/groups/requirements.md stays byte-identical");
-  assert.ok(!Object.keys(write.files).includes("docs/groups/requirements.md"), "the commit does not write the hierarchy");
+  assert.equal(s.product.files["docs/groups/requirements.md"], groups, "the group file is committed as drafted");
+  const arrangement = s.product.writes.filter((write) => Object.keys(write.files).includes("docs/groups/requirements.md"));
+  assert.equal(arrangement.length, 1, "one commit writes the group file");
+  assert.deepEqual(Object.keys(arrangement[0].files), ["docs/groups/requirements.md"], "the arrangement's commit writes no queue entry");
+  assert.equal(groups.split("\n").filter((line) => line.trim() === `- ${RETURN}`).length, 1, "the new requirement has one place");
+});
+
+// TST-418129
+// level: release
+// module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: the drafter first renames and changes A LOAN HAS A DUE DATE with SRC-policy alone among its sources, then with the author's account github.com/akmaier beside it
+// input: Send, Review the draft, Save
+// expect: two exchanges; the second carries "A DUE DATE IS VISIBLE:<line>: error: "A DUE DATE IS VISIBLE" does not name github.com/akmaier among its sources [THE PERSON WHO PROMPTS IS A SOURCE]",
+//   the first none; A BOOK IS SHELVED, which the draft leaves as it stands, draws no such finding; the saved proposal names the account among the changed requirement's sources
+test("TST-418129: a changed requirement that does not name the author's account goes back, and one it leaves as it stands does not", async () => {
+  const s = await scenario({ answers: [draft(candidate({ sources: "SRC-policy" })), draft()] });
+  await run(s);
+  assert.equal(s.endpointRequests.length, 2);
+  assert.doesNotMatch(sentText(s, 0), /\[THE PERSON WHO PROMPTS IS A SOURCE\]/, "known negative: the first request carries no such finding");
+  assert.match(sentText(s, 1), /A DUE DATE IS VISIBLE:\d+: error: "A DUE DATE IS VISIBLE" does not name github\.com\/akmaier among its sources \[THE PERSON WHO PROMPTS IS A SOURCE\]/);
+  assert.doesNotMatch(sentText(s, 1), /A BOOK IS SHELVED:\d+: error: [^\n]*\[THE PERSON WHO PROMPTS IS A SOURCE\]/, "a requirement the draft leaves as it stands is not judged");
+  await save(s);
+  assertProposal(s);
 });
 
 // Counterproofs are requested explicitly; ordinary CI still runs every behavior case. Each fault is confined to a copied
@@ -648,18 +686,19 @@ const FAULTS = [
   { ids: ["TST-418003"], file: at("src", "trace-pages", "subject.mjs"), from: 'return { requirements: [...names], source: shown.source };', to: 'return { requirements: [...names].slice(0, 1), source: shown.source };' },
   { ids: ["TST-418002", "TST-418003", "TST-418110"], file: at("src", "spec-changes", "propose.mjs"), from: 'files.push({ path: proposalPath, text: change.text }', to: 'files.push({ path: change.target, text: change.text }' },
   { ids: ["TST-418004"], file: at("src", "review-pages", "subjects.mjs"), from: 'if (facts.source === null) throw missingSource();', to: 'if (false) throw missingSource();' },
-  { ids: ["TST-418005", "TST-418112"], file: at("src", "spec-changes", "propose.mjs"), from: 'candidate && each.class !== "conflict" && ["new", "change", "duplicate"].includes(each.class)', to: 'candidate && ["new", "change", "duplicate", "conflict"].includes(each.class)' },
-  { ids: ["TST-418006", "TST-418111"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'if (await blobSha(current) !== opened.get(section.anchor))', to: 'if (false)' },
+  { ids: ["TST-418006", "TST-418111"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'if (now.blob !== item.openedBlob)', to: 'if (false)' },
   { ids: ["TST-418101"], file: at("src", "review-pages", "subjects.mjs"), from: 'context.product ? await defaultSnapshot(context.instance.host) : snapshot', to: 'snapshot' },
   { ids: ["TST-418102"], file: at("src", "runtimes", "tab.mjs"), from: 'if (entry.bridge !== null)', to: 'if (false)' },
-  { ids: ["TST-418103"], file: at("src", "review-pages", "candidates.mjs"), from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
+  { ids: ["TST-418103"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'texts.push({ kind: "section", title: heading, text, current: current ?? "",', to: 'texts.push({ kind: "section", title: heading, text, current: "",' },
   { ids: ["TST-418104", "TST-377007"], file: at("src", "review-pages", "conversation-draft.mjs"), from: 'paramsFor: () => ({ ...draft.params, draft: draft.result })', to: 'paramsFor: () => ({ ...draft.params })' },
   { ids: ["TST-418105", "TST-377004", "TST-418001"], file: at("src", "prompt-bar", "offer.mjs"), from: 'participant.place ?? "no processing place declared"', to: '"no processing place declared"' },
   { ids: ["TST-418105", "TST-418001", "TST-377010"], file: at("src", "prompt-bar", "bar.mjs"), from: 'offered = eligible(reached, { capabilities: kind.needs }).eligible;', to: 'offered = eligible(reached, { capabilities: [] }).eligible;' },
-  { ids: ["TST-418106"], file: at("src", "spec-changes", "strategies.mjs"), from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
+  { ids: ["TST-418106"], file: at("src", "spec-changes", "strategies.mjs"), from: 'for (const entry of (await queues(snapshot)).flatMap(', to: 'for (const entry of [].flatMap(' },
   { ids: ["TST-418107", "TST-377006"], file: at("src", "prompt-bar", "send.mjs"), from: '...prepared.notFitting.map(', to: '...[].map(' },
-  { ids: ["TST-418108"], file: at("src", "job-runner", "builtins.mjs"), from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
-  { ids: ["TST-418109"], file: at("src", "review-pages", "candidates.mjs"), from: 'showDifference(held?.rule ?? "", rule.value)', to: 'renderArtifact(held?.rule ?? "")' },
+  { ids: ["TST-418108", "TST-418113"], file: at("src", "job-runner", "builtins.mjs"), from: '...requirementFindings(is).filter((each) => names.has(each.artifact))', to: '...[]' },
+  { ids: ["TST-418129"], file: at("src", "job-runner", "builtins.mjs"), from: '...judged.filter((each) => !each.sources.includes(source))', to: '...[].filter((each) => !each.sources.includes(source))' },
+  { ids: ["TST-418128"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'saveFile(host, { path: GROUPS, text: item.text,', to: 'saveFile(host, { path: GROUPS, text: item.current,' },
+  { ids: ["TST-418109"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'editor.showDraft(item.text, item.current);', to: 'editor.showDraft(item.text, item.text);' },
   { ids: ["TST-418113", "TST-418124"], file: at("src", "job-runner", "driver-prompt.mjs"), from: 'if (input.findings?.length)', to: 'if (false)' },
   { ids: ["TST-418114", "TST-418122"], file: at("src", "job-runner", "loop.mjs"), from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
   { ids: ["TST-418115"], file: at("src", "job-runner", "loop.mjs"), from: 'number >= prepared.limit', to: 'number >= 3' },

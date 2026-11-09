@@ -61,9 +61,20 @@ const register = (context) => txt(header,
   `| drafter | model endpoint | fixture-model | ${context} | - | draft text | this machine | endpoint drafter |`,
   "| ci-drafter | CI agent | ci-model | 200000 | - | draft text | GitHub Actions in the USA | ci hosted secret CI_KEY |");
 
+// A requirement the drafter writes into the section "Lending" (UC-019 step 6: the new text of each section it changes, a renamed requirement under its new name, the author's
+// account among its sources): by default LOAN renamed to CHANGED with a new rule. `replaces` is the requirement of the SPEC whose block it takes the place of; null adds it.
 export const candidate = (fields = {}) => ({ name: CHANGED, rule: "Every loan visibly displays its due date.",
-  check: "`tests/loan.test.mjs`", constrains: "product", passage: "make visible", class: "change", of: LOAN, ...fields });
-export const draft = (...candidates) => ({ candidates: candidates.length ? candidates : [candidate()] });
+  check: "`tests/loan.test.mjs`", sources: "SRC-policy; github.com/akmaier", replaces: LOAN, ...fields });
+const block = (requirement) => [`**${requirement.name}** *(${requirement.sources})*`, requirement.rule, ...(requirement.check ? [`*Check:* ${requirement.check}`] : [])].join("\n");
+const HELD = { [LOAN]: { name: LOAN, sources: "SRC-policy", rule: CURRENT_RULE, check: "`tests/loan.test.mjs`" }, [SHELF]: { name: SHELF, sources: "SRC-policy", rule: "Every book has a shelf.", check: "`tests/shelf.test.mjs`" } };
+/** The new text of the section "Lending", from its heading line to its end, with `candidates` written in: each in the place of the requirement it replaces, the others after them. */
+export const sectionWith = (...candidates) => {
+  const blocks = [LOAN, SHELF].map((name) => candidates.find((each) => each.replaces === name) ?? HELD[name]);
+  return txt("## Lending", "", [...blocks, ...candidates.filter((each) => !each.replaces)].map(block).join("\n\n"));
+};
+export const WHY = "The borrower must see when the book is due.";
+// The drafter's answer (src/job-catalogue/kinds/change-requirements/answer.schema.json): the new text of the section, and why.
+export const draft = (...candidates) => ({ sections: [sectionWith(...(candidates.length ? candidates : [candidate()]))], why: WHY });
 
 // ---------------------------------------------------------------- the page and the servers
 
@@ -128,7 +139,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     const value = next(), shown = typeof value === "function" ? null : (value && Object.hasOwn(value, "draft") ? value.draft : value);
     const files = Array.isArray(shown?.files) ? shown.files.map((file) => file.path) : [];
     const hash = globalThis.location?.hash ?? "";
-    const kind = Array.isArray(shown?.candidates) ? "change-requirements" : files.some((path) => path.startsWith("docs/architecture/")) || /^#(decision|module)\//.test(hash)
+    const kind = Array.isArray(shown?.sections) || Array.isArray(shown?.proposals) || typeof shown?.groups === "string" ? "change-requirements" : files.some((path) => path.startsWith("docs/architecture/")) || /^#(decision|module)\//.test(hash)
       ? "change-architecture" : files.length > 0 || /^#use-case\//.test(hash) ? "change-use-case" : "change-requirements";
     const task = /## The person's message\n\n(?:### [^\n]*\n\n)?([^]*?)\n\n## /.exec(textOfRequest(body))?.[1] ?? "";
     return { answer: `Handed on to ${kind}.`, handOver: [{ kind, works_on: [], task, after: [] }] };
@@ -240,7 +251,9 @@ export async function goTo(s, fragment) {
 export const all = (root, tag, className = null) => find(root, (node) => (!tag || node.localName === tag) && (!className || node.className.split(/\s+/).includes(className)));
 export const one = (root, tag, className) => { const nodes = all(root, tag, className); assert.equal(nodes.length, 1, `one ${tag}.${className}: ${root?.textContent ?? ""}`); return nodes[0]; };
 export const namedButton = (root, text) => { const found = buttonsNamed(root, text); assert.ok(found.length > 0, `${text} is offered: ${root.textContent}`); return found[0]; };
-export const row = (s, name = CHANGED) => { const found = all(s.target, "li", "candidate").find((node) => node.getAttribute("data-name") === name); assert.ok(found, `candidate ${name} is shown: ${s.target.textContent}`); return found; };
+// The box of one drafted text on the route `draft` — a section by its heading line, a proposal or the group file by its path —, and the text in its editor.
+export const draftBox = (s, title = "## Lending") => { const found = all(s.target, "div", "draft").find((node) => node.getAttribute("data-path") === title); assert.ok(found, `the drafted ${title} is shown: ${s.target.textContent}`); return found; };
+export const editorText = (box) => all(box, "textarea")[0].value;
 export const proposalWrites = (s) => s.product.writes.filter((write) => Object.keys(write.files).some((path) => path.endsWith(".begruendung.md")));
 export const proposalTexts = (s) => proposalWrites(s).flatMap((write) => Object.entries(write.files).filter(([path]) => /\/\d\d-[^/]+\.md$/.test(path) && !path.endsWith(".begruendung.md")).map(([, text]) => text));
 // The product's commits other than those of the record of a piece of a plan run in this tab — its start with its taking, and its end —, which MOD-prompt-bar writes for every
@@ -338,8 +351,8 @@ export const useCaseSection = (s, at = 0) => sentText(s, at).split("## The use c
 // The text the participant was sent in its n-th request, and the requirements that request names to change: the headings under "The requirements to change".
 export const sentText = (s, at = 0) => s.endpointRequests[at].body.messages.map((message) => message.content).join("\n");
 export const targetsOf = (s, at = 0) => {
-  const from = sentText(s, at).split("## The requirements to change, each with its whole section")[1] ?? "";
-  return [...from.split("\n## Every requirement of the product")[0].matchAll(/^### (.+)$/gm)].map((match) => match[1]);
+  const from = sentText(s, at).split("## The requirements to change: the sections that hold them, and the proposals of the open entries that propose them")[1] ?? "";
+  return [...from.split("\n## The requirement hierarchy")[0].matchAll(/^### (.+)$/gm)].map((match) => match[1]);
 };
 // The draft the bar keeps in the tab for the page's subject, the address of the route `draft` for a subject's key, and the lines of a commit message.
 export const keptDraft = (s) => readTabValue(s.store, "prompt-bar:draft");
