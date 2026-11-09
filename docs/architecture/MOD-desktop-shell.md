@@ -180,7 +180,8 @@ The rest of its surface faces the person, not another module:
     which names each repository this computer's own git login does not reach, with the reason. For each offered agent,
     its enclosure (ARC-054): whether it works on this computer, else its reason and its one-time step, with *Set up*
     where the Bridge can take that step itself — on Windows, through Windows' elevation prompt —; and whether the agent is
-    logged in there, else *Log in*, which opens a terminal in the enclosure running the agent's own login step.
+    logged in there, else *Log in*, which opens a terminal in the enclosure running the agent's own login step, with
+    what of its output the enclosure keeps (`Agent.keeps`).
   - *Pairing* — the Bridge's address and its pairing token with *Copy* (`THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS
     WINDOW`); *paired with* the origin MOD-bridge-http's `pairedWith()` gives, or *not yet paired since this start*; and
     *Pair anew*, a decision that names that every paired browser must pair again (`THE BRIDGE IS PAIRED

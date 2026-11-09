@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { accountFile, accountHome, accountName, grantCommands, keepAccount, launchCommand, readAccount, setUpCommand } from "./account.mjs";
 import { bubblewrapArgs } from "./bubblewrap.mjs";
 import { agentEnvironment, hiddenPaths } from "./holders.mjs";
+import { awaitLogin, keptLogins } from "./logins.mjs";
 import { seatbeltProfile } from "./seatbelt.mjs";
 
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
@@ -24,7 +25,7 @@ const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
  *   works(): Promise<{ works: true } | { works: false, reason: string, setup: string }>,
  *   prepare(at: { writable: string[], readable: string[] }): Promise<void>,
  *   setUp(): Promise<{ done: boolean, reason: string | null }>,
- *   openTerminal(command: string, args: string[]): Promise<void> }} AgentEnclosure
+ *   openTerminal(command: string, args: string[], keeps?: { variable: string, pattern: string } | null): Promise<void> }} AgentEnclosure
  */
 
 // A path as the system resolves it: its links followed where it exists, else those of its nearest existing folder. The system matches resolved paths.
@@ -62,16 +63,19 @@ const sh = (word) => `'${String(word).replace(/'/g, "'\\''")}'`;
 const notEnclosed = (message) => Object.assign(new Error(message), { name: "NotEnclosed" });
 
 /**
- * agentEnclosure({ dataFolder, folder, platform, env, personHome, identity }) -> AgentEnclosure — the enclosure of the agent whose working folder is
+ * agentEnclosure({ dataFolder, folder, platform, env, personHome, identity, terminal }) -> AgentEnclosure — the enclosure of the agent whose working folder is
  * `folder`, for the Bridge whose data folder is `dataFolder`; the platform, the Bridge's environment, the person's home and the git identity default to
- * those of the running process and the computer's git configuration. Pure until a function of the result is called.
+ * those of the running process and the computer's git configuration, and `terminal`, the start of the program that opens the system's terminal, to one
+ * started detached. Pure until a function of the result is called.
  */
-export function agentEnclosure({ dataFolder, folder, platform = process.platform, env = process.env, personHome = homedir(), identity = undefined }) {
+export function agentEnclosure({ dataFolder, folder, platform = process.platform, env = process.env, personHome = homedir(), identity = undefined,
+  terminal = (command, args) => spawn(command, args, { stdio: "ignore", detached: true, env: { ...env } }).unref() }) {
   const windows = platform === "win32";
   const account = windows ? accountName(dataFolder) : null;
   const home = windows ? accountHome(account, env) : join(folder, "home");
   let known = identity;
-  const chosenEnvironment = () => agentEnvironment({ platform, env, home, identity: (known ??= gitIdentity(env)) });
+  // The logins the home keeps are read at every start: a login step that has ended since is taken first (logins.mjs).
+  const chosenEnvironment = () => agentEnvironment({ platform, env, home, identity: (known ??= gitIdentity(env)), kept: keptLogins(home) });
   // The SSH agent's socket the Bridge's environment names, resolved; null where it names none.
   const agentSocket = () => (typeof env.SSH_AUTH_SOCK === "string" && env.SSH_AUTH_SOCK ? resolved(env.SSH_AUTH_SOCK) : null);
   // The places to hide that exist now, resolved, each with whether it is a folder.
@@ -149,7 +153,9 @@ export function agentEnclosure({ dataFolder, folder, platform = process.platform
     return state.works ? { done: true, reason: null } : { done: false, reason: state.reason };
   }
 
-  async function openTerminal(command, args) {
+  // `keeps` — what of the step's output the enclosure keeps (MOD-agent-processes' Agent.keeps): only macOS records the step's terminal.
+  async function openTerminal(command, args, keeps = null) {
+    if (keeps && platform !== "darwin") throw notEnclosed(`the Bridge keeps the login a login step prints on macOS only, not on ${platform}`);
     await prepare({ writable: [], readable: [] });
     if (windows) {
       const kept = readAccount(dataFolder);
@@ -161,14 +167,16 @@ export function agentEnclosure({ dataFolder, folder, platform = process.platform
       return;
     }
     const wrapped = wrap(command, args, { workdir: home, writable: [] });
-    const line = ["exec", "/usr/bin/env", "-i", ...Object.entries(wrapped.env).map(([key, value]) => sh(`${key}=${value}`)), sh(wrapped.command), ...wrapped.args.map(sh)].join(" ");
+    const words = ["/usr/bin/env", "-i", ...Object.entries(wrapped.env).map(([key, value]) => sh(`${key}=${value}`)), sh(wrapped.command), ...wrapped.args.map(sh)].join(" ");
     if (platform === "darwin") {
       const file = join(home, "agent-login.command");
+      // A step whose login is kept runs inside `script`, which records what it prints, at a width that wraps none of its lines.
+      const line = keeps ? `exec /usr/bin/script -q ${sh(awaitLogin(home, keeps))} /bin/sh -c ${sh('stty cols 1000 2>/dev/null; exec "$@"')} sh ${words}` : `exec ${words}`;
       writeFileSync(file, `#!/bin/sh\ncd ${sh(home)} || exit 1\n${line}\n`, { mode: 0o700 });
-      spawn("/usr/bin/open", [file], { stdio: "ignore", detached: true }).unref();
+      terminal("/usr/bin/open", [file]);
       return;
     }
-    spawn("x-terminal-emulator", ["-e", "/bin/sh", "-c", `cd ${sh(home)} && ${line}`], { stdio: "ignore", detached: true, env: { ...env } }).unref();
+    terminal("x-terminal-emulator", ["-e", "/bin/sh", "-c", `cd ${sh(home)} && exec ${words}`]);
   }
 
   return Object.freeze({ home, wrap, works, prepare, setUp, openTerminal });

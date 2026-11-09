@@ -36,13 +36,13 @@ const NONE = { claude: false, codex: false, opencode: false };
 // module: MOD-agent-processes
 // guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
 // given: a controlled PATH holding an executable of each supported agent whose own login check says it is not logged in.
-// input: installedAgents().
+// input: installedAgents({ platform: "linux" }), where each agent keeps its own login.
 // expect: each agent is installed, has loggedIn false, and carries its own login step as its CLI names it.
 test("TST-1002001: an installed agent whose login check fails is returned with loggedIn false and its login step", async () => {
   const folder = fixture();
   try {
     agents(folder, join(folder, "calls"), NONE);
-    const found = await withPath(folder, () => installedAgents());
+    const found = await withPath(folder, () => installedAgents({ platform: "linux" }));
     assert.deepEqual(found.map(({ name, installed, loggedIn, login }) => ({ name, installed, loggedIn, login })), [
       { name: "claude", installed: true, loggedIn: false, login: STEP.claude },
       { name: "codex", installed: true, loggedIn: false, login: STEP.codex },
@@ -77,14 +77,14 @@ test("TST-1002002: nothing asks for a password and no login step is started", as
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
 // given: Claude installed and logged in, Codex installed and not logged in, OpenCode absent.
-// input: installedAgents().
+// input: installedAgents({ platform: "linux" }).
 // expect: every Agent record carries `login`, a string, the agent's own login step from the register: the logged-in one, the not-logged-in one and the missing one alike; loggedIn stays true, false and null.
 test("TST-1002003: every Agent carries its own login step, whether logged in, not logged in or missing", async () => {
   const folder = fixture();
   try {
     agents(folder, join(folder, "calls"), { claude: true, codex: false, opencode: false });
     rmSync(join(folder, "opencode"));
-    const found = await withPath(folder, () => installedAgents());
+    const found = await withPath(folder, () => installedAgents({ platform: "linux" }));
     assert.deepEqual(found.map(({ name, installed, loggedIn, login }) => ({ name, installed, loggedIn, login })), [
       { name: "claude", installed: true, loggedIn: true, login: STEP.claude },
       { name: "codex", installed: true, loggedIn: false, login: STEP.codex },
@@ -92,5 +92,30 @@ test("TST-1002003: every Agent carries its own login step, whether logged in, no
     ]);
     for (const agent of found) assert.equal(typeof agent.login, "string");
     assert.equal(existsSync(join(folder, "opencode")), false);
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+// TST-1002004
+// level: unit
+// module: MOD-agent-processes
+// guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
+// given: a controlled PATH holding an executable of each supported agent, none logged in.
+// input: installedAgents({ platform: "darwin" }) and installedAgents({ platform: "linux" }).
+// expect: on macOS, where the enclosure closes the keychain, Claude Code's login step is `claude setup-token` and the enclosure keeps CLAUDE_CODE_OAUTH_TOKEN, the value of the form sk-ant-oat<digits>-<letters, digits, _ and ->, from its output; Codex and opencode keep their login steps and keep nothing; counter-proof: on Linux every agent keeps nothing and Claude Code's step is `claude auth login`.
+test("TST-1002004: on macOS Claude Code logs in with setup-token, whose token the enclosure keeps", async () => {
+  const folder = fixture();
+  try {
+    agents(folder, join(folder, "calls"), NONE);
+    const steps = async (platform) => (await withPath(folder, () => installedAgents({ platform }))).map(({ name, login, keeps }) => ({ name, login, keeps }));
+    const mac = await steps("darwin");
+    assert.deepEqual(mac.map(({ name, login }) => ({ name, login })), [
+      { name: "claude", login: "claude setup-token" }, { name: "codex", login: STEP.codex }, { name: "opencode", login: STEP.opencode }]);
+    const kept = mac[0].keeps;
+    assert.equal(kept.variable, "CLAUDE_CODE_OAUTH_TOKEN");
+    assert.match("sk-ant-oat01-AbC_9-xyz", new RegExp(`^(?:${kept.pattern})$`));
+    assert.doesNotMatch("sk-ant-api03-AbC", new RegExp(`^(?:${kept.pattern})$`), "an API key is not the login");
+    assert.deepEqual([mac[1].keeps, mac[2].keeps], [null, null]);
+    assert.deepEqual(await steps("linux"), [
+      { name: "claude", login: STEP.claude, keeps: null }, { name: "codex", login: STEP.codex, keeps: null }, { name: "opencode", login: STEP.opencode, keeps: null }], "counter-proof: Linux");
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });

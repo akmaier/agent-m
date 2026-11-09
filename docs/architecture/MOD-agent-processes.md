@@ -55,7 +55,7 @@ Workflows — and keeps nothing but the processes it started.
 | Version | how its version is asked for |
 | Task | the arguments that make it read a task from its standard input without a conversation, and how its final answer is told from its other output |
 | Model | the arguments that start it with a named model, as its vendor documents them, with a placeholder `{model}` — Claude Code's `--model {model}`, which its Endpoint column already gives —, or `—` where it cannot be told one |
-| Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in |
+| Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in; under a platform's name (`macos`), where the agent cannot keep its login in the enclosure there, the login step on that platform and what of its output the enclosure keeps for it (`keeps`: the environment variable the agent reads its login from, and the pattern of the value) — Claude Code's `claude setup-token` and `CLAUDE_CODE_OAUTH_TOKEN` on macOS, whose keychain the enclosure closes (ARC-054) |
 | Key variable | the environment variable from which it reads a key, used only in CI |
 | Endpoint | how it is made to work with a model endpoint of the kind OpenAI-compatible or Anthropic — the options or settings that name the endpoint's address and model —, or `—` where it cannot |
 | Key holder | the provider a key in its Key variable is for — its kind and address — and the options or settings that send its requests to a key holder in its place, `{keyHolder}`, with a placeholder, `{placeholder}`, as its key (`NO MODEL READS A CREDENTIAL`): Claude Code's `ANTHROPIC_BASE_URL`, Codex's `openai_base_url` given with `-c`; `—` where it cannot be, as opencode, which names no key variable of its own and whose provider Agent M does not know without an endpoint |
@@ -67,8 +67,10 @@ never an argument: it is written to the agent's standard input, so no size of a 
 ## Interfaces
 
 - `Agent` — `{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login: string,
-  install: Record<"macos" | "windows" | "linux", string> }`: `login` is the agent's own login step from its row's Login
-  check, which the Bridge's window shows for an agent that is not logged in (UC-044 3b); `name` is the Agent of a row of `agents.md`, so that a supported
+  keeps: { variable: string, pattern: string } | null, install: Record<"macos" | "windows" | "linux", string> }`: `login`
+  is the agent's own login step on the platform from its row's Login check, which the Bridge's window shows for an agent
+  that is not logged in (UC-044 3b), and `keeps` what of that step's output the enclosure keeps for it, `null` where the
+  agent keeps its login itself; `name` is the Agent of a row of `agents.md`, so that a supported
   agent added is a row added, not a change of this interface (`OPEN FOR EXTENSION, CLOSED FOR CHANGE`).
 - `Enclosure` — `{ wrap(command: string, args: string[], at: { workdir: string, writable: string[] }) -> { command:
   string, args: string[], env: Record<string, string>, input: string | null } }`: what an agent is started inside on a
@@ -76,7 +78,8 @@ never an argument: it is written to the agent's standard input, so no size of a 
   and the folders of `writable` writable, the whole environment it receives, and the text written to its standard input
   before the agent's own, where the enclosure needs one. The Bridge's MOD-agent-enclosure implements it. Where an
   enclosure is given, this module starts nothing of an agent outside it and adds nothing to its environment.
-- `installedAgents(options?: { enclosure?: Enclosure, workdir?: string }) -> Promise<Agent[]>` — every supported agent,
+- `installedAgents(options?: { enclosure?: Enclosure, workdir?: string, platform?: string }) -> Promise<Agent[]>` — on
+  `platform`, Node's name of it, by default the one it runs on, every supported agent,
   each found on the machine's path with its version, or marked as missing with its vendor's installation page; an
   installed agent that is not logged in is marked so, and the agent's own login step is named — this module never asks
   for a password (UC-044). With an enclosure, both commands run inside it, in `workdir`, so that *installed* and *logged

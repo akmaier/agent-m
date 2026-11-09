@@ -15,7 +15,7 @@ import { participantSchema, participantsOf } from "../participant-list/index.mjs
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
-import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, makeOutbox, publish, removeClone, workingClone } from "./workfolders.mjs";
+import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, instanceClone, makeOutbox, publish, removeClone, workingClone } from "./workfolders.mjs";
 import { enclosureOf } from "./enclosures.mjs";
 
 const PARTICIPANTS = "docs/participants.md";
@@ -112,7 +112,7 @@ function createWatcher(config) {
   async function participantsAt(agent, commit, cache) {
     if (!cache.has(commit)) {
       cache.set(commit, (async () => {
-        const folder = await cloneOrFetch(instance, foldersOf(agent.folder).instance);
+        const folder = await instanceClone(instance, agent.folder);
         const host = await hostOf(instance, folder);
         const text = await (await host.readSnapshot(commit)).read(PARTICIPANTS);
         if (text === null) throw new Error(`the instance holds no ${PARTICIPANTS} at ${commit}`);
@@ -151,7 +151,7 @@ function createWatcher(config) {
     const productFolder = folders.product(product);
     await cloneOrFetch(product, productFolder);
     const productHead = await defaultHead(productFolder);
-    const instanceFolder = await cloneOrFetch(instance, folders.instance);
+    const instanceFolder = await instanceClone(instance, agent.folder);
     const instanceHost = await hostOf(instance, instanceFolder);
     const instanceCommit = (await defaultHead(instanceFolder)).commit;
     const host = await hostOf(product, productFolder);
@@ -210,7 +210,7 @@ function createWatcher(config) {
         // No enclosure, no agent (ARC-054): the job ends failed with the enclosure's reason and its one-time step.
         const enclosure = await enclosureOf(config.enclosures, agent.folder);
         const head = await host.readSnapshot(taken.commit);
-        const instanceFolder = await checkoutAt(await cloneOrFetch(instance, folders.instance), record.agentM.commit);
+        const instanceFolder = await checkoutAt(await instanceClone(instance, agent.folder), record.agentM.commit);
         const instanceHost = await hostOf(instance, instanceFolder);
         const context = {
           kind: await kindOf(record.kind),

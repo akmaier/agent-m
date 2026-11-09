@@ -81,10 +81,20 @@ the agent is logged in and the harmless probe.
   configuration of the agent is neither read nor written by the enclosed one: a hook written into it would run outside the
   enclosure the next time the person uses the agent. On macOS this follows anyway: the keychain, where Claude Code keeps
   its login, is closed, and Claude Code inside the profile reports no login (measured).
+- **A login the agent would keep in the closed keychain is kept in its home.** Claude Code keeps its login in the
+  keychain on macOS, and `claude auth login` in the enclosure fails to save it. Its login step there is therefore
+  `claude setup-token`, the long-lived token Claude Code offers for a computer whose store it cannot use: the terminal
+  of the login step records what it prints, the enclosure takes the token from that record into the agent's home, and
+  gives it to Claude Code as `CLAUDE_CODE_OAUTH_TOKEN`, the variable Claude Code reads it from. The token stays on the
+  Bridge's computer, in the agent's home, as Codex's login stays in its `auth.json` there; it is written to no
+  repository and sent to no dashboard. Codex keeps its login in a file of its home by default (its
+  `cli_auth_credentials_store` is `file`), and opencode in its database below its home's data folder: neither uses the
+  keychain, and their own login steps stay as they are. On Linux and Windows Claude Code's login step stays
+  `claude auth login`.
 - **The environment is chosen, not inherited** — the same rule as on the server's runners (MOD-workflow-entries, *The
   model's user*): the agent receives the variables a program needs to run — the path, the language, the terminal, its
-  home and the folders below it — and the git identity the computer's configuration names for its commits, and nothing
-  else: no key variable, no SSH agent, no session bus.
+  home and the folders below it —, the git identity the computer's configuration names for its commits, and the login
+  its home keeps for it, and nothing else: no key variable, no SSH agent, no session bus.
 - **Git stays with the Bridge** (`NO MODEL READS A CREDENTIAL`; nothing twice — the push address of CI's agent machine,
   MOD-workflow-entries). The Bridge clones the job's checkout with the computer's git login before the agent starts and
   sets its push address to an outbox, a bare repository beside it, in which the agent's pushes land. After the agent has
@@ -99,7 +109,8 @@ the agent is logged in and the harmless probe.
   Bridge starts no agent: the agent is shown as not ready, a job ends failed and an ask fails, each naming the reason and
   the one-time step that makes it work.
 - **The one-time steps** are named by the enclosure and shown in the Bridge's window:
-  - on every platform, once per agent: the agent's own login step, run in the enclosure, with its home;
+  - on every platform, once per agent: the agent's own login step, run in the enclosure, with its home — for Claude Code
+    on macOS `claude setup-token`, whose token the enclosure keeps;
   - on Linux, where bubblewrap is missing: an administrator installs the package `bubblewrap`; where it is installed but
     may not make namespaces, an administrator allows it;
   - on Windows: an administrator confirms, once, that the Bridge makes its account — Windows' own elevation prompt —;
@@ -159,6 +170,10 @@ to the lower layer, never the other way.
   as much as the ones it keeps.
 - **The agent keeping the computer's git login to push and to open its pull request.** Rejected: through that login its
   model reaches the credential — `git credential fill`, the SSH agent.
+- **Claude Code's `claude auth login` in the enclosure with the keychain opened to it.** Rejected: the keychain that would
+  hold its login holds git's.
+- **The person pasting the token of `claude setup-token` into the Bridge.** Rejected: the Bridge would ask for a key
+  (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`); the record of the login step's terminal already holds it.
 - **The person's own configuration and login of the agent shared with the enclosed agent.** Rejected: on macOS the
   keychain that holds the login is the keychain that holds git's; and a hook the enclosed agent writes into the shared
   configuration runs unenclosed.
