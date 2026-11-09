@@ -65,7 +65,9 @@ export async function assess({ handOver, participant, instance, page, instanceSn
   const participants = await readParticipants(instanceSnapshot);
   const { defaultBranch, visibility } = await page.host.repositoryInfo();
   const snapshot = await page.host.readSnapshot(defaultBranch);
-  const jobWorkflow = WORKFLOWS.some((path) => snapshot.paths.includes(path));
+  // Whether the job workflow stands is read of its folders at that commit: a snapshot a page holds may be of the page's folders only.
+  const workflows = await page.host.readSnapshot(snapshot.commit ?? defaultBranch, { folders: [".github/workflows", ".gitlab"] });
+  const jobWorkflow = WORKFLOWS.some((path) => workflows.paths.includes(path));
   const offers = routesFor(participant, participants, { visibility, jobWorkflow }, []);
   const taken = offers.find((each) => each.route.kind !== "tab" && each.available) ?? null;
   const refused = offers.find((each) => each.route.kind !== "tab") ?? null;
