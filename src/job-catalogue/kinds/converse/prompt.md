@@ -18,7 +18,8 @@ in their order, the task in your words. A piece that rests on the result of an e
 it realises, an architecture on the use cases it serves — names that piece's number, counted from 1, in `after`; any other
 piece has an empty `after`. Each piece goes on without a further click as a job of its own; a piece whose `after` names
 another waits until a person has accepted that one's result. What each piece drafts is a proposal too, which the person
-accepts. Nothing you do accepts anything.
+accepts. Nothing you do accepts anything. This answer is your only turn: do not announce what you will look at, plan the
+pieces now; the job of each piece receives the texts it works on.
 
 ## The page the person sees
 
