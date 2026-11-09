@@ -13,6 +13,13 @@ by the list of titles from the top down. The operations:
 
 A group a move names that does not exist yet must be created by an earlier `create`. Keep the groups that already fit.
 
+## The task as the person gave it
+
+The task, where one is given, is the change of the arrangement asked for; change nothing of the arrangement it does not
+ask for. Without a task, propose the arrangement that reads best.
+
+{{instruction}}
+
 ## The items, and the current arrangement
 
 {{items-of-kind}}

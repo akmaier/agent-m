@@ -405,7 +405,10 @@ ONLY WHEN RECORDING IS ON`).
   takes for what it works on, by the keys the kinds' strategies read: `requirements` for the names in capitals,
   as the SPEC writes them, that are neither an identifier nor a web address — an entry with a lowercase letter, such as a
   commit, names no requirement —, `useCases` for the use cases and `useCase` beside it for one alone, `steps` for the plan's steps — the
-  `ITM-<n>` the snapshot holds as a file under `docs/plan/` — and `items` for the other `ITM-<n>`; a key it would leave
+  `ITM-<n>` the snapshot holds as a file under `docs/plan/` — and `items` for the other `ITM-<n>`; beside them `kind`,
+  the kind of group file that arranges what it works on — `requirements` for the requirements, `use-cases` for the use
+  cases, `architecture` for the `ARC-<n>`, `modules` for the `MOD-<n>` —, where every entry is of that one kind: the
+  parameter by which `items-of-kind` and `group-rules` read the kind a job of `propose-groups` arranges; a key it would leave
   empty is left out, and any other identifier is in the job's `works_on` only. Pure, but for reading the snapshot's
   paths.
 - `taskRefusal(kind: KindDefinition) -> Finding | null` — the finding that refuses a task handed over to `kind` whose
