@@ -34,7 +34,9 @@ import { testDeclarations } from "../src/test-document/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { declarationSchema, productWorkflow, recordGateDecision, roleAssignmentSchema } from "../src/product-process/index.mjs";
 import { ADDRESS, backlogProduct, openScrum, CHECK_JOB, FIRST, GATES, PARTICIPANTS, SECOND, STORE_TEST, declaration, fieldOf, found, gitlabProject, instance, jobCheck, jobOf, jobPull, jobRecord, lines, modulePath, openImplement, planned, pr,
-  quiet, servers, startRecords, stepRows, testFileOf, textOf, walk } from "./uc-024-harness.mjs";
+  quiet, servers, startRecords, stepRows, storeOf, testFileOf, textOf, walk } from "./uc-024-harness.mjs";
+import { SETTINGS } from "./uc-032-harness.mjs";
+import { BRIDGE, session } from "./browser-connections-fixture.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-024-implement-modules.md";
@@ -49,8 +51,6 @@ const UC045 = "tests/system-uc-045-plan-the-implementation.test.mjs";
 const BOOK_PARTS = ["09_system-modeling.md", "11_agentic-design-and-control-patterns.md", "12_implementation-and-version-control.md", "13_software-testing.md"];
 const partsOf = (node) => textOf(node).replace(/ — SRC-vibe-coding 2026-10-05, version hash [0-9a-f]+/g, "");
 const merged = (n, step) => pr(n, step, "merged", "2026-10-20T09:00:00Z", "2026-10-21T10:00:00Z");
-const BUILDS = "read the repository, write to the repository, run code and tests, use tools";
-const register = (...rows) => PARTICIPANTS.trimEnd().split("\n").filter((row) => !/^\| dev-[ab] /.test(row)).concat(rows).join("\n") + "\n";
 const tagged = (root, name) => walk(root, (node) => node.localName === name);
 const assignment = (rows) => lines("# plan", "", "## Roles", "", "| Role | Participants |", "|---|---|", ...rows);
 
@@ -306,7 +306,7 @@ test("TST-740208: UC-024 5, 5a the holders of the implementing role that can wri
 
 // TST-740209 · level: system · module: system
 // guards: UC-024; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the instance registers SRC-letters, restricted, permitting only "this machine", whose content the product keeps in docs/sources/SRC-letters/; the module MOD-mail keeps its letters there (its folder docs/sources/SRC-letters/); dev-a works at this machine and dev-b at "a provider in the USA", both hold Developer and Tester
+// given: the instance registers SRC-letters, restricted, permitting only "this machine", whose content the product keeps in docs/sources/SRC-letters/; the module MOD-mail keeps its letters there (its folder docs/sources/SRC-letters/); dev-a's connection, the Bridge's coding agent claude, works at this machine and dev-b's, its coding agent codex, at "a provider in the USA"; both hold Developer and Tester
 // input: the author opens Implement, ITM-101 and ITM-103 ready
 // expect: 5b: ITM-103, whose job includes the content of SRC-letters, offers dev-a alone and names dev-b with SRC-letters and its place a provider in the USA; ITM-101, whose job includes none of it, offers dev-a and dev-b
 test("TST-740209: UC-024 5b a participant whose place a source forbids is not offered for a job that includes the source's content, and the content is named", async () => {
@@ -316,8 +316,8 @@ test("TST-740209: UC-024 5b a participant whose place a source forbids is not of
     "---", "# MOD-mail The module MOD-mail", "", "## Responsibility", "", "r", "", "## Parts", "", "p", "", "## Data", "", "d", "", "## Interfaces", "", "- `read` — i", "", "## Files", "", "f", "", "## Uses", "", "u");
   const files = await planned({ files: { ...GATES, [modulePath("MOD-mail")]: mail, "docs/sources/SRC-letters/1/letter.md": "Dear reader.\n",
     "docs/role-assignments/plan.md": assignment(["| Product owner | alice |", "| Developer | dev-a, dev-b |", "| Tester | dev-a, dev-b |", "| Reviewer | bob |"]) } });
-  const participants = register(`| dev-a | model endpoint | model-c | 200000 | — | ${BUILDS} | this machine | ci hosted secret DEV_KEY |`, `| dev-b | model endpoint | model-d | 200000 | — | ${BUILDS} | a provider in the USA | ci hosted secret DEV_KEY |`);
-  const page = await openImplement({}, { files, instance: instance({ "docs/participants.md": participants, "docs/sources/SRC-letters.md": letters }) });
+  const store = storeOf({ ...SETTINGS, "session:lab-pc:codex": session([["model-d"]], { place: "a provider in the USA" }) });
+  const page = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters }), store });
   try {
     assert.deepEqual(fieldOf(page, "ITM-103", "participant").childNodes.map(textOf), ["dev-a"]);
     const withheld = textOf(fieldOf(page, "ITM-103", "withheld"));
@@ -333,7 +333,7 @@ test("TST-740209: UC-024 5b a participant whose place a source forbids is not of
 // guards: UC-024; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; A GATE NAMES WHO DECIDES IT; WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
 // given: the planned product whose declaration sets no branch for a phase, ITM-101 and ITM-103 ready and ticked; the panel's attempt limit of ITM-101 set to 3 and who merges to a person; refactoring ticked for ITM-103
 // input: a script's click on Start jobs; then the author's
-// expect: step 6: each job names the target branch main, the gate after its phase, Validation & Verification → Operation & Maintenance decided by Reviewer, and what is sent where; the script's click writes nothing; step 7: the author's click commits one start record per step under docs/jobs/, ITM-101's of kind implement with limit 3 and merges person, ITM-103's of kind refactor (3a), each naming dev-a and the route ci hosted, with the token the author stored; the page names each job's record and route
+// expect: step 6: each job names the target branch main, the gate after its phase, Validation & Verification → Operation & Maintenance decided by Reviewer, and what is sent where; the script's click writes nothing; step 7: the author's click commits one start record per step under docs/jobs/, ITM-101's of kind implement with limit 3 and merges person, ITM-103's of kind refactor (3a), each naming dev-a and the route of its connection, bridge lab-pc agent claude, with the token the author stored, and each handed to that Bridge; the page names each job's record and its route, the Bridge lab-pc
 test("TST-740210: UC-024 6, 7, 3a the panel names the target branch and the gates, and one click of the author commits each job's start record", async () => {
   const files = await planned({ files: { ...GATES, "docs/process.md": declaration().replace("| Implementation | `work/<item>` |\n", "") } });
   const page = await openImplement({}, { files });
@@ -358,28 +358,34 @@ test("TST-740210: UC-024 6, 7, 3a the panel names the target branch and the gate
     assert.match(of("ITM-101").text, /^limit: 3$/m);
     assert.match(of("ITM-101").text, /"merges": "person"/);
     assert.match(of("ITM-103").text, /^kind: refactor$/m);
-    for (const record of records) { assert.match(record.text, /^participant: dev-a$/m); assert.match(record.text, /^route: ci hosted$/m); assert.match(record.path, /^docs\/jobs\/JOB-\d{8}-\d{4}-[0-9a-f]{4}\.md$/); }
+    for (const record of records) { assert.match(record.text, /^participant: dev-a$/m); assert.match(record.text, /^route: bridge lab-pc agent claude$/m); assert.match(record.path, /^docs\/jobs\/JOB-\d{8}-\d{4}-[0-9a-f]{4}\.md$/); }
     assert.ok(page.log.filter((each) => each.repository === "alice/thesis-tool").every((each) => each.authorization === "Bearer github_pat_HARNESS0123456789abcdefghij"));
-    assert.match(textOf(found(page.target, "[data-start-result]")[0]), /ITM-101: job JOB-[^ ]+ \(docs\/jobs\/JOB-[^)]+\.md\) is queued on the route ci hosted\./);
+    assert.deepEqual(page.handed.map((each) => each.record).sort(), records.map((record) => record.path).sort(), "each job is handed to the Bridge of its connection");
+    assert.match(textOf(found(page.target, "[data-start-result]")[0]), /ITM-101: job JOB-[^ ]+ \(docs\/jobs\/JOB-[^)]+\.md\) is queued on the route bridge lab-pc agent claude\./);
   } finally { page.done(); }
 });
 
 // TST-740211 · level: system · module: system
 // guards: UC-024; THE LOCAL BRIDGE REQUIRES A TOKEN
-// given: the planned product, ITM-101 and ITM-103 ready; dev-a is reached through the Bridge lab-pc, which this browser has no connection to
+// given: the planned product, ITM-101 and ITM-103 ready; dev-a's connection is the coding agent claude of the Bridge lab-pc, which answered when the page was drawn and gives no answer once Start jobs hands it a job
 // input: the author presses Start jobs
-// expect: 7a: the result names the Bridge lab-pc as not connected, for each step, and says nothing was started; no start record is committed
+// expect: 7a: the result names, for each step, that the Bridge gave no answer; the Bridge took no job
 test("TST-740211: UC-024 7a a Bridge that does not answer is named and nothing is started", async () => {
-  const participants = register(`| dev-a | CLI agent | model-c | 200000 | — | ${BUILDS} | this machine | bridge lab-pc agent claude |`, `| dev-b | model endpoint | model-d | 200000 | — | ${BUILDS} | this machine | ci hosted secret DEV_KEY |`);
-  const store = { prefix: "", storage: { getItem: () => null } };
-  const page = await openImplement({}, { files: await planned({ files: GATES }), instance: instance({ "docs/participants.md": participants }), store });
+  const handed = [];
+  const answering = (await import("./browser-connections-fixture.mjs")).bridgeAnswer(["claude", "codex"], handed);
+  const bridge = async (url, init = {}) => {
+    if (url.origin === BRIDGE && String(init.method ?? "GET").toUpperCase() === "POST") throw new TypeError("connection refused");
+    return answering(url, init);
+  };
+  const page = await openImplement({}, { files: await planned({ files: GATES }), bridge });
   try {
+    assert.ok(fieldOf(page, "ITM-101", "participant"), "known positive: dev-a is offered on the Bridge, which answered when the page was drawn");
     await page.press(found(page.target, "[data-start-jobs]")[0]);
     await quiet();
     const result = textOf(found(page.target, "[data-start-result]")[0]);
-    assert.match(result, /ITM-101: The Bridge lab-pc is not connected in this browser, so the job cannot be handed to it; nothing was started for it\./);
-    assert.match(result, /ITM-103: The Bridge lab-pc is not connected/);
-    assert.deepEqual(startRecords(page), []);
+    assert.match(result, /ITM-101: The Bridge gave no answer/);
+    assert.match(result, /ITM-103: The Bridge gave no answer/);
+    assert.deepEqual(handed, [], "the Bridge took no job");
   } finally { page.done(); }
 });
 

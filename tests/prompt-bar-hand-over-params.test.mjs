@@ -31,7 +31,7 @@ import { loadHandOverStrategies } from "../src/prompt-bar/index.mjs";
 
 const handOverStrategies = await loadHandOverStrategies();
 import { assess, queue } from "../src/prompt-bar/hand-over.mjs";
-import { readParticipants } from "../src/prompt-bar/offer.mjs";
+import { endpointsOffered, readParticipants } from "../src/prompt-bar/offer.mjs";
 import { defaultSnapshot } from "../src/prompt-bar/send.mjs";
 import { sourceStrategies } from "../src/source-register/index.mjs";
 
@@ -88,11 +88,11 @@ const WORKFLOW_FILE = ".github/workflows/agent-m-jobs.yml";
 const MODEL_VERSION = "5".repeat(40);
 const TASK = "PLANTED-TASK-626A hand this on";
 
-const COLUMNS = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
-const WORKERS = "draft text, read the repository, write to the repository, run code and tests";
+const COLUMNS = "| Name | Type | Model |\n|---|---|---|";
 const register = (...rows) => `# Participants of this instance\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n${COLUMNS}\n${rows.join("\n")}\n`;
-const ALICE = "| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |";
-const DEV_CI = `| dev-ci | model endpoint | model-ci | 200000 | — | ${WORKERS} | Anthropic, USA | endpoint ep1 secret KEY_A |`;
+const ALICE = "| alice | person | — |";
+// dev-ci, an agent of the model model-ci, which this browser's endpoint ep1 offers, naming the CI secret KEY_A of its key (handsOver).
+const DEV_CI = "| dev-ci | agent | model-ci |";
 
 const frontMatter = (fields) => ["---", ...Object.entries(fields).flatMap(([key, value]) => (Array.isArray(value)
   ? [`${key}:`, ...value.map((entry) => `  - ${entry}`)] : [`${key}: ${value}`])), "---"].join("\n");
@@ -155,12 +155,22 @@ const requests = [];
 beforeEach(() => { requests.length = 0; globalThis.fetch = async (url) => { requests.push(String(url)); throw new Error(`no request may be made: ${url}`); }; });
 afterEach(() => { globalThis.fetch = realFetch; });
 
-// A page of the product: the instance with the register and the stored tokens, the product with its files. The hand-over `handOver` of dev-ci is assessed (the bar does that first) and queued.
+// The coding agent claude of the Bridge lab, which this browser declares for the model model-ci with the capabilities a job of implement or refactor needs, which no model endpoint
+// declares (MOD-prompt-bar's endpointsOffered): dev-ci on it hands such a job to the Bridge. The Bridge answers its one request, POST /v1/jobs, kept in `bridgeRequests`.
+const BRIDGE = "http://127.0.0.1:7777";
+const LAB_CLAUDE = { name: "lab:claude", type: "CLI agent", model: "model-ci", context: 200000, place: "this machine",
+  capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests"], route: "bridge lab agent claude" };
+const bridgeRequests = [];
+const onBridge = (kind) => ["implement", "refactor"].includes(kind);
+
+// A page of the product: the instance with the register and the stored tokens, the product with its files. The hand-over `handOver` of dev-ci is assessed (the bar does that first) and queued,
+// on the endpoint ep1 — or, for a kind of implement or refactor, on the Bridge's lab:claude.
 async function handsOver(handOver, files = scrumFiles()) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const store = openStore("alice/agent-m");
-  writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-ci", key: "sk-fixture-KEY" });
+  writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-ci", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000,
+    secret: "KEY_A" });
   writeSetting(store, "github-token", { value: "github_pat_INSTANCE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
   const instance = repoOf(INSTANCE_WEB, { "SPEC.md": INSTANCE_SPEC, "docs/participants.md": register(ALICE, DEV_CI) });
@@ -168,12 +178,25 @@ async function handsOver(handOver, files = scrumFiles()) {
   const page = { address: PRODUCT_WEB, host: product.host };
   const instanceSetup = { repository: "alice/agent-m", host: instance.host };
   const handing = { task: TASK, ...handOver };
-  const participant = (await readParticipants(await defaultSnapshot(instance.host))).find((each) => each.name === "dev-ci");
-  const assessment = await assess({ handOver: handing, participant, instance: instanceSetup, page });
+  // The register joined with this browser's connections, as the bar joins them: dev-ci on ep1, route `endpoint ep1 secret KEY_A`, or on lab:claude.
+  const bridged = onBridge(handOver.kind);
+  if (bridged) writeSetting(store, "bridge:lab", { address: BRIDGE, token: "token-lab" });
+  bridgeRequests.length = 0;
+  globalThis.fetch = async (url, init) => {
+    if (bridged && String(url).startsWith(BRIDGE)) {
+      bridgeRequests.push(`${init?.method ?? "GET"} ${new URL(String(url)).pathname}`);
+      return new Response(JSON.stringify({ job: "fixture" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    requests.push(String(url));
+    throw new Error(`no request may be made: ${url}`);
+  };
+  const connections = bridged ? [LAB_CLAUDE] : endpointsOffered(store);
+  const participant = (await readParticipants(await defaultSnapshot(instance.host), connections)).find((each) => each.name === "dev-ci");
+  const assessment = await assess({ handOver: handing, participant, instance: instanceSetup, page, connections });
   const outcome = await queue({ handOver: handing, participant, assessment, store, instance: instanceSetup, page, ofProduct: true, conversation: null })
     .then((queued) => ({ queued }), (refusal) => ({ refusal }));
   assert.deepEqual(requests, [], "no request was made");
-  return { ...outcome, assessment, product, instance };
+  return { ...outcome, assessment, product, instance, bridgeRequests: [...bridgeRequests] };
 }
 
 // The parameters of the job record that the hand-over queued: the one fenced json block of its section "## Parameters", less `refuses`, which names hand-over for every piece of a
@@ -196,7 +219,7 @@ const neverGiven = (params) => { for (const key of NEVER_GIVEN) assert.ok(!(key 
 
 // TST-626001 · level: unit · module: MOD-prompt-bar
 // guards: UC-019
-// given: the Scrum product, whose use cases UC-001 and UC-002 are accepted and realise EXPORT IS A PDF; dev-ci, a Developer of team1 with the CI secret KEY_A, route ci hosted; known positive: a hand-over of implement on ITM-004 is queued
+// given: the Scrum product, whose use cases UC-001 and UC-002 are accepted and realise EXPORT IS A PDF; dev-ci, a Developer of team1 of the model model-ci, on this browser's endpoint ep1 naming the CI secret KEY_A, so that its job takes GitHub Actions; known positive: a hand-over of implement on ITM-004 is queued
 // input: queue of the hand-over { kind: "change-use-case", works_on: ["UC-001"], task }
 // expect: the job is queued (one commit, one started workflow) and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" } — `useCase` is what MOD-approvals' recipe use-case-with-neighbours reads —, with none of source, resource, entry and part; no request was made
 test("a hand-over of change-use-case on one use case is queued with the parameter useCase beside useCases", async () => {
@@ -292,21 +315,22 @@ test("a hand-over of review-architecture is queued: its strategies read no param
 
 // TST-626008 · level: unit · module: MOD-prompt-bar
 // guards: UC-019
-// given: the Scrum product, whose backlog holds ITM-004 (no docs/plan); it realises UC-001
+// given: the Scrum product, whose backlog holds ITM-004 (no docs/plan); it realises UC-001; dev-ci on the Bridge's coding agent lab:claude, which declares writing to the repository and running code
 // input: queue of implement, and of refactor, on the item ITM-004
-// expect: both are queued and their records' parameters are exactly { items: ["ITM-004"] } — what MOD-run-planner's recipe implementation-inputs reads for a backlog item —, with no steps and none of source, resource, entry and part
+// expect: both are queued and their records' parameters are exactly { items: ["ITM-004"] } — what MOD-run-planner's recipe implementation-inputs reads for a backlog item —, with no steps and none of source, resource, entry and part; each is handed to the Bridge (POST /v1/jobs)
 test("a hand-over of implement or refactor on a backlog item is queued with the parameter items", async () => {
   for (const kind of ["implement", "refactor"]) {
     const it = await handsOver({ kind, works_on: ["ITM-004"] });
     assert.equal(it.refusal, undefined, `${kind}: ${it.refusal?.message}`);
     assert.deepEqual(paramsOfRecord(it), { items: ["ITM-004"] }, kind);
     neverGiven(paramsOfRecord(it));
+    assert.deepEqual(it.bridgeRequests, ["POST /v1/jobs"], `${kind} is handed to the Bridge`);
   }
 });
 
 // TST-626009 · level: unit · module: MOD-prompt-bar
 // guards: UC-019
-// given: a V-model product whose plan holds the step ITM-007 (docs/plan/ITM-007-store.md) and no backlog
+// given: a V-model product whose plan holds the step ITM-007 (docs/plan/ITM-007-store.md) and no backlog; dev-ci on lab:claude
 // input: queue of implement, and of refactor, on the step ITM-007
 // expect: both are queued and their records' parameters are exactly { steps: ["ITM-007"] } — what MOD-run-planner's recipe implementation-inputs and MOD-runtimes' writer branch-and-pull-request read for a plan step —, with no items and none of source, resource, entry and part
 test("a hand-over of implement or refactor on a plan step is queued with the parameter steps", async () => {
@@ -315,6 +339,7 @@ test("a hand-over of implement or refactor on a plan step is queued with the par
     assert.equal(it.refusal, undefined, `${kind}: ${it.refusal?.message}`);
     assert.deepEqual(paramsOfRecord(it), { steps: ["ITM-007"] }, kind);
     neverGiven(paramsOfRecord(it));
+    assert.deepEqual(it.bridgeRequests, ["POST /v1/jobs"], `${kind} is handed to the Bridge`);
   }
 });
 

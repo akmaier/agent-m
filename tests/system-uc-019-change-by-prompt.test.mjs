@@ -253,11 +253,11 @@ const filesDraft = (...files) => ({ files });
 // guards: UC-019; THE PAGE NAMES WHERE IT SENDS; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
 // given: the page of UC-007 with UC-007 and UC-008 in the product, and this browser's configuration offering the endpoint drafter (this machine, draft text) and the CLI session release-bridge:observer (Anthropic, USA, read the repository only)
 // input: the author writes "align UC-007 and UC-008 with the new rule" in the bar without naming a target, and presses Send with drafter
-// expect: before Send the bar names drafter with its place, the only participant that can draft text, and not observer, and nothing has been sent; the one request holds the instruction, the file of UC-007 as the target, the requirement A LOAN HAS A DUE DATE it realises and UC-008 as another use case; the bar names "drafter — this machine" as the destination
+// expect: before Send the bar names drafter with its model and its place ("drafter · fixture-model — this machine"), the only participant that can draft text, and not observer, and nothing has been sent; the one request holds the instruction, the file of UC-007 as the target, the requirement A LOAN HAS A DUE DATE it realises and UC-008 as another use case; the bar names "drafter — this machine" as the destination
 test("TST-377004: UC-019 1-3 the instruction is written in the prompt bar and the open use case is the target", async () => {
   const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
   await onUseCase(s);
-  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter · fixture-model — this machine");
   assert.equal(all(barOf(s), "option").length, 0, "observer cannot draft text, so there is nothing to choose among");
   assert.equal(s.endpointRequests.length, 0);
   await send(s, ALIGN, { participant: "drafter" });
@@ -378,14 +378,14 @@ test("TST-377009: UC-019 9 Save records the participant, model, version and roun
   assert.ok(Object.values(write.files).every((body) => !body.includes(ALIGN) && !body.includes("Agent-M-")), "no file names the instruction or a trailer");
   // The one job record is the piece's own, run in this tab (UC-049 4a.1): it holds no word of the conversation.
   assert.equal(recordTexts(s).length, 1);
-  assert.ok(recordTexts(s).every((text) => /^route: tab$/m.test(text) && !text.includes(ALIGN)), recordTexts(s).join("\n"));
+  assert.ok(recordTexts(s).every((text) => /^route: tab endpoint drafter$/m.test(text) && !text.includes(ALIGN)), recordTexts(s).join("\n"));
   assert.equal(conversationRecords(s).length, 0, "recording is off: nothing of the conversation is written");
 });
 
 // TST-377014
 // level: system
 // module: MOD-prompt-bar; MOD-job-runner; MOD-participant-list
-// guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-019; A CONNECTION DECLARES ITS CAPABILITIES
 // given: the page of UC-007, and a participant, observer, that declares only the capability "read repository", beside drafter
 // input: the author presses Send
 // expect: observer is not offered, so it is not chosen: the message goes to drafter alone ("Sent to:" names drafter and not observer), and the endpoint receives one request
@@ -436,7 +436,7 @@ test("TST-377010: UC-019 2 and 3a the bar offers only what this browser configur
     + "| listed | model endpoint | listed-model | 200000 | - | draft text | this machine | endpoint drafter |\n";
   const s = await scenario({ extraFiles: useCases, instanceFiles: { "docs/participants.md": listed } });
   await onUseCase(s);
-  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter · fixture-model — this machine");
   assert.equal(all(barOf(s), "option").length, 0, "the observer session cannot draft text and listed is not configured here: nothing to choose among");
   const none = await scenario({ extraFiles: useCases, drafting: false });
   await onUseCase(none);
@@ -461,7 +461,7 @@ test("TST-377016: UC-019 precondition and 3a the bar offers what is configured i
   const s = await scenario({ extraFiles: useCases, instanceFiles: { "docs/participants.md": "" } });
   await onUseCase(s);
   assert.equal(all(barOf(s), "span", "participant").length + all(barOf(s), "select", "participant").length, 1, "the configured endpoint is offered");
-  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter · fixture-model — this machine");
   const none = await scenario({ extraFiles: useCases, drafting: false });
   await onUseCase(none);
   one(barOf(none), "textarea", "instruction").dispatchEvent(new Event("focus"));

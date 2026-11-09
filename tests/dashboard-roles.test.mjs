@@ -1,30 +1,34 @@
 // The Roles page (UC-048) — MOD-implementation-pages' route `roles`, as the accepted text of docs/architecture/
 // MOD-implementation-pages.md states it: the product's role assignments — its teams, in a model with sprints —, each with who
 // fills which role; the roles of the model with what each needs and how many fill it, and for each role the participants of
-// the instance's list that have every capability it needs, each with where it processes data; + Team in a model with sprints;
-// the findings of roleAssignmentFindings, the linked sources' places among them; Save, which writes a role assignment with
+// the instance's list, each agent with its model and the connections of this browser that offer it, each with where it processes
+// data and whether it has every capability the role needs; + Team in a model with sprints; the findings of
+// roleAssignmentFindings, given this browser's connections, the linked sources' places among them; Save, which writes a role assignment with
 // saveFile, disabled while the findings hold an error; and a team removed only while no sprint of it holds an item. Its
 // folded explanations are MOD-site-frame's, from src/site-frame/explanations.md. It is laid out as #uc and #arc are: a head,
 // panels with their explanations, list tables, buttons — no style of its own.
 // Run: node --test tests/dashboard-roles.test.mjs
 //
 // Module: MOD-implementation-pages
-// Guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; EVERY STEP EXPLAINS ITSELF
+// Guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; EVERY STEP EXPLAINS ITSELF
 // Level: component
 //
 // The real dashboard (src/site-frame/dashboard-app.mjs) hands the route to MOD-implementation-pages' route `roles` by its name, in
 // tests/app-harness.mjs against a GitHub API mock, which serves one repository as both the instance and the product. The
 // fixture model is Scrum with a work-in-progress limit (tests/fixtures/flow/scrum-wip.md): Owner, a person, one; Builders,
 // agents, several, who need read, write, run code and tests and use tools; Checker, either, several, who need read and run.
-// The instance's participants: alice and bob, people; dev-a, a CLI agent on this machine, and dev-b, one at a provider in
-// the USA, both with every capability; ep, a model endpoint that can only draft text and read. team1 — alice, dev-a — runs a
+// The instance's participants: alice and bob, people; dev-a, an agent of the model model-a, and dev-b, one of model-b. This
+// browser's connections: the Bridge lab-pc, whose coding agent claude offers model-a on this machine and codex model-b at a
+// provider in the USA, both with every capability (tests/browser-connections-fixture.mjs answers the Bridge's requests); and the
+// model endpoint local, which offers model-a on this machine and can only draft text and read. team1 — alice, dev-a — runs a
 // sprint that holds ITM-001; team2 — bob, dev-b — runs none. The harness's controls do not read an input's value from its
 // HTML, as a browser does: a test types each field it needs, and ticks a box as a person does, with the change event.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { repoServer, openDashboard, REPO } from "./app-harness.mjs";
+import { repoServer, openDashboard, REPO, setting } from "./app-harness.mjs";
+import { CODING, bridgeAnswer, bridgeSetting, session } from "./browser-connections-fixture.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const inMain = (selector) => globalThis.document.getElementById("main").querySelector(selector);
@@ -38,13 +42,17 @@ function tick(selector, on = true) {
   box.fire("change", {});
 }
 
-const PARTICIPANTS = (useTools = true) => ["# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| alice | person | — | — | — | draft text, read the repository, write to the repository | — | account github.com/alice |",
-  "| bob | person | — | — | — | draft text, read the repository, write to the repository | — | account github.com/bob |",
-  `| dev-a | CLI agent | example-model | 200000 | — | read the repository, write to the repository, run code and tests${useTools ? ", use tools" : ""} | this machine | bridge lab-pc agent claude |`,
-  `| dev-b | CLI agent | example-model | 200000 | — | read the repository, write to the repository, run code and tests${useTools ? ", use tools" : ""} | a provider in the USA | bridge cloud agent claude |`,
-  "| ep | model endpoint | example-model | 100000 | — | draft text, read the repository | this machine | endpoint local |", ""].join("\n");
+const PARTICIPANTS = ["# Participants of this instance", "", "**REGISTER**", "", "| Name | Type | Model |", "|---|---|---|",
+  "| alice | person | — |", "| bob | person | — |", "| dev-a | agent | model-a |", "| dev-b | agent | model-b |", ""].join("\n");
+// This browser's settings: the Bridge lab-pc with its two coding agents' sessions — with or without use tools, which Builders need —,
+// and the model endpoint local, which offers model-a.
+function connectionEntries(useTools = true) {
+  const capabilities = useTools ? CODING : CODING.filter((each) => each !== "use tools");
+  return { ...setting("bridge:lab-pc", bridgeSetting()),
+    ...setting("session:lab-pc:claude", session([["model-a"]], { capabilities })),
+    ...setting("session:lab-pc:codex", session([["model-b"]], { place: "a provider in the USA", capabilities })),
+    ...setting("endpoint:local", { kind: "openai-compatible", url: "http://localhost:8000/v1", model: "model-a", key: "sk-local-fixture-0123456789", place: "this machine", context: 100000 }) };
+}
 const DECLARATION = ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md",
   `model_version: ${"a".repeat(40)}`, "---", "# How the fixture product is developed", "", "## Practices", "", "- none", "",
   "## Branches", "", "| Phase or time box | Branch |", "|---|---|", "", "## Definition of Done", "", "The job rules hold.", ""].join("\n");
@@ -58,11 +66,11 @@ const RESTRICTED = ["---", "id: SRC-restricted", "title: A restricted source", "
   "A fixture source whose content may be given only at NHR@FAU, Erlangen.", "", "## Versions", "",
   "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `2026-10-01` | 2026-10-01 | fixture | fixture only | none |", ""].join("\n");
 
-function fixtureFiles({ sprints = true, useTools = true, restricted = false } = {}) {
+function fixtureFiles({ sprints = true, restricted = false } = {}) {
   const model = read("tests/fixtures/flow/scrum-wip.md");
   return {
     "SPEC.md": "# SPEC\n\n## 1. Rules\n\n**RULE ONE** *(PO, 2026-09-01)*\nA rule.\n*Check:* no automatic check; at review.\n",
-    "docs/participants.md": PARTICIPANTS(useTools),
+    "docs/participants.md": PARTICIPANTS,
     "docs/process.md": DECLARATION,
     "docs/process-models/fixture.md": sprints ? model : model.replace("| Sprints | yes |", "| Sprints | no |"),
     "docs/role-assignments/team1.md": assignment("team1", "alice", "dev-a"),
@@ -74,9 +82,9 @@ function fixtureFiles({ sprints = true, useTools = true, restricted = false } = 
       "docs/sources/SRC-restricted.md": RESTRICTED } : {}),
   };
 }
-async function rolesPage(options) {
-  const server = await repoServer({ files: fixtureFiles(options) });
-  const page = await openDashboard({ server, hash: "#roles" });
+async function rolesPage({ useTools = true, ...options } = {}) {
+  const server = await repoServer({ files: fixtureFiles(options), handlers: [bridgeAnswer(["claude", "codex"])] });
+  const page = await openDashboard({ server, hash: "#roles", entries: connectionEntries(useTools) });
   return { server, page };
 }
 function part(html, marker) {
@@ -90,11 +98,11 @@ const row = (html, role) => { const at = html.indexOf(`data-role="${role}"`); re
 // ---------------------------------------------------------------- step 1
 
 // TST-472139 · level: component · module: MOD-implementation-pages
-// guards: UC-048; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: the fixture product; then the same instance whose agents cannot use tools, which Builders need
+// guards: UC-048; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA
+// given: the fixture product; then the same browser whose coding agents cannot use tools, which Builders need
 // input: open #roles
-// expect: one row per role of the model, with who may fill it, how many, what it needs, and who may hold it with where each processes data — Owner: alice and bob, people; Builders: dev-a on this machine and dev-b at a provider in the USA, never ep, which cannot write; Checker: dev-a and dev-b, never alice, who cannot run code. Without use tools, Builders names that capability as the one no participant has, and links to the participants
-test("#roles — the model's roles: who may fill each, how many, what each needs, and who may hold it with where it processes data", async () => {
+// expect: one row per role of the model, with who may fill it, how many, what it needs, and who may hold it, each agent with its model and its connections with where each processes data — Owner: alice and bob, people, no agent; Builders: dev-a with model-a on bridge lab-pc agent claude at this machine, having every capability the role needs, and on endpoint local, which lacks write to the repository; dev-b with model-b on bridge lab-pc agent codex at a provider in the USA; Checker, which either may fill, alice and bob among them. Without use tools, Builders names that capability as one dev-a's coding agent lacks (UC-048 3b), and links to the pages of endpoints and Bridges
+test("#roles — the model's roles: who may fill each, how many, what each needs, and who may hold it with its connections and where each processes data", async () => {
   const { page } = await rolesPage();
   const roles = part(page.main(), 'data-part="roles"');
   assert.match(row(roles, "Owner"), /person/);
@@ -102,13 +110,16 @@ test("#roles — the model's roles: who may fill each, how many, what each needs
   assert.ok(row(roles, "Owner").includes("alice") && row(roles, "Owner").includes("bob"));
   assert.ok(!row(roles, "Owner").includes("dev-a"), "an agent is not offered for a role a person fills");
   const builders = row(roles, "Builders");
-  for (const named of ["several", "use tools", "dev-a", "this machine", "dev-b", "a provider in the USA"]) assert.ok(builders.includes(named), named);
-  assert.ok(!builders.includes("model endpoint"), "ep, the one model endpoint, cannot write to the repository");
-  assert.ok(!row(roles, "Checker").includes("alice"), "alice cannot run code and tests");
+  for (const named of ["several", "use tools", "dev-a", "model-a", "bridge lab-pc agent claude, this machine — has every capability the role needs",
+    "dev-b", "model-b", "bridge lab-pc agent codex, a provider in the USA"]) assert.ok(builders.includes(named), named);
+  assert.match(builders, /endpoint local, this machine — <span class="warn">lacks write to the repository/, "the model endpoint local cannot write to the repository");
+  const checker = row(roles, "Checker");
+  assert.ok(checker.includes("alice") && checker.includes("bob"), "a person may hold a role either may fill");
   const short = await rolesPage({ useTools: false });
   const missing = row(part(short.page.main(), 'data-part="roles"'), "Builders");
-  assert.match(missing, /use tools/);
-  assert.match(missing, /href="#participants"/);
+  assert.match(missing, /bridge lab-pc agent claude, this machine — <span class="warn">lacks use tools/);
+  assert.match(missing, /href="#endpoints"/);
+  assert.match(missing, /href="#bridge"/);
 });
 
 // TST-472140 · level: component · module: MOD-implementation-pages
@@ -169,16 +180,16 @@ test("#roles — a second participant for a role one fills, or no person for a r
 });
 
 // TST-472143 · level: component · module: MOD-implementation-pages
-// guards: UC-048; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the product links SRC-restricted, which permits only NHR@FAU, Erlangen; dev-a processes on this machine
+// guards: UC-048; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A CONNECTION DECLARES WHERE IT PROCESSES DATA
+// given: the product links SRC-restricted, which permits only NHR@FAU, Erlangen; dev-a's connection bridge lab-pc agent claude processes on this machine
 // input: open #roles; Change team1 and Save it unchanged
-// expect: team1's panel, and its form, warn that dev-a, a holder of Builders, is at a place SRC-restricted does not permit; the warning leaves Save enabled, which commits docs/role-assignments/team1.md
-test("#roles — a holder at a place a linked source does not permit is named with the source and the role; Save stays possible", async () => {
+// expect: team1's panel, and its form, warn that dev-a's connection bridge lab-pc agent claude, for the holder of Builders, is at a place SRC-restricted does not permit (UC-048 3c); the warning leaves Save enabled, which commits docs/role-assignments/team1.md
+test("#roles — a connection of a holder at a place a linked source does not permit is named with the source, the role and the connection; Save stays possible", async () => {
   const { page, server } = await rolesPage({ restricted: true });
   const team1 = part(page.main(), 'data-assignment="team1"');
-  for (const named of ["SRC-restricted", "dev-a", "Builders"]) assert.ok(team1.includes(named), named);
+  for (const named of ["SRC-restricted", "dev-a", "Builders", "bridge lab-pc agent claude"]) assert.ok(team1.includes(named), named);
   await page.click('[data-edit="team1"]');
-  assert.match(part(page.main(), "data-edit-assignment"), /dev-a of the role Builders processes data at this machine, which the source SRC-restricted/);
+  assert.match(part(page.main(), "data-edit-assignment"), /the connection bridge lab-pc agent claude of the holder dev-a of the role Builders processes data at this machine, which the source SRC-restricted/);
   assert.equal(saveButton().disabled, false, "a warning does not stop Save");
   await page.click("[data-save-assignment]");
   assert.equal(server.writes.length, 1, said());
@@ -271,8 +282,8 @@ async function removeTeam1(list, { closed = false } = {}) {
   const asked = [];
   const files = fixtureFiles();
   if (closed) files["docs/backlog/sprints/team1/01.md"] = CLOSED_SPRINT;
-  const server = await repoServer({ files, handlers: [pullsServed(list, asked)] });
-  const page = await openDashboard({ server, hash: "#roles" });
+  const server = await repoServer({ files, handlers: [pullsServed(list, asked), bridgeAnswer(["claude", "codex"])] });
+  const page = await openDashboard({ server, hash: "#roles", entries: connectionEntries() });
   await page.click('[data-remove="team1"]');
   return { server, asked, said: inMain('[data-remove-result="team1"]')?.innerHTML ?? "" };
 }

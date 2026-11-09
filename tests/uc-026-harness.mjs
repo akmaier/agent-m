@@ -16,8 +16,8 @@
 // Authored by developer-sonnet-j (ITM-771), who built none of the behaviour UC-026 walks: the participants who built it are named in the header of tests/system-uc-026-generate-a-multi-level-test-battery.test.mjs.
 // The product alice/thesis-tool has the SPEC rules A LOAN HAS A DUE DATE (guarded by an existing unit test and an existing release test) and A LOAN CAN BE EXTENDED ONCE (guarded by none), the use cases UC-001
 // (accepted by an approval record, guarded by an existing system test) and UC-002 (not accepted, guarded by none), the modules MOD-loans (exercised by an existing unit and an existing component test) and
-// MOD-members (exercised by none), the test file tests/loan.test.mjs with TST-310 to TST-314, and the job workflow. The instance's register holds the CI agents test-bot, other-bot and small-bot (the capabilities
-// of the test-writing role; the last holds a context of 100 tokens) and the model endpoint drafter-ep (it declares only `draft text`).
+// MOD-members (exercised by none), the test file tests/loan.test.mjs with TST-310 to TST-314, and the job workflow. The instance's register holds the agents test-bot, other-bot and small-bot, on endpoints whose key is the CI secret FIXTURE_KEY
+// (the last's holds a context of 100 tokens), and the agent drafter-ep on an endpoint on this machine (CONNECTIONS).
 
 import "./review-pages-harness.mjs";
 import { writeFileSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
@@ -33,7 +33,6 @@ const { openStore, writeSetting } = await import("../src/browser-store/index.mjs
 export const OTHER_RULE = "A LOAN CAN BE EXTENDED ONCE";
 export const LOAN_TESTS = "tests/loan.test.mjs";
 const ENDPOINT_ORIGIN = new URL(ENDPOINT.baseUrl).origin;
-const CAN = "read the repository, write to the repository, run code and tests";
 
 // ---------------------------------------------------------------- the product
 
@@ -60,16 +59,22 @@ export const productFiles = (files = {}) => ({ ...ACCEPTED, "SPEC.md": SPEC, [UC
 
 // ---------------------------------------------------------------- the instance
 
-const row = (name, type, model, context, place, route, capabilities = CAN) => `| ${name} | ${type} | ${model} | ${context} | — | ${capabilities} | ${place} | ${route} |`;
-/** The instance's register of participants; `rows` are further rows. */
-export const register = (...rows) => text("# Participants of this instance", "", "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  row("test-bot", "CI agent", "fixture-llm", 200000, "GitHub's hosted runners", "ci hosted secret FIXTURE_KEY"), row("other-bot", "CI agent", "fixture-llm", 200000, "GitHub's hosted runners", "ci hosted secret FIXTURE_KEY"),
-  row("small-bot", "CI agent", "fixture-llm", 100, "GitHub's hosted runners", "ci hosted secret FIXTURE_KEY"),
-  row("drafter-ep", "model endpoint", "fixture-llm", 200000, "this machine", "endpoint ep1", "draft text"), ...rows);
+const row = (name, model) => `| ${name} | agent | ${model} |`;
+/** The instance's register of participants (MOD-participant-list: Name, Type, Model); `rows` are further rows. test-bot and other-bot work with fixture-llm, small-bot with
+ * fixture-llm-small, drafter-ep with drafter-llm; the connections that offer those models are the browser's (CONNECTIONS). */
+export const register = (...rows) => text("# Participants of this instance", "", "| Name | Type | Model |", "|---|---|---|",
+  row("test-bot", "fixture-llm"), row("other-bot", "fixture-llm"), row("small-bot", "fixture-llm-small"), row("drafter-ep", "drafter-llm"), ...rows);
+/** The connections this browser keeps (MOD-browser-store, endpoint:<name>), one per model of the register: `fixture` offers fixture-llm on GitHub's hosted runners, its key the
+ * CI secret FIXTURE_KEY, so that its jobs are offered on CI; `fixture-small` fixture-llm-small with a context of 100 tokens, under the same secret; `ep1` drafter-llm on this machine. */
+export const CONNECTIONS = {
+  fixture: { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: ENDPOINT.model, key: KEY, place: "GitHub's hosted runners", context: 200000, secret: "FIXTURE_KEY" },
+  "fixture-small": { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: "fixture-llm-small", key: KEY, place: "GitHub's hosted runners", context: 100, secret: "FIXTURE_KEY" },
+  ep1: { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: "drafter-llm", key: KEY, place: "this machine", context: 200000 },
+};
 
 /** The record of a job of kind `implement` that `participant` ran, working on `worksOn`, ended done: a record the page reads for the implementer of what a selection checks. */
 export const implemented = (participant, worksOn, id = "JOB-20261010-0900-ab01") => {
-  const { path, text: body } = startRecord({ id, kind: "implement", worksOn, participant, model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-10T09:00:00Z"),
+  const { path, text: body } = startRecord({ id, kind: "implement", worksOn, participant, model: "fixture-llm", route: "ci hosted endpoint fixture secret FIXTURE_KEY", declares: { context: 200000, capabilities: ["draft text", "read the repository"] }, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-10T09:00:00Z"),
     agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [], params: {} });
   return { [path]: body };
 };
@@ -84,12 +89,12 @@ export function battery({ product = {}, instance = {} } = {}, run) {
 
 // ---------------------------------------------------------------- the dashboard's page
 
-/** The context the route generate is drawn with: the instance's repository, the browser's store with the person's token and the endpoints of the CI agents, and the product chosen. `go` records a link. */
-export function pageContext(w, { go = () => {}, extra = [] } = {}) {
+/** The context the route generate is drawn with: the instance's repository, the browser's store with the person's token and the connections of CONNECTIONS (and `extra`, further endpoint settings by name), and the product chosen. `go` records a link. */
+export function pageContext(w, { go = () => {}, extra = {} } = {}) {
   globalThis.location = { hostname: "akmaier.github.io", pathname: "/agent-m/", origin: "https://akmaier.github.io", href: "https://akmaier.github.io/agent-m/" };
   const store = openStore(INSTANCE_REPO);
   writeSetting(store, "github-token:alice/thesis-tool", PRODUCT_TOKEN);
-  for (const name of ["test-bot", "other-bot", "small-bot", ...extra]) writeSetting(store, `endpoint:${name}`, { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: ENDPOINT.model });
+  for (const [name, setting] of Object.entries({ ...CONNECTIONS, ...extra })) writeSetting(store, `endpoint:${name}`, setting);
   const real = w.dashboardHost();
   const host = { ...real, readSnapshot: async (ref) => withStoredGraph(await real.readSnapshot(ref)) };
   return { page: "main", instance: { repository: INSTANCE_REPO, host: w.instanceHost() }, store, go, product: { address: PRODUCT_URL, kind: "github", host } };
@@ -260,9 +265,9 @@ export const onDisk = (path) => readFileSync(new URL(`../${path}`, import.meta.u
 
 // ---------------------------------------------------------------- the job run in memory
 
-/** The participant the jobs of `proposeRun` are given: a CI agent with the three capabilities of the test-writing role. */
-export const WRITER = { name: "test-bot", type: "CI agent", model: "fixture-llm", context: 200000, price: null, capabilities: ["read the repository", "write to the repository", "run code and tests"],
-  place: "GitHub's hosted runners", route: "ci hosted secret FIXTURE_KEY" };
+/** The participant the jobs of `proposeRun` are given: an agent on the endpoint fixture, its key a CI secret, as the job's record declares it, with the three capabilities of the test-writing role. */
+export const WRITER = { name: "test-bot", type: "model endpoint", model: "fixture-llm", context: 200000, capabilities: ["read the repository", "write to the repository", "run code and tests"],
+  place: "GitHub's hosted runners", route: "endpoint fixture secret FIXTURE_KEY" };
 
 // The instance's files from the disk: AGENTS.md, the register of the book and its chapters.
 const BOOK = "docs/sources/SRC-vibe-coding/2026-10-05/";

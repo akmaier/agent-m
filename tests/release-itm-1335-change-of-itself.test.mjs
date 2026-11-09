@@ -108,9 +108,9 @@ const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
-const row = (name, context = 200000) => `| ${name} | model endpoint | model-a | ${context} | - | draft text | this machine | endpoint ep1 |`;
+const row = (name, model = "model-a") => `| ${name} | agent | ${model} |`;
 const DRAFTER = row("drafter-a");
-const SMALL = row("small-d", 20);
+const SMALL = row("small-d", "model-s");
 
 function fakeInstance(register, entries = SOURCE_FILES) {
   const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" },
@@ -140,7 +140,9 @@ async function show(fake, params = { id: "draft" }, { register = registerOf(DRAF
   assert.ok(route, `the route spec-entry: ${pages.error?.message}`);
   const store = openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
-  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
+  // The connections of the register's models (MOD-browser-store, endpoint:<name>): ep1 offers model-a, ep2 small-d's model-s with a context of 20 tokens.
+  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 });
+  writeSetting(store, "endpoint:ep2", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-s", key: "sk-fixture-endpoint-key", place: "this machine", context: 20 });
   const target = document.createElement("div");
   document.body.append(target);
   const context = { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance(register, entries).host }, store, go() {},

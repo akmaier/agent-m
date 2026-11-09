@@ -122,14 +122,20 @@ const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
-const row = (name, model, place, route, context = 200000) => `| ${name} | model endpoint | ${model} | ${context} | — | draft text | ${place} | ${route} |`;
-const DRAFTER = row("drafter-a", "model-a", "this machine", "endpoint ep1");
-const REVIEWER = row("reviewer-b", "model-b", "this machine", "endpoint ep2");
-const TWIN = row("twin-a", "model-a", "this machine", "endpoint ep3");
-const FAR = row("far-c", "model-c", "a server in Singapore", "endpoint ep4");
-const SMALL = row("small-d", "model-d", "this machine", "endpoint ep5", 50000);
-const CI_ROW = "| ci-agent | CI agent | model-x | 200000 | — | draft text | GitHub Actions in the USA | ci hosted secret CI_KEY |";
-const READER_ROW = "| reader | person | — | — | — | read the repository | — | the GitHub account `reader` |";
+const row = (name, model) => `| ${name} | agent | ${model} |`;
+const DRAFTER = row("drafter-a", "model-a");
+const REVIEWER = row("reviewer-b", "model-b");
+const TWIN = row("twin-a", "model-a");
+const FAR = row("far-c", "model-c");
+const SMALL = row("small-d", "model-d");
+const CI_ROW = row("ci-agent", "model-x");
+const READER_ROW = "| reader | person | — |";
+// The connections this browser keeps (MOD-browser-store, endpoint:<name>), one per model of the register: ep1 offers model-a — drafter-a's and twin-a's —, ep2 model-b, ep4
+// model-c in Singapore, ep5 model-d with a context of 50000 tokens, and ep6 model-x at GitHub Actions in the USA, its key the CI secret CI_KEY, so that its jobs are offered on CI too.
+const ENDPOINTS = {
+  ep1: { model: "model-a", place: "this machine" }, ep2: { model: "model-b", place: "this machine" }, ep4: { model: "model-c", place: "a server in Singapore" },
+  ep5: { model: "model-d", place: "this machine", context: 50000 }, ep6: { model: "model-x", place: "GitHub Actions in the USA", secret: "CI_KEY" },
+};
 const SECRET_ENTRY = text("---", "id: SRC-secret", "title: Secret rules", "kind: document", "authority: normative", "licence: restricted — internal use only", "places:", "  - this machine", "---",
   "# SRC-secret Secret rules", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| 1 | 2026-10-01 | v1 | here | 1 file |");
 function fakeInstance(register, entries = {}) {
@@ -284,7 +290,7 @@ async function show(fake, { register = THREE, entries = {}, token = true } = {})
   assert.ok(route, `the route decision: ${pages.error?.message}`);
   const store = openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
-  for (const name of ["ep1", "ep2", "ep3", "ep4", "ep5"]) writeSetting(store, `endpoint:${name}`, { url: `https://${name}.example.test/v1`, kind: "openai-compatible", model: "m", throughBridge: false });
+  for (const [name, declared] of Object.entries(ENDPOINTS)) writeSetting(store, `endpoint:${name}`, { url: `https://${name}.example.test/v1`, kind: "openai-compatible", key: "sk-fixture-endpoint-key", context: 200000, ...declared });
   const target = document.createElement("div");
   document.body.append(target);
   const context = { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance(register, entries).host }, store, go() {},
@@ -416,7 +422,7 @@ test("decision/draft — an existing architecture leads to UC-023, and no first 
 
 // TST-442005 · level: unit · module: MOD-review-pages
 // guards: NO REVIEWER IS THE DRAFTER; UC-022
-// given: the register holds drafter-a (model-a), twin-a (model-a), reviewer-b (model-b), far-c, small-d, a CI agent and a person that cannot draft text
+// given: the register holds drafter-a (model-a), twin-a (model-a), reviewer-b (model-b), far-c, small-d, ci-agent (an agent on an endpoint whose key is a CI secret) and a person that cannot draft text
 // input: the page; then drafter-a chosen as drafter
 // expect: before the choice, no reviewer offered; the drafters are the six that can draft text, each with its place; after it, the reviewers are reviewer-b, far-c and small-d — not drafter-a, not twin-a, which uses drafter-a's model
 test("decision/draft — a reviewer is offered only if it differs from the drafter in participant and in model", async () => {
@@ -551,9 +557,9 @@ test("decision/draft — Run starts one job in this tab, attended", async () => 
 
 // TST-442011 · level: unit · module: MOD-review-pages
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; UC-022
-// given: a product that holds the job workflow; the CI agent chosen as drafter, with reviewer-b
+// given: a product that holds the job workflow; ci-agent, an agent on the endpoint ep6 whose setting names its CI secret CI_KEY (routes: the tab and ci hosted), chosen as drafter, with reviewer-b
 // input: the run panel, Run
-// expect: nothing sent to any endpoint; one commit holding the job's start record in docs/jobs/ and nothing else; the page says the job is queued, naming its identifier; the record names the route ci hosted
+// expect: nothing sent to any endpoint; one commit holding the job's start record in docs/jobs/ and nothing else; the page says the job is queued, naming its identifier; the record names the route ci hosted, followed by the connection's route endpoint ep6 secret CI_KEY (MOD-job-ledger, route)
 test("decision/draft — a job on the CI route is queued there and not run in the tab", async () => {
   endpointsAnswer();
   const fake = fakeProduct({ ...READY, [WORKFLOW]: "name: Agent M jobs\n" });
@@ -565,7 +571,7 @@ test("decision/draft — a job on the CI route is queued there and not run in th
   assert.equal(fake.writes().length, 1, "one commit");
   assert.deepEqual(fake.writes()[0].files.map((file) => file.path.replace(/JOB-[^.]+/, "JOB")), ["docs/jobs/JOB.md"]);
   assert.match(byClass(target, "p", "queued")[0].textContent, /JOB-\d{8}-\d{4}-[0-9a-f]{4}/);
-  assert.match(fake.writes()[0].files[0].text, /^route: ci hosted$/m);
+  assert.match(fake.writes()[0].files[0].text, /^route: ci hosted endpoint ep6 secret CI_KEY$/m);
 });
 
 // ---------------------------------------------------------------- after Run

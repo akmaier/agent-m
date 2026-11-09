@@ -408,7 +408,7 @@ test("TST-771209: UC-026 8b a test that stays green with the planted fault is no
 // expect: known positive — the participant pushed the branch and reported it; the job ends done in one round with a pull request for the branch
 test("TST-771210: UC-026 5, 8 a reviewed case that guards a module is written as a test of that module and the job passes", async () => {
   const cases = [proposed("TST-908", "unit", ["MOD-members"])];
-  const { path, text: start } = startRecord({ id: "JOB-20261030-0900-bb01", kind: "propose-tests", worksOn: ["MOD-members"], participant: "test-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice",
+  const { path, text: start } = startRecord({ id: "JOB-20261030-0900-bb01", kind: "propose-tests", worksOn: ["MOD-members"], participant: "test-bot", model: "fixture-llm", route: "ci hosted endpoint fixture secret FIXTURE_KEY", declares: { context: 200000, capabilities: ["read the repository", "write to the repository", "run code and tests"] }, run: null, retries: null, startedBy: "alice",
     start: new Date("2026-10-30T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [],
     params: { requirements: [], useCases: [], modules: ["MOD-members"], levels: ["unit"] } });
   const ended = appendToRecord(start, { part: "end", at: new Date("2026-10-30T09:05:00Z"), state: "done", results: [], draft: { cases }, rounds: [], usage: null, cost: { known: false, usage: null }, reason: null, log: null });

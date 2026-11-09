@@ -34,10 +34,10 @@ const TOKEN = "ghp_ALICEagentMtoken0123456789abcdef";
 const KEY = "sk-FIXTURE-KEY-0123456789abcdef";
 
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |",
-  "| lab-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository | the lab computer | ci runner:lab-pc secret FIXTURE_KEY |",
-  "| alice | person | — | — | — | draft text | — | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |",
+  "| lab-bot | agent | fixture-llm |",
+  "| alice | person | — |");
 const declaration = (version) => text("---", "model: scrum", "model_file: src/model-catalogue/models/scrum.md", `model_version: ${version}`, "---",
   "# Process", "", "## Practices", "", "- none", "", "## Branches", "", "| Phase or time box | Branch |", "|---|---|", "| Sprint | sprint/<team>/<nn> |", "",
   "## Definition of Done", "", "The job rules hold; no condition is added.");

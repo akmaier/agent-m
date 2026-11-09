@@ -94,7 +94,14 @@ export const PRODUCT_FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, 
 const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-export const participantRow = (name, { context = 200000, place = "this machine", model = "model-a" } = {}) => `| ${name} | model endpoint | ${model} | ${context} | - | draft text | ${place} | endpoint ep1 |`;
+// A participant is an agent of the register with its model (MOD-participant-list); its context and place are those of the connection that offers the model, an endpoint
+// `ep-<name>` this browser keeps (MOD-browser-store, endpoint:<name>), which every world writes and whose address is the one model endpoint of endpointAnswers. Each
+// participant made here with a context or place of its own names a model of its own.
+const connections = new Map();
+export const participantRow = (name, { context = 200000, place = "this machine", model = "model-a" } = {}) => {
+  connections.set(`ep-${name}`, { url: "https://ep1.example.test/v1", kind: "openai-compatible", model, key: "sk-fixture-endpoint-key", place, context });
+  return `| ${name} | agent | ${model} |`;
+};
 export const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
 export const DRAFTER = participantRow("drafter-a");
 export const CHAPTER_EIGHT = "docs/sources/SRC-vibe-coding/2026-10-05/08_requirements-engineering.md";
@@ -201,7 +208,7 @@ export async function world({ files = PRODUCT_FILES, instance = {}, token = true
   const requests = answers === null ? [] : endpointAnswers(answers);
   const store = openStore("alice/agent-m");
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
-  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
+  for (const [name, setting] of connections) writeSetting(store, `endpoint:${name}`, setting);
   const context = { page: "review", instance: { repository: "alice/agent-m", host: other.host }, store, go() {}, product: { address: PRODUCT_ADDRESS, kind: "github", host: product.host } };
   const draw = async (params = { id: "draft" }) => {
     const target = document.createElement("div");

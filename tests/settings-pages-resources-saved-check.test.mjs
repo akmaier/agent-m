@@ -45,8 +45,10 @@ const LLM = "| shared-llm | endpoint | http://workstation.example.org:8000/v1 | 
 const PRODUCT_LIST = list("thesis-tool", DLLS, CLUSTER);
 const INSTANCE_LIST = list("agent-m", LLM, CLUSTER);
 const PARTICIPANTS = ["# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-drafter | CI agent | ci-model | 200000 | — | draft text, run code and tests | GitHub Actions in the USA | ci runner:gpu secret CI_KEY |", ""].join("\n");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-drafter | agent | ci-model |", ""].join("\n");
+// The connection of this browser that offers ci-drafter's model, its key named as the CI secret CI_KEY, so that its jobs may run on CI.
+const CONNECTION = { kind: "openai-compatible", url: "https://models.example.test/v1", model: "ci-model", key: "sk-ci-model-0123456789", place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" };
 const WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n" };
 
 // A person opens the page at `fragment`: the frame started on the module view of MOD-settings-pages, over this browser's store with the instance's token, the product with its own, and the Bridges `bridges`.
@@ -56,7 +58,7 @@ function visit(t, fragment, { productFiles = { "docs/resources.md": PRODUCT_LIST
     repositories: { [INSTANCE]: { files: instanceFiles }, [PRODUCT_REPO]: { files: productFiles, visibility },
       "alice/dlls": { files: { "README.md": CONTENT } }, "alice/dlls2": { files: { "README.md": CONTENT } } },
     settings: { "github-token": { value: TOKEN, name: "Agent M · akmaier/agent-m", expires: "2027-01-01" }, products: [PRODUCT],
-      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" },
+      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" }, "endpoint:ci-model": CONNECTION,
       ...Object.fromEntries(Object.entries(bridges).map(([name, kept]) => [`bridge:${name}`, typeof kept === "string" ? { address: kept, token: BRIDGE_TOKEN } : kept])) },
   });
 }
@@ -94,7 +96,7 @@ const saveRunner = async (page, name, address) => {
 
 // TST-1124001 · level: unit · module: MOD-settings-pages
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
-// given: the product page with the job workflow and a CI agent on the runner gpu; the person adds the compute resource gpu-box with the route runner:gpu and presses Save, and does not open the page again
+// given: the product page with the job workflow and the agent ci-drafter, whose model this browser's endpoint ci-model offers with the CI secret CI_KEY; the person adds the compute resource gpu-box with the route runner:gpu and presses Save, and does not open the page again
 // input: press Check on gpu-box
 // expect: the run panel of the check job is shown for gpu-box, and no "ResourceNotFound" is said
 // Planted fault: the page keeps the snapshot it opened (only its commit replaced) and Check says "no list of resources holds gpu-box".

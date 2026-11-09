@@ -200,7 +200,7 @@ test("TST-579205: UC-005 2 3 the run panel names the destination, the parts and 
 // input: show the run panel with small-d; then, on the same page, with big-d, and press Run
 // expect: 2a: with small-d the panel names small-d, the tokens it would receive and the context it holds, offers no Run and nothing is sent or written; the same page still offers big-d, whose panel names its place NHR@FAU, Erlangen and offers Run; known positive: with big-d the one request reaches the endpoint
 test("TST-579206: UC-005 2a a participant whose context cannot hold the input is named, nothing is sent, and another participant is offered", async () => {
-  const register = registerOf(DRAFTER, participantRow("small-d", { context: 20 }), participantRow("big-d", { context: 400000, place: "NHR@FAU, Erlangen" }));
+  const register = registerOf(DRAFTER, participantRow("small-d", { context: 20, model: "model-s" }), participantRow("big-d", { context: 400000, place: "NHR@FAU, Erlangen", model: "model-big" }));
   const w = await world({ instance: { register }, answers: { candidates: [] } });
   const small = await w.prepare({ files: [MAIN_FILE], participant: "small-d" });
   const refusal = byClass(small.page, "p", "not-fitting").map(textOf);
@@ -223,7 +223,7 @@ test("TST-579206: UC-005 2a a participant whose context cannot hold the input is
 // input: show the run panel with small-d
 // expect: 2a: the refusal says how many requirements there are (3) and how many of them fit (0 in a context of 20 tokens), in numbers of requirements and not only of tokens
 test("TST-579207: UC-005 2a the refusal says how many requirements there are and how many of them fit", { todo: "FINDING: src/site-frame/run-panel.mjs:44 words the refusal as `small-d cannot hold what it would receive: 26927 tokens, its context holds 20` and the panel adds `3 existing requirements included.`; MOD-site-frame's runPanel (docs/architecture/MOD-site-frame.md, Interfaces: runPanel) is to say how many requirements and use cases the destination holds and how many of them fit, from the `holds` and `fitting` of the `notFitting` entry, and the panel does not read them. The same finding as UC019-S10 (TST-377011); the module is MOD-site-frame" }, async () => {
-  const register = registerOf(DRAFTER, participantRow("small-d", { context: 20 }));
+  const register = registerOf(DRAFTER, participantRow("small-d", { context: 20, model: "model-s" }));
   const w = await world({ instance: { register }, answers: { candidates: [] } });
   const small = await w.prepare({ files: [MAIN_FILE], participant: "small-d" });
   const refusal = byClass(small.page, "p", "not-fitting").map(textOf).join(" ");

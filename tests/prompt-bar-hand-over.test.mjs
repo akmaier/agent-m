@@ -121,10 +121,10 @@ const WORKFLOW_FILE = ".github/workflows/agent-m-jobs.yml";
 const MAIN_CHANGED_FILE = ".github/workflows/agent-m-main-changed.yml";
 const MODEL_VERSION = "5".repeat(40);
 
-const COLUMNS = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
+const COLUMNS = "| Name | Type | Model |\n|---|---|---|";
 const WORKERS = "draft text, read the repository, write to the repository, run code and tests";
 const register = (...rows) => `# Participants of this instance\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n${COLUMNS}\n${rows.join("\n")}\n`;
-const ALICE = "| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |";
+const ALICE = "| alice | person | — |";
 
 // What this browser declares, which the bar offers (UC-049 1); the instance's participant list holds alice only and is not read for the offer.
 // - dev-ci: the endpoint at https://models.example, called through the Bridge lab-pc and naming the CI secret KEY_A of its key, so that a message goes through the Bridge and a hand-over
@@ -138,8 +138,8 @@ const ENDPOINTS = {
   "tab-only": { kind: "openai-compatible", url: "https://models.example/v1", model: "model-tab", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000 },
 };
 const SESSIONS = {
-  claude: { place: "this machine", context: 200000, model: "model-bridge", capabilities: WORKERS.split(", ") },
-  codex: { place: "Anthropic, USA", context: 200000, model: "model-out", capabilities: WORKERS.split(", ") },
+  claude: { place: "this machine", capabilities: WORKERS.split(", "), models: [{ model: "model-bridge", context: 200000 }] },
+  codex: { place: "Anthropic, USA", capabilities: WORKERS.split(", "), models: [{ model: "model-out", context: 200000 }] },
 };
 
 const frontMatter = (fields) => ["---", ...Object.entries(fields).flatMap(([key, value]) => (Array.isArray(value)
@@ -295,11 +295,20 @@ function open({ files = scrumFiles(), recording = false, store = null, went = []
   return { went, target, instance, product, net, store: kept, bar };
 }
 
+// The selector keeps each connection by `<name> · <model>` (MOD-prompt-bar): `pick` chooses the one of that name, as a script sets a select's value; one offered alone is only named.
+function pick(it, name) {
+  const selector = one(it.target, "participant");
+  if (selector.localName === "span") { assert.ok(textOf(selector).startsWith(`${name} · `), `the bar offers ${name}: ${textOf(selector)}`); return; }
+  const option = all(selector, (node) => node.localName === "option").find((node) => node.value.startsWith(`${name} · `));
+  assert.ok(option, `the bar offers ${name}: ${textOf(selector)}`);
+  selector.value = option.value;
+}
+
 // Sends a message to the participant, whose answer proposes the hand-over, and waits until the proposal is checked.
 async function proposes(it, handOver, participant = DEV_BRIDGE) {
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   it.net.handOver = handOver;
-  one(it.target, "participant").value = participant;
+  pick(it, participant);
   one(it.target, "instruction").value = "hand this on";
   one(it.target, "send").dispatchEvent(personal());
   await until(() => byClass(it.target, "hand-over").length > 0, "the proposal is shown");
@@ -828,7 +837,7 @@ test("a run that failed for another reason, or is still running, shows no link t
 test("with recording on, a script's click on Send sends nothing and commits nothing; a person's click sends and records", async () => {
   const it = open({ recording: true });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
-  one(it.target, "participant").value = "tab-only";
+  pick(it, "tab-only");
   one(it.target, "instruction").value = "SCRIPTED-MESSAGE-4F7A please";
   one(it.target, "send").dispatchEvent(scripted());
   await settle();
@@ -895,8 +904,9 @@ const NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b";
 // This browser's endpoint nvidia, declared with its place, context and the CI secret of its key, and no key here; and one that names no place, which is not offered.
 const ON_ACTIONS = { nvidia: { kind: "openai-compatible", url: NVIDIA, model: NVIDIA_MODEL, place: "NVIDIA, USA", context: 128000, secret: "NVIDIA_API_KEY" },
   undeclared: { kind: "openai-compatible", url: NVIDIA, model: NVIDIA_MODEL, secret: "NVIDIA_API_KEY" } };
-const choose = (it, name) => { const selector = one(it.target, "participant"); selector.value = name; selector.dispatchEvent(new Event("change")); };
-const optionNames = (it) => all(one(it.target, "participant"), (node) => node.localName === "option").map((node) => node.value);
+const choose = (it, name) => { pick(it, name); one(it.target, "participant").dispatchEvent(new Event("change")); };
+// The names of the connections the selector offers, from the values `<name> · <model>` it keeps them by.
+const optionNames = (it) => all(one(it.target, "participant"), (node) => node.localName === "option").map((node) => node.value.split(" · ")[0]);
 const ANSWER_LOG = (id) => ["Agent M jobs on hosted", `2026-10-16T12:08:00.0000000Z --- answer of ${id} ---`, "2026-10-16T12:08:00.0000000Z PLANTED-ANSWER-NV7 ok",
   `2026-10-16T12:08:00.0000000Z --- end of the answer of ${id} ---`, ""].join("\n");
 
@@ -904,13 +914,13 @@ const ANSWER_LOG = (id) => ["Agent M jobs on hosted", `2026-10-16T12:08:00.00000
 // guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PAGE NAMES WHERE IT SENDS
 // given: this browser keeps the endpoint nvidia — place "NVIDIA, USA", context 128000, the CI secret NVIDIA_API_KEY and no key — and the endpoint undeclared, which names no place nor context; the instance's register does not list either; this browser's endpoint dev-ci names the CI secret KEY_A and the Bridge lab-pc that calls it
 // input: the bar drawn; nvidia chosen; then dev-ci chosen
-// expect: nvidia is offered, named "nvidia — NVIDIA, USA", and undeclared is not; with nvidia chosen the button reads "Spawn job"; with dev-ci (called through its Bridge) it reads "Send"
+// expect: nvidia is offered, named "nvidia · <its model> — NVIDIA, USA", and undeclared is not; with nvidia chosen the button reads "Spawn job"; with dev-ci (called through its Bridge) it reads "Send"
 test("an endpoint that runs through GitHub Actions is offered from this browser's configuration, and the button then reads Spawn job; for one the tab calls it reads Send", async () => {
   const it = open({ endpoints: ON_ACTIONS });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   assert.ok(optionNames(it).includes("nvidia"), optionNames(it).join(", "));
   assert.equal(optionNames(it).includes("undeclared"), false, "an endpoint without a place and a context is not offered");
-  assert.ok(textOf(one(it.target, "participant")).includes("nvidia — NVIDIA, USA"));
+  assert.ok(textOf(one(it.target, "participant")).includes(`nvidia · ${NVIDIA_MODEL} — NVIDIA, USA`));
   choose(it, "nvidia");
   assert.equal(textOf(one(it.target, "send")), "Spawn job");
   choose(it, "dev-ci");
@@ -921,7 +931,7 @@ test("an endpoint that runs through GitHub Actions is offered from this browser'
 // guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SECRET IN THE REPOSITORY; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: the page of TST-1200001 on the Scrum product, which holds Agent M's job workflow; nvidia chosen; recording off
 // input: a script's click on Spawn job, then a person's, with the message TASK; then a runtime takes the job, its run leaves the answer "PLANTED-ANSWER-NV7 ok" in its log and its record ends done with that run's address; 15 seconds pass
-// expect: the script's click writes nothing; no request goes to NVIDIA or anywhere but GitHub's fixtures, beyond testBridge's two requests to the Bridge lab-pc at the drawing; one commit queues the record — participant nvidia, model the endpoint's, route ci hosted, `declares` the context 128000 and the capabilities, the place NVIDIA, USA, and none of the task's words —; the job workflow is started once with the inputs job, task TASK, endpoint the JSON of { kind, baseUrl, model } and secret NVIDIA_API_KEY; the bar says waiting for GitHub Actions; once ended, it shows the answer, and the conversation holds it
+// expect: the script's click writes nothing; no request goes to NVIDIA or anywhere but GitHub's fixtures, beyond testBridge's two requests to the Bridge lab-pc at the drawing; one commit queues the record — participant nvidia, model the endpoint's, route ci hosted endpoint nvidia secret NVIDIA_API_KEY, `declares` the context 128000 and the capabilities, the place NVIDIA, USA, and none of the task's words —; the job workflow is started once with the inputs job, task TASK, endpoint the JSON of { kind, baseUrl, model } and secret NVIDIA_API_KEY; the bar says waiting for GitHub Actions; once ended, it shows the answer, and the conversation holds it
 test("Spawn job hands the message to GitHub Actions with the endpoint and the name of its CI secret, follows the run and shows its answer once, in the conversation", async () => {
   const it = open({ endpoints: ON_ACTIONS });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
@@ -942,7 +952,7 @@ test("Spawn job hands the message to GitHub Actions with the endpoint and the na
   const record = it.product.file(it.product.jobPath());
   assert.match(record, /^participant: nvidia$/m);
   assert.match(record, new RegExp(`^model: ${NVIDIA_MODEL}$`, "m"));
-  assert.match(record, /^route: ci hosted$/m);
+  assert.match(record, /^route: ci hosted endpoint nvidia secret NVIDIA_API_KEY$/m);
   assert.match(record, /^declares: \{"context":128000,"capabilities":\["draft text","read the repository"\]\}$/m);
   assert.match(record, /nvidia, at NVIDIA, USA/);
   assert.doesNotMatch(record, /PLANTED-TASK-9C2E/);
@@ -1046,7 +1056,7 @@ test("TST-2026114909: a plan is shown as a numbered list; each piece that rests 
   const it = open({ recording: true });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   it.net.handOver = [pieceOf("converse", ["ITM-004"], TASK), pieceOf("converse", ["ITM-005"], TASK), pieceOf("converse", ["ITM-003"], TASK, [1])];
-  one(it.target, "participant").value = "dev-ci";
+  pick(it, "dev-ci");
   one(it.target, "instruction").value = "plan this";
   one(it.target, "send").dispatchEvent(personal());
   await until(() => piecesShown(it).length === 3, "the plan is shown");
@@ -1082,7 +1092,7 @@ test("TST-2026114910: Stop cancels every job of the plan still queued or running
   const it = open();
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   it.net.handOver = [pieceOf("converse", ["ITM-004"], TASK), pieceOf("converse", ["ITM-005"], TASK)];
-  one(it.target, "participant").value = "dev-ci";
+  pick(it, "dev-ci");
   one(it.target, "instruction").value = "plan this";
   one(it.target, "send").dispatchEvent(personal());
   await until(() => it.product.starts.length === 2 && it.product.starts.every((start) => following(it).includes(`Handed over: ${start.inputs.job}`)), "both jobs are followed");
@@ -1114,7 +1124,7 @@ test("TST-2026114911: of two pieces run in this tab, the first runs at once with
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   it.net.handOver = [pieceOf("change-use-case", ["UC-001"], TASK), pieceOf("change-use-case", ["UC-002"], TASK)];
   it.net.answerFor = (body) => (body.includes(CHANGE_USE_CASE) ? { files: [] } : null);
-  one(it.target, "participant").value = DEV_BRIDGE;
+  pick(it, DEV_BRIDGE);
   one(it.target, "instruction").value = "plan this";
   one(it.target, "send").dispatchEvent(personal());
   await until(() => piecesShown(it).length === 2, "the plan is shown");

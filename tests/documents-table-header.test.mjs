@@ -23,8 +23,8 @@ import { artifactSchemaOf, documentFindings, readDocument } from "../src/documen
 import { participantSchema } from "../src/participant-list/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
 
-const PARTICIPANTS = ["Name", "Type", "Model", "Context", "Price", "Capabilities", "Processing place", "Route"];
-const ROW = "alice | person | — | — | — | read the repository | — | account github.com/alice";
+const PARTICIPANTS = ["Name", "Type", "Model"];
+const ROW = "alice | person | —";
 const register = (columns, row = ROW, before = []) => [ "# Participants of this instance", "", "**REGISTER**", "", "The people and agents.", "", ...before,
   `| ${columns.join(" | ")} |`, `|${columns.map(() => "---").join("|")}|`, `| ${row} |`, ""].join("\n");
 const findingsOf = (schema, path, body) => documentFindings(schema, readDocument(schema, path, body));
@@ -32,7 +32,7 @@ const header = (found) => found.filter((each) => /header/.test(each.what));
 
 // TST-1143001 · level: unit · module: MOD-documents
 // guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
-// given: the participants register with its eight columns, and the same with a ninth column "Notes"
+// given: the participants register with its three columns, and the same with a fourth column "Notes"
 // input: documentFindings for each
 // expect: none for the first (known positive: it reads its row); for the second one finding, an error at the header row's line, that names the section's table and the column Notes as added
 test("TST-1143001 an extra column is named, and the register that has the columns it names is not", () => {
@@ -50,14 +50,14 @@ test("TST-1143001 an extra column is named, and the register that has the column
 
 // TST-1143002 · level: unit · module: MOD-documents
 // guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
-// given: the register with the column Route left out, and the register with Type and Model changed places
+// given: the register with the column Model left out, and the register with Type and Model changed places
 // input: documentFindings for each
-// expect: one finding each: the first says the header lacks Route, the second that Type and Model stand out of order
+// expect: one finding each: the first says the header lacks Model, the second that Type and Model stand out of order
 test("TST-1143002 a column left out, and columns out of order, are named", () => {
   const schema = participantSchema();
-  const lacking = header(findingsOf(schema, "docs/participants.md", register(PARTICIPANTS.filter((name) => name !== "Route"), ROW.replace(" | account github.com/alice", ""))));
+  const lacking = header(findingsOf(schema, "docs/participants.md", register(PARTICIPANTS.filter((name) => name !== "Model"), ROW.replace(" | —", ""))));
   assert.equal(lacking.length, 1);
-  assert.equal(/lacks/.test(lacking[0].what) && lacking[0].what.includes("Route"), true, lacking[0].what);
+  assert.equal(/lacks/.test(lacking[0].what) && lacking[0].what.includes("Model"), true, lacking[0].what);
   const swapped = [...PARTICIPANTS];
   [swapped[1], swapped[2]] = [swapped[2], swapped[1]];
   const out = header(findingsOf(schema, "docs/participants.md", register(swapped)));

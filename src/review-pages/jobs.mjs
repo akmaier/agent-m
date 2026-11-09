@@ -26,7 +26,7 @@ import { editedResult, flagged, passagesLine, placeLine, shownOnPanel, showCurre
 import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { endpointsOffered, sessionsOffered, throughActions } from "../prompt-bar/index.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -177,7 +177,9 @@ export async function preparedRun(run, snapshot = run.snapshot, params = run.par
     places: run.places ?? { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
   let prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
   if (run.relax) prepared = run.relax(prepared);
-  const offer = routesFor(chosen, run.product, run.needs)[0];
+  // An endpoint that names the CI secret of its key and no Bridge runs through GitHub Actions (MOD-prompt-bar's throughActions): its job is queued on CI.
+  const offers = routesFor(chosen, run.product, run.needs);
+  const offer = (throughActions(chosen, context.store) ? offers.find((each) => each.route.kind === "ci") : null) ?? offers[0];
   return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
 }
 

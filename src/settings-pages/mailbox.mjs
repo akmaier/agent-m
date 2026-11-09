@@ -366,7 +366,7 @@ export const route = {
         placesBox.append(el("p", null, el("label", null, box, " ", place)));
       }
     } catch (error) {
-      placesResult.textContent = `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`;
+      placesResult.textContent = `The connections could not be read (${error?.message ?? error}), so no processing place can be offered.`;
     }
 
     const showConnected = line.refresh;

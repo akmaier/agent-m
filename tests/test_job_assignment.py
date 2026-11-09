@@ -1,8 +1,17 @@
 # Module: MOD-work-plans
 # Module: MOD-product-process
-# Guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; UC-034
+# Module: MOD-participant-list
+# Module: MOD-agent-processes
+# Guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL; A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-034
 # Level: release
-"""SPEC section 13 - the check named tests/test_job_assignment.py, for A JOB GOES ONLY TO A HOLDER OF ITS ROLE.
+"""SPEC sections 13 and 5 - the check named tests/test_job_assignment.py, for A JOB GOES ONLY TO A HOLDER OF ITS ROLE, A JOB RUNS ON A
+CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL and A ROLE NAMES THE CAPABILITIES IT NEEDS.
+
+For the last two, a job of a role is handed to an agent of the instance's register: MOD-participant-list's participantsOf joins the register
+with the connections this browser's settings offer (MOD-prompt-bar's endpointsOffered and sessionsOffered), eligible decides which of them the
+job is sent to with the role's capabilities as its need, and MOD-agent-processes' agentDriver starts a fixture coding agent on that connection,
+whose arguments name the model it is started with. Reading the text leaves open: "a job is sent to a connection" is read as the participants
+eligible admits, each an agent on one connection, since a job's record names that connection's route (MOD-job-ledger).
 
 The cases live in tests/test_job_assignment.md. This file loads them. The product is the fixture of the parallel sprints of tests/parallel_sprints_fixture.py: two teams, each with its own role assignment and its own
 running sprint, and the participants alice, dev-a and dev-b. For each job of a case - an item of a team's running sprint - node asks MOD-work-plans' startable, which decides whether a job starts for an item and
@@ -20,9 +29,10 @@ import unittest
 from pathlib import Path
 
 from jsrun import js
-from parallel_sprints_fixture import CURRENT, prelude
+from parallel_sprints_fixture import CURRENT, WORKFLOW, prelude
 
 DATA = Path(__file__).with_suffix(".md")
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def sections() -> list[dict]:
@@ -54,6 +64,66 @@ def holders(case: dict) -> list:
       const held = workPlans.heldItems(sprints, items, architecture, []);
       return jobs.map(({{ team, item }}) => participants.filter((each) => workPlans.startable(item, states,
         {{ workflow, assignment: assignment(team), sprint: sprintAt(current[team]), held, wip: null, participants: [each] }}).startable).map((each) => each.name));""")
+
+
+# The adapter of the groups model, capability and capability-removed. `input`: the case and the capabilities of its role. The instance's register
+# is read with MOD-participant-list's participantSchema and joined (participantsOf) with the connections MOD-prompt-bar's endpointsOffered and
+# sessionsOffered give from a store of the case's settings, the fixture Bridge of tests/browser-connections-fixture.mjs answering; each job is
+# judged by eligible with the role's capabilities as its need, and, where a connection takes it, MOD-agent-processes' agentDriver starts a fixture
+# `claude` on a PATH of its own with that participant, which records its arguments. Only controlled executables run; nothing leaves the fixtures.
+ROUTED = r"""
+const url = (path) => `file://${ROOT}/${path}`;
+const { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } = await import("node:fs");
+const { tmpdir } = await import("node:os"), { join } = await import("node:path");
+const fixture = await import(url("tests/browser-connections-fixture.mjs")), bar = await import(url("src/prompt-bar/index.mjs"));
+const list = await import(url("src/participant-list/index.mjs")), docs = await import(url("src/documents/index.mjs"));
+const agents = await import(url("src/agent-processes/index.mjs"));
+const { case: c, needs } = input;
+const REGISTER = ["# Participants of this instance", "", "| Name | Type | Model |", "|---|---|---|", ...c.register.map((row) => `| ${row.join(" | ")} |`), ""].join("\n");
+const bridge = fixture.withBridge(c.bridgeAgents);
+let offered;
+try { offered = [...bar.endpointsOffered(fixture.storeWith(c.settings)), ...await bar.sessionsOffered(fixture.storeWith(c.settings))]; }
+finally { bridge.restore(); }
+const participants = list.participantsOf(docs.readDocument(list.participantSchema(), "docs/participants.md", REGISTER), offered);
+const AGENT = { name: "claude", installed: true, version: "2.0.0", loggedIn: true,
+  install: { macos: "https://example.invalid/", windows: "https://example.invalid/", linux: "https://example.invalid/" } };
+async function startedWith(participant) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-job-assignment-")));
+  const bin = join(root, "bin"), workdir = join(root, "work"), record = join(root, "argv.json");
+  mkdirSync(bin); mkdirSync(workdir);
+  const script = join(bin, "claude-fixture.mjs");
+  writeFileSync(script, `import { writeFileSync } from "node:fs";\nfor await (const _ of process.stdin) {}\nwriteFileSync(${JSON.stringify(record)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write(JSON.stringify({ type: "result", result: "done" }) + "\\n");\n`);
+  writeFileSync(join(bin, "claude"), `#!/bin/sh\nexec '${process.execPath}' '${script}' "$@"\n`, { mode: 0o755 });
+  const prior = { PATH: process.env.PATH, CI: process.env.CI, GITHUB_ACTIONS: process.env.GITHUB_ACTIONS, GITLAB_CI: process.env.GITLAB_CI };
+  process.env.PATH = bin; delete process.env.CI; delete process.env.GITHUB_ACTIONS; delete process.env.GITLAB_CI;
+  try {
+    await agents.agentDriver(AGENT, { workdir, keyVariable: null }, participant).send({ prompt: "fixture task", parts: [], output: null, findings: [], previous: null, workdir: null });
+    const argv = JSON.parse(readFileSync(record, "utf8"));
+    const at = argv.indexOf("--model");
+    return at < 0 ? null : argv[at + 1];
+  } finally {
+    for (const [name, value] of Object.entries(prior)) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+const out = [];
+for (const agent of c.jobs) {
+  const judged = list.eligible(participants.filter((each) => each.name === agent), { capabilities: needs });
+  const to = judged.eligible[0] ?? null;
+  // A Bridge's coding agent is started by its route's agent; this fixture holds claude alone.
+  if (to && !/ agent claude$/.test(to.route ?? "")) throw new Error("the fixture starts claude alone, not " + to.route);
+  out.push({ connections: judged.eligible.map((each) => each.route), startedWith: to ? await startedWith(to) : null,
+    reasons: judged.leftOut.flatMap((each) => each.reasons) });
+}
+return out;
+"""
+
+
+def routed(case: dict) -> list:
+    """For each job of the case, the connections it is sent to, the model its coding agent is started with and the reasons of those left out."""
+    role = next(r for r in WORKFLOW["roles"] if r["name"] == case["role"])
+    argument = {"case": case, "needs": role["capabilities"]}
+    return js(f"const input = {json.dumps(argument)}; const ROOT = {json.dumps(str(ROOT))};\n{ROUTED}")
 
 
 class TestJobAssignment(unittest.TestCase):
@@ -96,6 +166,26 @@ class TestJobAssignment(unittest.TestCase):
         self.assertIn("Developers has no holder in team1", " ".join(got["wrong"][0]["reasons"]))
         self.assertFalse(got["wrong"][1]["startable"])
         self.assertIn("Developers has no holder in team2", " ".join(got["wrong"][1]["reasons"]))
+
+    # TST-20261109601 · level: release · module: MOD-participant-list
+    # guards: A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
+    # given: the case model: the register's agents dev-a of model-x and dev-b of model-y, and alice, a person; this browser's one connection, the coding agent claude of the Bridge lab, offering model-x with every capability the role Developers needs
+    # input: a job of the role Developers handed to dev-a and one to dev-b, each judged by eligible over the register joined with the browser's connections; the coding agent started by agentDriver on the connection that takes it, a fixture claude recording its arguments
+    # expect: dev-a's job is sent to the connection bridge lab agent claude alone and its agent is started with --model model-x; counter-proof: dev-b's job is sent nowhere, its one reason naming the model model-y, and no agent is started
+    def test_a_job_runs_on_a_connection_that_offers_its_agents_model_with_that_model(self):
+        loaded = of_group("model")
+        self.assertEqual(routed(loaded["case"]), loaded["case"]["expected"])
+
+    # TST-20261109602 · level: release · module: MOD-participant-list
+    # guards: A ROLE NAMES THE CAPABILITIES IT NEEDS
+    # given: the case capability: the agent dev-c of model-z, which two connections offer — the endpoint ep1 with draft text and read the repository, and the coding agent claude of the Bridge lab with run code and tests among its capabilities —; and the case capability-removed, the same without the Bridge's session
+    # input: a job of the role Developers, which needs read the repository, write to the repository and run code and tests, handed to dev-c, judged by eligible; the coding agent started by agentDriver on the connection that takes it
+    # expect: the job is sent only to bridge lab agent claude, started with --model model-z, the endpoint left out for the capabilities it lacks, run code and tests among them; counter-proof: without the session the job is sent nowhere and the missing capabilities are named
+    def test_a_job_of_a_role_goes_only_to_a_connection_with_every_capability_the_role_needs(self):
+        for group in ("capability", "capability-removed"):
+            loaded = of_group(group)
+            with self.subTest(case=loaded["name"]):
+                self.assertEqual(routed(loaded["case"]), loaded["case"]["expected"])
 
 
 if __name__ == "__main__":

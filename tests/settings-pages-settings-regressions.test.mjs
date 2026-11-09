@@ -80,13 +80,12 @@ function writableProduct(writes) {
 
 const text = (...lines) => `${lines.join("\n")}\n`;
 const INSTANCE_COMMIT = "0123456789abcdef0123456789abcdef01234567";
-const PARTICIPANTS_WITH_CI = text("# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | GitHub hosted runner | ci hosted secret HOSTED_KEY |",
-  "| gpu-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | lab GPU runner | ci runner:gpu secret GPU_KEY |");
+const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**", "",
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| dev-a | agent | gpt-5 |");
 
-function workflowInstanceHost(participants = PARTICIPANTS_WITH_CI) {
+function workflowInstanceHost(participants = PARTICIPANTS) {
   return {
     async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
     async readSnapshot() {
@@ -143,18 +142,21 @@ async function renderWithInstance(browserStore, product, instanceHost) {
 // level: unit
 // module: MOD-settings-pages
 // guards: UC-010; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; EVERY SETTING IS REACHED FROM ONE PAGE; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
-// given: a writable chosen GitHub product, the instance at a commit with two CI participants, and a product-token setting
+// given: a writable chosen GitHub product, the instance at a commit, a product-token setting, and this browser's endpoints hosted and lab-gpu, which name the CI secrets HOSTED_KEY and GPU_KEY
 // input: the person opens Repositories, reads Agent M's job workflow line, and clicks its button, which on GitHub reads Set up GitHub Actions (MOD-settings-pages); the product holds every secret the workflow reads
 // expect: without the workflow files the button commits exactly jobWorkflowFiles' generated files in one product commit; with the same files the line says installed and offers no button; with stale bytes the button is offered again; the secrets are named with a secrets-page link, no secret value field, and a folded explanation
 test("TST-351001: product Settings installs Agent M's job workflow and names only its secrets", async () => {
   const productStore = () => {
     const browserStore = store();
     writeSetting(browserStore, "github-token:fixture/product", { value: "ghp_fixture" });
+    // Two endpoints of this browser that name their CI secrets: the keys the job workflow reads (MOD-runtimes, actionsSetup).
+    writeSetting(browserStore, "endpoint:hosted", { kind: "openai-compatible", url: "https://hosted.example.test/v1", model: "gpt-5", key: "sk-FIXTURE-HOSTED", secret: "HOSTED_KEY" });
+    writeSetting(browserStore, "endpoint:lab-gpu", { kind: "openai-compatible", url: "https://gpu.example.test/v1", model: "gpt-5", key: "sk-FIXTURE-GPU", secret: "GPU_KEY" });
     return browserStore;
   };
   const browserStore = productStore();
   const expected = jobWorkflowFiles("github", { repository: "fixture/instance", commit: INSTANCE_COMMIT },
-    { token: "AGENT_M_TOKEN", keys: ["HOSTED_KEY", "GPU_KEY"] }, ["gpu"]);
+    { token: "AGENT_M_TOKEN", keys: ["HOSTED_KEY", "GPU_KEY"] }, []);
   const expectedByPath = Object.fromEntries(expected.map((file) => [file.path, file.text]));
   const writes = [];
   const target = repositories(await renderWithInstance(browserStore, workflowProduct(writes), workflowInstanceHost()));

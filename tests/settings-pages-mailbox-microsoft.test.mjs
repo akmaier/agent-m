@@ -12,7 +12,8 @@
 //
 // The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged. The sign-in is the fake of tests/mail-routes-sign-in.test.mjs: a stand-in for the library's client at
 // globalThis.msal, put there after MOD-mail-routes is loaded, whose loginPopup and acquireTokenSilent answer as each test says and record what they are asked; the mailbox is
-// Microsoft Graph answered by a fake of fetch, which records every request. The store is a Map-backed localStorage. Where the texts leave a reading open, the test states the
+// Microsoft Graph answered by a fake of fetch, which records every request. The store is a Map-backed localStorage, with two endpoints that declare the processing places this
+// machine and Anthropic, a provider in the USA (the places a mailbox's mail may go are those this browser's connections declare). Where the texts leave a reading open, the test states the
 // reading it takes, and the pull request names it with its source:
 //   - The return address is MOD-identifiers' pagesAddress of the instance (UC-037 step 2: `https://<owner>.github.io/agent-m/`).
 //   - Sign in does not store the connection: the library keeps its token cache in localStorage as it signs in, and the connection — the address, the route, the folders, the places and
@@ -102,11 +103,15 @@ const PARTICIPANTS = `# Participants of this instance
 
 **REGISTER**
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| a-claude | CLI agent | example-model | 200000 | — | draft text | this machine | bridge lab-pc agent claude |
-| b-claude | CLI agent | example-model | 200000 | — | draft text | Anthropic, a provider in the USA | bridge laptop agent claude |
+| Name | Type | Model |
+|---|---|---|
+| a-claude | agent | example-model |
 `;
+// This browser's connections and the places they declare.
+const ENDPOINTS = {
+  desk: { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "example-model", place: "this machine", context: 200000 },
+  external: { url: "https://cloud.example.test/v1", kind: "openai-compatible", model: "example-model", place: "Anthropic, a provider in the USA", context: 200000 },
+};
 const FOLDERS = { inbox: 12, Receipts: 3 };
 
 // A browser: the store, the instance host, a cookie and an address that record every write, and a fake of fetch for Microsoft Graph and Microsoft's sign-in service.
@@ -114,6 +119,7 @@ function browser(t, { graph = null, lookup = 400 } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "crypto", { configurable: true, value: webcrypto });
   const store = openStore(INSTANCE);
+  for (const [name, setting] of Object.entries(ENDPOINTS)) writeSetting(store, `endpoint:${name}`, setting);
   const writes = [], requests = [], clipboard = [];
   const priorFetch = globalThis.fetch, priorLocation = Object.getOwnPropertyDescriptor(globalThis, "location"), priorNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   globalThis.fetch = async (url, init = {}) => {

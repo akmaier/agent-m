@@ -13,7 +13,8 @@
 // Level: component
 //
 // The world is tests/maintenance-pages-world.mjs: the harness's browser and fake GitHub, the Bridge's mail operation `read` (the mails given) and its asks (an agent's answer), GitHub's issues of alice/product, the instance's participants, the model
-// endpoints ep1 and ep2 (their answers given by the test). The real MOD-job-runner, MOD-runtimes, MOD-mail-handling, MOD-personal-data and MOD-participant-list run as they are. Readings the texts leave open, which the tests state (the pull request names them):
+// endpoints ep1 (model-a, at this machine) and ep2 (model-b, at a provider in the USA; their answers given by the test). The register names each agent's model; the page offers each agent on the connections of this browser that offer
+// its model (MOD-participant-list's participantsOf), and after them those connections themselves (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE). The real MOD-job-runner, MOD-runtimes, MOD-mail-handling, MOD-personal-data and MOD-participant-list run as they are. Readings the texts leave open, which the tests state (the pull request names them):
 //   - After the reading that drawing the page starts, the page shows <section class="mail-step-propose"> on the right, above the mail opened; a mail's review is in the page once its line is clicked. Its participants are the options of <select class="participant">, each data-participant="<name>" and naming its place, the first chosen, and, for a place the
 //     mailbox allows and records as outside the EU, the option's class not-compliant and its text naming the GDPR. Only participants that draft text and whose place the mailbox allows are listed; with none, <p class="mail-no-participant"> names the allowed places and holds
 //     <a class="places-link" href="#mailbox"> to the mailbox's processing places, and nothing is sent (UC-038 4c).
@@ -35,11 +36,14 @@ import { PRODUCT_URL, buttonsOf, byClass, flush, mailOf, mailRead, one, openMail
 
 afterEach(restoreWorld);
 
-const row = (name, model, place, route = "endpoint ep1", type = "model endpoint") => `| ${name} | ${type} | ${model} | 200000 | — | draft text | ${place} | ${route} |`;
-const LOCAL = row("local-llm", "model-a", "this machine");
-const CHECKS = [row("check-1", "model-b", "this machine"), row("check-2", "model-c", "this machine"), row("check-3", "model-d", "this machine")];
-const CLOUD = row("cloud-llm", "model-e", "a provider in the USA", "endpoint ep2");
-const AGENT = row("cli-agent", "model-f", "this machine", "bridge lab-pc-4 agent claude", "CLI agent");
+const row = (name, model) => `| ${name} | agent | ${model} |`;
+// local-llm and the three others on ep1, at this machine; cloud-llm on ep2, in the USA.
+const LOCAL = row("local-llm", "model-a");
+const CHECKS = [row("check-1", "model-a"), row("check-2", "model-a"), row("check-3", "model-a")];
+const CLOUD = row("cloud-llm", "model-b");
+// cli-agent's model-f is offered by the CLI session claude of the Bridge lab-pc-4, at this machine (AGENT_SESSIONS).
+const AGENT = row("cli-agent", "model-f");
+const AGENT_SESSIONS = { claude: { place: "this machine", capabilities: ["draft text", "read the repository"], models: [{ model: "model-f", context: 200000 }] } };
 const ROWS = [LOCAL, ...CHECKS, CLOUD];
 const USA = [{ place: "this machine", outsideEu: false }, { place: "a provider in the USA", outsideEu: true }];
 
@@ -56,10 +60,10 @@ const proposals = (request, { one: one_, two }) => ({ draft: { proposals: [
   { mail: two.id, product: PRODUCT_URL, kind: "change", title: "Add a dark theme", text: "The reporter erika@example.invalid asks for a dark theme.", duplicates: [] },
 ] }, answers: [] });
 
-async function setup({ rows = ROWS, places, answer, product, withAttachments = true, only = null, settings = {} } = {}) {
+async function setup({ rows = ROWS, places, answer, product, withAttachments = true, only = null, settings = {}, sessions = {} } = {}) {
   const one_ = await mailOf("one", { subject: "Export fails", text: "The export fails with error E42.", attachments: withAttachments ? [{ name: "log.txt", type: "text/plain", size: 60, text: LOG }, { name: "shot.png", type: "image/png", size: 9, text: null }] : [] });
   const two = await mailOf("two", { subject: "Dark theme", text: "Please add a dark theme." });
-  const w = world({ mails: [one_, two], reading: only ? [one_, two].filter((mail) => only.includes(mail.id)) : [one_, two], issues: [issueRecord(3, "open", [])], rows, places, answer: (request) => (answer ?? proposals)(request, { one: one_, two }), product });
+  const w = world({ mails: [one_, two], reading: only ? [one_, two].filter((mail) => only.includes(mail.id)) : [one_, two], issues: [issueRecord(3, "open", [])], rows, places, answer: (request) => (answer ?? proposals)(request, { one: one_, two }), product, sessions });
   for (const [key, value] of Object.entries(settings)) writeSetting(w.context.store, key, value);
   const target = await opened(w, {}, "mail");
   await mailRead(target);
@@ -81,18 +85,18 @@ const nothingSent = (w) => [w.kept.endpoint.length, w.kept.ask.length, w.kept.gi
 
 // TST-964001 · level: component · module: MOD-maintenance-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-038
-// given: a register of five participants that draft text, four at this machine and one in the USA; a mailbox that allows this machine; then one that allows the USA too, recorded as outside the EU
+// given: a register of five agents, four on the endpoint ep1 at this machine and one on ep2 in the USA; a mailbox that allows this machine; then one that allows the USA too, recorded as outside the EU
 // input: the mail route drawn and the mailbox read
-// expect: the first page offers the four at this machine and not the one in the USA; the second offers all five, and marks the one in the USA as not compliant and no other
+// expect: the first page offers the four at this machine and then ep1 itself, and not the one in the USA nor ep2; the second offers all five and both endpoints, and marks those in the USA (cloud-llm, ep2) as not compliant and no other
 test("Only participants at a place the mailbox allows are offered, and a place outside the EU is named as not compliant", async () => {
   const f = await setup();
-  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3"]);
+  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3", "ep1"]);
   assert.equal(byClass(f.target, "not-compliant").length, 0);
   restoreWorld();
   const g = await setup({ places: USA });
-  assert.deepEqual(participants(g.target), ["local-llm", "check-1", "check-2", "check-3", "cloud-llm"]);
+  assert.deepEqual(participants(g.target), ["local-llm", "check-1", "check-2", "check-3", "cloud-llm", "ep1", "ep2"]);
   const marked = walk(g.target, (node) => node.getAttribute?.("data-participant")).filter((node) => node.className === "not-compliant").map((node) => node.getAttribute("data-participant"));
-  assert.deepEqual(marked, ["cloud-llm"]);
+  assert.deepEqual(marked, ["cloud-llm", "ep2"]);
   assert.match(textOf(byClass(g.target, "not-compliant")[0]), /GDPR/);
 });
 
@@ -243,11 +247,12 @@ test("With pseudonymisation off the report data is shown unchanged with the noti
 
 // TST-964010 · level: component · module: MOD-maintenance-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS; UC-038
-// given: a register whose participants all process data at places the mailbox does not allow
+// given: a register whose agents' connections all process data at places the mailbox does not allow: cloud-llm on ep2 in the USA, far-llm on ep1, here declared at another provider in the USA
 // input: the mailbox read
 // expect: the page says that no participant works at a place the mailbox allows and links the mailbox's places; no participant is offered; nothing is sent; the mails can still be decided by hand (Create issue is there)
 test("With no participant at an allowed place nothing is sent and the mailbox's places are linked", async () => {
-  const f = await setup({ rows: [CLOUD, row("far-llm", "model-g", "another provider in the USA", "endpoint ep2")] });
+  const f = await setup({ rows: [CLOUD, row("far-llm", "model-a")],
+    settings: { "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1", place: "another provider in the USA", context: 200000 } } });
   assert.deepEqual(participants(f.target), []);
   const none = one(f.target, "mail-no-participant");
   assert.match(textOf(none), /this machine/);
@@ -259,11 +264,11 @@ test("With no participant at an allowed place nothing is sent and the mailbox's 
 
 // TST-964011 · level: component · module: MOD-maintenance-pages
 // guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-038
-// given: the participant is a CLI agent that the Bridge lab-pc-4 runs, at this machine
+// given: the participant cli-agent, whose model the CLI session claude of the Bridge lab-pc-4 offers, at this machine
 // input: the agent chosen; Propose
 // expect: the run panel names the agent and this machine; the Bridge receives one ask for the agent claude holding both mails; no model endpoint is called for the proposals; the proposals are shown
 test("A CLI agent receives the job through the Bridge it names", async () => {
-  const f = await setup({ rows: [AGENT, ...CHECKS] });
+  const f = await setup({ rows: [AGENT, ...CHECKS], sessions: AGENT_SESSIONS });
   await choose(f.target, "cli-agent");
   assert.match(textOf(one(f.target, "run-panel")), /cli-agent.*this machine/);
   await propose(f.target);
@@ -309,7 +314,7 @@ test("Where this browser manages no product, the place of Propose says that noth
 test("Where this browser manages a product, Propose is shown and no notice of a missing product", async () => {
   const f = await setup();
   assert.equal(byClass(f.target, "mail-step-propose").length, 1);
-  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3"]);
+  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3", "ep1"]);
   assert.equal(byClass(f.target, "mail-no-products").length, 0);
 });
 
@@ -317,17 +322,17 @@ test("Where this browser manages a product, Propose is shown and no notice of a 
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-038
 // given: the register of five; this browser's endpoint GPT-OSS-120B at this machine and its endpoint far-llm in the USA, both declaring a place, a context and a model; a mailbox that allows this machine and the USA
 // input: the mail route drawn and the mailbox read
-// expect: Propose offers the register's five and, after them, the two endpoints the prompt bar offers, far-llm named as not compliant; with a mailbox that allows only this machine, GPT-OSS-120B and not far-llm; counter-proof: with the register's participants only, as before, neither endpoint is offered and the case fails
+// expect: Propose offers the register's five and, after them, the endpoints the prompt bar offers in the order of their settings — GPT-OSS-120B, ep1, ep2 and far-llm —, those in the USA named as not compliant; with a mailbox that allows only this machine, GPT-OSS-120B and ep1 and not ep2 or far-llm; counter-proof: with the register's participants only, as before, no endpoint is offered and the case fails
 test("Propose offers the endpoints the prompt bar offers from this browser, at the places the mailbox allows", async () => {
   const settings = {
     "endpoint:GPT-OSS-120B": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "gpt-oss-120b", key: "k1", place: "this machine", context: 131072 },
     "endpoint:far-llm": { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "far-model", key: "k2", place: "a provider in the USA", context: 131072 },
   };
   const f = await setup({ places: USA, settings });
-  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3", "cloud-llm", "GPT-OSS-120B", "far-llm"]);
+  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3", "cloud-llm", "GPT-OSS-120B", "ep1", "ep2", "far-llm"]);
   const marked = walk(f.target, (node) => node.getAttribute?.("data-participant")).filter((node) => node.className === "not-compliant").map((node) => node.getAttribute("data-participant"));
-  assert.deepEqual(marked, ["cloud-llm", "far-llm"]);
+  assert.deepEqual(marked, ["cloud-llm", "ep2", "far-llm"]);
   restoreWorld();
   const g = await setup({ settings });
-  assert.deepEqual(participants(g.target), ["local-llm", "check-1", "check-2", "check-3", "GPT-OSS-120B"]);
+  assert.deepEqual(participants(g.target), ["local-llm", "check-1", "check-2", "check-3", "GPT-OSS-120B", "ep1"]);
 });

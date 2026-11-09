@@ -89,7 +89,7 @@ function fakeProduct() {
 const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${REGISTER_HEAD}\n| drafter-a | model endpoint | model-a | 200000 | - | draft text | this machine | endpoint ep1 |\n`;
+const REGISTER = `${REGISTER_HEAD}\n| drafter-a | agent | model-a |\n`;
 
 function fakeInstance() {
   const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" },
@@ -165,7 +165,7 @@ async function panelOf(draft, { instance = { host: fakeInstance() } } = {}) {
   const product = fakeProduct();
   const store = openStore("alice/agent-m");
   writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
-  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
+  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 });
   const target = document.createElement("div");
   document.body.append(target);
   await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: instance.host }, store, go() {},

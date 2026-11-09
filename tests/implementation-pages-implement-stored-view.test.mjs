@@ -29,6 +29,7 @@ import { readFileSync } from "node:fs";
 import { COMMIT, GITHUB_ADDRESS, cacheReads, factsReads, found, renderOverGitHub, storedViewBytes } from "./implementation-pages-sprints.mjs";
 import { REPO } from "./app-harness.mjs";
 import { endedJob, REJECTED } from "./implementation-pages-ended-job.mjs";
+import { bridgeAnswer, bridgeSetting, session, storeWith } from "./browser-connections-fixture.mjs";
 
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { startRecord } = await import("../src/job-ledger/index.mjs");
@@ -59,7 +60,10 @@ const itemText = (n, { modules, buildsOn = [], realises = ["RULE ONE"] }) => lin
 const SPRINT = "docs/backlog/sprints/team1/01.md";
 const sprint = (selection) => lines("---", "sprint: 1", "goal: Store and show", "start: 2026-09-14", "end:", "closer: alice", "branch:", "selection:", ...selection.map((each) => `  - ${each}`), "---", "# team1 Sprint 01");
 const HEAD = readFileSync(new URL("../docs/participants.md", import.meta.url), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n`;
+// This browser's connection of dev-a's model: the coding agent claude of the Bridge lab-pc, at "this machine", with every capability an implementing job needs; the Bridge answers
+// testBridge through the fake's handlers (tests/browser-connections-fixture.mjs).
+const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]) };
 const JOB = { 7: "JOB-20261021-1200-a7a7", 8: "JOB-20261021-1200-b8b8", unnamed: "JOB-20261021-1200-c9c9" };
 const jobFile = (jobId, item) => startRecord({ id: jobId, kind: "implement", worksOn: [item], participant: "dev-a", model: "model-a", route: "ci hosted", run: null, retries: null, startedBy: "alice",
   start: new Date("2026-10-21T09:00:00Z"), agentM: { version: "2026.10.0", commit: COMMIT }, inputs: [], limit: 5, destinations: [], params: { items: [item], merges: "person" } }).text;
@@ -117,7 +121,7 @@ function pullRequestServer(url) {
 
 const stored = async (commit = COMMIT) => storedViewBytes("backlog", FILES, commit, PULLS);
 const drawn = async (overview) => {
-  const page = await renderOverGitHub("implement", {}, { files: FILES, overview, pullRequests: PULLS, server: [pullRequestServer] });
+  const page = await renderOverGitHub("implement", {}, { files: FILES, overview, pullRequests: PULLS, server: [pullRequestServer, bridgeAnswer(["claude"])], store: storeWith(SETTINGS) });
   try { return { html: page.html(), target: page.target, requests: [...page.srv.requests], batches: page.srv.batches.map((batch) => [...batch]) }; } finally { page.done(); }
 };
 // Every path a request of the page read: those read by themselves, and those of every batch.

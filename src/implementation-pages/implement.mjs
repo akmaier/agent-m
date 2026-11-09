@@ -128,7 +128,7 @@ async function startJob(m, { definition, worksOn, participant, params, limit = n
     const defaultBranch = (await m.context.product.host.repositoryInfo()).defaultBranch;
     const head = (await m.context.product.host.readSnapshot(defaultBranch)).commit;
     const queued = await queueJob(m.context.product.host, record, offer.route, head, bridge);
-    return { id, path: queued.path, route: recordRoute(offer.route) };
+    return { id, path: queued.path, route: recordRoute(offer.route, participant) };
   } catch (failure) {
     throw Object.assign(failure, { job });
   }
@@ -441,7 +441,7 @@ async function draw(target, context, params) {
     <td data-label="Start">${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>${row.withheld.length ? "No holder of the implementing role is at a place the linked sources permit for this job." : "No holder of the implementing role can write and run tests."}</p>${withheldText(row)}` : `
       <label>Participant <select data-participant-of="${h(row.id)}">${row.holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
       ${withheldText(row)}
-      <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, productInfo, []).map((offer) => `${h(recordRoute(offer.route))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
+      <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, productInfo, []).map((offer) => `${h(recordRoute(offer.route, participant))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
       <p class="small">Attempt limit: ${h(definition.limit)}. Merges: <select data-merges-of="${h(row.id)}"><option value="agent">the coding agent</option><option value="person">a person</option></select>.
         Target branch: ${h(targetBranch(row.id, { sprints: [...judged.sprints.values()], order: null, branches: workflow.branches ?? {}, defaultBranch: info.defaultBranch }))}. ${gatesText.length ? `Gates: ${gatesText.join(", ")}.` : "No gate stands before the merge."}</p>
       <div data-sent="${h(row.id)}"></div>`) : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
@@ -476,7 +476,7 @@ async function draw(target, context, params) {
       try {
         const offer = routesFor(participant, productInfo, []).find((each) => each.available);
         if (!offer) throw new Error(`${participant.name} has no route a job can take`);
-        routeName = recordRoute(offer.route);
+        routeName = recordRoute(offer.route, participant);
         const { prepared } = await sentFor(prepareFor(row.id, merges(row.id)), participant);
         id = newJobId(now(), taken);
         taken.add(id);
@@ -486,7 +486,7 @@ async function draw(target, context, params) {
         const defaultBranch = (await product.host.repositoryInfo()).defaultBranch;
         const head = (await product.host.readSnapshot(defaultBranch)).commit;
         const queued = await queueJob(product.host, record, offer.route, head, bridgesOf([participant], context.store)[offer.route.bridge]);
-        lines.push(`<li>${h(row.id)}: job ${h(id)} (<code>${h(queued.path)}</code>) is queued on the route ${h(recordRoute(offer.route))}.</li>`);
+        lines.push(`<li>${h(row.id)}: job ${h(id)} (<code>${h(queued.path)}</code>) is queued on the route ${h(recordRoute(offer.route, participant))}.</li>`);
       } catch (failure) {
         const said = failure?.name === "WorkflowMissing" ? `the job workflow is missing (${(failure.files ?? []).join(", ")})` : failure?.message ?? failure;
         // UC-034 4a: a start record committed before the route failed (queueOnBridge's `failure.queued`) is a job that stays queued; the route that did not answer is named, and the job's page (UC-036) cancels or reassigns it.

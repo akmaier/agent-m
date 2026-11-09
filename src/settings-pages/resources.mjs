@@ -356,9 +356,9 @@ export const route = {
 
     // ------------------------------------------------------------ the entries, by kind
     // An endpoint or an agent that also works on the product is a participant too, and a separate entry (UC-040 2a): *Add as participant* opens the participants route with the
-    // type agent and the model the resource serves — the model of the endpoint this browser keeps at its address —, and writes nothing.
+    // type agent and the model the resource serves — its pin, the identifier of the served model (MOD-resource-list, Data: Pin) —, and writes nothing.
     const SERVING = new Set(["endpoint", "agent"]);
-    const servedModel = (resource) => endpointsOffered(context.store).find((each) => readSetting(context.store, `endpoint:${each.name}`)?.url === resource.address)?.model ?? "";
+    const servedModel = (resource) => resource.pin ?? "";
     function participantButton(resource) {
       if (!SERVING.has(resource.kind)) return [];
       const button = el("button", "resource-add-participant btn", "Add as participant");

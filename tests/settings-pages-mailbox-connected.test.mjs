@@ -11,8 +11,8 @@
 // Level: unit
 //
 // The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged. The Bridge is a stand-in for fetch that answers as a Bridge does and records every request; the
-// instance is a host of this file whose docs/participants.md names the processing places and which records every read and write; the store is a Map-backed localStorage, with
-// the sign-in library's keys as tests/browser-store-mailbox.test.mjs builds them. Passwords and tokens are constructed. Where the texts leave a reading open, the test states the
+// instance is a host of this file whose docs/participants.md lists agents and which records every read and write; the store is a Map-backed localStorage, with three endpoints
+// that declare the processing places this machine, Anthropic, a provider in the USA, and FAU data centre (EU), and with the sign-in library's keys as tests/browser-store-mailbox.test.mjs builds them. Passwords and tokens are constructed. Where the texts leave a reading open, the test states the
 // reading it takes, and the pull request names it with its source:
 //   - The connected mailbox is one block that the page `mailbox` shows above its form and the Settings page shows in the tab Endpoints & Agents (UC-037 step 8: "shown as
 //     connected, with its route, folders, allowed processing places and Disconnect"; the Outcome: "its line among this browser's settings"); both are the same code, so the tests
@@ -21,9 +21,9 @@
 //   - Disconnect removes the setting `mailbox` with the sign-in library's keys for it (MOD-browser-store's clearSetting) and the record of its last test; the test of what
 //     remains looks at every key and every value of localStorage, not at the settings alone.
 //   - "A connection an import brought" is a `mailbox` setting with no record of a test (`last-test:mailbox`): it is shown as connected and untested.
-//   - The places in the change panel are those of docs/participants.md, as when connecting; those the connection holds are ticked; a place outside the EU needs its notice read
-//     before the change is saved; an inside place needs none. A save changes the places and nothing else of the connection. "No request to a repository host" means no write and
-//     no read but docs/participants.md, the one the list of places is made from.
+//   - The places in the change panel are those this browser's connections declare (MOD-settings-pages, `mailbox`: "offered from the places this browser's connections declare"),
+//     as when connecting; those the connection holds are ticked; a place outside the EU needs its notice read before the change is saved; an inside place needs none. A save
+//     changes the places and nothing else of the connection. "No request to a repository host" means no write and no read but docs/participants.md.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
 import "./site-frame-dom.mjs";
@@ -60,12 +60,17 @@ const PARTICIPANTS = `# Participants of this instance
 
 **REGISTER**
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| a-claude | CLI agent | example-model | 200000 | — | draft text | this machine | bridge laptop agent claude |
-| b-claude | CLI agent | example-model | 200000 | — | draft text | Anthropic, a provider in the USA | bridge laptop agent claude |
-| c-model | model endpoint | example-model | 200000 | — | draft text | FAU data centre (EU) | endpoint campus |
+| Name | Type | Model |
+|---|---|---|
+| a-claude | agent | example-model |
+| c-model | agent | campus-model |
 `;
+// This browser's connections and their places, in the order the store lists them: the endpoints desk, external and fau.
+const ENDPOINTS = {
+  desk: { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "example-model", place: "this machine", context: 200000 },
+  external: { url: "https://cloud.example.test/v1", kind: "openai-compatible", model: "example-model", place: "Anthropic, a provider in the USA", context: 200000 },
+  fau: { url: "https://campus.example.test/v1", kind: "openai-compatible", model: "campus-model", place: "FAU data centre (EU)", context: 200000 },
+};
 const PASSWORD = "app-password-constructed-001";
 const CLIENT = "11111111-2222-3333-4444-555555555555";
 const TOKEN = "SECRET-ACCESS-TOKEN-constructed";
@@ -97,6 +102,7 @@ function browser(t, { mailbox = IMAP, tested = "recorded" } = {}) {
   Object.defineProperty(globalThis, "crypto", { configurable: true, value: webcrypto });
   const store = openStore("fixture/instance");
   writeSetting(store, "bridge:laptop", { address: "http://127.0.0.1:4711", token: "laptop-token" });
+  for (const [name, setting] of Object.entries(ENDPOINTS)) writeSetting(store, `endpoint:${name}`, setting);
   if (mailbox) writeSetting(store, "mailbox", mailbox);
   if (mailbox?.route === "graph") signInKeys(storage);
   if (mailbox && tested === "recorded") writeSetting(store, "last-test:mailbox", { at: "2026-10-11T08:00:00.000Z", outcome: "working" });
@@ -235,9 +241,9 @@ test("Disconnect on the Microsoft route removes the sign-in token and links the 
 
 // TST-472769 · level: unit · module: MOD-settings-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037
-// given: a stored connection that allows this machine only, and the participants' three places
+// given: a stored connection that allows this machine only, and the three places of this browser's connections
 // input: Processing places; the outside place ticked and saved without the notice read; the notice read and saved; then the outside place unticked and the inside one ticked
-// expect: the list is the participants' three places with this machine ticked; ticking the outside place shows the notice of step 6 and saving without reading it changes nothing; after reading it the place is stored with outsideEu and the record that the notice was noted; an inside place needs no notice; every other field of the connection, its password and its test record unchanged; the page says a mail already handed to a participant is not recalled; no write to a repository
+// expect: the list is the connections' three places with this machine ticked; ticking the outside place shows the notice of step 6 and saving without reading it changes nothing; after reading it the place is stored with outsideEu and the record that the notice was noted; an inside place needs no notice; every other field of the connection, its password and its test record unchanged; the page says a mail already handed to a participant is not recalled; no write to a repository
 test("Processing places changed later: the same list and the same notice, stored only after it", async (t) => {
   const only = { ...IMAP, places: [{ place: "this machine", outsideEu: false }] };
   const b = browser(t, { mailbox: only });

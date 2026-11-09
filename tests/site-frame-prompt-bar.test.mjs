@@ -53,8 +53,8 @@ const one = (root, name) => byClass(root, name)[0];
 
 // ---------------------------------------------------------------- the two repositories, the endpoint, the strategy
 
-const COLUMNS = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
-const REGISTER = `# Participants of this instance\n\n${COLUMNS}\n| drafter-a | model endpoint | model-drafter-a | 200000 | — | draft text | Anthropic, USA | endpoint ep1 |\n`;
+const COLUMNS = "| Name | Type | Model |\n|---|---|---|";
+const REGISTER = `# Participants of this instance\n\n${COLUMNS}\n| drafter-a | agent | model-drafter-a |\n`;
 const FILES = {
   "acme/instance": { "docs/participants.md": REGISTER },
   "acme/widget": { "README.md": "# Widget\n" },
@@ -378,7 +378,7 @@ test("TST-2026111010 startPage hands the bar the chosen product's tokenKey, by w
       context: 128000, secret: "NVIDIA_API_KEY" } } });
   await drawn(page);
   const selector = one(page.footer, "participant");
-  selector.value = "nvidia";
+  selector.value = "nvidia · nvidia/nemotron";
   selector.dispatchEvent(new Event("change"));
   assert.equal(one(page.footer, "send").textContent, "Spawn job", "known positive: nvidia runs through GitHub Actions");
   one(page.footer, "instruction").value = "look at it";

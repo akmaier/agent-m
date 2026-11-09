@@ -8,8 +8,8 @@
 // Level: unit
 //
 // The repository servers are fixtures in memory, as in tests/settings-pages-job-workflow-gitlab-ci.test.mjs: a GitLab product whose host lists the variables given
-// — or refuses to —, and an instance whose participants register has one CI participant, whose key is HOSTED_KEY. Nothing reaches the network. Each test states its
-// input and its expected result before it runs.
+// — or refuses to —, and an instance whose participants register lists one agent; this browser keeps the endpoint hosted, which names the CI secret HOSTED_KEY, the one key
+// the job workflow reads (MOD-runtimes, actionsSetup). Nothing reaches the network. Each test states its input and its expected result before it runs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -51,9 +51,9 @@ const settingsRoute = () => view.routes.find((candidate) => candidate.name === "
 const INSTANCE_COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const text = (...lines) => `${lines.join("\n")}\n`;
 const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | GitLab hosted runner | ci hosted secret HOSTED_KEY |");
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| dev-a | agent | gpt-5 |");
 const instanceHost = {
   async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
   async readSnapshot() {
@@ -80,6 +80,7 @@ async function renderLine(product) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   const browserStore = openStore("fixture/instance");
   writeSetting(browserStore, "gitlab-token:gitlab.example.test/fixture/product", { value: "glpat_fixture" });
+  writeSetting(browserStore, "endpoint:hosted", { kind: "openai-compatible", url: "https://hosted.example.test/v1", model: "gpt-5", key: "sk-FIXTURE-HOSTED", secret: "HOSTED_KEY" });
   const target = document.createElement("div");
   await settingsRoute().render(target, { instance: { repository: "fixture/instance", host: instanceHost }, product, store: browserStore, go() {} }, {});
   byClass(target, "settings-tab")[1].fire("click", { isTrusted: false });

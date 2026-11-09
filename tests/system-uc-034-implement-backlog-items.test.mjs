@@ -37,6 +37,8 @@ import { routeOf } from "../src/site-frame/routing.mjs";
 import { byClass } from "./main-page-home-harness.mjs";
 import { GATE_JOB, MODELS, decision, ended, found, gateRecord, itemPath, itemText, jobPage, jobPull, jobProduct, jobRecord, lines, moduleText, openImplement, pr, quiet, servers, sprintPath, sprintText, startRecords, teams,
   testFileOf, textOf, waitingJob, walk } from "./uc-034-harness.mjs";
+import { storeOf } from "./uc-032-harness.mjs";
+import { BRIDGE, bridgeAnswer, bridgeSetting, session } from "./browser-connections-fixture.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-034-implement-backlog-items-with-a-coding-agent.md";
@@ -49,10 +51,13 @@ const BOOK = ["09_system-modeling.md", "11_agentic-design-and-control-patterns.m
 const day = (n) => `2026-10-${String(n).padStart(2, "0")}T09:00:00Z`;
 const merged = (n, item) => pr(n, item, "merged", day(20), day(21));
 const opened = (n, item) => pr(n, item, "open", day(22));
-const register = (...rows) => lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|", ...rows);
-const BUILDS = "read the repository, write to the repository, run code and tests, use tools";
-const builder = (name, model, place = "this machine", route = "ci hosted secret DEV_KEY") => `| ${name} | model endpoint | ${model} | 200000 | — | ${BUILDS} | ${place} | ${route} |`;
+const register = (...rows) => lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", "| Name | Type | Model |", "|---|---|---|", ...rows);
+const builder = (name, model) => `| ${name} | agent | ${model} |`;
+/**
+ * The browser's Bridge lab-pc with a coding agent for each of `sessions` — [agent, model, place] —, as its settings declare them (`store`), and the fixture Bridge answering for those agents (`bridge`), for openImplement.
+ */
+const onBridge = (sessions) => ({ store: storeOf({ "bridge:lab-pc": bridgeSetting(), ...Object.fromEntries(sessions.map(([agent, model, place = "this machine"]) => [`session:lab-pc:${agent}`, session([[model]], { place })])) }),
+  bridge: bridgeAnswer(sessions.map(([agent]) => agent)) });
 const assignment = (team, owner, builders) => lines(`# ${team}`, "", "## Roles", "", "| Role | Participants |", "|---|---|", `| Owner | ${owner} |`, `| Builders | ${builders} |`, `| Checker | ${builders} |`);
 const tagged = (root, name) => walk(root, (node) => node.localName === name);
 /** The rows of the page: { id -> { state, startable, text, reasons } }. */
@@ -260,7 +265,7 @@ const withCode = () => ({
 // guards: UC-034; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS; DEVELOP AGAINST INTERFACES; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
 // given: the product of TST-805202 with MOD-pages (ARC-002, using MOD-store.read), MOD-store, their code and tests; team1's role assignment names dev-a as its builder, team2's names dev-b; ITM-001 merged, ITM-002 (MOD-pages) and ITM-011 (MOD-news) ready
 // input: the author opens Implement and reads the panel of ITM-002 and of ITM-011
-// expect: step 3: ITM-002 offers dev-a alone and ITM-011 dev-b alone, each "processes data at this machine" with the route ci hosted; each names its sprint's branch (sprint/team1/02, sprint/team2/01), the gate Building → Checking decided by Owner, the attempt limit 5 and the choice who merges; what is sent to dev-a for ITM-002: the item's file, UC-001 and the two test files that guard RULE ONE, then MOD-pages.md, ARC-002 and ARC-001, SPEC.md, "docs/architecture/MOD-store.md ## Interfaces" and not MOD-store's whole file or its code src/store/index.mjs, then its code, then the instance's SPEC.md as the process requirements, then chapters 9, 11, 12 and 13; nothing is sent before Start jobs
+// expect: step 3: ITM-002 offers dev-a alone and ITM-011 dev-b alone, each "processes data at this machine" with the route of its connection's Bridge, bridge lab-pc; each names its sprint's branch (sprint/team1/02, sprint/team2/01), the gate Building → Checking decided by Owner, the attempt limit 5 and the choice who merges; what is sent to dev-a for ITM-002: the item's file, UC-001 and the two test files that guard RULE ONE, then MOD-pages.md, ARC-002 and ARC-001, SPEC.md, "docs/architecture/MOD-store.md ## Interfaces" and not MOD-store's whole file or its code src/store/index.mjs, then its code, then the instance's SPEC.md as the process requirements, then chapters 9, 11, 12 and 13; nothing is sent before Start jobs
 test("TST-805207: UC-034 3 each item's panel names the participant of its team, where it processes data, the branch, the gates and what is sent: files, decisions, the interfaces of used modules and the chapters", async () => {
   const world = await teams({ files: withCode() });
   const page = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")] });
@@ -268,8 +273,8 @@ test("TST-805207: UC-034 3 each item's panel names the participant of its team, 
     assert.deepEqual(holdersOf(page, "ITM-002"), ["dev-a"]);
     assert.deepEqual(holdersOf(page, "ITM-011"), ["dev-b"]);
     const rows = rowsOf(page);
-    assert.match(rows["ITM-002"].text, /dev-a processes data at this machine; routes: ci hosted/);
-    assert.match(rows["ITM-011"].text, /dev-b processes data at this machine; routes: ci hosted/);
+    assert.match(rows["ITM-002"].text, /dev-a processes data at this machine; routes: bridge lab-pc agent claude\b/);
+    assert.match(rows["ITM-011"].text, /dev-b processes data at this machine; routes: bridge lab-pc agent codex\b/);
     assert.deepEqual(found(page.target, '[data-merges-of="ITM-002"]')[0].childNodes.map(textOf), ["the coding agent", "a person"]);
     assert.match(rows["ITM-002"].text, /Attempt limit: 5\. Merges: .* Target branch: sprint\/team1\/02\. Gates: Building → Checking \(decided by Owner\)\./);
     assert.match(rows["ITM-011"].text, /Target branch: sprint\/team2\/01\. Gates: Building → Checking \(decided by Owner\)\./);
@@ -303,7 +308,7 @@ test("TST-805208: UC-034 3 what is sent holds the item, the requirements and use
 // guards: UC-034; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; ONE DEFINITION, THREE DRIVERS
 // given: the product of TST-805207 in which team1's role assignment names dev-a and dev-b as builders; ITM-002 and ITM-011 ready and ticked; the author's token stored
 // input: the author picks dev-b for ITM-002 and the person who merges; a script's click on Start jobs; then the author's click
-// expect: steps 3 and 4: the script's click writes nothing; the author's one click commits one start record per ticked item under docs/jobs/ — ITM-002's naming dev-b, the route ci hosted, the kind implement, the item in its works_on and the person as who merges; ITM-003's naming dev-a, the first holder; and ITM-011's naming dev-b of team2 —, each with the token the author stored; the page names each job and its record, and the panel followed the choice
+// expect: steps 3 and 4: the script's click writes nothing; the author's one click commits one start record per ticked item under docs/jobs/ — ITM-002's naming dev-b, the route of its connection bridge lab-pc agent codex, the kind implement, the item in its works_on and the person as who merges; ITM-003's naming dev-a, the first holder, on bridge lab-pc agent claude; and ITM-011's naming dev-b of team2 —, each with the token the author stored; the page names each job, its record and its route, the Bridge lab-pc, and the panel followed the choice
 test("TST-805209: UC-034 3, 4 the author may pick another holder, and one click commits one start record per item with the inputs the panel named", async () => {
   const world = await teams({ files: { ...withCode(), "docs/role-assignments/team1.md": assignment("team1", "alice", "dev-a, dev-b") } });
   const page = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")] });
@@ -325,26 +330,27 @@ test("TST-805209: UC-034 3, 4 the author may pick another holder, and one click 
     assert.equal(records.length, 3, "one start record per ticked item");
     const of = (item) => records.find((record) => new RegExp(`works_on:\\n  - ${item}\\n`).test(record.text));
     assert.match(of("ITM-002").text, /^participant: dev-b$/m);
+    assert.match(of("ITM-002").text, /^route: bridge lab-pc agent codex$/m);
+    assert.match(of("ITM-003").text, /^route: bridge lab-pc agent claude$/m);
     assert.match(of("ITM-002").text, /"merges": "person"/);
     assert.match(of("ITM-003").text, /^participant: dev-a$/m);
     assert.match(of("ITM-011").text, /^participant: dev-b$/m);
     for (const record of records) {
       assert.match(record.text, /^kind: implement$/m);
-      assert.match(record.text, /^route: ci hosted$/m);
       assert.match(record.path, /^docs\/jobs\/JOB-\d{8}-\d{4}-[0-9a-f]{4}\.md$/);
     }
     assert.ok(page.log.filter((each) => each.repository === "alice/thesis-tool").every((each) => each.authorization === "Bearer github_pat_HARNESS0123456789abcdefghij"));
     const result = textOf(found(page.target, "[data-start-result]")[0]);
-    assert.match(result, /ITM-002: job JOB-[^ ]+ \(docs\/jobs\/JOB-[^)]+\.md\) is queued on the route ci hosted\./);
-    assert.match(result, /ITM-003: job JOB-[^ ]+ \(docs\/jobs\/JOB-[^)]+\.md\) is queued on the route ci hosted\./);
-    assert.match(result, /ITM-011: job JOB-[^ ]+ \(docs\/jobs\/JOB-[^)]+\.md\) is queued on the route ci hosted\./);
+    for (const [item, agent] of [["ITM-002", "codex"], ["ITM-003", "claude"], ["ITM-011", "codex"]]) {
+      assert.match(result, new RegExp(`${item}: job JOB-[^ ]+ \\(docs\\/jobs\\/JOB-[^)]+\\.md\\) is queued on the route bridge lab-pc agent ${agent}\\.`));
+    }
     assert.notEqual(sentBefore, sentOf(page, "ITM-002"), "the panel followed the choice");
   } finally { page.done(); }
 });
 
 // TST-805210 · level: system · module: system
 // guards: UC-034; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the instance registers SRC-letters, restricted, permitting only "this machine", whose content the product keeps in docs/sources/SRC-letters/; the module MOD-mail keeps its letters there; team1's builders dev-a, at "a provider in the USA", and dev-c, at this machine, both hold Builders; team2's builder dev-b is at this machine; ITM-003 changes MOD-mail, ITM-002 changes MOD-pages
+// given: the instance registers SRC-letters, restricted, permitting only "this machine", whose content the product keeps in docs/sources/SRC-letters/; the module MOD-mail keeps its letters there; team1's builders dev-a, whose connection is at "a provider in the USA", and dev-c, whose connection is at this machine, both hold Builders; team2's builder dev-b's connection is at this machine; ITM-003 changes MOD-mail, ITM-002 changes MOD-pages
 // input: the author opens Implement; then the same product whose only builder of team1 is dev-a
 // expect: step 3 and 3a: ITM-003, whose job includes the content of SRC-letters, offers dev-c alone and names dev-a with SRC-letters and its place a provider in the USA; ITM-002, whose job includes none of it, offers dev-a and dev-c; where dev-a is the only builder, ITM-003 is not started: the page says no holder of the implementing role is at a place the linked sources permit, and names SRC-letters, dev-a and the place
 test("TST-805210: UC-034 3a a holder at a place a source forbids is not offered for an item that includes its content, and where none is left the item is not started and the source is named", async () => {
@@ -352,9 +358,10 @@ test("TST-805210: UC-034 3a a holder at a place a source forbids is not offered 
     "content_repository: https://github.com/alice/thesis-tool", "---", "# SRC-letters The letters", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file |");
   const mail = moduleText("MOD-mail", [], "ARC-001").replace("folder: src/mail/", "folder: docs/sources/SRC-letters/");
   const files = (builders) => ({ "docs/role-assignments/team1.md": assignment("team1", "alice", builders), "docs/sources/SRC-letters/1/letter.md": "Dear reader.\n", "docs/architecture/MOD-mail.md": mail,
-    "docs/participants.md": register(builder("dev-a", "model-c", "a provider in the USA"), builder("dev-b", "model-d"), builder("dev-c", "model-e")) });
+    "docs/participants.md": register(builder("dev-a", "model-c"), builder("dev-b", "model-d"), builder("dev-c", "model-e")) });
+  const connections = () => onBridge([["claude", "model-c", "a provider in the USA"], ["codex", "model-d"], ["opencode", "model-e"]]);
   const both = await teams({ files: files("dev-a, dev-c"), over: { "docs/sources/SRC-letters.md": letters } });
-  const page = await openImplement({}, { ...both, pullRequests: [merged(1, "ITM-001")] });
+  const page = await openImplement({}, { ...both, pullRequests: [merged(1, "ITM-001")], ...connections() });
   try {
     assert.deepEqual(holdersOf(page, "ITM-003"), ["dev-c"]);
     const withheld = textOf(found(page.target, '[data-withheld-of="ITM-003"]')[0]);
@@ -363,7 +370,7 @@ test("TST-805210: UC-034 3a a holder at a place a source forbids is not offered 
     assert.equal(found(page.target, '[data-withheld-of="ITM-002"]').length, 0);
   } finally { page.done(); }
   const alone = await teams({ files: files("dev-a"), over: { "docs/sources/SRC-letters.md": letters } });
-  const none = await openImplement({}, { ...alone, pullRequests: [merged(1, "ITM-001")] });
+  const none = await openImplement({}, { ...alone, pullRequests: [merged(1, "ITM-001")], ...connections() });
   try {
     assert.equal(holdersOf(none, "ITM-003"), null, "no participant is offered");
     const said = textOf(found(none.target, '[data-item="ITM-003"]')[0]);
@@ -379,24 +386,32 @@ test("TST-805210: UC-034 3a a holder at a place a source forbids is not offered 
 
 // TST-805211 · level: system · module: system
 // guards: UC-034; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE LOCAL BRIDGE REQUIRES A TOKEN
-// given: the product of TST-805202 in which team1's builder dev-a is a CLI agent reached through the Bridge lab-pc, which this browser has a connection to, at an address that answers nothing; ITM-003 ready and ticked, ITM-011 ticked for dev-b on CI
+// given: the product of TST-805202 in which team1's builder dev-a runs on the coding agent claude of the Bridge lab-pc, which answered when the page was drawn and gives no answer once a job is handed to it; team2's builder dev-b on the coding agent codex of another Bridge, lab-b, which answers; ITM-003 ready and ticked, ITM-011 ticked for dev-b
 // input: the author presses Start jobs
-// expect: 4a "The job stays queued. Agent M says which route is down": the start record of ITM-003 is committed under docs/jobs/ (the job is queued) and the result names ITM-003's job and the route bridge lab-pc as the one that did not answer, and does not say that nothing was started for it; ITM-011's job on CI is queued on ci hosted
+// expect: 4a "The job stays queued. Agent M says which route is down": the start record of ITM-003 is committed under docs/jobs/ (the job is queued) on the route bridge lab-pc agent claude and the result names ITM-003's job and the route bridge lab-pc as the one that did not answer, and does not say that nothing was started for it; ITM-011's job is queued on bridge lab-b and handed to it
 test("TST-805211: UC-034 4a a Bridge that does not answer leaves the job queued, and the page says which route is down",
   async () => {
-    const cli = `| dev-a | CLI agent | model-c | 200000 | — | ${BUILDS} | this machine | bridge lab-pc agent claude |`;
-    const settings = { "bridge:lab-pc": JSON.stringify({ address: "http://127.0.0.1:4799", token: "pairing-token" }) };
-    const world = await teams({ files: { "docs/participants.md": register(cli, builder("dev-b", "model-d")) } });
-    const page = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")], store: { prefix: "", storage: { getItem: (key) => settings[key] ?? null } } });
+    const OTHER = "http://127.0.0.1:9419";
+    const handed = [];
+    const store = storeOf({ "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-c"]]), "bridge:lab-b": { address: OTHER, token: "pairing-token-b" }, "session:lab-b:codex": session([["model-d"]]) });
+    const down = bridgeAnswer(["claude"]), up = bridgeAnswer(["codex"], handed);
+    const bridge = async (url, init = {}) => {
+      if (url.origin === OTHER) return up(new URL(`${url.pathname}${url.search}`, BRIDGE), init);
+      if (String(init.method ?? "GET").toUpperCase() === "POST") throw new TypeError("connect ECONNREFUSED 127.0.0.1:9418");
+      return down(url, init);
+    };
+    const world = await teams({ files: { "docs/participants.md": register(builder("dev-a", "model-c"), builder("dev-b", "model-d")) } });
+    const page = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")], store, bridge });
     try {
       await page.press(found(page.target, "[data-start-jobs]")[0]);
       await quiet();
       const records = startRecords(page);
       const queued = records.find((record) => /works_on:\n {2}- ITM-003\n/.test(record.text));
       assert.ok(queued, "the start record of ITM-003 is committed: the job is queued");
-      assert.match(queued.text, /^route: bridge lab-pc$/m);
+      assert.match(queued.text, /^route: bridge lab-pc agent claude$/m);
       const result = textOf(found(page.target, "[data-start-result]")[0]);
-      assert.match(result, /ITM-011: job JOB-[^ ]+ \(docs\/jobs\/JOB-[^)]+\.md\) is queued on the route ci hosted\./);
+      assert.match(result, /ITM-011: job JOB-[^ ]+ \(docs\/jobs\/JOB-[^)]+\.md\) is queued on the route bridge lab-b agent codex\./);
+      assert.equal(handed.length, 1, "ITM-011's job is handed to the Bridge lab-b");
       assert.match(result, /ITM-003/);
       assert.match(result, /lab-pc/);
       assert.doesNotMatch(result, /ITM-003:[^.]*nothing was started for it/, "the page does not say that nothing was started for a job whose record it committed");
@@ -482,7 +497,7 @@ test("TST-805214: UC-034 6a a job that ended failed blocks its item, and the job
     const target = await job.draw();
     assert.match(byClass(target, "job-facts")[0].textContent, /ITM-003 · implement · dev-a .* failed/);
     assert.deepEqual(byClass(target, "retry-participant")[0].children.map((option) => option.textContent), ["dev-a", "dev-b"].filter((name) => name === "dev-a"));
-    assert.deepEqual(byClass(target, "retry-route")[0].children.map((option) => option.textContent), ["ci hosted"]);
+    assert.deepEqual(byClass(target, "retry-route")[0].children.map((option) => option.textContent), ["bridge lab-pc-4"]);
     assert.equal(byClass(target, "retry").length, 1);
     assert.deepEqual(job.seen.trees, []);
   } finally { document.body.replaceChildren(); job.restore(); }

@@ -25,6 +25,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "backlog");
@@ -84,11 +85,12 @@ function productFiles() {
   files[`docs/approvals/UC-001-${blobOf(files[UC]).slice(0, 12)}.md`] = "kind: use-case\n";
   return files;
 }
-const COLUMNS = ["| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|"];
-const rowOf = (name, model, capabilities, place, endpoint) => `| ${name} | model endpoint | ${model} | 200000 | — | ${capabilities} | ${place} | endpoint ${endpoint} |`;
+const COLUMNS = ["| Name | Type | Model |", "|---|---|---|"];
+// An agent of the register with its model; where it processes data, and what it can do, are those of the connection of this browser that offers the model.
+const rowOf = (name, model) => `| ${name} | agent | ${model} |`;
 const register = (...rows) => lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", ...COLUMNS, ...rows);
-const TWO_DRAFTERS = register(rowOf("local-llm", "model-a", "draft text", "this machine", "ep1"), rowOf("cloud-llm", "model-b", "draft text", "a provider in the USA", "ep2"),
-  rowOf("checker", "model-c", "read the repository", "this machine", "ep1"));
+// local-llm and cloud-llm, whose models the endpoints ep1 and ep2 offer; checker, whose model model-c no connection offers.
+const TWO_DRAFTERS = register(rowOf("local-llm", "model-a"), rowOf("cloud-llm", "model-b"), rowOf("checker", "model-c"));
 const instanceFiles = (participants = TWO_DRAFTERS) => ({ "SPEC.md": "# Instance\n", "AGENTS.md": "# AGENTS.md of the instance\n", "docs/participants.md": participants, "docs/process-models/fixture.md": MODEL });
 
 function hostOf(files, calls, commits) {
@@ -111,8 +113,9 @@ function hostOf(files, calls, commits) {
     },
   };
 }
-const endpointOf = (name, model) => JSON.stringify({ url: `https://${name}.example.test/v1`, kind: "openai-compatible", model, key: `k-${name}` });
-const STORE = { prefix: "", storage: { getItem: (key) => (key === "endpoint:ep1" ? endpointOf("ep1", "model-a") : key === "endpoint:ep2" ? endpointOf("ep2", "model-b") : null) } };
+// This browser's settings: the endpoint ep1, which offers model-a at "this machine", and ep2, which offers model-b at "a provider in the USA" (MOD-browser-store, Data).
+const endpointOf = (name, model, place) => ({ url: `https://${name}.example.test/v1`, kind: "openai-compatible", model, key: `k-${name}`, place, context: 200000 });
+const STORE = storeWith({ "endpoint:ep1": endpointOf("ep1", "model-a", "this machine"), "endpoint:ep2": endpointOf("ep2", "model-b", "a provider in the USA") });
 
 const entry = (title, over = {}) => ({ title, outcome: `What ${title} delivers.`, realises: ["RULE TWO"], modules: ["MOD-store"], buildsOn: [], acceptance: ["Unit tests of it."], class: "new", ...over });
 const DRAFT = { items: [entry("Show the second rule"), entry("Realise nothing", { realises: [] }), entry("Change an unknown module", { modules: ["MOD-unknown"] }),
@@ -160,7 +163,7 @@ const discard = async (box) => { const tick = one(box, "[data-draft-discard]"); 
 
 // TST-782101 · level: release · module: MOD-implementation-pages
 // guards: UC-032; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the product with RULE TWO and UC-001 accepted and realised by no item, the instance's register with the drafting participants local-llm ("this machine", ep1) and cloud-llm ("a provider in the USA", ep2) and checker (reads the repository only); ep1 and ep2 answer one sound draft
+// given: the product with RULE TWO and UC-001 accepted and realised by no item, the instance's register with the drafting participants local-llm ("this machine", ep1) and cloud-llm ("a provider in the USA", ep2) and checker (whose model no connection offers); ep1 and ep2 answer one sound draft
 // input: the person's click on Propose items; the panel read; cloud-llm chosen; the panel read again; the person's Run; then, on a second page, the default participant and Run
 // expect: the participants offered are local-llm and cloud-llm, each named with its place, and not checker; the panel names the one chosen with its model and place, and the requirements, use cases, architecture and existing items it sends; before Run nothing is asked of any endpoint; with cloud-llm chosen Run asks ep2 alone and the message it receives holds RULE TWO, UC-001, MOD-store and the title of ITM-001; known positive — with the default participant Run asks ep1 alone
 test("TST-782101: UC-032 2 the run panel names the participant and where it processes data, and Run asks the endpoint of the one chosen", async () => {
@@ -274,11 +277,11 @@ test("TST-782103: UC-032 2a an item written by hand is committed directly to the
 
 // TST-782104 · level: release · module: MOD-implementation-pages
 // guards: UC-032; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; THE PAGE NAMES WHERE IT SENDS
-// given: the product of TST-782101, and an instance whose register holds no participant that drafts text (checker reads the repository only)
+// given: the product of TST-782101, and an instance whose register holds no participant that drafts text (checker, whose model no connection of this browser offers)
 // input: the page drawn; a script's click on Propose items and on + Item; the person's click on Propose items
 // expect: drawing writes nothing and asks no endpoint; the script's clicks read nothing and draw nothing; the person's click draws no run panel and says that no participant of the instance's register can draft text, with no Run, so that nothing can be sent
 test("TST-782104: UC-032 2 with no participant that can draft text nothing is offered to run, and nothing is sent or written", async () => {
-  const page = await render(productFiles(), register(rowOf("checker", "model-c", "read the repository", "this machine", "ep1")));
+  const page = await render(productFiles(), register(rowOf("checker", "model-c")));
   answering({ items: [] });
   assert.equal(page.commits.length, 0, "drawing writes nothing");
   assert.equal(asked.length, 0, "and asks no endpoint");

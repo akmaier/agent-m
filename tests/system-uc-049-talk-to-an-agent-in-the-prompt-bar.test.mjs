@@ -6,7 +6,7 @@
 //
 // Module: MOD-prompt-bar; MOD-site-frame; MOD-job-runner; MOD-runtimes; MOD-participant-list; MOD-workflow-entries
 // Guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// Guards: A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SECRET IN THE REPOSITORY; NO SERVER; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
+// Guards: A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SECRET IN THE REPOSITORY; NO SERVER; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // Level: system
 //
 // Each test states its input and its expected result in its own text (given / input / expect), from UC-049, before it runs; none reads an expected value from a document or from the page. The conversation of the page is the
@@ -16,7 +16,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onRequirementPage, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases, writesBeyondRecords } from "./uc-019-prompt-bar-harness.mjs";
-import { AGENT, DRAFTER, HANDY, LISTED_CI_AGENT, LISTED_SUBAGENT, RUN_URL, TOOLER, answer, barText, calls, conversationOf, declared, endpointOf, followClock, free, registerOf, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
+import { AGENT, DRAFTER, HANDY, LISTED_AGENT, RUN_URL, TOOLER, answer, barText, calls, choose, conversationOf, declared, endpointOf, followClock, free, registerOf, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { byClass, until } from "./review-pages-draft-world.mjs";
 
@@ -28,18 +28,18 @@ const register = (...declarations) => declared(...declarations);
 const listed = (...rows) => ({ "docs/participants.md": registerOf(...rows) });
 // An endpoint that declares no place, and a CLI session of a Bridge this browser has not paired.
 const PLACELESS_ENDPOINT = { settings: { "endpoint:nowhere": endpointOf("nowhere", "") } };
-const UNPAIRED_SESSION = { settings: { "session:nobridge:claude": { place: "this machine", context: 200000, model: "far-model", capabilities: ["draft text"] } } };
-const select = (s, name) => { const selector = all(barOf(s), "select", "participant")[0]; assert.ok(selector, `known positive: the bar offers a choice (${barText(s).slice(-200)})`); selector.value = name; };
+const UNPAIRED_SESSION = { settings: { "session:nobridge:claude": { place: "this machine", capabilities: ["draft text"], models: [{ model: "far-model", context: 200000 }] } } };
+const select = (s, name) => { assert.ok(all(barOf(s), "select", "participant")[0], `known positive: the bar offers a choice (${barText(s).slice(-200)})`); choose(s, name); };
 
 // TST-513001 · level: system · module: MOD-prompt-bar · MOD-site-frame · MOD-job-runner
 // guards: UC-049; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: the specification browser of the product at its default branch; this browser's configuration declares the endpoints drafter (at "this machine") and tooler (at "Anthropic, USA"); recording is off
 // input: the page opened; tooler chosen in the selector; the message "Which rules does this page list?" written, and then Send pressed; then the answer, a second message "And the second one?" and Send
-// expect: above the input the bar names each participant with its place ("drafter — this machine", "tooler — Anthropic, USA") and a folded "What is this?" explains the bar; writing sends nothing; Send sends exactly one request, to tooler's endpoint, naming the destination before it is made ("Sent to: tooler — Anthropic, USA"); the message holds the person's words, the page as the author sees it (the view, the product, the version and the requirements listed) and the chapters of the book for requirements; the answer appears in the conversation under tooler's name; the second message carries the conversation so far (the first message and its answer); nothing is written: the only requests that are no GET are greenToMerge's read-only GraphQL requests, two for each message (ITM-1170) (flow: UC-049 main flow (1, 2, 3, 5, 6))
+// expect: above the input the bar names each participant with its model and its place ("drafter · drafter-model — this machine", "tooler · tooler-model — Anthropic, USA") and a folded "What is this?" explains the bar; writing sends nothing; Send sends exactly one request, to tooler's endpoint, naming the destination before it is made ("Sent to: tooler — Anthropic, USA"); the message holds the person's words, the page as the author sees it (the view, the product, the version and the requirements listed) and the chapters of the book for requirements; the answer appears in the conversation under tooler's name; the second message carries the conversation so far (the first message and its answer); nothing is written: the only requests that are no GET are greenToMerge's read-only GraphQL requests, two for each message (ITM-1170) (flow: UC-049 main flow (1, 2, 3, 5, 6))
 test("main flow: the bar names the participant with its place, Send is the decision, the participant is given the page, and the conversation goes on", async () => {
   const s = await scenario({ ...register(DRAFTER, TOOLER), answers: [{ answer: "It lists A LOAN HAS A DUE DATE and A BOOK IS SHELVED." }] });
   const w = watch(s, { script: [answer("It lists A LOAN HAS A DUE DATE and A BOOK IS SHELVED."), answer("The second one is A BOOK IS SHELVED.")] });
-  assert.ok(barText(s).includes("drafter — this machine") && barText(s).includes("tooler — Anthropic, USA"), barText(s));
+  assert.ok(barText(s).includes("drafter · drafter-model — this machine") && barText(s).includes("tooler · tooler-model — Anthropic, USA"), barText(s));
   assert.equal(all(barOf(s), "details").some((node) => node.textContent.includes("What is this?")), true, "a folded What is this? explains the bar");
   select(s, "tooler");
   one(barOf(s), "textarea", "instruction").value = "Which rules does this page list?";
@@ -107,7 +107,7 @@ test("main flow (4): a model endpoint that can use tools works in a loop in the 
 });
 
 // TST-513004 · level: system · module: MOD-prompt-bar · MOD-runtimes
-// guards: UC-049; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-049; A CONNECTION DECLARES ITS CAPABILITIES
 // given: drafter is an endpoint of this browser whose last test found no use of tools, so that it declares "draft text" and "read the repository" only
 // input: a message sent to drafter
 // expect: exactly one request to the endpoint, which offers no tools; the answer is text and appears in the conversation (flow: UC-049 main flow (4, endpoint without use tools))
@@ -123,14 +123,14 @@ test("main flow (4): a model endpoint without the capability use tools answers o
 });
 
 // TST-513005 · level: system · module: MOD-prompt-bar · MOD-runtimes · MOD-bridge-client
-// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A CONNECTION DECLARES WHERE IT PROCESSES DATA
 // given: release-bridge:claude, a CLI session of the paired Bridge release-bridge at "this machine", which the Bridge lists ready, declared in this browser
 // input: a message sent to release-bridge:claude
 // expect: the Bridge receives the message as one ask of the agent claude, with the pairing token, whose input holds the person's words and the page; no request goes to a model endpoint; the answer appears in the conversation (flow: UC-049 main flow (4, CLI agent))
 test("main flow (4): a CLI agent receives the message through its Bridge", async () => {
   const s = await scenario({ ...register(AGENT), answers: [{ answer: "x" }] });
   const w = watch(s, { script: [answer("The Bridge's agent answers.")] });
-  assert.ok(barText(s).includes("release-bridge:claude — this machine"), barText(s));
+  assert.ok(barText(s).includes("release-bridge:claude · agent-cli-model — this machine"), barText(s));
   await sendNow(s, "Look at this page.");
   await free(s);
   assert.equal(w.asks.length, 1);
@@ -148,7 +148,7 @@ test("main flow (4): a CLI agent receives the message through its Bridge", async
 // given: this browser's configuration holds no endpoint that declares a place and no Bridge that offers a CLI session — an endpoint without a place, and a CLI session declared for a Bridge this browser has not paired —, and the instance's list holds a model endpoint that could draft text
 // input: the page opened
 // expect: the prompt bar is not shown — the footer holds no bar — and nothing was asked of any model; with the same configuration and the endpoint drafter declared (a known positive) the bar is shown (flow: UC-049 alternative 1a)
-const ROW_LISTED = "| listed | model endpoint | listed-model | 200000 | - | draft text | this machine | endpoint drafter |";
+const ROW_LISTED = "| listed | agent | listed-model |";
 test("alternative 1a: with nothing offered the prompt bar is not shown", async () => {
   await scenario({ ...register(PLACELESS_ENDPOINT, UNPAIRED_SESSION), keepBridge: false, instanceFiles: listed(ROW_LISTED) }).catch((failure) => { if (!/the prompt bar is drawn/.test(failure.message)) throw failure; });
   assert.deepEqual(byClass(document.body, "section", "prompt-bar"), [], "no bar is drawn");
@@ -158,19 +158,19 @@ test("alternative 1a: with nothing offered the prompt bar is not shown", async (
 });
 
 // TST-513007 · level: system · module: MOD-prompt-bar · MOD-participant-list
-// guards: UC-049; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
-// given: this browser declares the endpoint drafter and the CLI session release-bridge:claude, an endpoint with no place, a CLI session with no model and a CLI session with no context; the instance's list holds sub-cli (a subagent that agent-cli starts) and ci-agent (a CI agent)
+// guards: UC-049; A CONNECTION DECLARES WHERE IT PROCESSES DATA
+// given: this browser declares the endpoint drafter and the CLI session release-bridge:claude, an endpoint with no place, a CLI session with no model and a CLI session whose model has no context; the instance's list holds listed-agent, an agent of drafter's model
 // input: the page opened
-// expect: the bar offers drafter and release-bridge:claude, each with its place, and neither the endpoint nor the sessions that lack a place, a model or a context, nor the subagent nor the CI agent of the instance's list, which the bar does not read (flow: UC-049 alternative 1b)
+// expect: the bar offers drafter and release-bridge:claude, each with its model and its place, and neither the endpoint nor the sessions that lack a place, a model or a context, nor the agent of the instance's list, which the bar does not read (flow: UC-049 alternative 1b)
 test("alternative 1b: an endpoint or CLI session that lacks a place, a context or a model is not offered, and the instance's list is not", async () => {
   const lacking = { agents: ["modelless", "contextless"], settings: { ...PLACELESS_ENDPOINT.settings,
-    "session:release-bridge:modelless": { place: "this machine", context: 200000, capabilities: ["draft text"] },
-    "session:release-bridge:contextless": { place: "this machine", model: "contextless-model", capabilities: ["draft text"] } } };
-  const s = await scenario({ ...register(DRAFTER, AGENT, lacking), instanceFiles: listed(LISTED_SUBAGENT, LISTED_CI_AGENT) });
+    "session:release-bridge:modelless": { place: "this machine", capabilities: ["draft text"], models: [] },
+    "session:release-bridge:contextless": { place: "this machine", capabilities: ["draft text"], models: [{ model: "contextless-model" }] } } };
+  const s = await scenario({ ...register(DRAFTER, AGENT, lacking), instanceFiles: listed(LISTED_AGENT) });
   const text = barText(s);
-  assert.ok(text.includes("drafter — this machine") && text.includes("release-bridge:claude — this machine"), text);
+  assert.ok(text.includes("drafter · drafter-model — this machine") && text.includes("release-bridge:claude · agent-cli-model — this machine"), text);
   assert.ok(!text.includes("nowhere") && !text.includes("modelless") && !text.includes("contextless"), "what lacks a place, a model or a context is not offered");
-  assert.ok(!text.includes("sub-cli") && !text.includes("ci-agent"), "the subagent and the CI agent of the instance's list are not offered");
+  assert.ok(!text.includes("listed-agent"), "the agent of the instance's list is not offered");
   assert.equal(all(barOf(s), "option").length, 2);
 });
 
@@ -430,7 +430,7 @@ test("main flow (5, 6) and alternative 6a: a proposed edit opens as a difference
   assert.equal(writesBeyondRecords(s).length, 0, "a draft alone writes nothing but the piece's record");
   await press(s, namedButton(s.target, "Discard"));
   assert.equal(writesBeyondRecords(s).length, 0, "Discard writes nothing");
-  assert.ok(recordTexts(s).every((text) => /^route: tab$/m.test(text) && !text.includes(ALIGN)), "the one record is the piece's own, and holds no word of the conversation");
+  assert.ok(recordTexts(s).every((text) => /^route: tab endpoint drafter$/m.test(text) && !text.includes(ALIGN)), "the one record is the piece's own, and holds no word of the conversation");
   assert.equal(conversationRecords(s).length, 0);
   assert.equal(keptDraft(s) ?? null, null, "the draft is dropped from the tab");
 });
@@ -550,7 +550,7 @@ test("alternative 4a: a hand-over of a change of requirements runs in the tab wi
   await until(() => all(barOf(s), "button", "review").length > 0, "the draft of the hand-over is ready");
   assert.equal(all(barOf(s), "button", "queue").length, 0, "no click is asked for");
   assert.equal(writesBeyondRecords(s).length, 0, "nothing is written before Save but the piece's record, on the tab's route");
-  assert.ok(recordTexts(s).length === 1 && /^route: tab$/m.test(recordTexts(s)[0]), recordTexts(s).join("\n"));
+  assert.ok(recordTexts(s).length === 1 && /^route: tab endpoint handy secret CI_KEY$/m.test(recordTexts(s)[0]), recordTexts(s).join("\n"));
   assert.equal(w.dispatches.length, 0, "no job is queued");
   await review(s);
   await until(() => all(s.target, "section", "requirements-result").length === 1, `the draft of the requirements: ${s.target.textContent}`);

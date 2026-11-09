@@ -1,8 +1,9 @@
 // A holder's capabilities and place among a role assignment's findings (ITM-231, moved with the holders from the
-// declaration to the role assignments, UC-048): an error naming a holder that lacks a capability its role needs, and a
-// warning naming a holder at a processing place a linked source does not permit. Both go through MOD-participant-list's
-// eligible, over the participants MOD-participant-list's participantsOf gives (ITM-230). A person is judged by
-// capabilities alone: a place is judged only for a holder that declares one.
+// declaration to the role assignments, UC-048): a warning naming an agent holder no connection of whose model has a
+// capability its role needs (UC-048 3b), and a warning naming a connection of a holder's model at a processing place a
+// linked source does not permit (UC-048 3c). Both go through MOD-participant-list's eligible, over the participants
+// MOD-participant-list's participantsOf joins with the connections given. A person runs on no connection and is judged by
+// neither.
 // Run: node --test tests/product-process-eligibility.test.mjs
 //
 // Module: MOD-product-process
@@ -11,8 +12,9 @@
 //
 // The fixture product declares the same instance model as tests/product-process.test.mjs, docs/process-models/team-scrum.md
 // (team-scrum: Scrum adapted so that its Product Owner is a person), at the commit VERSION. Its role assignment fills Product
-// Owner and Scrum Master with alice, a person, and Developers with dev-a alone, a CLI agent at "this machine" — so only dev-a's
-// capabilities and place are ever in question; alice's place is never judged. Nothing reaches the network. Each test states
+// Owner and Scrum Master with alice, a person, and Developers with dev-a alone, an agent whose model one connection of this
+// browser offers, a Bridge's coding agent at "this machine" — so only that connection's capabilities and place are ever in
+// question; alice is never judged. Nothing reaches the network. Each test states
 // its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull
 // request.
 
@@ -130,8 +132,8 @@ const catalogueAt = (files) => catalogue(snapshotAt(files));
 
 // ---------------------------------------------------------------- the fixture product's declaration
 
-// Product Owner and Scrum Master held by alice, a person (her place is never judged); Developers held by dev-a alone, a CLI
-// agent at "this machine" (both its capabilities and its place are judged).
+// Product Owner and Scrum Master held by alice, a person (never judged on a connection); Developers held by dev-a alone, an
+// agent on a connection at "this machine" (both the connection's capabilities and its place are judged).
 const DECLARATION = [
   "---",
   "model: team-scrum",
@@ -190,22 +192,27 @@ const INSTANCE_SPEC = [
 
 // ---------------------------------------------------------------- the fixture register of participants
 
-// alice, a person (capabilities only, no place); dev-a, a CLI agent at "this machine" with the given capabilities.
-// The title line is "# Participants of this instance" verbatim: participants.schema.md names it as the heading of the
-// table's section, the register having no heading of its own (MOD-participant-list, Data).
-const registerWith = (devACapabilities) => readDocument(participantSchema(), "docs/participants.md", [
+// alice, a person; dev-a, an agent of the model example-model. The title line is "# Participants of this instance" verbatim:
+// participants.schema.md names it as the heading of the table's section, the register having no heading of its own
+// (MOD-participant-list, Data).
+const REGISTER = readDocument(participantSchema(), "docs/participants.md", [
   "# Participants of this instance",
   "",
   "**REGISTER**",
   "",
   "The people and agents who work on the products of the fixture instance, one row per participant.",
   "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| alice | person | — | — | — | draft text, read the repository, write to the repository | — | account github.com/alice |",
-  `| dev-a | CLI agent | example-model | 200000 | — | ${devACapabilities} | this machine | bridge lab-pc agent claude |`,
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| alice | person | — |",
+  "| dev-a | agent | example-model |",
   "",
 ].join("\n"));
+
+// This browser's one connection that offers example-model, as MOD-prompt-bar's sessionsOffered gives it: the coding agent
+// claude of the Bridge lab-pc, at "this machine", with the given capabilities.
+const connectionsWith = (capabilities) => [{ name: "lab-pc:claude", type: "CLI agent", model: "example-model",
+  context: 200000, capabilities: capabilities.split(", "), place: "this machine", route: "bridge lab-pc agent claude" }];
 
 // Every capability Developers needs (and one more, draft text) — dev-a with this capability list lacks none of them.
 const FULL_CAPABILITIES = "draft text, read the repository, write to the repository, run code and tests";
@@ -247,38 +254,38 @@ async function workflowAt(cat) {
 
 // TST-472429 · level: unit · module: MOD-product-process
 // guards: UC-048; A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: the fixture role assignment — Developers held by dev-a alone; team-scrum at VERSION, without a finding of its own; the fixture register with (a) dev-a having every capability Developers needs, (b) dev-a without "run code and tests", which Developers needs; no linked source
-// input: roleAssignmentFindings([the role assignment], the workflow, that register, [])
-// expect: (a) no finding; (b) one error, on the row of Developers, naming A ROLE NAMES THE CAPABILITIES IT NEEDS; its text names the holder dev-a, the role Developers and the capability run code and tests
-test("roleAssignmentFindings — a holder that lacks a capability its role needs is an error, naming the holder, the role and the capability", async () => {
+// given: the fixture role assignment — Developers held by dev-a alone; team-scrum at VERSION, without a finding of its own; the fixture register; the one connection of dev-a's model (a) with every capability Developers needs, (b) without "run code and tests", which Developers needs; no linked source
+// input: roleAssignmentFindings([the role assignment], the workflow, the register, that connection, [])
+// expect: (a) no finding; (b) one warning — the assignment stays possible (UC-048 3b) —, on the row of Developers, naming A ROLE NAMES THE CAPABILITIES IT NEEDS; its text names the holder dev-a, the role Developers and the capability run code and tests
+test("roleAssignmentFindings — an agent holder no connection of whose model has a capability its role needs is a warning, naming the holder, the role and the capability", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   assert.deepEqual(cat.findings[MODEL_PATH], [], "team-scrum has no finding at VERSION");
   const workflow = await workflowAt(cat);
   const assignment = assignmentOf(ASSIGNMENT);
 
-  const full = roleAssignmentFindings([assignment], workflow, registerWith(FULL_CAPABILITIES), []);
-  assert.deepEqual(brief(full), [], "dev-a has every capability Developers needs");
+  const full = roleAssignmentFindings([assignment], workflow, REGISTER, connectionsWith(FULL_CAPABILITIES), []);
+  assert.deepEqual(brief(full), [], "dev-a's connection has every capability Developers needs");
 
   const short = "draft text, read the repository, write to the repository";
-  const found = roleAssignmentFindings([assignment], workflow, registerWith(short), []);
-  assert.deepEqual(brief(found), [[DEVELOPERS_LINE, "error", CAPABILITY]]);
+  const found = roleAssignmentFindings([assignment], workflow, REGISTER, connectionsWith(short), []);
+  assert.deepEqual(brief(found), [[DEVELOPERS_LINE, "warning", CAPABILITY]]);
   assert.ok(found[0].what.includes("dev-a") && found[0].what.includes("Developers")
     && found[0].what.includes("run code and tests"), found[0].what);
 });
 
 // TST-472430 · level: unit · module: MOD-product-process
 // guards: UC-048; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the fixture role assignment — Developers held by dev-a alone, at "this machine"; Product Owner and Scrum Master both held by alice, a person; team-scrum at VERSION; the restricted source, which permits only NHR@FAU, Erlangen, linked; dev-a with every capability Developers needs, so only the place is in question
-// input: roleAssignmentFindings([the role assignment], the workflow, the register, [the restricted source])
-// expect: one warning, on the row of Developers, naming RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; its text names the holder dev-a, the role Developers and the source SRC-restricted-test. No finding names alice, who holds two roles while the same source is linked: a person is judged by capabilities alone
-test("roleAssignmentFindings — a holder at a place a linked source does not permit is a warning naming the holder, the role and the source; a person holding a role is not warned of it", async () => {
+// given: the fixture role assignment — Developers held by dev-a alone, on its one connection at "this machine"; Product Owner and Scrum Master both held by alice, a person; team-scrum at VERSION; the restricted source, which permits only NHR@FAU, Erlangen, linked; the connection with every capability Developers needs, so only the place is in question
+// input: roleAssignmentFindings([the role assignment], the workflow, the register, that connection, [the restricted source])
+// expect: one warning, on the row of Developers, naming RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; its text names the holder dev-a, the role Developers, the connection by its route bridge lab-pc agent claude and the source SRC-restricted-test. No finding names alice, who holds two roles while the same source is linked: a person runs on no connection
+test("roleAssignmentFindings — a connection of a holder's model at a place a linked source does not permit is a warning naming the holder, the role, the connection and the source; a person holding a role is not warned of it", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   const workflow = await workflowAt(cat);
 
-  const found = roleAssignmentFindings([assignmentOf(ASSIGNMENT)], workflow, registerWith(FULL_CAPABILITIES),
-    [RESTRICTED_SOURCE]);
+  const found = roleAssignmentFindings([assignmentOf(ASSIGNMENT)], workflow, REGISTER,
+    connectionsWith(FULL_CAPABILITIES), [RESTRICTED_SOURCE]);
   assert.deepEqual(brief(found), [[DEVELOPERS_LINE, "warning", PERMITTED]]);
   assert.ok(found[0].what.includes("dev-a") && found[0].what.includes("Developers")
-    && found[0].what.includes("SRC-restricted-test"), found[0].what);
-  assert.ok(!found.some((f) => f.what.includes("alice")), "alice, a person holding two roles, is judged by capabilities alone");
+    && found[0].what.includes("bridge lab-pc agent claude") && found[0].what.includes("SRC-restricted-test"), found[0].what);
+  assert.ok(!found.some((f) => f.what.includes("alice")), "alice, a person holding two roles, runs on no connection");
 });

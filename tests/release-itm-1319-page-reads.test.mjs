@@ -18,7 +18,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { repoServer, openDashboard } from "./app-harness.mjs";
+import { repoServer, openDashboard, setting } from "./app-harness.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const base = {};
@@ -35,8 +35,10 @@ const PULLED = {
   "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${HEAD}`, "---", "# How the fixture product is developed", ""].join("\n"),
   "docs/process-models/fixture.md": readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8"),
   "docs/participants.md": [...readFileSync(new URL("../docs/participants.md", import.meta.url), "utf8").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))),
-    "| checker-a | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |", ""].join("\n"),
+    "| checker-a | agent | model-a |", ""].join("\n"),
 };
+// The connection this browser keeps for checker-a's model: the endpoint ep1, which drafts text at "this machine" from this tab (MOD-browser-store, endpoint:<name>).
+const EP1 = setting("endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 });
 const count = (requests, what) => requests.filter((request) => request === what).length;
 const perLoad = (requests) => Object.fromEntries(["commit", "tree", "folders", "repository"].map((what) => [what, count(requests, what)]));
 const filesByThemselves = (requests) => requests.filter((request) => request.startsWith("file "));
@@ -50,8 +52,8 @@ test("TST-1319204: a page of use cases in a pulled product reads its commit once
   const plainList = await openDashboard({ server: await repoServer({ files: base }), hash: "#use-case" });
   assert.deepEqual(plainList.requests.filter((request) => ["commit", "folders", "tree"].includes(request) || request.startsWith("batch ")), ["commit", "folders", "batch 2"], "known positive: the base's requests");
   for (const hash of ["#use-case", "#use-case/id=UC-002", "#use-case/id=all"]) {
-    const plain = await openDashboard({ server: await repoServer({ files: base }), hash });
-    const pulled = await openDashboard({ server: await repoServer({ files: { ...base, ...PULLED } }), hash });
+    const plain = await openDashboard({ server: await repoServer({ files: base }), hash, entries: EP1 });
+    const pulled = await openDashboard({ server: await repoServer({ files: { ...base, ...PULLED } }), hash, entries: EP1 });
     assert.match(pulled.main(), /class="participant">checker-a</, `${hash}: checker-a is named beside Accept`);
     assert.doesNotMatch(plain.main(), /class="participant"/, `${hash}: the product as it is names none`);
     assert.equal(perLoad(plain.requests).repository, 0, `${hash}: the product as it is asks no repository information`);

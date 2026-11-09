@@ -44,7 +44,7 @@ const DECLARED = {
   "endpoint:cloud-llm": endpoint("https://ep2.example.test/v1", "model-b", "k2", "a provider in the USA"),
   "endpoint:local-tools": endpoint("https://ep1.example.test/v1", "model-t", "k1", "this machine"),
   "last-test:endpoint:local-tools": { at: "2026-10-19T12:00:00Z", outcome: "ok", tools: true },
-  "session:lab-pc-4:writer": { place: "this machine", context: 200000, model: "model-w", capabilities: ["draft text", "write to the repository"] },
+  "session:lab-pc-4:writer": { place: "this machine", capabilities: ["draft text", "write to the repository"], models: [{ model: "model-w", context: 200000 }] },
 };
 const OFFER = { rows: [], settings: DECLARED, agents: ["writer"] };
 const mailPage = async (extra = {}) => {
@@ -56,7 +56,12 @@ const mailPage = async (extra = {}) => {
 async function ask(p, participant, text) {
   const bar = one(document.body, "prompt-bar");
   const selector = byClass(bar, "participant").find((node) => node.localName === "select");
-  if (selector) selector.value = participant;
+  // The selector keeps each connection by `<name> · <model>` (MOD-prompt-bar); the participant is chosen by its name.
+  if (selector) {
+    const option = selector.children.find((node) => typeof node !== "string" && node.localName === "option" && node.value.startsWith(`${participant} · `));
+    assert.ok(option, `the bar offers ${participant}: ${textOf(selector)}`);
+    selector.value = option.value;
+  }
   one(bar, "instruction").value = text;
   // A CLI session of the Bridge receives the message as an ask; an endpoint is asked directly.
   const session = participant.startsWith("lab-pc-4:");

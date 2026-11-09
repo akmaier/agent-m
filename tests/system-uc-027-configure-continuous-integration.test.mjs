@@ -34,9 +34,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { ciConfiguration, configurationDrift, scheduleSchema } from "../src/test-schedule/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
-import { participantSchema } from "../src/participant-list/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
-import { BOOK_ROWS, GENERATED, REGISTER, SCHEDULE, boxOf, buttonOf, byClass, byTag, cellOf, change, click, descendants, fieldOf, open, proposalOf, rowOf, save, scheduleText, server, shop, text,
+import { BOOK_ROWS, GENERATED, SCHEDULE, boxOf, buttonOf, byClass, byTag, cellOf, change, click, descendants, fieldOf, open, proposalOf, rowOf, save, scheduleText, server, shop, text,
   until, writesOf } from "./uc-027-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -50,7 +49,6 @@ const STRATEGIES = "tests/test-schedule-strategies.test.mjs", STORED = "tests/re
 const ROWS = ["unit", "component", "system", "paid", "release", "user"];
 const COLUMNS = ["every commit", "pull request", "nightly", "release candidate", "on demand"];
 const T = "✓";
-const participants = readDocument(participantSchema(), "docs/participants.md", REGISTER);
 /** The target the page generates for: the product's server, the instance as its snapshot names it, the instance's commit. */
 const targetOf = (kind) => ({ server: kind, instance: kind === "github" ? "alice/agent-m" : "https://gitlab.example.org/alice/agent-m", instanceCommit: "e".repeat(40) });
 const committed = (world) => Object.fromEntries(writesOf(world, "commitFiles").at(-1)[1].files.map((file) => [file.path, file.text]));
@@ -81,7 +79,7 @@ const FLOW_EVIDENCE = {
   "main-2-paid": { uc: "The cells *every commit* and *pull request* cannot be ticked for tests that call a paid service; the explanation says why and points to recorded responses.",
     evidence: [[SELF, "TST-772203"], [RELEASE, "TST-772303"]] },
   "main-3-fields": { uc: "The author sets the time of the nightly run, the command that runs the product's tests", evidence: [[SELF, "TST-772204"]] },
-  "main-3-runner": { uc: "Agent M offers only participants with *run code and tests*.", evidence: [[SELF, "TST-772204"], [PAGE, "TST-758007"]] },
+  "main-3-runner": { uc: "per row, where it runs: a hosted runner of the server, or a self-hosted runner, named by the label it carries.", evidence: [[SELF, "TST-772204"], [PAGE, "TST-758007"]] },
   "main-4-secrets": { uc: "Agent M lists the secrets the scheduled tests need", evidence: [[SELF, "TST-772205"], [PAGE, "TST-758008"]] },
   "main-4-never": { uc: "It never asks for a secret's value.", evidence: [[SELF, "TST-772205"], [RELEASE, "TST-772307"]] },
   "main-5-save": { uc: "The author presses **Save** — one click.", evidence: [[SELF, "TST-772206"], [SAVE, "TST-759001"]] },
@@ -200,23 +198,23 @@ test("TST-772203: UC-027 2 the author changes cells; the release candidate canno
 
 // TST-772204 · level: system · module: system
 // guards: UC-027; THE TEST SCHEDULE IS DECLARED PER PRODUCT
-// given: the product of TST-772202; the instance's participants lab-runner (run code and tests, the self-hosted runner lab), hosted-ci (run code and tests, hosted) and writer (without run code and tests)
-// input: the author sets the nightly time 03:30 and the command "make test", chooses lab-runner for the row system, and presses Save
-// expect: step 3: each row's runner choice offers hosted, lab-runner and hosted-ci, and not writer; known positive: before the change it shows hosted; the committed schedule names nightly 03:30, command make test and the row system on lab-runner; the committed workflow runs nightly at the cron "30 3 * * *", runs the system jobs on [self-hosted, lab] and passes make test as AGENT_M_COMMAND
-test("TST-772204: UC-027 3 the nightly time, the test command and a row's runner among the participants that run tests are set and saved", async () => {
+// given: the product of TST-772202
+// input: the author sets the nightly time 03:30 and the command "make test", writes runner:lab — the self-hosted runner labelled lab — for the row system, and presses Save
+// expect: step 3: each row's runner field takes hosted or runner:<label>; known positive: before the change it shows hosted; the committed schedule names nightly 03:30, command make test and the row system on runner:lab; the committed workflow runs nightly at the cron "30 3 * * *", runs the system jobs on [self-hosted, lab] and passes make test as AGENT_M_COMMAND
+test("TST-772204: UC-027 3 the nightly time, the test command and a row's runner, hosted or a self-hosted runner by its label, are set and saved", async () => {
   const world = server("github");
   const page = await open(world);
-  for (const row of ROWS) assert.deepEqual(byTag(byClass(rowOf(page, row), "runner")[0], "option").map((option) => option.getAttribute("value")), ["hosted", "lab-runner", "hosted-ci"], row);
+  for (const row of ROWS) assert.equal(byClass(rowOf(page, row), "runner")[0].placeholder, "hosted or runner:<label>", row);
   const runner = byClass(rowOf(page, "system"), "runner")[0];
   assert.equal(runner.value, "hosted", "known positive: the row runs hosted before");
   change(byTag(fieldOf(page, "nightly"), "input")[0], "03:30");
   change(byTag(fieldOf(page, "command"), "input")[0], "make test");
-  change(runner, "lab-runner");
+  change(runner, "runner:lab");
   await save(page);
   const files = committed(world);
   const schedule = readDocument(scheduleSchema, SCHEDULE, files[SCHEDULE]);
   assert.deepEqual([schedule.fields.nightly, schedule.fields.command], ["03:30", "make test"]);
-  assert.equal(schedule.sections[0].rows.find((each) => each.cells.Row === "system").cells["runs on"], "lab-runner");
+  assert.equal(schedule.sections[0].rows.find((each) => each.cells.Row === "system").cells["runs on"], "runner:lab");
   const workflow = files[GENERATED.github];
   assert.match(workflow, /- cron: "30 3 \* \* \*"/);
   assert.match(workflow, /\n {2}system-nightly:\n(?: {4}.*\n)*? {4}runs-on: \[self-hosted, lab\]\n/);
@@ -228,7 +226,7 @@ for (const kind of ["github", "gitlab"]) {
   // guards: UC-027; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF
   // given: alice/shop on the fixture GitHub, then on the fixture GitLab, whose resources name the paid endpoint oracle with the CI secret ci:ORACLE_KEY; the book's default, which ticks paid
   // input: the author opens Tests → Schedule, reads the secrets, and presses Save
-  // expect: step 4: the secrets block lists "ORACLE_KEY (for oracle)" alone, links the server's secrets page (GitHub https://github.com/alice/shop/settings/secrets/actions, GitLab https://gitlab.example.org/alice/shop/-/settings/ci_cd), holds a folded explanation and says Agent M never asks for a secret's value; the page holds no field but the form's five and the runner choices; the committed configuration reads ORACLE_KEY by its name from the CI's secrets
+  // expect: step 4: the secrets block lists "ORACLE_KEY (for oracle)" alone, links the server's secrets page (GitHub https://github.com/alice/shop/settings/secrets/actions, GitLab https://gitlab.example.org/alice/shop/-/settings/ci_cd), holds a folded explanation and says Agent M never asks for a secret's value; the page holds no field but the form's five and the six rows' runner fields; the committed configuration reads ORACLE_KEY by its name from the CI's secrets
   test(`TST-772205: UC-027 4 on ${kind} the secrets the scheduled tests need are named, with the server's secrets page, and no value is asked for`, async () => {
     const world = server(kind);
     const page = await open(world);
@@ -237,7 +235,9 @@ for (const kind of ["github", "gitlab"]) {
     assert.equal(byClass(block, "secrets-page")[0].getAttribute("href"), kind === "github" ? "https://github.com/alice/shop/settings/secrets/actions" : "https://gitlab.example.org/alice/shop/-/settings/ci_cd");
     assert.equal(byClass(block, "explain").length, 1);
     assert.match(text(block), /Agent M never asks for a secret's value\./);
-    assert.equal(byTag(page, "input").filter((input) => input.getAttribute("type") !== "checkbox").length + byTag(page, "textarea").length, 5, "only the form's five fields");
+    const runnerField = (input) => (input.className ?? "").split(" ").includes("runner");
+    assert.equal(byTag(page, "input").filter(runnerField).length, ROWS.length, "known positive: one runner field per row");
+    assert.equal(byTag(page, "input").filter((input) => input.getAttribute("type") !== "checkbox" && !runnerField(input)).length + byTag(page, "textarea").length, 5, "only the form's five fields");
     await save(page);
     const configuration = committed(world)[GENERATED[kind]];
     assert.match(configuration, kind === "github" ? /ORACLE_KEY: \$\{\{ secrets\.ORACLE_KEY \}\}/ : /# Secrets, read from the CI variables: ORACLE_KEY/);
@@ -268,7 +268,7 @@ for (const kind of ["github", "gitlab"]) {
     assert.equal(world.head(), main, "the default branch is unchanged");
     const schedule = readDocument(scheduleSchema, SCHEDULE, files[SCHEDULE]);
     const configuration = Object.fromEntries(Object.entries(world.tree(commits[0][1].branch)).filter(([path]) => /^(\.github\/workflows\/|\.gitlab)/.test(path)));
-    assert.deepEqual(configurationDrift(configuration, schedule, targetOf(kind), readDocument(resourceSchema(), "docs/resources.md", world.tree()["docs/resources.md"]), participants), []);
+    assert.deepEqual(configurationDrift(configuration, schedule, targetOf(kind), readDocument(resourceSchema(), "docs/resources.md", world.tree()["docs/resources.md"])), []);
     assert.deepEqual(byClass(proposalOf(page), "pull-request").map((link) => link.getAttribute("href")), [world.pulls[0].url]);
   });
 
@@ -427,12 +427,12 @@ test("TST-772212: UC-027 3a on GitLab the nightly run is the project's pipeline 
 
 // TST-772213 · level: system · module: system
 // guards: UC-027; EVERY STEP EXPLAINS ITSELF
-// given: alice/shop on GitHub whose saved schedule runs the row system on lab-runner, whose route is the self-hosted runner labelled lab; the default branch has three runs: one queued that asks for the label lab, one queued that asks for the label other, one that succeeded
+// given: alice/shop on GitHub whose saved schedule runs the row system on runner:lab, the self-hosted runner labelled lab; the default branch has three runs: one queued that asks for the label lab, one queued that asks for the label other, one that succeeded
 // input: the author opens Tests → Schedule, then presses Save
 // expect: 3b: one registration block, for the row system: a link to the server's runner page https://github.com/alice/shop/settings/actions/runners/new, the label lab, a folded explanation, and the queued run asking for lab, shown "(queued)", the other two not; the generated workflow runs the system jobs on [self-hosted, lab]
 test("TST-772213: UC-027 3b a row on a self-hosted runner shows the server's runner page, its label and the runs that wait for it as queued", async () => {
   const rows = BOOK_ROWS();
-  rows[2][6] = "lab-runner";
+  rows[2][6] = "runner:lab";
   const world = server("github", { files: shop({ [SCHEDULE]: scheduleText(rows) }) });
   const waiting = world.ci(world.head(), "queued", { event: "push", branch: "main" });
   const other = world.ci(world.head(), "queued", { event: "push", branch: "main" });

@@ -23,7 +23,8 @@
 
 import "./site-frame-dom.mjs";
 import { decision, moduleText, orderText, stepText } from "./uc-045-harness.mjs";
-import { servers, instance, planned, GATES, ADDRESS, PARTICIPANTS, V_MODEL, SCRUM_MODEL, found, lines, modulePath, architecture, planFiles, stepId, pr } from "./uc-024-harness.mjs";
+import { servers, instance, planned, storeOf, GATES, ADDRESS, PARTICIPANTS, V_MODEL, SCRUM_MODEL, found, lines, modulePath, architecture, planFiles, stepId, pr } from "./uc-024-harness.mjs";
+import { endpointsOffered, sessionsOffered } from "../src/prompt-bar/index.mjs";
 import { productFacts } from "../src/progress-measures/index.mjs";
 import { traceGraph } from "../src/trace-graph/index.mjs";
 import { nextActions, runOf } from "../src/run-planner/index.mjs";
@@ -31,7 +32,7 @@ import { appendToRecord, listJobs, newJobId, startRecord } from "../src/job-ledg
 import { itemStates } from "../src/work-plans/index.mjs";
 import { ciConfiguration, defaultSchedule } from "../src/test-schedule/index.mjs";
 import { readDocument, readRegister } from "../src/documents/index.mjs";
-import { participantSchema } from "../src/participant-list/index.mjs";
+import { participantSchema, participantsOf } from "../src/participant-list/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
 
 export { ADDRESS, GATES, PARTICIPANTS, V_MODEL, SCRUM_MODEL, found, lines, modulePath, architecture, planFiles, stepId, planned, instance, pr };
@@ -41,7 +42,6 @@ export const STEPS = ["ITM-101", "ITM-102", "ITM-103", "ITM-104", "ITM-105", "IT
 export const RUN_ID = "JOB-20261101-0900-run1";
 export const LIMITS = { jobsAtOnce: 3, cost: null, rounds: 5 };
 const BRANCH = "main";
-const MODELS = { "dev-a": "model-c", "dev-b": "model-d" };
 
 /**
  * The files of the planned product with the two gates before the phase Implementation recorded as passed, `over` laid over them (a path set to null is left out); `open` lists the paths of reviewed files whose approval record is left
@@ -68,11 +68,12 @@ export const chainFiles = async ({ uses = { "MOD-b": ["MOD-a.read"], "MOD-c": ["
 };
 
 /**
- * openWorld({ files, instanceFiles, pullRequests }) -> the world of a run over the product `files` (default: productFiles()) behind the fake of GitHub, with the instance `instanceFiles` laid over the instance of
- * tests/uc-024-harness.mjs. `pullRequests` is the list the fake serves for the product; the world pushes the merged pull requests of the jobs it finishes into it.
+ * openWorld({ files, instanceFiles, pullRequests, store }) -> the world of a run over the product `files` (default: productFiles()) behind the fake of GitHub, with the instance `instanceFiles` laid over the instance of
+ * tests/uc-024-harness.mjs. The run's participant reaches its jobs' participants through the connections of `store` — tests/uc-032-harness.mjs' SETTINGS unless given —, read as a page reads them (MOD-prompt-bar's
+ * endpointsOffered and sessionsOffered, the fixture Bridge answering), and hands them to productFacts. `pullRequests` is the list the fake serves for the product; the world pushes the merged pull requests of the jobs it finishes into it.
  * @returns {Promise<object>} { facts, rows, next, startRun, begin, finish, merge, carryOut, record, commit, read, raise, stop, end, srv, host, pulls, restore, clock }
  */
-export async function openWorld({ files, instanceFiles = {}, pullRequests = [] } = {}) {
+export async function openWorld({ files, instanceFiles = {}, pullRequests = [], store = storeOf() } = {}) {
   const pulls = pullRequests;
   const served = files ?? await productFiles();
   const world = await servers({ files: served, instance: instance(instanceFiles), pullRequests: pulls });
@@ -84,6 +85,7 @@ export async function openWorld({ files, instanceFiles = {}, pullRequests = [] }
     return inner(input, init);
   };
   const { host, instanceHost, srv } = world;
+  const connections = [...endpointsOffered(store), ...await sessionsOffered(store)];
   const restore = () => { globalThis.fetch = inner; world.restore(); };
   let minute = 0;
   const clock = () => new Date(Date.UTC(2026, 10, 1, 9, 0 + (minute += 1)));
@@ -98,7 +100,7 @@ export async function openWorld({ files, instanceFiles = {}, pullRequests = [] }
 
   /** The product's facts as a run's participant reads them: productFacts with the scope `all`, and the trace graph built from the files of the snapshot, as a caller sets it. */
   async function facts({ raw = false } = {}) {
-    const read = await productFacts(host, await instanceSnapshot(), (at) => instanceHost.readSnapshot(at), new Date("2026-11-01T10:00:00Z"));
+    const read = await productFacts(host, await instanceSnapshot(), (at) => instanceHost.readSnapshot(at), new Date("2026-11-01T10:00:00Z"), { scope: "all", connections });
     const snapshot = read.snapshot;
     read.graph = await traceGraph({ paths: snapshot.paths, read: (path) => snapshot.read(path) });
     if (!raw) {
@@ -134,13 +136,20 @@ export async function openWorld({ files, instanceFiles = {}, pullRequests = [] }
   }
   const pathOf = (id) => `docs/jobs/${id}.md`;
 
-  /** Carries out an action `start`: the job's record naming the run and the run's `## Job started` part, in one commit. Returns the job's identifier. */
+  /** The participants of the instance's register on the connections given, as productFacts joins them. */
+  const joined = async () => participantsOf(readDocument(participantSchema(), "docs/participants.md", (await (await instanceSnapshot()).read("docs/participants.md")) ?? ""), connections);
+  /**
+   * Carries out an action `start`: the job's record naming the run and the run's `## Job started` part, in one commit. The record names the participant's model and, for a route of a Bridge, the route of the connection the
+   * action's route reaches, with what that connection declares (MOD-job-ledger). Returns the job's identifier.
+   */
   async function begin(action, { id: runId = RUN_ID, at = clock() } = {}) {
     const job = newJobId(at, taken);
     taken.add(job);
     const worksOn = action.worksOn ? [action.worksOn] : ["UC-027"];
     const participant = action.participant ?? null;
-    const start = startRecord({ id: job, kind: action.kind, worksOn, participant, model: participant ? MODELS[participant] ?? "model-c" : null, route: action.route ?? "tab", run: runId, retries: null, startedBy: "alice",
+    const on = participant ? (await joined()).find((each) => each.name === participant && each.route && (each.route === action.route || each.route.startsWith(`${action.route} `))) ?? null : null;
+    const route = on && /^bridge /.test(on.route) ? on.route : action.route ?? "tab";
+    const start = startRecord({ id: job, kind: action.kind, worksOn, participant, model: on?.model ?? null, route, ...(on ? { declares: { context: on.context, capabilities: on.capabilities } } : {}), run: runId, retries: null, startedBy: "alice",
       start: at, agentM, inputs: [], limit: 5, destinations: participant ? [{ participant, place: "this machine", parts: [] }] : [], params: action.worksOn ? { steps: worksOn } : {} });
     const runText = appendToRecord(await read(pathOf(runId)), { part: "job started", at, job, kind: action.kind, worksOn });
     await commit([{ path: start.path, text: start.text }, { path: pathOf(runId), text: runText }], `run ${runId}: starts ${job}`);
@@ -181,9 +190,8 @@ export async function openWorld({ files, instanceFiles = {}, pullRequests = [] }
   /** The CI configuration the product's schedule generates (the book's default), committed: what the job `set-up-ci` of UC-027 leaves in the product after its pull request is merged. */
   async function setUpCi() {
     const snapshot = await instanceSnapshot();
-    const register = readDocument(participantSchema(), "docs/participants.md", (await snapshot.read("docs/participants.md")) ?? "");
     const resources = readRegister(resourceSchema(), "docs/resources.md", "").document;
-    const generated = ciConfiguration(defaultSchedule(), { server: "github", instance: snapshot.repository.path, instanceCommit: snapshot.commit }, resources, register);
+    const generated = ciConfiguration(defaultSchedule(), { server: "github", instance: snapshot.repository.path, instanceCommit: snapshot.commit }, resources);
     await commit(Object.entries(generated.files).map(([path, text]) => ({ path, text })), "the CI configuration generated from the test schedule");
   }
 

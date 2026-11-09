@@ -8,7 +8,8 @@
 // Level: unit
 //
 // The product is the one-team fixture of tests/implementation-pages-implement.test.mjs (ITM-005 the one startable item), held in memory behind a host of this file's own that keeps every commit; the one builder, dev-a,
-// is a CLI agent reached through the Bridge lab-pc, which this browser has a connection to; the network is replaced by a `fetch` that answers nothing. Readings the texts leave open, which the tests state:
+// is an agent whose connection is the coding agent claude of the Bridge lab-pc, which this browser keeps; the network is replaced by a `fetch` through which that Bridge answers testBridge, when the page is drawn,
+// and nothing else. Readings the texts leave open, which the tests state:
 //   - "the author may cancel or reassign the job (UC-036)": the controls are those of the job's page on the job dashboard (UC-036 steps 6 and 7: Cancel for a queued job, Retry offering another holder); the line of the
 //     result links that page, as the page of progress links the jobs it lists.
 //   - A failure before anything was committed (no `queued` on it) is still "nothing was started for it".
@@ -20,6 +21,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { bridgeAnswer, bridgeSetting, session, storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -68,9 +70,10 @@ const FILES = {
 };
 const ROOT = new URL("../", import.meta.url);
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const CAPABILITIES = "read the repository, write to the repository, run code and tests, use tools";
-const REGISTER = `${HEAD}\n| dev-a | CLI agent | model-a | 200000 | — | ${CAPABILITIES} | this machine | bridge lab-pc agent claude |\n`;
-const SETTINGS = { "bridge:lab-pc": JSON.stringify({ address: "http://127.0.0.1:4799", token: "pairing-token" }) };
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n`;
+// This browser's connection of dev-a's model: the coding agent claude of the Bridge lab-pc, at "this machine", with every capability an implementing job needs.
+const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]) };
+const bridgeAnswers = bridgeAnswer(["claude"]);
 
 // A host of this file's own: the part of MOD-repository-hosts' interface the route uses, keeping every commit it is asked for; `refuse` makes the commit fail.
 function hostOf(files, commits, refuse = null) {
@@ -93,17 +96,22 @@ function hostOf(files, commits, refuse = null) {
   };
 }
 
-// Render the route, press Start jobs as a person, and give back what the page said and what was committed; the Bridge answers nothing.
+// Render the route, press Start jobs as a person, and give back what the page said and what was committed; the Bridge, which answered when the page was drawn, answers nothing to the hand-over.
 async function started({ refuse = null } = {}) {
   const commits = [];
   const host = hostOf(FILES, commits, refuse);
   const instanceHost = hostOf({ "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": FILES["docs/process-models/fixture.md"] }, []);
-  const store = { prefix: "", storage: { getItem: (key) => SETTINGS[key] ?? null } };
+  const store = storeWith(SETTINGS);
   const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store, go() {} };
   const target = document.createElement("div");
   document.body.append(target);
   const fetched = globalThis.fetch;
-  globalThis.fetch = async () => { throw new TypeError("fetch failed"); };
+  // The Bridge answers testBridge, which offers its connection when the page is drawn, and nothing else: not the hand-over of the job.
+  globalThis.fetch = async (address, init = {}) => {
+    const url = new URL(String(address));
+    if (url.pathname !== "/v1/jobs") { const answer = await bridgeAnswers(url, init); if (answer) return answer; }
+    throw new TypeError("fetch failed");
+  };
   try {
     await route.render(target, context, {});
     found(target, "[data-start-jobs]")[0].dispatchEvent(trusted());
@@ -116,14 +124,14 @@ const idOf = (file) => /\/(JOB-[^/]+)\.md$/.exec(file.path)[1];
 
 // TST-1410001 · level: unit · module: MOD-implementation-pages
 // guards: UC-034; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
-// given: the one-team fixture, ITM-005 ready and ticked; dev-a is a CLI agent reached through the Bridge lab-pc, which this browser has a connection to and which answers nothing
+// given: the one-team fixture, ITM-005 ready and ticked; dev-a's connection is the coding agent claude of the Bridge lab-pc, which this browser keeps and which does not answer the hand-over
 // input: a click of a person on Start jobs
-// expect: UC-034 4a "The job stays queued. Agent M says which route is down": the start record of ITM-005 is committed under docs/jobs/ with the route bridge lab-pc; the result names ITM-005, the job's id, says the job stays queued, names the route bridge lab-pc, and does not say that nothing was started for it
+// expect: UC-034 4a "The job stays queued. Agent M says which route is down": the start record of ITM-005 is committed under docs/jobs/ with its connection's route bridge lab-pc agent claude; the result names ITM-005, the job's id, says the job stays queued, names the route bridge lab-pc, and does not say that nothing was started for it
 test("TST-1410001: a Bridge that does not answer leaves the job queued, and the result names the route", async () => {
   const { commits, result } = await started();
   assert.equal(records(commits).length, 1, "the start record is committed: the job is queued");
   const [record] = records(commits);
-  assert.match(record.text, /^route: bridge lab-pc$/m);
+  assert.match(record.text, /^route: bridge lab-pc agent claude$/m);
   const said = text(result);
   assert.match(said, /ITM-005/);
   assert.ok(said.includes(idOf(record)), "the result names the job");

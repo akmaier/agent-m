@@ -38,9 +38,12 @@ export const BRANCH = "sprint/team1/02";
 
 // ---------------------------------------------------------------- the product
 
-/** The participant the close of team1/02 is assigned to: an agent of the instance's list, a CI agent. */
-export const CLOSER = { name: "closer-bot", type: "CI agent", model: "model-x", context: 400000, price: null,
-  capabilities: ["draft text", "read the repository", "write to the repository"], place: "GitHub's hosted runners", route: "ci hosted secret CLOSER_KEY" };
+/**
+ * The participant the close of team1/02 is assigned to: closer-bot, an agent of the instance's list of the model model-x, on the connection that offers it — the coding agent claude of
+ * the Bridge lab-pc, which can write to the repository, as the kind close-sprint needs (MOD-participant-list's participantsOf).
+ */
+export const CLOSER = { name: "closer-bot", type: "CLI agent", model: "model-x", context: 400000,
+  capabilities: ["draft text", "read the repository", "write to the repository"], place: "this machine", route: "bridge lab-pc agent claude" };
 const TEST_FILE = lines("// TST-001 · level: unit · module: MOD-store", "// guards: RULE ONE", "// given: a store", "// input: a read", "// expect: its text", 'test("a store reads", () => {});');
 const FAILED_JOB = lines("---", "id: JOB-20261024-1000-a002", "kind: implement", "works_on:", "  - ITM-002", "participant: dev-a", "model: example-model", "route: ci hosted", "started_by: alice",
   "start: 2026-10-24 10:00 UTC", "agent_m: unknown, commit unknown", "limit: 1", "---", "## Destinations", "", "## Parameters", "", "```json", "{}", "```", "", "## End", "", "at: 2026-10-24 11:00 UTC",
@@ -142,9 +145,7 @@ export async function closeWorld({ files: given, pullRequests = PULLS, issues = 
 process.env.GIT_CONFIG_GLOBAL = "/dev/null";
 process.env.GIT_CONFIG_SYSTEM = "/dev/null";
 process.env.GIT_TERMINAL_PROMPT = "0";
-const REGISTER = lines("# Participants of this instance", "", "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  `| ${CLOSER.name} | CI agent | ${CLOSER.model} | 400000 | — | ${CLOSER.capabilities.join(", ")} | ${CLOSER.place} | ${CLOSER.route} |`,
-  "| alice | person | — | — | — | draft text, read the repository, write to the repository | — | ci hosted secret CLOSER_KEY |");
+const REGISTER = lines("# Participants of this instance", "", "| Name | Type | Model |", "|---|---|---|", `| ${CLOSER.name} | agent | ${CLOSER.model} |`, "| alice | person | — |");
 const git = (cwd, ...args) => {
   const run = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed in ${cwd}: ${run.stderr}`);
@@ -169,7 +170,7 @@ function repository(root, name, files, folder) {
 /**
  * scheduled({ sprints, items, today }) -> Promise<{ status, records }> — the product's schedule runs MOD-workflow-entries' onSchedule once on `today` (default 2026-10-31), the product being a git repository
  * that holds the job workflow's file, a Scrum declaration, the items `items` ({ path: text }, default ITM-001 and ITM-002 as tests/uc-032-harness.mjs writes them) and the sprint records `sprints` ({ path:
- * text }), the instance one whose participants are closer-bot (a CI agent) and alice (a person, whose row names a route of CI all the same, so that only her type keeps her sprint from a job). `records`
+ * text }), the instance one whose participants are closer-bot (an agent of model-x) and alice (a person, whose type keeps her sprint from a job). `records`
  * are the texts of the job records the run committed.
  */
 export async function scheduled({ sprints, items = { [itemPath(1)]: itemText(1, { modules: ["MOD-store"] }), [itemPath(2)]: itemText(2, { modules: ["MOD-pages"] }) }, today = "2026-10-31" }) {
@@ -196,4 +197,4 @@ export async function scheduled({ sprints, items = { [itemPath(1)]: itemText(1, 
 }
 
 /** The register of tests/uc-032-harness.mjs with the closer's row: the instance's participants as the pages read them. */
-export const PARTICIPANTS_WITH_CLOSER = PARTICIPANTS.replace(/\n$/, `\n| ${CLOSER.name} | CI agent | ${CLOSER.model} | 400000 | — | ${CLOSER.capabilities.join(", ")} | ${CLOSER.place} | ${CLOSER.route} |\n`);
+export const PARTICIPANTS_WITH_CLOSER = PARTICIPANTS.replace(/\n$/, `\n| ${CLOSER.name} | agent | ${CLOSER.model} |\n`);

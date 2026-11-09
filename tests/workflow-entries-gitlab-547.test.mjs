@@ -170,10 +170,11 @@ const GATE_PATH = "docs/gates/GATE-fixture.md";
 const REASON = "every artifact meets the condition";
 const gateText = (decision, reason) => text("# Gate fixture", "", `decision: ${decision}`, `reason: ${reason}`);
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitLab's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |");
 const ENDPOINT = { name: "fixture", kind: "openai-compatible", baseUrl: "https://llm.example.test/v1", model: "fixture-llm" };
-const jobStart = (agentM) => ({ id: JOB, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null,
+const jobStart = (agentM) => ({ id: JOB, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot", model: "fixture-llm",
+  route: "ci hosted endpoint ci-bot secret FIXTURE_KEY", declares: { context: 100000, capabilities: ["read the repository", "write to the repository"] }, run: null, retries: null,
   startedBy: "alice", start: new Date("2026-10-16T08:00:00Z"), agentM, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: "GitLab's hosted runners", parts: ["gate-inputs"] }],
   params: { endpoint: ENDPOINT } });
 

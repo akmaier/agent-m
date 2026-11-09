@@ -69,13 +69,14 @@ export function pinnedInstance(text) {
 
 // withEndpoint(start, store) -> start — the start of a job for a model endpoint the browser stores, with the endpoint's kind, address and model as the parameter `endpoint` and the name of the
 // CI secret of its key as the parameter `secret`, which is where a CI run reads the driver of its participant from (MOD-workflow-entries, onRecordsChanged) — the same `endpoint` and `secret`
-// that a start from the server's own page takes as inputs. The endpoint is the browser's setting `endpoint:<the participant's name>` (MOD-browser-store); its key is never copied. A start
+// that a start from the server's own page takes as inputs. The endpoint is the browser's setting `endpoint:<name>` of the connection the start's route names, `… endpoint <name>` (MOD-job-ledger, `route`), else of the participant's name (MOD-browser-store); its key is never copied. A start
 // that already holds an `endpoint` or a `secret`, a participant whose endpoint the browser does not keep, and a call without a store are left as they are.
 function withEndpoint(start, store) {
   const params = start.params ?? {};
   if (store === null || !start.participant || "endpoint" in params || "secret" in params) return start;
   let stored = null;
-  try { stored = readSetting(store, `endpoint:${start.participant}`); } catch (error) { if (error?.name !== "StorageUnavailable") throw error; }
+  const name = /(?:^|\s)endpoint\s+(\S+)/.exec(String(start.route ?? ""))?.[1] ?? start.participant;
+  try { stored = readSetting(store, `endpoint:${name}`); } catch (error) { if (error?.name !== "StorageUnavailable") throw error; }
   if (!stored || typeof stored.url !== "string" || typeof stored.kind !== "string" || typeof stored.model !== "string") return start;
   const secret = typeof stored.secret === "string" && SECRET_NAME.test(stored.secret) ? { secret: stored.secret } : {};
   return { ...start, params: { ...params, endpoint: { kind: stored.kind, baseUrl: stored.url, model: stored.model }, ...secret } };

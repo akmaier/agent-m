@@ -117,11 +117,11 @@ const PARTICIPANTS = `# Participants of this instance
 
 Fixture participants for a test.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| alice | person | — | — | — | draft text, write to the repository, run code and tests | — | account github/alice |
-| bot-a | CI agent | fixture-endpoint | — | — | write to the repository, run code and tests | a lab | ci hosted secret BOT_A |
-| bot-b | CI agent | fixture-endpoint | — | — | draft text | NHR@FAU, Erlangen | ci hosted secret BOT_B |
+| Name | Type | Model |
+|---|---|---|
+| alice | person | — |
+| bot-a | agent | fixture-endpoint |
+| bot-b | agent | fixture-endpoint |
 `;
 
 const FIXTURE_MODEL_PATH = "docs/process-models/fixture-model.md";
@@ -468,24 +468,22 @@ The job rules hold for every pull request; no condition is added.
 \`scrum-wip\` — Scrum with a work-in-progress limit of 4 and no time box, adapted from the shipped Scrum model.
 `;
 
-// docs/participants.md on origin/sprint/06, cut to its one table (the register's own prose above and below it is not
-// read by any schema field this test checks).
+// docs/participants.md on origin/sprint/06, cut to its one table and given the register's columns as they are now — each
+// member's name, whether a person or an agent, and an agent's model (MOD-participant-list, Data); the register's own prose
+// above and below it is not read by any schema field this test checks.
 const AGENT_M_PARTICIPANTS = `# Participants of this instance
 
-Capabilities are those of \`A PARTICIPANT DECLARES ITS CAPABILITIES\`: draft text, read the repository, write to
-the repository, run code and tests, use tools, reach the web.
-
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| akmaier | person | — | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | — | the GitHub account \`akmaier\`, on the dashboard and on GitHub's own pages |
-| po-opus | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, started by \`akmaier\`; reached without the Agent M Bridge until it exists (ITM-102) |
-| scrum-master-session | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | the Claude Code session on the Mac of \`akmaier\` that \`akmaier\` talks to and that starts the other agents; reached without the Agent M Bridge until it exists (ITM-102) |
-| developer-sonnet-a | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
-| developer-sonnet-b | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
-| developer-sonnet-c | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
-| developer-sonnet-d | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
-| tester-opus | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
-| reviewer-sonnet | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | a Claude Code subagent that \`scrum-master-session\` starts on the Mac of \`akmaier\` to review architecture drafts, reading only; reached without the Agent M Bridge until it exists (ITM-102) |
+| Name | Type | Model |
+|---|---|---|
+| akmaier | person | — |
+| po-opus | agent | claude-opus-5-5 |
+| scrum-master-session | agent | claude-opus-5-5 |
+| developer-sonnet-a | agent | claude-sonnet-5 |
+| developer-sonnet-b | agent | claude-sonnet-5 |
+| developer-sonnet-c | agent | claude-sonnet-5 |
+| developer-sonnet-d | agent | claude-sonnet-5 |
+| tester-opus | agent | claude-opus-5-5 |
+| reviewer-sonnet | agent | claude-sonnet-5 |
 `;
 
 // TST-472269 · level: unit · module: MOD-implementation-pages
@@ -528,9 +526,9 @@ test("process route — the page of a product with Agent M's own declaration", a
 
 // TST-472270 · level: unit · module: MOD-implementation-pages
 // guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-002
-// given: fixture-model's Developers, needing "write to the repository" and "run code and tests" — alice and bot-a have both —, and Reviewer, needing "use tools", which no fixture participant declares
+// given: fixture-model's Developers, needing "write to the repository" and "run code and tests", which the instance's alice and bot-a may fill, and Reviewer, needing "use tools"
 // input: route.render(target, context)
-// expect: Developers shown with what it needs and how many fill it, and no participant — not alice, not bot-a, who hold its capabilities —; Reviewer shown with "use tools", and no notice of a missing participant; each role links to the Roles page, #roles, where its participants are chosen
+// expect: Developers shown with what it needs and how many fill it, and no participant — not alice, not bot-a —; Reviewer shown with "use tools", and no notice of a missing participant; each role links to the Roles page, #roles, where its participants are chosen
 test("process route — a role shows who may fill it, how many and what it needs; who fills it is the Roles page's", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-3"));

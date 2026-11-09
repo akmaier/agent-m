@@ -268,7 +268,7 @@ test("TST-1243005: the tools that read in the driver's process refuse every link
 // ---------------------------------------------------------------- a coding agent's CLI, GitLab, and where a runner can separate
 
 const PLACEHOLDER = "agent-m-key-holder";
-const PARTICIPANT = { name: "ci-cli", type: "CI agent", model: "fixture", context: 1, price: null, capabilities: ["draft text"], place: "fixture",
+const PARTICIPANT = { name: "ci-cli", type: "CLI agent", model: "fixture", context: 1, capabilities: ["draft text"], place: "fixture",
   route: "ci runner:gpu secret ANTHROPIC_API_KEY" };
 const PROMPT = { prompt: "Fix the sum.", parts: [], output: null, findings: [], previous: null, workdir: null };
 const installed = (name) => ({ name, installed: true, version: "1.0.0", loggedIn: false, login: `${name} login`,
@@ -319,7 +319,7 @@ async function withEnvironment(values, run) {
 // guards: NO MODEL READS A CREDENTIAL; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
 // given: controlled claude, codex and opencode on PATH; a fake endpoint, and a key holder for it of the kind anthropic with KEY; CI=true and, as a variable the CLI could inherit, ANTHROPIC_API_KEY=KEY
 // input: agentDriver for claude with keyVariable ANTHROPIC_API_KEY and keyHolder the holder's address, send; the same for codex (keyVariable CODEX_API_KEY) and for opencode; then claude without keyHolder, as the counter-proof of the check
-// expect: claude is started with its task's arguments only, ANTHROPIC_BASE_URL the holder's address and ANTHROPIC_API_KEY the placeholder `agent-m-key-holder`, and no variable of it holds KEY; its request reaches the fake endpoint as POST /v1/messages with `x-api-key: KEY` and is answered 200 (counter-proof: the endpoint receives the key); codex is started with `-c openai_base_url="<holder>"` before `exec -`, CODEX_API_KEY the placeholder and no variable holding KEY; opencode, which names no key variable and no provider, is refused with KeyHolderUnsupported and not started; without keyHolder, claude's variables hold KEY — the gap this test closes
+// expect: claude is started with its task's arguments and then `--model` with the participant's model, ANTHROPIC_BASE_URL the holder's address and ANTHROPIC_API_KEY the placeholder `agent-m-key-holder`, and no variable of it holds KEY; its request reaches the fake endpoint as POST /v1/messages with `x-api-key: KEY` and is answered 200 (counter-proof: the endpoint receives the key); codex is started with `-c openai_base_url="<holder>"` before `exec -` and then `--model` with the participant's model, CODEX_API_KEY the placeholder and no variable holding KEY; opencode, which names no key variable and no provider, is refused with KeyHolderUnsupported and not started; without keyHolder, claude's variables hold KEY — the gap this test closes
 test("TST-1243007: a coding agent's CLI reaches its provider through the key holder, with a placeholder for its key", async (t) => {
   const { folder, notes } = clis(t);
   const fake = await fakeEndpoint(t);
@@ -335,7 +335,7 @@ test("TST-1243007: a coding agent's CLI reaches its provider through the key hol
   const [claude, codex, unheld, ...rest] = notes();
   assert.equal(rest.length, 0, "opencode was not started");
   assert.equal(claude.name, "claude");
-  assert.deepEqual(claude.args, ["-p", "--output-format", "json"]);
+  assert.deepEqual(claude.args, ["-p", "--output-format", "json", "--model", PARTICIPANT.model], "the task's arguments, then the participant's model");
   assert.equal(claude.env.ANTHROPIC_BASE_URL, holder.address);
   assert.equal(claude.env.ANTHROPIC_API_KEY, PLACEHOLDER);
   assert.equal(claude.holdsKey, false, "no variable of the CLI holds the key");
@@ -344,7 +344,7 @@ test("TST-1243007: a coding agent's CLI reaches its provider through the key hol
   assert.equal(fake.seen[0].url, "/v1/messages");
   assert.equal(fake.seen[0].headers["x-api-key"], KEY, "counter-proof: the endpoint receives the key");
   assert.equal(codex.name, "codex");
-  assert.deepEqual(codex.args, ["-c", `openai_base_url="${holder.address}"`, "exec", "-"]);
+  assert.deepEqual(codex.args, ["-c", `openai_base_url="${holder.address}"`, "exec", "-", "--model", PARTICIPANT.model]);
   assert.equal(codex.env.CODEX_API_KEY, PLACEHOLDER);
   assert.equal(codex.holdsKey, false);
   assert.equal(unheld.name, "claude");

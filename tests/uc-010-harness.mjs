@@ -21,8 +21,8 @@
 // Authored by developer-sonnet-k (ITM-373), who built none of ITM-311, ITM-312, ITM-316, ITM-317, ITM-322, ITM-351, ITM-363, ITM-365, ITM-366 or ITM-390 and no UC-010 production behaviour; its one change
 // in these modules, ITM-1259, is UC-012's closing of issues by a merged merge request on GitLab.
 //
-// The product is alice/thesis-tool with the SPEC rule A LOAN HAS A DUE DATE and the use cases UC-001 and UC-002. The instance holds Agent M's AGENTS.md, the book, and the participant ci-bot, a CI agent
-// whose key is the Actions secret FIXTURE_KEY; the person's Agent M token is the secret AGENT_M_TOKEN. The page's side (the Settings page, the drafting page of the use cases) is drawn into the fixture DOM
+// The product is alice/thesis-tool with the SPEC rule A LOAN HAS A DUE DATE and the use cases UC-001 and UC-002. The instance holds Agent M's AGENTS.md, the book, and the participant ci-bot, an agent of
+// the model fixture-llm, which this browser's model endpoint ci-bot offers, whose key is the Actions secret FIXTURE_KEY; the person's Agent M token is the secret AGENT_M_TOKEN. The page's side (the Settings page, the drafting page of the use cases) is drawn into the fixture DOM
 // of tests/review-pages-harness.mjs, over a product and an instance that are the clones of the two origins.
 
 import "./review-pages-harness.mjs";
@@ -56,7 +56,7 @@ export const PRODUCT_URL = "https://github.com/alice/thesis-tool";
 export const INSTANCE_REPO = "akmaier/agent-m";
 /** The person's Agent M token, the CI secret AGENT_M_TOKEN. */
 export const TOKEN = "ghp_ALICEagentMtoken0123456789abcdef";
-/** The key of the CI agent ci-bot, the CI secret FIXTURE_KEY. */
+/** The key of the endpoint of the agent ci-bot, the CI secret FIXTURE_KEY. */
 export const KEY = "sk-FIXTURE-KEY-0123456789abcdef";
 export const ENDPOINT = { name: "fixture", kind: "openai-compatible", baseUrl: "https://llm.example.test/v1", model: "fixture-llm" };
 const ENDPOINT_ORIGIN = new URL(ENDPOINT.baseUrl).origin;
@@ -67,8 +67,13 @@ export const INSTRUCTION = "Add the alternative flow 2a: the book is reserved by
 export const WORKFLOW = ".github/workflows/agent-m-jobs.yml";
 
 export const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 200000 | — | draft text, read the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |");
+/** Where this browser's endpoint ci-bot processes data (its setting's `place`). */
+export const PLACE = "a provider in the EU";
+/** The connection of ci-bot — this browser's endpoint ci-bot, whose key is the CI secret FIXTURE_KEY — as MOD-prompt-bar's endpointsOffered gives its route, and what a job's record declares for it (MOD-job-ledger, `declares`). */
+export const CONNECTION = "endpoint ci-bot secret FIXTURE_KEY";
+export const DECLARES = { context: 200000, capabilities: ["draft text", "read the repository"] };
 
 const useCase = (id, title, goal) => text("---", `id: ${id}`, `title: ${title}`, "area: lending", "actors:", "  - Member", "realises:", `  - ${RULE}`, "---", `# ${id} ${title}`, "",
   `**Goal.** ${goal}`, "", "## Actors", "", "- **Member**", "", "## Precondition", "", "- The member is signed in.", "", "## Main flow", "", "1. The member picks a book.",
@@ -211,12 +216,13 @@ export async function world({ product = {}, instance = {} } = {}, run) {
 // ---------------------------------------------------------------- the dashboard's start
 
 /**
- * startOf(w, participant, id, params) — the JobStart a run panel of the review pages makes for a job on the route of the CI participant `participant` (src/review-pages/jobs.mjs): the kind
- * change-use-case, the use case UC-001 as what it works on, the participant and its model, the route `ci hosted`, the person who clicked, the commit of the instance it runs, and the kind's parameters.
+ * startOf(w, participant, id, params) — the JobStart a run panel of the review pages makes for a job of ci-bot on the CI route (src/review-pages/jobs.mjs): the kind
+ * change-use-case, the use case UC-001 as what it works on, the participant and its model, the route `ci hosted` followed by its connection's route, what it declares, the person who clicked, the
+ * commit of the instance it runs, and the kind's parameters.
  */
-export const startOf = (w, { id, params = { useCase: "UC-001", instruction: INSTRUCTION }, route = "ci hosted" }) => ({ id, kind: "change-use-case", worksOn: ["UC-001"], participant: "ci-bot",
-  model: "fixture-llm", route, run: null, retries: null, startedBy: "alice", start: NOW, agentM: { version: w.instanceHead, commit: w.instanceHead }, inputs: [], limit: 5,
-  destinations: [{ participant: "ci-bot", place: "GitHub's hosted runners", parts: ["use-case-with-neighbours"] }], params });
+export const startOf = (w, { id, params = { useCase: "UC-001", instruction: INSTRUCTION }, route = `ci hosted ${CONNECTION}` }) => ({ id, kind: "change-use-case", worksOn: ["UC-001"], participant: "ci-bot",
+  model: "fixture-llm", route, declares: DECLARES, run: null, retries: null, startedBy: "alice", start: NOW, agentM: { version: w.instanceHead, commit: w.instanceHead }, inputs: [], limit: 5,
+  destinations: [{ participant: "ci-bot", place: PLACE, parts: ["use-case-with-neighbours"] }], params });
 
 /** The dashboard's click: the start record committed by MOD-runtimes' queueJob on the CI route, on the head the page read. -> { id, path, commit }. */
 export async function queueFromDashboard(w, options = {}) {
@@ -288,14 +294,14 @@ export async function registerGateKind() {
     } },
   });
 }
-/** The dashboard's click for a job decide-gate of the CI agent ci-bot: queueJob on the route ci hosted. -> { id, path, commit }. */
+/** The dashboard's click for a job decide-gate of the agent ci-bot on its endpoint: queueJob on the route ci hosted. -> { id, path, commit }. */
 export async function queueGate(w) {
   await registerGateKind();
   const host = w.dashboardHost();
   const head = (await host.readSnapshot("main")).commit;
   const id = newJobId(NOW, new Set(w.paths().map((path) => /^docs\/jobs\/(JOB-.*)\.md$/.exec(path)?.[1]).filter(Boolean)));
-  const start = { id, kind: "decide-gate", worksOn: [RULE], participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: NOW,
-    agentM: { version: w.instanceHead, commit: w.instanceHead }, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: "GitHub's hosted runners", parts: ["gate-inputs"] }], params: { endpoint: ENDPOINT } };
+  const start = { id, kind: "decide-gate", worksOn: [RULE], participant: "ci-bot", model: "fixture-llm", route: `ci hosted ${CONNECTION}`, declares: DECLARES, run: null, retries: null, startedBy: "alice", start: NOW,
+    agentM: { version: w.instanceHead, commit: w.instanceHead }, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: PLACE, parts: ["gate-inputs"] }], params: { endpoint: ENDPOINT } };
   const { path, commit } = await queueJob(host, start, { kind: "ci", runner: "hosted" }, head);
   return { id, path, commit };
 }
@@ -395,8 +401,9 @@ export function pageContext(w) {
   globalThis.location = { hostname: "akmaier.github.io", pathname: "/agent-m/", origin: "https://akmaier.github.io", href: "https://akmaier.github.io/agent-m/" };
   const store = openStore(INSTANCE_REPO);
   writeSetting(store, "github-token:alice/thesis-tool", PRODUCT_TOKEN);
-  // The endpoint of the CI agent ci-bot, as the Endpoints page stores it under `endpoint:<name>`; queueJob puts its address and model into the start of a job on the CI route. No key: the key is the secret FIXTURE_KEY.
-  writeSetting(store, "endpoint:ci-bot", { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: ENDPOINT.model });
+  // The endpoint ci-bot, which offers the model of the agent ci-bot, as the Endpoints page stores it under `endpoint:<name>`, with its place, its context and the CI secret of its key; queueJob puts
+  // its address and model into the start of a job on the CI route. No key: the key is the secret FIXTURE_KEY.
+  writeSetting(store, "endpoint:ci-bot", { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: ENDPOINT.model, place: PLACE, context: DECLARES.context, secret: "FIXTURE_KEY" });
   const real = w.dashboardHost();
   // A page reads the trace graph that the push job stores for the commit (MOD-trace-graph), which the fixture serves for every snapshot.
   const host = { ...real, readSnapshot: async (ref) => withStoredGraph(await real.readSnapshot(ref)) };
@@ -446,7 +453,7 @@ export async function runInTab(w, params = { useCase: "UC-001", instruction: INS
   const { tabContext, runOnTab } = await import("../src/runtimes/index.mjs");
   (pages.view.strategies ?? []).forEach((strategies, at) => registerStrategies(`tests/uc-010-harness.mjs#${at}`, strategies));
   const host = w.dashboardHost();
-  const drafter = { name: "ep1", type: "model endpoint", model: ENDPOINT.model, context: 200000, price: null, capabilities: ["draft text", "read the repository"], place: "this machine", route: "endpoint ep1" };
+  const drafter = { name: "ep1", type: "model endpoint", model: ENDPOINT.model, context: 200000, capabilities: ["draft text", "read the repository"], place: "this machine", route: "endpoint ep1" };
   const context = tabContext({ kind: await kindOf("change-use-case"), params, product: { address: PRODUCT_URL, snapshot: await host.readSnapshot("main"), host },
     instance: { snapshot: await w.instanceHost().readSnapshot("main"), host: w.instanceHost() }, participants: [drafter], places: { sources: {}, mailbox: null }, gates: [], person: "alice",
     agentM: { version: w.instanceHead, commit: w.instanceHead }, jobId: null });
@@ -455,7 +462,7 @@ export async function runInTab(w, params = { useCase: "UC-001", instruction: INS
 }
 
 /**
- * The drafting page of the use cases (`use-case/draft`), where the person chooses the CI agent for the requirement RULE and presses Run, and the line that says the job is queued waited for.
+ * The drafting page of the use cases (`use-case/draft`), where the person chooses the agent ci-bot on its endpoint for the requirement RULE and presses Run, and the line that says the job is queued waited for.
  * -> { target, queued: the line }. Registers the strategies of the review pages with the job runner, as the frame does for a page's view.
  */
 export async function runOnDraftingPage(w, participant = "ci-bot") {

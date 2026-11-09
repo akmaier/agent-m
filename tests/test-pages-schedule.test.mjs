@@ -1,7 +1,7 @@
 // The schedule page, up to Save (ITM-758) — MOD-test-pages' route `schedule`, as docs/architecture/MOD-test-pages.md and UC-027 steps 1 to 4
 // state it: the table of levels by occasion with each row's number of tests, the book's default marked as such until one is saved, a folded
 // "What is this?" per row and column naming the book's chapter, the cells that refuse with their reasons, the nightly time and the test command, the
-// runner per row among the participants with "run code and tests", and the secrets needed by name with the server's secrets page, never asking for a
+// runner per row — the server's, hosted, or a self-hosted runner by its label, runner:<label> —, and the secrets needed by name with the server's secrets page, never asking for a
 // value. Not part of this item: Save (ITM-759) and UC-027 3b, the runner's state, the registration page and the command (ITM-850).
 // Run: node --test tests/test-pages-schedule.test.mjs
 //
@@ -32,7 +32,6 @@ import assert from "node:assert/strict";
 const { view } = await import("../src/test-pages/index.mjs");
 const { scheduleFindings, scheduleSchema } = await import("../src/test-schedule/index.mjs");
 const { readDocument } = await import("../src/documents/index.mjs");
-const { participantSchema } = await import("../src/participant-list/index.mjs");
 
 const route = () => view.routes.find((candidate) => candidate.name === "schedule");
 const PRODUCT = "https://github.com/org/product";
@@ -61,10 +60,10 @@ const scheduleText = (rows, front = "nightly: 02:00") => `---\n${front}\n---\n##
 const DEFAULT_ROWS = ["| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | |",
   "| paid | | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"];
 // A saved schedule that differs from the book's default: system tests nightly only, the nightly run at 03:30, a command, and a runner for the system row.
-const SAVED = scheduleText(["| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| system | | | ✓ | ✓ | ✓ | lab-runner |",
+const SAVED = scheduleText(["| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| system | | | ✓ | ✓ | ✓ | runner:lab |",
   "| paid | | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"], "nightly: 03:30\ncommand: make test");
 // A saved schedule that says what the rules refuse: the row unit leaves out the release candidate, the row paid runs on every commit, and the row system
-// names a participant that cannot run tests.
+// runs on a name that is neither hosted nor runner:<label>.
 const BROKEN = scheduleText(["| unit | ✓ | ✓ | ✓ | | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | writer |",
   "| paid | ✓ | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"]);
 
@@ -74,14 +73,10 @@ const REGISTER = `# Participants of this instance
 
 The participants of the test instance.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| lab-runner | CI agent | example-model | 200000 | — | draft text, run code and tests | this machine | ci runner:lab secret LAB_KEY |
-| hosted-ci | CI agent | example-model | 200000 | — | draft text, run code and tests | the server | ci hosted secret CI_KEY |
-| writer | CLI agent | example-model | 200000 | — | draft text, read the repository | this machine | bridge lab-pc agent claude |
-| bridge-runner | CLI agent | example-model | 200000 | — | draft text, run code and tests | this machine | bridge lab-pc agent claude |
+| Name | Type | Model |
+|---|---|---|
+| alice | person | — |
 `;
-const participants = readDocument(participantSchema(), "docs/participants.md", REGISTER);
 
 const RESOURCE_HEAD = "| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |\n|---|---|---|---|---|---|---|---|---|---|";
 const resourcesText = (...rows) => `# Resources of this product\n\n**REGISTER**\n\nThe resources.\n\n${RESOURCE_HEAD}\n${rows.join("\n")}\n`;
@@ -194,12 +189,12 @@ test("schedule — the release candidate column and the commit cells of paid ref
 
 // TST-758005 · level: unit · module: MOD-test-pages
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
-// given: a saved schedule whose row unit leaves out the release candidate, whose row paid runs on every commit, and whose row system runs on writer, a participant without "run code and tests"
-// input: the route schedule rendered; and scheduleFindings of the same schedule and the instance's participants
+// given: a saved schedule whose row unit leaves out the release candidate, whose row paid runs on every commit, and whose row system runs on writer, which is neither hosted nor runner:<label>
+// input: the route schedule rendered; and scheduleFindings of the same schedule
 // expect: the page lists each finding of scheduleFindings, three of them, with its text and the requirement it names; Save of the form is not offered; for the book's default the list is empty
 test("schedule — the findings of scheduleFindings are listed, and Save is not offered while one remains", async () => {
   const schedule = readDocument(scheduleSchema, "docs/tests/schedule.md", BROKEN);
-  const found = scheduleFindings(schedule, participants);
+  const found = scheduleFindings(schedule);
   assert.equal(found.length, 3, "known positive: three findings");
   const shown = await withSchedule(BROKEN);
   const listed = byTag(byClass(shown, "schedule-findings")[0], "li");
@@ -231,15 +226,17 @@ test("schedule — each row names how many tests it holds", async () => {
 
 // TST-758007 · level: unit · module: MOD-test-pages
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
-// given: the instance's participants lab-runner, hosted-ci and bridge-runner (each with "run code and tests") and writer (without it); a saved schedule whose row system runs on lab-runner
+// given: a saved schedule whose row system runs on runner:lab and whose other rows leave runs on empty
 // input: the route schedule rendered for the product
-// expect: each of the six rows has a runner choice that offers hosted, lab-runner, hosted-ci and bridge-runner, and not writer; the choice of the row system shows lab-runner, those of the other rows hosted
-test("schedule — the runner of each row is chosen among the participants that run code and tests", async () => {
+// expect: each of the six rows has a runner field, an input that offers hosted or runner:<label> and lists no participant; the field of the row system shows runner:lab, those of the other rows hosted
+test("schedule — the runner of each row is the server's or a self-hosted runner by its label", async () => {
   const shown = await withSchedule(SAVED);
   for (const row of ROWS) {
     const choice = byClass(rowOf(shown, row), "runner")[0];
-    assert.deepEqual(byTag(choice, "option").map((option) => option.getAttribute("value")), ["hosted", "lab-runner", "hosted-ci", "bridge-runner"], row);
-    assert.equal(choice.value, row === "system" ? "lab-runner" : "hosted", row);
+    assert.equal(choice.localName, "input", row);
+    assert.equal(choice.placeholder, "hosted or runner:<label>", row);
+    assert.equal(byTag(choice, "option").length, 0, row);
+    assert.equal(choice.value, row === "system" ? "runner:lab" : "hosted", row);
   }
 });
 
@@ -274,7 +271,7 @@ test("schedule — a key written where a name belongs is not shown", async () =>
 // ---------------------------------------------------------------- ITM-850: a row on a self-hosted runner (UC-027 3b)
 //
 // Readings the texts leave open, which these tests state (the pull request names them):
-//   - A row is "on a self-hosted runner" when its `runs on` names a participant of the register whose route is `ci runner:<label>`; the label the runner must carry is <label>. `hosted`, a participant on a Bridge and a name the register does not hold are not.
+//   - A row is "on a self-hosted runner" when its `runs on` is `runner:<label>`; the label the runner must carry is <label>. `hosted` and an empty `runs on` are not.
 //   - The page shows, below the table, <div class="runner-registration" data-row="<row>"> per such row: an <a class="runner-page"> to webLinks().runners, <span class="runner-label"> with the label, a folded explanation (<details class="explain">),
 //     and <ul class="queued-runs"> with the runs of the default branch that listCiRuns gives in the state queued, each a link to its url; <p class="no-queued"> where none waits.
 //     ITM-1081: of the queued runs only those whose ciRunLabels hold the row's label are listed under it (MOD-test-pages.md:113-114); ciRunLabels is asked of the queued runs only. The page reads no runner's state: whether a runner is online shows in the runs, which leave the state queued.
@@ -284,11 +281,11 @@ const registrationOf = (shown, row) => descendants(shown, (node) => (node.classN
 
 // TST-850001 · level: unit · module: MOD-test-pages
 // guards: UC-027; EVERY STEP EXPLAINS ITSELF
-// given: a saved schedule whose row system runs on lab-runner (route ci runner:lab) and whose rows unit and release run on hosted-ci, bridge-runner and nobody; no run waits
+// given: a saved schedule whose row system runs on runner:lab, whose row unit runs on hosted and whose other rows leave runs on empty; no run waits
 // input: the route schedule rendered
 // expect: exactly one registration block, for the row system: a link to the server's runner page (webLinks().runners), the label lab, a folded explanation, and the note that no run waits; none for the other rows
 test("schedule — a row on a self-hosted runner shows the server's runner page, the label and a folded explanation", async () => {
-  const text = SAVED.replace("| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | hosted-ci |").replace("| release | | | | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | bridge-runner |");
+  const text = SAVED.replace("| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | hosted |");
   const shown = await withSchedule(text);
   const blocks = byClass(shown, "runner-registration");
   assert.deepEqual(blocks.map((block) => block.getAttribute("data-row")), ["system"]);
@@ -394,7 +391,7 @@ function accessibleName(node, root) {
 
 // TST-1208101 · level: unit · module: MOD-test-pages
 // guards: THE SITE SERVES A SCREEN READER; UC-027
-// given: a saved schedule; the instance's participants that run code and tests
+// given: a saved schedule
 // input: the route schedule rendered for the product
 // expect: the runner choice of each of the six rows has an accessible name that holds the row's name and "runs on"; the six names differ
 test("schedule — the runner choice of each row is named by its row and its column", async () => {
@@ -509,7 +506,7 @@ const framed = (topic) => {
 
 // TST-1225003 · level: unit · module: MOD-test-pages
 // guards: EVERY STEP EXPLAINS ITSELF; UC-027
-// given: a saved schedule whose row system runs on lab-runner (a self-hosted runner), and a resource list
+// given: a saved schedule whose row system runs on runner:lab (a self-hosted runner), and a resource list
 // input: the route schedule rendered
 // expect: the fold of each row is explain(test-level-<row>), of each column explain(test-occasion-<column>), of each front matter field explain(schedule-field-<key>), of the secrets explain(schedule-secrets), of the row system's runner explain(schedule-self-hosted-runner); schedule.mjs creates no details element itself
 test("TST-1225003 — schedule: every fold is the frame's explanation of its topic", async () => {

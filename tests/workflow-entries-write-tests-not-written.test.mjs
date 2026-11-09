@@ -1,4 +1,4 @@
-// A job of the kind `write-tests` that a CI agent ran records the cases it did not write, as docs/architecture/MOD-workflow-entries.md and SPEC.md state it: "Every job other than a conversation
+// A job of the kind `write-tests` that an agent on an endpoint run on CI ran records the cases it did not write, as docs/architecture/MOD-workflow-entries.md and SPEC.md state it: "Every job other than a conversation
 // held in a browser tab has a record `docs/jobs/JOB-<id>.md` in the repository of the product it works on … naming its inputs, participant, runtime and start, and, once it has ended, its end
 // state and results." (A JOB IS RECORDED IN ITS PRODUCT REPOSITORY), and onRecordsChanged: "a kind that hands its draft back leaves it in the record's end as `draft:`, from which the page shows it."
 // UC-026 8b: "A test stays green with the planted fault. It checks nothing. The participant reports it, it is not written, and the review panel shows it again for the author to sharpen or drop."
@@ -31,7 +31,8 @@ const CASES = [proposed("TST-902", "unit", [RULE]), proposed("TST-903", "unit", 
 // The job of the kind write-tests for the reviewed cases, queued on the route `ci hosted` as MOD-test-pages' Write tests queues it: MOD-runtimes' queueJob on the head the page read.
 async function queue(w) {
   const host = w.dashboardHost();
-  await queueJob(host, { id: JOB, kind: "write-tests", worksOn: ["UC-001"], participant: "test-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice",
+  await queueJob(host, { id: JOB, kind: "write-tests", worksOn: ["UC-001"], participant: "test-bot", model: "fixture-llm", route: "ci hosted endpoint fixture secret FIXTURE_KEY",
+    declares: { context: 200000, capabilities: ["draft text", "read the repository"] }, run: null, retries: null, startedBy: "alice",
     start: new Date("2026-11-02T09:00:00Z"), agentM: { version: w.instanceHead, commit: w.instanceHead }, inputs: [], limit: 5, destinations: [],
     params: { requirements: [RULE], useCases: ["UC-001"], modules: [], levels: ["unit"], route: "ci hosted", endpoint: ENDPOINT, draft: { cases: CASES } } }, { kind: "ci", runner: "hosted" }, (await host.readSnapshot("main")).commit);
 }
@@ -61,7 +62,7 @@ async function ran(tests) {
 
 // TST-1427001 · level: unit · module: MOD-workflow-entries
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-026
-// given: a queued job of the kind write-tests for the reviewed cases TST-902 and TST-903; test-bot, a CI agent, pushes a branch and reports TST-902 as not written because it stays green with the fault planted
+// given: a queued job of the kind write-tests for the reviewed cases TST-902 and TST-903; test-bot, an agent on the endpoint fixture whose key is the CI secret FIXTURE_KEY, pushes a branch and reports TST-902 as not written because it stays green with the fault planted
 // input: onRecordsChanged on the push that holds the job's record
 // expect: known positive — the job ends done; the end record's draft is { notWritten: [{ identifier: "TST-902", reason: "it stays green with the fault planted" }] }
 test("the end record of a write-tests job on CI names the case it did not write, and why", async () => {

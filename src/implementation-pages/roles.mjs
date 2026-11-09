@@ -128,7 +128,7 @@ export const route = {
       if (p.type === "person") return `${h(p.name)} <span class="muted small">(person)</span>`;
       const on = joined.filter((each) => each.name === p.name && each.route);
       const lacks = (each) => (role ? role.capabilities.filter((c) => !each.capabilities.includes(c)) : []);
-      const where = on.length ? on.map((each) => `${h(each.route)}, ${h(each.place)}${lacks(each).length ? ` — <span class="warn">lacks ${h(listed(lacks(each)))}</span>` : role ? " — has every capability the role needs" : ""}`).join("; ")
+      const where = on.length ? on.map((each) => `${h(each.route)}, ${h(each.place)}${lacks(each).length ? ` — <span class="warn">lacks ${h(listed(lacks(each)))}</span> — <a href="#endpoints">endpoints</a> · <a href="#bridge">Bridges</a>` : role ? " — has every capability the role needs" : ""}`).join("; ")
         : `<span class="warn">no connection of this browser offers it</span> — <a href="#endpoints">endpoints</a> · <a href="#bridge">Bridges</a>`;
       return `${h(p.name)} <span class="muted small">(agent, ${h(p.model ?? "")}: ${where})</span>`;
     }

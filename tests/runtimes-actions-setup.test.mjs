@@ -7,9 +7,11 @@
 // Guards: UC-010; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // Level: unit
 //
-// The repository servers are fakes in memory: an instance whose participants register has the CI participants hosted-ci (key HOSTED_KEY) and gpu-ci (runner gpu, key
-// GPU_KEY), and a product on GitHub or on GitLab whose host notes every commit and every secret it is asked to store. The browser's store is MOD-browser-store's over a
-// Storage in memory. The values are fixtures, never real credentials. Nothing reaches the network. Each test states its input and its expected result before it runs.
+// The repository servers are fakes in memory: an instance whose participants register names agents and a person (actionsSetup reads no participant: the keys it names are
+// the `secret` of this browser's `endpoint:*` settings alone, and the runners are the server's own), and a product on GitHub or on GitLab whose host notes every commit and
+// every secret it is asked to store. The browser's store is MOD-browser-store's over a Storage in memory, with the endpoints hosted (secret HOSTED_KEY, no key kept here),
+// lab-gpu (secret GPU_KEY, no key kept here), nvidia (secret NVIDIA_API_KEY, its key kept here) and plain (no secret). The values are fixtures, never real credentials.
+// Nothing reaches the network. Each test states its input and its expected result before it runs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -33,11 +35,11 @@ const PRODUCT_HEAD = "1".repeat(40);
 const TOKEN_KEY = "github-token:fixture/product";
 const text = (...lines) => `${lines.join("\n")}\n`;
 const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | hosted runner | ci hosted secret HOSTED_KEY |",
-  "| gpu-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | lab GPU runner | ci runner:gpu secret GPU_KEY |",
-  "| alice | person | — | — | — | read the repository | — | account github.com/alice |");
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| dev-a | agent | gpt-5 |",
+  "| dev-b | agent | nemotron |",
+  "| alice | person | — |");
 const INSTANCE = { repository: "fixture/instance", commit: INSTANCE_COMMIT };
 
 const address = (server) => (server === "github"
@@ -76,7 +78,9 @@ function store({ token = TOKEN } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   const browserStore = openStore("fixture/instance");
   if (token) writeSetting(browserStore, TOKEN_KEY, { value: token, name: "Agent M · product", expires: "2027-01-01" });
-  // An endpoint whose key this browser keeps and whose CI secret is NVIDIA_API_KEY; one that names no secret; one that names the participant's secret HOSTED_KEY, with its key.
+  // Two endpoints that name a CI secret whose value this browser does not keep (HOSTED_KEY, GPU_KEY); one whose key this browser keeps and whose CI secret is NVIDIA_API_KEY; one that names no secret.
+  writeSetting(browserStore, "endpoint:hosted", { kind: "openai-compatible", url: "https://hosted.example.test/v1", model: "gpt-5", secret: "HOSTED_KEY" });
+  writeSetting(browserStore, "endpoint:lab-gpu", { kind: "openai-compatible", url: "https://gpu.example.test/v1", model: "gpt-5", secret: "GPU_KEY" });
   writeSetting(browserStore, "endpoint:nvidia", { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nemotron", key: NVIDIA_KEY, secret: "NVIDIA_API_KEY" });
   writeSetting(browserStore, "endpoint:plain", { kind: "openai-compatible", url: "https://plain.example.test/v1", model: "m", key: "sk-PLAIN-NOT-A-SECRET" });
   return browserStore;
@@ -84,13 +88,13 @@ function store({ token = TOKEN } = {}) {
 
 const setupOf = (server, repo, browserStore) => actionsSetup({ product: { address: address(server).web, host: repo.host, tokenKey: TOKEN_KEY }, instance: { host: instanceHost }, store: browserStore });
 const KEYS = ["HOSTED_KEY", "GPU_KEY", "NVIDIA_API_KEY"];
-const expectedFiles = (server, gitlabCi = null) => jobWorkflowFiles(server, INSTANCE, { token: "AGENT_M_TOKEN", keys: KEYS }, ["gpu"], gitlabCi);
+const expectedFiles = (server, gitlabCi = null) => jobWorkflowFiles(server, INSTANCE, { token: "AGENT_M_TOKEN", keys: KEYS }, [], gitlabCi);
 // What actionsSetup returns, without its function, as a text: what a caller could show, log or keep.
 const shown = (setup) => JSON.stringify({ ...setup, setUp: undefined });
 
 // TST-2026110911 · level: unit · module: MOD-runtimes
 // guards: UC-010; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: a GitHub product without the job workflow whose repository holds the Actions secret GPU_KEY; this browser keeps the product's token under TOKEN_KEY, endpoint:nvidia with its key and the secret NVIDIA_API_KEY, endpoint:plain naming no secret
+// given: a GitHub product without the job workflow whose repository holds the Actions secret GPU_KEY; this browser keeps the product's token under TOKEN_KEY, endpoint:hosted and endpoint:lab-gpu naming HOSTED_KEY and GPU_KEY without a key, endpoint:nvidia with its key and the secret NVIDIA_API_KEY, endpoint:plain naming no secret
 // input: actionsSetup for the product; setUp is not called
 // expect: named is AGENT_M_TOKEN and HOSTED_KEY, GPU_KEY, NVIDIA_API_KEY; missing.workflow true, outdated empty; missing.secrets AGENT_M_TOKEN, HOSTED_KEY, NVIDIA_API_KEY, the token first; unknown HOSTED_KEY alone; the host was asked ciSecretNames and nothing that writes; the token and the keys are nowhere in what it returns
 test("TST-2026110911: actionsSetup names what a GitHub product lacks, writes nothing without setUp, and returns no value", async () => {
@@ -182,7 +186,7 @@ test("TST-2026111201: actionsSetup gives the instance commit its files pin and t
   // The paths of `older` whose text is not the one `current` gives for the same path.
   const differing = (older, current) => older.filter((file) => current.find((each) => each.path === file.path)?.text !== file.text).map((file) => file.path);
   const asFiles = (list) => Object.fromEntries(list.map(({ path, text: body }) => [path, body]));
-  const olderOf = (server, gitlabCi = null) => jobWorkflowFiles(server, { ...INSTANCE, commit: OLD_COMMIT }, { token: "AGENT_M_TOKEN", keys: KEYS }, ["gpu"], gitlabCi);
+  const olderOf = (server, gitlabCi = null) => jobWorkflowFiles(server, { ...INSTANCE, commit: OLD_COMMIT }, { token: "AGENT_M_TOKEN", keys: KEYS }, [], gitlabCi);
   const cases = [
     { name: "absent", server: "github", files: {}, product: null, outdated: [] },
     { name: "current", server: "github", files: asFiles(expectedFiles("github")), product: INSTANCE_COMMIT, outdated: [] },

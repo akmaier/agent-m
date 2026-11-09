@@ -70,7 +70,8 @@ const approvalOf = (path, body = BARE[path]) => {
 // The product of most tests: every use case and module accepted, so that the page offers each (UC-026 1 lists the accepted ones).
 const FILES = { ...BARE, ...approvalOf("docs/use-cases/UC-001-one.md"), ...approvalOf("docs/use-cases/UC-002-two.md"), ...approvalOf("docs/architecture/MOD-a.md"),
   ...approvalOf("docs/architecture/MOD-b.md") };
-const IMPLEMENTED = { id: "JOB-20261010-0900-abcd", kind: "implement", worksOn: ["UC-002"], participant: "writer-a", model: "model-y", route: "bridge lab-pc", run: null, retries: null,
+const IMPLEMENTED = { id: "JOB-20261010-0900-abcd", kind: "implement", worksOn: ["UC-002"], participant: "writer-a", model: "model-y", route: "bridge lab-pc agent claude",
+  declares: { context: 200000, capabilities: ["read the repository", "write to the repository", "run code and tests"] }, run: null, retries: null,
   startedBy: "alice", start: new Date("2026-10-10T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [], params: {} };
 const withImplementer = { ...FILES, [`docs/jobs/${IMPLEMENTED.id}.md`]: startRecord(IMPLEMENTED).text };
 
@@ -110,12 +111,34 @@ const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
-const NEEDS = "read the repository, write to the repository, run code and tests";
-const WRITER_A = `| writer-a | CLI agent | model-y | 200000 | — | ${NEEDS} | this machine | bridge lab-pc agent claude |`;
-const WRITER_B = `| writer-b | CLI agent | model-z | 200000 | — | ${NEEDS} | this machine | bridge lab-pc agent claude |`;
-const CI_WRITER = `| ci-writer | CI agent | model-x | 200000 | — | ${NEEDS} | GitHub Actions in the USA | ci hosted secret CI_KEY |`;
-const SMALL_CI = `| small-ci | CI agent | model-s | 100 | — | ${NEEDS} | GitHub Actions in the USA | ci hosted secret CI_KEY |`;
-const DRAFTER = "| drafter | model endpoint | example-model | 200000 | — | draft text | this machine | endpoint ep1 |";
+const NEEDS = ["read the repository", "write to the repository", "run code and tests"];
+// The register (MOD-participant-list: Name, Type, Model): writer-a, writer-b and small-w are agents whose models the coding agent claude of the Bridge lab-pc
+// offers; ci-writer an agent on the endpoint ci, whose key is the CI secret CI_KEY; drafter an agent on the endpoint ep1 of this machine.
+const WRITER_A = "| writer-a | agent | model-y |";
+const WRITER_B = "| writer-b | agent | model-z |";
+const SMALL_WRITER = "| small-w | agent | model-s |";
+const CI_WRITER = "| ci-writer | agent | model-x |";
+const DRAFTER = "| drafter | agent | example-model |";
+// The connections this browser keeps (MOD-browser-store): the Bridge lab-pc with its CLI session claude, which declares the three capabilities of the
+// test-writing role at "this machine" and offers model-y and model-z with a context of 200000 tokens and model-s with one of 100; the endpoint ci of
+// model-x at GitHub Actions in the USA, its key the CI secret CI_KEY; the endpoint ep1 of example-model at this machine.
+const BRIDGE = "http://127.0.0.1:47123";
+const CONNECTIONS = {
+  "bridge:lab-pc": { address: BRIDGE, token: "bridge-pairing-token" },
+  "session:lab-pc:claude": { place: "this machine", capabilities: NEEDS, models: [{ model: "model-y", context: 200000 }, { model: "model-z", context: 200000 }, { model: "model-s", context: 100 }] },
+  "endpoint:ci": { url: "https://ci-endpoint.example.test/v1", kind: "openai-compatible", model: "model-x", key: "sk-fixture-endpoint-key", place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" },
+  "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 },
+};
+// This browser's localStorage, over a Map, for MOD-browser-store; the store each page is drawn with keeps CONNECTIONS.
+const kept = new Map();
+globalThis.localStorage = { getItem: (k) => (kept.has(k) ? kept.get(k) : null), setItem: (k, v) => { kept.set(k, String(v)); },
+  removeItem: (k) => { kept.delete(k); }, key: (i) => [...kept.keys()][i] ?? null, get length() { return kept.size; } };
+const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
+function storeOfConnections() {
+  const store = openStore("alice/agent-m");
+  for (const [key, value] of Object.entries(CONNECTIONS)) writeSetting(store, key, value);
+  return store;
+}
 function fakeInstance(register) {
   const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" }, ref: "main",
     commit: "abc123def4567890abc123def4567890abc123de", paths: [], read: async (path) => (path === "docs/participants.md" ? register : onDisk(path)), blob: () => null };
@@ -126,14 +149,27 @@ function fakeInstance(register) {
 
 const realFetch = globalThis.fetch;
 const sent = [];
-test.beforeEach(() => { sent.length = 0; globalThis.fetch = async (url) => { sent.push(String(url)); throw new Error("no network"); }; });
+// The Bridge lab-pc answers the two requests of MOD-bridge-client's testBridge, GET /v1/pair and GET /v1/agents, which MOD-prompt-bar's sessionsOffered sends
+// whenever a page reads this browser's connections; they are its reading of the connections, not something the page sends of the product, so they are
+// kept out of `sent`, which the "nothing sent" assertions read. Every other request is refused and kept in `sent`.
+const json = (value) => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
+test.beforeEach(() => {
+  sent.length = 0;
+  globalThis.fetch = async (url) => {
+    const address = String(url?.url ?? url);
+    if (address === `${BRIDGE}/v1/pair`) return json({ bridge: { name: "lab-pc" } });
+    if (address === `${BRIDGE}/v1/agents`) return json({ agents: [{ name: "claude", ready: true }] });
+    sent.push(address);
+    throw new Error("no network");
+  };
+});
 test.afterEach(() => { globalThis.fetch = realFetch; });
 
-async function show(fake, { register = registerOf(WRITER_A, WRITER_B, CI_WRITER, DRAFTER), go = () => {} } = {}) {
+async function show(fake, { register = registerOf(WRITER_A, WRITER_B, DRAFTER), go = () => {} } = {}) {
   assert.ok(route, "the view offers the route generate");
   const target = document.createElement("div");
   document.body.append(target);
-  const context = { page: "main", instance: { repository: "alice/agent-m", host: fakeInstance(register) }, store: null, go, product: { address: PRODUCT, kind: "github", host: fake.host } };
+  const context = { page: "main", instance: { repository: "alice/agent-m", host: fakeInstance(register) }, store: storeOfConnections(), go, product: { address: PRODUCT, kind: "github", host: fake.host } };
   await route.render(target, context, {});
   return target;
 }
@@ -206,18 +242,18 @@ test("generate — what can be tested with the levels that guard it, the uncover
 
 // TST-763002 · level: unit · module: MOD-test-pages
 // guards: UC-026; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: writer-a recorded as the implementer of UC-002 by a job of kind implement; the register with writer-a, writer-b, a CI agent that declare the three capabilities and a drafter that declares only draft text; UC-002 selected and release chosen
+// given: writer-a recorded as the implementer of UC-002 by a job of kind implement; the register with writer-a and writer-b, whose models a Bridge's CLI session offers that declares the three capabilities, and the drafter on a model endpoint, whose connection declares only draft text and read the repository; UC-002 selected and release chosen
 // input: the route generate, drawn; then release unticked
-// expect: writer-b and the CI agent are offered and the drafter is not; writer-a is left out and named; with release unticked writer-a is offered too
+// expect: writer-b is offered and the drafter is not; writer-a is left out and named; with release unticked writer-a is offered too
 test("generate — the implementer is left out for release and named, and a participant lacking a capability is not offered", async () => {
   const target = await show(fakeProduct(withImplementer));
-  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-b"]);
+  assert.deepEqual(offeredNames(target), ["writer-b"]);
   const left = byClass(target, "p", "left-out");
   assert.equal(left.length, 1);
   assert.match(left[0].textContent, /writer-a/);
   setLevel(target, "release", false);
   await settle();
-  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-a", "writer-b"]);
+  assert.deepEqual(offeredNames(target), ["writer-a", "writer-b"]);
   assert.equal(byClass(target, "p", "left-out").length, 0);
 });
 
@@ -241,12 +277,12 @@ test("generate — when the only participant is the implementer, release is said
 
 // TST-763004 · level: unit · module: MOD-test-pages
 // guards: UC-026; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A TEST JOB RECEIVES THE CHAPTER ON TESTING
-// given: the page with the preselection and the CI agent chosen, a person's name entered
+// given: the page with the preselection and ci-writer chosen — an agent on the endpoint ci, whose setting names its CI secret CI_KEY —, a person's name entered
 // input: pressing Show the run panel; then Run twice
-// expect: the panel names the participant, where it processes data and what is sent — the selection and the book's chapter on testing —; nothing is written before Run; Run queues exactly one job: one commit of one record docs/jobs/JOB-….md of kind propose-tests, naming the selected names, the participant and the route ci hosted, with the levels as parameters
+// expect: the panel names the participant, where it processes data and what is sent — the selection and the book's chapter on testing —; nothing is written before Run; Run queues exactly one job: one commit of one record docs/jobs/JOB-….md of kind propose-tests, naming the selected names, the participant and the route ci hosted followed by the connection's route endpoint ci secret CI_KEY (MOD-job-ledger, route), with the levels as parameters
 test("generate — the run panel names where the selection goes and Run queues one job of the kind propose-tests", async () => {
   const fake = fakeProduct(accepted);
-  const target = await show(fake);
+  const target = await show(fake, { register: registerOf(WRITER_A, WRITER_B, CI_WRITER, DRAFTER) });
   await panelFor(target, "ci-writer");
   const panel = byClass(target, "section", "run-panel")[0];
   assert.match(panel.textContent, /ci-writer/);
@@ -267,20 +303,20 @@ test("generate — the run panel names where the selection goes and Run queues o
   assert.match(file.path, /^docs\/jobs\/JOB-[^/]+\.md$/);
   assert.match(file.text, /kind: propose-tests/);
   assert.match(file.text, /participant: ci-writer/);
-  assert.match(file.text, /route: ci hosted/);
+  assert.match(file.text, /^route: ci hosted endpoint ci secret CI_KEY$/m);
   for (const name of ["RULE TWO", "UC-002", "MOD-a"]) assert.ok(file.text.includes(name), `${name} is named in the record`);
   assert.match(file.text, /release/);
 });
 
 // TST-763005 · level: unit · module: MOD-test-pages
 // guards: UC-026; THE PAGE NAMES WHERE IT SENDS
-// given: a CI agent whose context holds 100 tokens, much less than the selection and its existing tests
-// input: the preselection, the small CI agent chosen, Show the run panel
+// given: small-w, whose model the Bridge's session offers with a context of 100 tokens, much less than the selection and its existing tests
+// input: the preselection, small-w chosen, Show the run panel
 // expect: the panel offers no Run; the page says how many existing tests guard the selection and offers a smaller selection or a participant with a larger context; nothing is written or sent
 test("generate — a selection that does not fit the participant's context sends nothing and offers a smaller selection", async () => {
   const fake = fakeProduct();
-  const target = await show(fake, { register: registerOf(SMALL_CI, CI_WRITER) });
-  await panelFor(target, "small-ci");
+  const target = await show(fake, { register: registerOf(SMALL_WRITER, WRITER_B) });
+  await panelFor(target, "small-w");
   assert.equal(runButtons(target).length, 0, "no Run");
   const said = byClass(target, "p", "too-large");
   assert.equal(said.length, 1);
@@ -326,14 +362,14 @@ test("view — hands the frame the strategies the kind propose-tests uses", () =
 // TST-763008 · level: unit · module: MOD-test-pages
 // guards: UC-026; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
 // given: the product of the first test, but no record accepts the use case UC-002, which no test guards
-// input: the CI agent chosen, Show the run panel
+// input: writer-b chosen, Show the run panel
 // expect: UC-002 is neither offered nor in the preselection, which holds RULE TWO and MOD-a; the panel names no use case as not accepted and offers Run, so that no unaccepted name reaches the job; nothing is sent or written before Run
 test("generate — a use case no record accepts is not offered, so that the run panel's selection rests on accepted names only", async () => {
   const fake = fakeProduct(UC_2_OPEN);
   const target = await show(fake);
   assert.ok(!byClass(target, "input", "name").some((box) => box.value === "UC-002"), "UC-002 is not offered");
   assert.deepEqual(checkedNames(target).sort(), ["MOD-a", "RULE TWO"]);
-  await panelFor(target, "ci-writer");
+  await panelFor(target, "writer-b");
   const panel = byClass(target, "section", "run-panel")[0];
   assert.doesNotMatch(panel.textContent, /UC-002/);
   assert.doesNotMatch(panel.textContent, /not accepted/);
@@ -383,24 +419,25 @@ test("TST-1424001 — generate: the implementer of an item that realises a selec
   const target = await show(fakeProduct(files));
   await chooseNames(target, ["RULE TWO"]);
   assert.deepEqual(leftOutNames(target), ["writer-b"], "known positive: the implementer of an item that realises a selected requirement");
-  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-a"]);
+  assert.deepEqual(offeredNames(target), ["writer-a"]);
   await chooseNames(target, ["UC-001"]);
   assert.deepEqual(leftOutNames(target), ["writer-a"], "UC-001: the implementer of the item that realises it");
-  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-b"]);
+  assert.deepEqual(offeredNames(target), ["writer-b"]);
   await chooseNames(target, ["MOD-b"]);
   assert.deepEqual(leftOutNames(target), ["writer-a"], "MOD-b: the implementer of the item that changes it");
-  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-b"]);
+  assert.deepEqual(offeredNames(target), ["writer-b"]);
   setLevel(target, "release", false);
   await settle();
   assert.deepEqual(leftOutNames(target), [], "without release nothing is left out");
-  assert.deepEqual(offeredNames(target), ["ci-writer", "writer-a", "writer-b"]);
+  assert.deepEqual(offeredNames(target), ["writer-a", "writer-b"]);
 });
 
 // ================================================================== ITM-764: the proposal, its review and Write tests
 
 const ENDED = { at: new Date("2026-10-18T10:00:00Z"), state: "done", results: ["waits for a person"], usage: null, cost: { known: false, usage: null }, reason: null, log: null };
 const caseOf = (identifier, level, guards, over = {}) => ({ identifier, level, guards, precondition: "a product", input: `input of ${identifier}`, expected: `expected of ${identifier}`, class: "new", ...over });
-const PROPOSED = { id: "JOB-20261018-0900-aaaa", kind: "propose-tests", worksOn: ["RULE TWO", "UC-002", "MOD-a"], participant: "ci-writer", model: "model-x", route: "ci hosted", run: null, retries: null,
+const PROPOSED = { id: "JOB-20261018-0900-aaaa", kind: "propose-tests", worksOn: ["RULE TWO", "UC-002", "MOD-a"], participant: "writer-b", model: "model-z", route: "bridge lab-pc agent claude",
+  declares: { context: 200000, capabilities: NEEDS }, run: null, retries: null,
   startedBy: "alice", start: new Date("2026-10-18T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [],
   params: { requirements: ["RULE TWO"], useCases: ["UC-002"], modules: ["MOD-a"], levels: ["unit", "system", "release", "user"] } };
 const FLAG = finding({ artifact: "the proposal", line: 1, kind: "warning", rule: "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS", what: "TST-7003 states no concrete expected result", fix: "state it" });
@@ -451,7 +488,7 @@ test("generate — the proposal is read from the job's record, grouped by level 
 // guards: UC-026; WHAT A PERSON DECIDES IS NOT SENT BACK; ONE CLICK PER DECISION; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: the proposal of the previous test; the person edits the expected result of TST-7001, reclassifies TST-7002 to the level release and removes the duplicate TST-7005
 // input: Write tests pressed once
-// expect: one commit of one record of the kind write-tests, for the participant of the proposal on the route ci hosted, whose parameters hold the selection and levels of the proposal, the route, and five cases as the person left them, in the order of the panel: the edited expected result, the new level, no TST-7005
+// expect: one commit of one record of the kind write-tests, for the participant of the proposal on its route, the coding agent claude of the Bridge lab-pc, whose parameters hold the selection and levels of the proposal, the route, and five cases as the person left them, in the order of the panel: the edited expected result, the new level, no TST-7005
 test("generate — Write tests queues one job of the kind write-tests with the cases as the person left them", async () => {
   const fake = fakeProduct(proposed(CASES));
   const target = await readProposal(fake);
@@ -467,10 +504,10 @@ test("generate — Write tests queues one job of the kind write-tests with the c
   const [file] = fake.writes()[0].files;
   assert.match(file.path, /^docs\/jobs\/JOB-[^/]+\.md$/);
   assert.match(file.text, /kind: write-tests/);
-  assert.match(file.text, /participant: ci-writer/);
-  assert.match(file.text, /route: ci hosted/);
+  assert.match(file.text, /participant: writer-b/);
+  assert.match(file.text, /^route: bridge lab-pc agent claude$/m);
   const params = parametersOf(file.text);
-  assert.deepEqual([params.requirements, params.useCases, params.modules, params.levels, params.route], [["RULE TWO"], ["UC-002"], ["MOD-a"], ["unit", "system", "release", "user"], "ci hosted"]);
+  assert.deepEqual([params.requirements, params.useCases, params.modules, params.levels, params.route], [["RULE TWO"], ["UC-002"], ["MOD-a"], ["unit", "system", "release", "user"], "bridge lab-pc"]);
   const handed = new Map(params.draft.cases.map((one) => [one.identifier, one]));
   assert.deepEqual([...handed.keys()].sort(), ["TST-5", "TST-7001", "TST-7002", "TST-7003", "TST-7004"]);
   assert.equal(handed.get("TST-7001").expected, "returns 4");
@@ -610,16 +647,16 @@ const look = await import("./test-pages-look.mjs");
 
 // TST-1223007 · level: unit · module: MOD-test-pages
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-026; UC-027; UC-028; UC-029; UC-030
-// given: the product with RULE ONE, RULE TWO, UC-001, UC-002, MOD-a and MOD-b, and the writers writer-a, writer-b and ci-writer
+// given: the product with RULE ONE, RULE TWO, UC-001, UC-002, MOD-a and MOD-b, and the writers writer-a and writer-b
 // input: the route generate, drawn
-// expect: the first part is section.head with the heading Generate tests, the product's address and its default branch, and the five views as the frame's buttons, Generate marked; each of the six names, the five levels and the three writers is a row of table.list with labelled cells; every button carries btn; every section under the head is a panel
+// expect: the first part is section.head with the heading Generate tests, the product's address and its default branch, and the five views as the frame's buttons, Generate marked; each of the six names, the five levels and the two writers is a row of table.list with labelled cells; every button carries btn; every section under the head is a panel
 test("TST-1223007 — generate: the head leads through the Tests entry's views, Generate marked, its rows the frame's table", async () => {
   const target = await show(fakeProduct());
   look.assertTestsHead(target, { heading: /^Generate tests$/, shown: "Generate" });
   assert.match(look.headOf(target).textContent, new RegExp(`${PRODUCT}.*trunk`));
-  const rows = look.assertListRows(target, 6 + 5 + 3);
+  const rows = look.assertListRows(target, 6 + 5 + 2);
   const named = (attribute) => rows.map((row) => row.getAttribute(attribute)).filter(Boolean);
-  assert.deepEqual(named("data-name").sort(), ["MOD-a", "MOD-b", "RULE ONE", "RULE TWO", "UC-001", "UC-002", "ci-writer", "writer-a", "writer-b"]);
+  assert.deepEqual(named("data-name").sort(), ["MOD-a", "MOD-b", "RULE ONE", "RULE TWO", "UC-001", "UC-002", "writer-a", "writer-b"]);
   assert.deepEqual(named("data-level"), ["unit", "component", "system", "release", "user"]);
   look.assertButtons(target, 2);
   look.assertPanels(target, 3);

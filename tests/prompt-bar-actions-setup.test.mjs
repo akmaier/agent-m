@@ -122,8 +122,8 @@ const PRODUCT_TOKEN = "github_pat_FIXTURE_PRODUCT_0123456789";
 const NVIDIA_KEY = "nvapi-FIXTURE-KEY-0123456789";
 const TASK = "PLANTED-TASK-AS10 look at the export";
 
-const COLUMNS = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
-const REGISTER = `# Participants of this instance\n\n**REGISTER**\n\n${COLUMNS}\n| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |\n`;
+const COLUMNS = "| Name | Type | Model |\n|---|---|---|";
+const REGISTER = `# Participants of this instance\n\n**REGISTER**\n\n${COLUMNS}\n| alice | person | — |\n`;
 const INSTANCE_FILES = { "SPEC.md": "# Instance spec\n", "docs/participants.md": REGISTER };
 
 // The files of Agent M's job workflow for a GitHub product, as jobWorkflowFiles gives them for the instance's commit and the secrets this browser names: AGENT_M_TOKEN and NVIDIA_API_KEY
@@ -215,7 +215,15 @@ function open({ product, instance, store: storeOptions = {}, extraEndpoints = {}
 const status = (it) => textOf(one(it.target, "status"));
 const setUpButtons = (it) => all(it.target, (node) => node.localName === "button" && textOf(node) === "Set up GitHub Actions");
 const writesOf = (...repos) => repos.reduce((sum, repo) => sum + repo.attempts.length + repo.starts.length + repo.stored.length, 0);
-const choose = (it, name) => { const selector = one(it.target, "participant"); selector.value = name; selector.dispatchEvent(new Event("change")); };
+// The selector keeps each connection by `<name> · <model>` (MOD-prompt-bar); the endpoint is chosen by its name. One offered is only named.
+const choose = (it, name) => {
+  const selector = one(it.target, "participant");
+  if (selector.localName === "span") { assert.ok(textOf(selector).startsWith(`${name} · `), `the bar offers ${name}`); return; }
+  const option = all(selector, (node) => node.localName === "option").find((node) => node.value.startsWith(`${name} · `));
+  assert.ok(option, `the bar offers ${name}`);
+  selector.value = option.value;
+  selector.dispatchEvent(new Event("change"));
+};
 
 // Spawn job with nvidia chosen and TASK as the message, by a person's click; resolves once the bar has answered — the job is spawned, or the bar says why not.
 async function spawns(it) {
@@ -413,7 +421,7 @@ async function proposesHandOver(it) {
 // input: the person's Send; then one person's click on Set up GitHub Actions
 // expect: after Send the hand-over shows "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN", the button, and no link
 //   "Set up the job workflow"; nothing is queued; after the click the setup commits the job workflow and stores AGENT_M_TOKEN, and the hand-over is assessed again and queued at once — one
-//   commit adds the job's record (route ci hosted), the job workflow is started once with the task TASK
+//   commit adds the job's record (route ci hosted endpoint relay secret NVIDIA_API_KEY), the job workflow is started once with the task TASK
 test("TST-2026111008: a hand-over on the CI route toward a product not set up is held back, and one click sets up and queues it", async () => {
   const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
   const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n" }, { secrets: ["NVIDIA_API_KEY"] });
@@ -428,7 +436,7 @@ test("TST-2026111008: a hand-over on the CI route toward a product not set up is
   assert.equal(product.attempts.length, 2, textOf(one(it.target, "hand-over")));
   assert.deepEqual(product.attempts[0].files.map((file) => file.path).sort(), [".github/workflows/agent-m-jobs.yml", ".github/workflows/agent-m-main-changed.yml"]);
   assert.deepEqual(product.stored, [["AGENT_M_TOKEN", PRODUCT_TOKEN]]);
-  assert.match(product.attempts[1].files[0].text, /^route: ci hosted$/m);
+  assert.match(product.attempts[1].files[0].text, /^route: ci hosted endpoint relay secret NVIDIA_API_KEY$/m);
   assert.equal(product.starts.length, 1);
   assert.equal(product.starts[0].inputs.task, TASK);
 });
@@ -536,7 +544,7 @@ test("TST-2026111204: an outdated file whose job workflow pins this instance's c
 // input: the person's Send; then one person's click on Set up GitHub Actions
 // expect: after Send the hand-over shows "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions." and "Outdated: …: the job workflow pins fedcba9, this instance is
 //   <seven digits>" and the button, and nothing is queued; after the click the setup commits the job workflow's two files as this instance's commit gives them, stores no secret, and the
-//   hand-over is queued at once — one commit adds the job's record (route ci hosted), the job workflow is started once with the task TASK
+//   hand-over is queued at once — one commit adds the job's record (route ci hosted endpoint relay secret NVIDIA_API_KEY), the job workflow is started once with the task TASK
 test("TST-2026111205: a hand-over on the CI route toward a product whose job workflow pins another commit is held back, and one click sets up and queues it", async () => {
   const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
   const older = olderWorkflowFiles();
@@ -552,7 +560,7 @@ test("TST-2026111205: a hand-over on the CI route toward a product whose job wor
   assert.equal(product.attempts.length, 2, textOf(one(it.target, "hand-over")));
   assert.deepEqual(Object.fromEntries(product.attempts[0].files.map(({ path, text }) => [path, text])), workflowFiles(instance));
   assert.deepEqual(product.stored, []);
-  assert.match(product.attempts[1].files[0].text, /^route: ci hosted$/m);
+  assert.match(product.attempts[1].files[0].text, /^route: ci hosted endpoint relay secret NVIDIA_API_KEY$/m);
   assert.equal(product.starts.length, 1);
   assert.equal(product.starts[0].inputs.task, TASK);
 });

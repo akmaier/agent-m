@@ -17,12 +17,13 @@
 //   - The route `implement` given the parameter `item` ticks that item only.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import test, { afterEach } from "node:test";
+import test, { after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "board");
@@ -88,11 +89,16 @@ const pr = ({ number, item, merged = null }) => ({ number, title: `${item}: the 
   state: merged ? "merged" : "open", draft: false, url: `${ADDRESS}/pull/${number}`, opened: "2026-09-15T12:00:00Z", merged, closed: merged });
 const OPEN_PRS = [pr({ number: 1, item: "ITM-001" }), pr({ number: 2, item: "ITM-003" })];
 
-// The register of the instance: the head of this repository's own docs/participants.md and the one builder.
+// The register of the instance: the head of this repository's own docs/participants.md and the two agents.
 const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const HEAD = onDisk("docs/participants.md").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n| dev-b | model endpoint | model-b | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n`;
+
+// This browser's connections: the Bridge lab-pc, whose coding agents claude and codex offer model-a and model-b on this machine with every capability an implementing job needs (tests/browser-connections-fixture.mjs).
+const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]), "session:lab-pc:codex": session([["model-b"]]) };
+const bridge = withBridge(["claude", "codex"]);
+after(() => bridge.restore());
 
 // A host of this file's own: the part of MOD-repository-hosts' interface the route uses, keeping every commit it is asked for.
 function hostOf(files, pullRequests, commits) {
@@ -118,7 +124,7 @@ async function render(files, { pullRequests = [], params = {}, using = route } =
   const commits = [];
   const host = hostOf(files, pullRequests, commits);
   const instanceHost = hostOf({ "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": files["docs/process-models/fixture.md"] }, [], []);
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} };
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: storeWith(SETTINGS), go() {} };
   const target = document.createElement("div");
   document.body.append(target);
   await using.render(target, context, params);

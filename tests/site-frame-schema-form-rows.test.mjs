@@ -3,7 +3,7 @@
 // register is never saved". Run: node --test tests/site-frame-schema-form-rows.test.mjs
 //
 // Module: MOD-site-frame
-// Guards: A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY; THE RESOURCE KIND IS ONE OF A CLOSED SET; A PARTICIPANT HAS ONE OF FIVE TYPES; UC-040; UC-017
+// Guards: A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY; THE RESOURCE KIND IS ONE OF A CLOSED SET; A PARTICIPANT IS A PERSON OR AN AGENT; UC-040; UC-017
 // Level: unit
 //
 // The form is built over the real schemas of the resource list and of the participants register, and over the checks the resources page gives it (MOD-resource-list's resourceFindings, from the rows as the page reads them); it is checked as a person meets it: the
@@ -46,9 +46,9 @@ const rlist = (row) => `# Resources of the product\n\n${RHEAD}${row}\n`;
 const CLUSTER = (over = {}) => `| ${over.name ?? "cluster"} | ${over.kind ?? "compute"} | http://cluster.example.org | — | — | — | ${over.route ?? "runner:gpu"} | NHR@FAU, Erlangen | — | ${over.secret ?? "—"} |`;
 const resourceForm = (saved) => schemaForm(resourceSchema(), readDocument(resourceSchema(), "docs/resources.md", rlist(CLUSTER())), { extraChecks: checksOf, onSave: async (given) => { saved.push(given); } });
 
-const PHEAD = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n";
+const PHEAD = "| Name | Type | Model |\n|---|---|---|\n";
 const plist = (row) => `# Participants of this instance\n\nThe participants.\n\n${PHEAD}${row}\n`;
-const BOT = (over = {}) => `| ${over.name ?? "ci-bot"} | ${over.type ?? "CI agent"} | fixture-llm | 100000 | — | draft text | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |`;
+const BOT = (over = {}) => `| ${over.name ?? "dev-a"} | ${over.type ?? "agent"} | fixture-llm |`;
 const participantForm = (saved) => schemaForm(participantSchema(), readDocument(participantSchema(), "docs/participants.md", plist(BOT())), { onSave: async (given) => { saved.push(given); } });
 
 // TST-1122001 · level: unit · module: MOD-site-frame
@@ -70,28 +70,28 @@ test("a form over the resource list names a secret's value, an unknown kind and 
 });
 
 // TST-1122002 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT HAS ONE OF FIVE TYPES; UC-017
-// given: a form over the participants register holding the valid CI agent ci-bot; Save is offered
+// guards: A PARTICIPANT IS A PERSON OR AN AGENT; UC-017
+// given: a form over the participants register holding the valid agent dev-a; Save is offered
 // input: the person types the table into the editor with the type `robot`
-// expect: the finding A PARTICIPANT HAS ONE OF FIVE TYPES is shown and Save is not offered
+// expect: the finding A PARTICIPANT IS A PERSON OR AN AGENT is shown and Save is not offered
 // Planted fault: handing the edited section over without its rows names nothing and offers Save.
-test("a form over the participants register names a type that is none of the five in a table typed into the editor, and offers no Save", async () => {
+test("a form over the participants register names a type that is neither person nor agent in a table typed into the editor, and offers no Save", async () => {
   const saved = [];
   const form = participantForm(saved);
   assert.equal(saveOf(form).disabled, false);
   await typeInto(byTag(form, "textarea")[0], `\nThe participants.\n\n${PHEAD}${BOT({ type: "robot" })}\n`);
-  assert.ok(shownIn(form).includes("A PARTICIPANT HAS ONE OF FIVE TYPES"), shownIn(form));
+  assert.ok(shownIn(form).includes("A PARTICIPANT IS A PERSON OR AN AGENT"), shownIn(form));
   assert.equal(saveOf(form).disabled, true);
 });
 
 // TST-1122003 · level: unit · module: MOD-site-frame
 // guards: A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; UC-040; UC-017
 // given: the same forms
-// input: the person types a valid table into each editor — the resource renamed to `cluster-two`, the participant renamed to `lab-bot` — and presses Save
+// input: the person types a valid table into each editor — the resource renamed to `cluster-two`, the participant renamed to `dev-b` — and presses Save
 // expect: no finding is shown, Save is offered, one click hands the document over once, and the section it hands over holds the rows as typed (the new name in the first row); written with writeDocument, the file holds the new name
 // Planted fault: dropping the rows of an edited section hands over a section without rows; or refusing every edited table offers no Save.
 test("a valid table typed into the editor is saved as typed: the rows are handed over with the edited section", async () => {
-  for (const [form, saved, row, schema, name] of [[resourceForm, [], CLUSTER({ name: "cluster-two" }), resourceSchema(), "cluster-two"], [participantForm, [], BOT({ name: "lab-bot" }), participantSchema(), "lab-bot"]]) {
+  for (const [form, saved, row, schema, name] of [[resourceForm, [], CLUSTER({ name: "cluster-two" }), resourceSchema(), "cluster-two"], [participantForm, [], BOT({ name: "dev-b" }), participantSchema(), "dev-b"]]) {
     const made = form(saved);
     await typeInto(byTag(made, "textarea")[0], schema.schema === "resources" ? `\n${RHEAD}${row}\n` : `\nThe participants.\n\n${PHEAD}${row}\n`);
     assert.equal(shownIn(made), "", shownIn(made));

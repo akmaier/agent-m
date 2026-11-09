@@ -63,19 +63,20 @@ function git(cwd, ...args) {
   return r.stdout.trim();
 }
 const script = (bin, name, body) => writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
-const ROW = (name, type, route) => `| ${name} | ${type} | example-model | 200000 | — | draft text, read the repository | this machine | ${route} |`;
+// The register names each agent with its model (MOD-participant-list); how an agent is reached is its job record's route, the connection it runs on.
 const PARTICIPANTS = `# Participants of this instance
 
 **REGISTER**
 
 The participants of the test instance.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-${[ROW("drafter", "CLI agent", "bridge lab-pc agent opencode"), ROW("other-drafter", "CLI agent", "bridge other-pc agent opencode"),
-  ROW("codex-drafter", "CLI agent", "bridge lab-pc agent codex"), ROW("claude-drafter", "CLI agent", "bridge lab-pc agent claude"),
-  ROW("ci-drafter", "CI agent", "ci hosted secret CI_KEY")].join("\n")}
+| Name | Type | Model |
+|---|---|---|
+${["drafter", "other-drafter", "codex-drafter", "claude-drafter", "ci-drafter"].map((name) => `| ${name} | agent | example-model |`).join("\n")}
 `;
+// The connection each agent's jobs run on: the route its records name (MOD-job-ledger).
+const ROUTES = { "drafter": "bridge lab-pc agent opencode", "other-drafter": "bridge other-pc agent opencode", "codex-drafter": "bridge lab-pc agent codex",
+  "claude-drafter": "bridge lab-pc agent claude", "ci-drafter": "ci hosted endpoint ci secret CI_KEY" };
 
 // A bare repository whose main holds the files given, and a seed clone of it that writes. -> { origin, seed }
 function repository(root, name, files) {
@@ -98,7 +99,8 @@ function push(seed, files, message) {
   return git(seed, "rev-parse", "HEAD");
 }
 
-const JOB = (id, participant, route = "bridge lab-pc") => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route, run: null, retries: null,
+const JOB = (id, participant, route = ROUTES[participant]) => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route, run: null, retries: null,
+  declares: { context: 200000, capabilities: ["draft text", "read the repository"] },
   startedBy: "alice", start: new Date("2026-10-11T09:00:00Z"), agentM: { version: "2026.10.0", commit: null }, inputs: [], limit: 3,
   destinations: [{ participant, place: "this machine", parts: ["the gate"] }], params: {} });
 const ID = (n) => `JOB-20261011-090${n}-aaa${n}`;
@@ -118,7 +120,7 @@ run) printf '%s\\n' "$PWD $*" >> ${calls}; echo $$ > ${pidfile}; printf '%s\\n' 
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
   const instance = repository(root, "instance", { "docs/participants.md": PARTICIPANTS, "marker.md": "v1\n" });
   const first = git(instance.seed, "rev-parse", "HEAD");
-  push(instance.seed, { "marker.md": "v2\n", "docs/participants.md": PARTICIPANTS.replace("bridge lab-pc agent opencode", "bridge elsewhere agent opencode") }, "second");
+  push(instance.seed, { "marker.md": "v2\n", }, "second");
   const products = { [PRODUCT_A]: repository(root, "product-a", { "README.md": "A\n" }) };
   const queue = (product, job) => {
     const { path, text } = startRecord({ ...job, agentM: { version: "2026.10.0", commit: first } });

@@ -378,7 +378,7 @@ test("TST-580211: UC-007 6a — a use case with the same goal as an existing one
 
 // TST-580213 · level: system · module: system
 // guards: UC-007; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION
-// given: a product that holds the job workflow, the drafting page with A BOOK IS SHELVED ticked, and the CI agent ci-agent as the deriving participant
+// given: a product that holds the job workflow, the drafting page with A BOOK IS SHELVED ticked, and ci-agent as the deriving participant — an agent on the endpoint ep6 whose setting names its CI secret CI_KEY (routes: the tab and ci hosted)
 // input: steps 2 and 3 the person chooses ci-agent, shows the run panel and presses Run
 // expect: the run panel names ci-agent and where it processes data; nothing is sent from the tab; the page says the job is queued on the route ci hosted, naming its identifier; one commit holds the job's start record docs/jobs/<job>.md and nothing else, naming the kind derive-use-cases, A BOOK IS SHELVED and ci-agent; no use case is written
 test("TST-580213: UC-007 the participant may be an agent of the list — the job is queued on its route and its start is recorded", async () => {

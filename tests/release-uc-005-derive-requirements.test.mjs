@@ -212,9 +212,9 @@ test("TST-579306: what the derivation writes is a proposal: the SPEC is unchange
 
 // TST-579307 · level: release · module: system
 // guards: THE PAGE NAMES WHERE IT SENDS; UC-005
-// given: the register lists drafter-a, which processes data on this machine, and far-d, which processes data at NHR@FAU, Erlangen; both reach the endpoint ep1
+// given: the register lists drafter-a, which processes data on this machine, and far-d, which processes data at NHR@FAU, Erlangen; each is an agent whose model an endpoint of this browser offers, both endpoints at the address of ep1
 // input: show the run panel for drafter-a, then for far-d; press Run for far-d
-// expect: before Run each panel names its one destination, the participant with its model and the place its register entry declares, and nothing has been sent; after Run every request went to the endpoint the destination uses (https://ep1.example.test/v1/chat/completions) and to no other origin
+// expect: before Run each panel names its one destination, the participant with its model and the place its connection declares, and nothing has been sent; after Run every request went to the endpoint the destination uses (https://ep1.example.test/v1/chat/completions) and to no other origin
 test("TST-579307: before Run the panel names each destination with the place where it processes data, and the run sends only there", async () => {
   const register = registerOf(DRAFTER, participantRow("far-d", { place: "NHR@FAU, Erlangen", model: "model-b" }));
   const w = await world({ instance: { register }, answers: { candidates: [] } });
@@ -228,7 +228,7 @@ test("TST-579307: before Run the panel names each destination with the place whe
   assert.equal(w.requests.length, 0);
   await w.run(far);
   assert.ok(w.requests.length > 0, "known positive: the endpoint was asked");
-  assert.equal(w.requests.length, w.requests.filter((request) => request.body.model === "m").length, "every request is the endpoint's: the fixture network refuses any other origin");
+  assert.equal(w.requests.length, w.requests.filter((request) => request.body.model === "model-b").length, "every request is the endpoint's: the fixture network refuses any other origin");
 });
 
 // TST-579308 · level: release · module: system
@@ -351,7 +351,7 @@ test("TST-579313: every requirement of the SPEC and of its open queues is part o
 // input: show the run panel for small-d; then for big-d and press Run
 // expect: for small-d the page names the participant, the size it would receive and the context it holds, offers no Run and sends nothing; for big-d the one request holds all three existing requirements, none left out
 test("TST-579314: when the existing requirements do not fit, nothing is sent and the page says so; when they fit, none is left out", async () => {
-  const register = registerOf(DRAFTER, participantRow("small-d", { context: 20 }), participantRow("big-d", { context: 400000 }));
+  const register = registerOf(DRAFTER, participantRow("small-d", { context: 20, model: "model-s" }), participantRow("big-d", { context: 400000, model: "model-big" }));
   const w = await world({ instance: { register }, answers: { candidates: [] } });
   const small = await w.prepare({ files: [MAIN_FILE], participant: "small-d" });
   assert.match(byClass(small.page, "p", "not-fitting")[0].textContent, /^small-d cannot hold what it would receive: \d+ tokens, its context holds 20$/);

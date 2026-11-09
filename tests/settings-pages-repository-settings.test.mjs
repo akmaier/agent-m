@@ -88,10 +88,10 @@ const PARTICIPANTS = `# Participants of this instance
 
 The participants.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| alice | person | — | — | — | draft text | — | the GitHub account \`alice\` |
-| bob | person | — | — | — | draft text | — | the GitHub account \`bob\` |
+| Name | Type | Model |
+|---|---|---|
+| alice | person | — |
+| dev-a | agent | model-x |
 `;
 const PROCESS = `---
 model: scrum-wip

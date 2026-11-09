@@ -318,12 +318,12 @@ test("TST-772310: saving the schedule and merging its pull request take one clic
 
 // TST-772311 · level: release · module: system
 // guards: EVERY STEP EXPLAINS ITSELF; UC-027
-// given: alice/shop on GitHub whose saved schedule runs the row system on lab-runner, a self-hosted runner, and whose resources name oracle
+// given: alice/shop on GitHub whose saved schedule runs the row system on runner:lab, a self-hosted runner, and whose resources name oracle
 // input: the author opens Tests → Schedule
 // expect: every step that asks something of the author carries a folded explanation with the summary "What is this?" and a text of its own: each of the six rows, each of the five occasions, each of the five fields nightly, command, setup, cache and minutes, the secrets, and the row on the self-hosted runner
 test("TST-772311: each step of the schedule page carries its folded explanation", async () => {
   const rows = BOOK_ROWS();
-  rows[2][6] = "lab-runner";
+  rows[2][6] = "runner:lab";
   const page = await open(server("github", { files: shop({ [SCHEDULE]: scheduleText(rows) }) }));
   const places = [...ROWS.map((row) => [row, byTag(rowOf(page, row), "th")[0]]),
     ...["every commit", "pull request", "nightly", "release candidate", "on demand"].map((column) => [column, descendants(page, (node) => node.localName === "th" && node.getAttribute("data-column") === column)[0]]),

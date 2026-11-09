@@ -57,14 +57,16 @@ function unseal(sealedBase64) {
 }
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-// What this browser keeps beside the instance's token: the endpoint nvidia, whose configuration names its key's secret NVIDIA_API_KEY.
+// What this browser keeps beside the instance's token: the endpoint nvidia, whose configuration names its key's secret NVIDIA_API_KEY, and the endpoint hosted, which
+// names the secret HOSTED_KEY and whose key this browser does not keep (the keys the job workflow reads are the secrets this browser's endpoints name, MOD-runtimes' actionsSetup).
 const NVIDIA_KEY = "nvapi-RELEASE-KEY-0123456789";
-const ENDPOINT = setting("endpoint:nvidia", { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nemotron", key: NVIDIA_KEY, secret: "NVIDIA_API_KEY" });
-// The instance's participants: one CI agent that reads the secret HOSTED_KEY, for which this browser keeps no value.
+const ENDPOINT = { ...setting("endpoint:nvidia", { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nemotron", key: NVIDIA_KEY, secret: "NVIDIA_API_KEY" }),
+  ...setting("endpoint:hosted", { kind: "openai-compatible", url: "https://hosted.example.test/v1", model: "gpt-5", secret: "HOSTED_KEY" }) };
+// The instance's participants: the team.
 const PARTICIPANTS = ["# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | hosted runner | ci hosted secret HOSTED_KEY |", ""].join("\n");
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| dev-a | agent | gpt-5 |", ""].join("\n");
 const SECRETS_PAGE = `${GH}/settings/secrets/actions`;
 const LAYOUT = ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"];
 const WORKFLOW = /^\.github\/workflows\/[^/]+\.ya?ml$/;
@@ -192,7 +194,7 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
 
 // TST-286 · level: release · module: MOD-settings-pages
 // guards: UC-001; ONE CLICK PER DECISION; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A MANAGED PRODUCT NEEDS NO PAGES SITE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: a browser with its instance token and the endpoint nvidia (key, secret NVIDIA_API_KEY); an instance whose participant hosted-ci reads HOSTED_KEY, kept by no value here; a public GitHub product with no review layout, no workflow and no Actions secret, whose server answers its Actions secrets with a public key
+// given: a browser with its instance token and the endpoint nvidia (key, secret NVIDIA_API_KEY); the endpoint hosted, which names HOSTED_KEY, kept by no value here; a public GitHub product with no review layout, no workflow and no Actions secret, whose server answers its Actions secrets with a public key
 // input: store the product token, fire a synthetic Add product event, then make one trusted Add product click
 // expect: the synthetic event writes nothing and stores no secret; the trusted click writes the complete missing layout first, then Agent M's workflows — one of them run on every push and storing the trace graph — and nothing else, no Pages site; it stores AGENT_M_TOKEN (the product's token) and NVIDIA_API_KEY (the endpoint's key), each sealed to the product repository's public key, and names HOSTED_KEY with a link to the repository's secrets page; the page shows the layout's commit as a link; the product's token goes only to GitHub's API for the product repository, the instance's token only to GitHub's API for the instance repository's reads; no token or key is in clear in any body or address; the instance repository is not written
 test("TST-286 UC-001 release transaction guards product writes and browser state", async () => {
@@ -259,7 +261,7 @@ test("TST-286 UC-001 release transaction guards product writes and browser state
 
   // A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT: "as the authorisation header of its requests, or sealed to the public key of one of
   // that server's repositories as that repository's CI secret". The product's token is issued for the product repository; the instance's
-  // token for the instance repository, which Add product only reads (its participants, for the secrets they name).
+  // token for the instance repository, which Add product only reads.
   const productTokenRequests = trusted.requests.filter((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`);
   assert.ok(productTokenRequests.length > 0 && productTokenRequests.every((request) => request.repository === PRODUCT), "the product's token goes only to GitHub's API for the product repository");
   assert.ok(trusted.requests.filter((request) => request.repository === PRODUCT).every((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), "every request about the product repository carries the product's token");

@@ -485,8 +485,10 @@ const PULLED = {
   "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${HEAD}`, "---", "# How the fixture product is developed", ""].join("\n"),
   "docs/process-models/fixture.md": readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8"),
   "docs/participants.md": [...readFileSync(new URL("../docs/participants.md", import.meta.url), "utf8").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))),
-    "| checker-a | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |", ""].join("\n"),
+    "| checker-a | agent | model-a |", ""].join("\n"),
 };
+// The connection this browser keeps for checker-a's model: the endpoint ep1, which drafts text at "this machine" from this tab (MOD-browser-store, endpoint:<name>).
+const EP1 = setting("endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 });
 const perLoad = (requests) => Object.fromEntries(["commit", "tree", "folders", "repository"].map((what) => [what, count(requests, what)]));
 
 // TST-1319007 · level: component · module: MOD-site-frame
@@ -498,8 +500,8 @@ test("a page of use cases in a pulled product reads its commit and its folders o
   const plainList = await openDashboard({ server: await server(await product()), hash: "#use-case" });
   assert.deepEqual(withoutInfo(plainList.requests).filter((r) => r !== STORED_GRAPH), ["commit", "folders", "batch 2"], "known positive: the base's requests");
   for (const hash of ["#use-case", "#use-case/id=UC-002", "#use-case/id=all"]) {
-    const plain = await openDashboard({ server: await server(await product()), hash });
-    const pulled = await openDashboard({ server: await server(await product(PULLED)), hash });
+    const plain = await openDashboard({ server: await server(await product()), hash, entries: EP1 });
+    const pulled = await openDashboard({ server: await server(await product(PULLED)), hash, entries: EP1 });
     assert.match(pulled.main(), /class="participant">checker-a</, `${hash}: checker-a is named beside Accept`);
     assert.deepEqual(perLoad(pulled.requests), { ...perLoad(plain.requests), repository: 1 }, `${hash}: the commit, the tree and the folders as often as without the declaration, and the repository's information once`);
     assert.equal(perLoad(pulled.requests).commit, 1, `${hash}: the commit once`);

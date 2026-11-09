@@ -8,7 +8,7 @@
 // This file holds inputs only — no expected result: every test states its own. It imports the browser harness of tests/review-pages-harness.mjs
 // unchanged (its document and its localStorage). The product is a repository in memory with a history, a Host that keeps to MOD-repository-hosts' interface
 // (repositoryInfo, readSnapshot, readHistory, commitFiles on the head that was read, else `Moved`), every call recorded. The instance is a read-only
-// snapshot with the register of participants and the register entry of the person alice. Nothing reaches the network: `fetch` is a spy that refuses.
+// snapshot with the register of participants and the register entry of the person alice; the store keeps the endpoint ep1 that offers drafter-a's model. Nothing reaches the network: `fetch` is a spy that refuses.
 
 import "./review-pages-harness.mjs";
 import assert from "node:assert/strict";
@@ -128,7 +128,9 @@ export function fakeProduct(files = PRODUCT_FILES, { canWrite = true } = {}) {
 const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-export const REGISTER = `${REGISTER_HEAD}\n| drafter-a | model endpoint | example-model | 200000 | - | draft text | this machine | endpoint ep1 |\n`;
+export const REGISTER = `${REGISTER_HEAD}\n| drafter-a | agent | example-model |\n`;
+// The connection this browser keeps for drafter-a's model: the endpoint ep1, which drafts text at "this machine" (MOD-browser-store, endpoint:<name>).
+export const EP1 = { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 };
 export const INSTANCE_COMMIT = "abc123def4567890abc123def4567890abc123de";
 export function fakeInstance(register = REGISTER) {
   const entries = { [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE };
@@ -147,6 +149,7 @@ export function contextOf(fake, { token = true, product = true } = {}) {
   const store = openStore("alice/agent-m");
   writeTabValue(store, "prompt-bar:draft", null);
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
+  writeSetting(store, "endpoint:ep1", EP1);
   const instance = { repository: "alice/agent-m", host: fakeInstance().host };
   return { page: "review", instance, store, go: (route, params) => { drafted.push({ route, params }); },
     product: product ? { address: GITHUB.web, kind: "github", host: fake.host } : null };

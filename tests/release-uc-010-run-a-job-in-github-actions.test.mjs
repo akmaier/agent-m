@@ -40,7 +40,8 @@ const SELF = "tests/release-uc-010-run-a-job-in-github-actions.test.mjs";
 const PARAMS = { useCase: "UC-001", instruction: INSTRUCTION, endpoint: ENDPOINT };
 const SENTENCE = "You change a use case of a product as the person's instruction says.";
 const OTHER_KEY = "sk-OTHER-KEY-0123456789abcdef";
-const BOT = { name: "ci-bot", type: "CI agent", model: "fixture-llm", context: 200000, price: null, capabilities: ["draft text", "read the repository"], place: "GitHub's hosted runners", route: "ci hosted secret FIXTURE_KEY" };
+// The participant ci-bot on its connection, as MOD-participant-list's participantsOf joins the agent with this browser's endpoint ci-bot, whose key is the CI secret FIXTURE_KEY.
+const BOT = { name: "ci-bot", type: "model endpoint", model: "fixture-llm", context: 200000, capabilities: ["draft text", "read the repository"], place: "a provider in the EU", route: "endpoint ci-bot secret FIXTURE_KEY" };
 // The jobs of a workflow file by their name, each with the text of its body.
 const jobsOf = (text) => {
   const body = text.slice(text.indexOf("\njobs:") + 6);
@@ -173,7 +174,7 @@ test("TST-373304: UC-010 the use case enters the default branch directly and cou
 
 // TST-373305 · level: release · module: system
 // guards: AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-010
-// given: the CI agent ci-bot, whose route is the server's own runners; a product with the job workflow and one without; a job that needs no resource, and jobs that need a compute resource reached by the runner gpu and a machine reached by a Bridge; a run of the job change-use-case
+// given: the agent ci-bot on this browser's endpoint ci-bot, whose setting names the CI secret of its key, so that the server's own runners are among its routes; a product with the job workflow and one without; a job that needs no resource, and jobs that need a compute resource reached by the runner gpu and a machine reached by a Bridge; a run of the job change-use-case
 // input: routesFor for each; the requests of the run
 // expect: the job that needs no resource is offered on the server's own runners (ci, hosted) where the product has the job workflow, and the offer names the missing file where it has not; counter-proof — a job needing a compute resource of the runner gpu, and one needing a machine of a Bridge, are not offered there; the run needed no Bridge: every request it made went to the model endpoint or the server's API, and none to a loopback address
 test("TST-373305: UC-010 a job that needs no local resource runs on the server's machines with nothing installed", async () => {
@@ -200,7 +201,7 @@ test("TST-373305: UC-010 a job that needs no local resource runs on the server's
 
 // TST-373306 · level: release · module: system
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-010
-// given: the job workflow generated for the keys FIXTURE_KEY and OTHER_KEY of two CI agents; a copy of it with the agent's job of FIXTURE_KEY reading AGENT_M_TOKEN as well, and a copy with a key written into the file; the agent's machine of a run of the job of FIXTURE_KEY, whose environment holds FIXTURE_KEY and, wrongly, OTHER_KEY
+// given: the job workflow generated for the keys FIXTURE_KEY and OTHER_KEY of two endpoints; a copy of it with the agent's job of FIXTURE_KEY reading AGENT_M_TOKEN as well, and a copy with a key written into the file; the agent's machine of a run of the job of FIXTURE_KEY, whose environment holds FIXTURE_KEY and, wrongly, OTHER_KEY
 // input: the secrets each job of the file names; the run of onRecordsChanged on the agent's machine
 // expect: the plan reads no secret; the agent's job of no key reads none; the agent's job of the key n reads that key alone — FIXTURE_KEY for 1, OTHER_KEY for 2 — and never AGENT_M_TOKEN; each secret is named by its literal name; the file holds no key; counter-proof — the copy that reads the token in the agent's job and the copy that holds a key are found by the same check; the run calls the endpoint with the key FIXTURE_KEY and never sends OTHER_KEY
 test("TST-373306: UC-010 the agent's job reads the key of its participant from a CI secret and no other secret", async () => {
@@ -348,7 +349,7 @@ test("TST-373309: UC-010 the same job gives the same artifact on the CI route an
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-010
 // given: the job workflow installed; the drafting page of the use cases, where the person chooses ci-bot and presses Run; and the job change-use-case of UC-001 queued and run on the CI route
 // input: the commit of the page's click; the product's record of the job after the run; the instance's origin
-// expect: the click is one commit that adds the one file docs/jobs/<job>.md to the product and nothing else, which names the kind, what the job works on, the participant ci-bot, the route ci hosted, the start and its inputs; the instance's origin is as it was; after the run the record of the job that ran ends with its state done, its results naming the commit that wrote the use case and its log the run's address
+// expect: the click is one commit that adds the one file docs/jobs/<job>.md to the product and nothing else, which names the kind, what the job works on, the participant ci-bot, the route ci hosted followed by its connection's route endpoint ci-bot secret FIXTURE_KEY, the start and its inputs; the instance's origin is as it was; after the run the record of the job that ran ends with its state done, its results naming the commit that wrote the use case and its log the run's address
 test("TST-373310: UC-010 a job is recorded in its product repository, at its start and at its end", async () => {
   endpoint();
   await world({}, async (w) => {
@@ -360,7 +361,7 @@ test("TST-373310: UC-010 a job is recorded in its product repository, at its sta
     assert.equal(git(w.productOrigin, "rev-list", "--count", `${before}..main`), "1", "one commit");
     assert.equal(git(w.productOrigin, "show", "--format=", "--name-only", "main"), `docs/jobs/${id}.md`);
     const start = w.fileAt(`docs/jobs/${id}.md`);
-    for (const line of [/^id: JOB-/m, /^kind: derive-use-cases$/m, /^works_on:\n {2}- A LOAN HAS A DUE DATE$/m, /^participant: ci-bot$/m, /^route: ci hosted$/m, /^start: .+ UTC$/m, /^inputs:\n {2}- /m]) assert.match(start, line);
+    for (const line of [/^id: JOB-/m, /^kind: derive-use-cases$/m, /^works_on:\n {2}- A LOAN HAS A DUE DATE$/m, /^participant: ci-bot$/m, /^route: ci hosted endpoint ci-bot secret FIXTURE_KEY$/m, /^start: .+ UTC$/m, /^inputs:\n {2}- /m]) assert.match(start, line);
     assert.equal(git(w.instanceOrigin, "rev-parse", "main"), instanceHead, "the instance's repository is as it was");
 
     const second = await queueFromDashboard(w, { params: PARAMS });

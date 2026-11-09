@@ -56,10 +56,9 @@ const LINKS = txt("# Sources", "", "| Source | Version | Hash | Part |", "|---|-
   `| ${SOURCE} | 2026-10-13 | ${"0".repeat(64)} | prompt |`, `| SRC-policy | 2026-10-13 | ${"0".repeat(64)} | lending |`);
 const registerHead = readOriginal("docs/participants.md").split("\n");
 const header = registerHead.slice(0, registerHead.findIndex((line) => line.startsWith("|---")) + 1).join("\n");
-// The bar offers this browser's endpoints and CLI sessions and reads no participant list (UC-049 1); the instance's list stays for the job's preparation and a hand-over's route, which read it.
-const register = (context) => txt(header,
-  `| drafter | model endpoint | fixture-model | ${context} | - | draft text | this machine | endpoint drafter |`,
-  "| ci-drafter | CI agent | ci-model | 200000 | - | draft text | GitHub Actions in the USA | ci hosted secret CI_KEY |");
+// The bar offers this browser's endpoints and CLI sessions and reads no participant list (UC-049 1); the instance's list stays for the job's preparation, which joins it with this browser's
+// connections (MOD-participant-list's participantsOf): the agent drafter of the model fixture-model, which the endpoint drafter offers.
+const register = () => txt(header, "| drafter | agent | fixture-model |");
 
 // A requirement the drafter writes into the section "Lending" (UC-019 step 6: the new text of each section it changes, a renamed requirement under its new name, the author's
 // account among its sources): by default LOAN renamed to CHANGED with a new rule. `replaces` is the requirement of the SPEC whose block it takes the place of; null adds it.
@@ -80,21 +79,14 @@ export const draft = (...candidates) => ({ sections: [sectionWith(...(candidates
 
 // The commit the instance's default branch stands at: the one Agent M's job workflow of this instance pins.
 export const INSTANCE_COMMIT = "c0ffee".padEnd(40, "0");
-// A participant's CI route in the instance's list, `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>` (MOD-runtimes, Data).
-const CI_ROUTE = /\|\s*ci\s+(?:hosted|runner:(\S+))\s+secret\s+(\S+)\s*\|/;
 /**
- * jobWorkflow(instanceFiles, store) -> the files of Agent M's job workflow on GitHub as this instance's commit gives them (UC-010, Precondition), by their definition,
- * MOD-runtimes' jobWorkflowFiles: the secrets they name are AGENT_M_TOKEN and, once each, the secret of each CI route of the instance's list (`instanceFiles` may replace it) and
- * each that an endpoint of `store` names; the runners are those routes' labels. A fixture of the input, no expected result.
+ * jobWorkflow(store) -> the files of Agent M's job workflow on GitHub as this instance's commit gives them (UC-010, Precondition), by their definition,
+ * MOD-runtimes' jobWorkflowFiles: the secrets they name are AGENT_M_TOKEN and, once each, the secret each endpoint of `store` names; no runner label. A fixture of the input, no expected result.
  */
-function jobWorkflow(instanceFiles, store) {
-  const participants = instanceFiles["docs/participants.md"] ?? register(200000);
-  const routes = participants.split("\n").map((line) => CI_ROUTE.exec(line)).filter(Boolean);
-  const endpoints = listSettings(store).filter((setting) => setting.key.startsWith("endpoint:")).map((setting) => readSetting(store, setting.key)?.secret)
-    .filter((secret) => typeof secret === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(secret));
-  const keys = [...new Set([...routes.map((route) => route[2]), ...endpoints])];
-  const runners = [...new Set(routes.map((route) => route[1]).filter(Boolean))];
-  return Object.fromEntries(jobWorkflowFiles("github", { repository: INSTANCE, commit: INSTANCE_COMMIT }, { token: "AGENT_M_TOKEN", keys }, runners).map(({ path, text }) => [path, text]));
+function jobWorkflow(store) {
+  const keys = [...new Set(listSettings(store).filter((setting) => setting.key.startsWith("endpoint:")).map((setting) => readSetting(store, setting.key)?.secret)
+    .filter((secret) => typeof secret === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(secret)))];
+  return Object.fromEntries(jobWorkflowFiles("github", { repository: INSTANCE, commit: INSTANCE_COMMIT }, { token: "AGENT_M_TOKEN", keys }, []).map(({ path, text }) => [path, text]));
 }
 
 
@@ -110,7 +102,8 @@ function emptyStorage(storage) { while (storage.length > 0) storage.removeItem(s
  * address is the location), the product `<owner>/lending-tool` with the SPEC above, the person's source linked unless `linked` is false, and what this browser declares for the bar to offer: the endpoint `drafter` (draft text, at
  * "this machine", through the Bridge release-bridge where `bridge` is set, naming the CI secret `secret` where one is given, none where `drafting` is false) and the CLI session `release-bridge:observer`
  * (read the repository only, at "Anthropic, USA"), which the Bridge release-bridge lists ready. `keepBridge` false keeps no Bridge, `agents` are the names the Bridge lists ready, and `settings` are
- * further settings the store holds (further endpoints, CLI sessions, last tests); `bridgeFetch`, where given, answers the requests to the loopback Bridge in place of the fixture Bridge. The CI agent `ci-drafter` of the instance's list is not offered by the bar. `answers` are the drafting endpoint's replies in
+ * further settings the store holds (further endpoints, CLI sessions, last tests); `bridgeFetch`, where given, answers the requests to the loopback Bridge in place of the fixture Bridge. The instance's list
+ * names the agent drafter of the endpoint drafter's model. `answers` are the drafting endpoint's replies in
  * turn (a value, or a function of the requests so far); `hash` is the fragment the page opens at, none for the specification browser.
  */
 export async function scenario({ owner = "akmaier", linked = true, answers = [draft()], context = 200000, bridge = false, secret = null, drafting = true, keepBridge = true, agents = ["observer"], settings = {}, bridgeFetch = null, extraFiles = {}, instanceFiles = {},
@@ -200,17 +193,17 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     ...(bridge ? { bridge: "release-bridge" } : {}), ...(secret ? { secret } : {}) });
   if (keepBridge) {
     writeSetting(store, "bridge:release-bridge", { address: "http://127.0.0.1:9418", token: "fixture-pairing-token" });
-    writeSetting(store, "session:release-bridge:observer", { place: "Anthropic, USA", context: 200000, model: "observer-model", capabilities: ["read the repository"] });
+    writeSetting(store, "session:release-bridge:observer", { place: "Anthropic, USA", capabilities: ["read the repository"], models: [{ model: "observer-model", context: 200000 }] });
   }
   for (const [key, value] of Object.entries(settings)) writeSetting(store, key, value);
   const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS,
     "docs/sources.md": linked ? LINKS : LINKS.split("\n").filter((line) => !line.startsWith(`| ${SOURCE} |`)).join("\n"),
     // Agent M's job workflow as this instance's commit gives it (UC-010, Precondition): the bar holds a hand-over on the CI route back where it is absent or stands otherwise (UC-049 4c).
-    ...jobWorkflow(instanceFiles, store), ...extraFiles } });
+    ...jobWorkflow(store), ...extraFiles } });
   const chapterFolder = "docs/sources/SRC-vibe-coding/2026-10-05/";
   const chapters = Object.fromEntries(readdirSync(new URL(chapterFolder, ROOT)).filter((path) => path.endsWith(".md"))
     .map((path) => [chapterFolder + path, readOriginal(chapterFolder + path)]));
-  const instance = await repoServer({ head: INSTANCE_COMMIT, files: { "SPEC.md": readOriginal("SPEC.md"), "docs/participants.md": register(context), [`docs/sources/${SOURCE}.md`]: PERSON,
+  const instance = await repoServer({ head: INSTANCE_COMMIT, files: { "SPEC.md": readOriginal("SPEC.md"), "docs/participants.md": register(), [`docs/sources/${SOURCE}.md`]: PERSON,
     "docs/sources/SRC-policy.md": POLICY, "docs/sources/SRC-vibe-coding.md": readOriginal("docs/sources/SRC-vibe-coding.md"),
     ...(recording ? { "docs/conversation-recording.md": txt("---", "recording: on", "---", "# Recording of conversations") } : {}),
     ...chapters, ...instanceFiles }, handlers: [handler, (url, init) => url.pathname === `/repos/${repo}`
@@ -284,7 +277,8 @@ export async function onRequirementPage(s, name = LOAN) {
   await goTo(s, `#requirement/name=${encodeURIComponent(name)}/product=${encodeURIComponent(s.address)}`);
   await until(() => all(s.target, "textarea").length > 0, "the requirement's page");
 }
-// The person writes `text` in the bar, chooses `participant` where the bar offers several, and presses Send; resolves once the bar is free again.
+// The person writes `text` in the bar, chooses `participant` — a connection's name, which the selector keeps as `<name> · <model>` with its model (MOD-prompt-bar) — where the bar offers several,
+// and presses Send; resolves once the bar is free again.
 /** A click the browser marks as a person's (isTrusted), which *Send* takes (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK). */
 export const trustedClick = () => Object.defineProperty(new Event("click"), "isTrusted", { value: true });
 export async function send(s, text = INSTRUCTION, { participant = null } = {}) {
@@ -292,8 +286,11 @@ export async function send(s, text = INSTRUCTION, { participant = null } = {}) {
   if (participant !== null) {
     // The bar offers only the participants that can do the page's kind: several are chosen among, one is only named (UC-019 2).
     const selector = all(bar, "select", "participant")[0];
-    if (selector) selector.value = participant;
-    else assert.match(one(bar, "span", "participant").textContent, new RegExp(`^${participant} — `), `the bar offers ${participant}`);
+    if (selector) {
+      const option = all(selector, "option").find((node) => node.value === participant || node.value.startsWith(`${participant} · `));
+      assert.ok(option, `the bar offers ${participant}: ${selector.textContent}`);
+      selector.value = option.value;
+    } else assert.ok(one(bar, "span", "participant").textContent.startsWith(`${participant} · `), `the bar offers ${participant}`);
   }
   one(bar, "textarea", "instruction").value = text;
   const sent = one(bar, "button", "send");

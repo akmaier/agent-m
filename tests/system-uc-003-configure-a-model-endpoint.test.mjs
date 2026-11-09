@@ -84,14 +84,14 @@ const FLOW_FINDINGS = {
 };
 // The passages no code of this product carries here, with the reason.
 const NOT_WALKED = {
-  "main-5-preset": { uc: "A participant on this endpoint is preset accordingly (UC-017, step 4).", reason: "presetting a participant from the endpoint's last test is UC-017's step, whose battery (tests/system-uc-017-configure-participants.test.mjs) walks it; this file shows the last test it presets from (TST-266202, TST-266204)" },
+  "main-5-model": { uc: "its model is among those an agent of the instance's list may be given (UC-017, step 3).", reason: "giving an agent of the list a model of this browser's connections is UC-017's step 3, whose battery (tests/system-uc-017-configure-participants.test.mjs) walks it; this file shows the endpoint offered with its model and capabilities (TST-266202, TST-266204)" },
   "main-5-loop": { uc: "a model that can use tools works in its loop (UC-049, step 4)", reason: "the loop is UC-049's step 4, whose battery walks it; this file shows that the endpoint is offered with the capability use tools only where its test found the model calling the tool (TST-266202, TST-266204)" },
   "2a-forward": { uc: "reached through an SSH forward or through the jump host", reason: "the SSH forward and the jump host's web server are provisioned by UC-011 and UC-044, whose batteries walk them; the Bridge's address as Settings keeps it is walked here, the HTTPS forwarding fixture in tests/release-uc-003-a-job-through-the-https-route.test.mjs" },
 };
 
 // TST-266201 · level: system · module: system
 // guards: UC-003
-// given: UC-003 as committed text, the executable tests named in FLOW_EVIDENCE, the findings named in FLOW_FINDINGS and the flows named in NOT_WALKED (the preset of a participant, the loop of a tool-calling model, the SSH forward and the jump host's web server)
+// given: UC-003 as committed text, the executable tests named in FLOW_EVIDENCE, the findings named in FLOW_FINDINGS and the flows named in NOT_WALKED (the model an agent of the list may be given, the loop of a tool-calling model, the SSH forward and the jump host's web server)
 // input: compare every passage of the main flow, steps 1 to 5, of the alternative flows and of the postcondition with its executable evidence, its finding or the reason it is not walked
 // expect: every named passage stands in UC-003; every evidence file exists and declares its TST id; this file's cases declare the level system; every finding's case stands in its file with the todo naming FINDING and its module; every alternative flow UC-003 names is among the passages; known positive: UC-003 names exactly the five alternative flows 4a, 2a, 5a, 4b and 2b, and each of the five main steps has a passage
 test("TST-266201: UC-003 every passage of the main flow and of each alternative flow has an executable test, a finding or a stated reason", () => {

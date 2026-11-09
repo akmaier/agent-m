@@ -136,14 +136,14 @@ test("TST-418104: a follow-up in the bar is sent only on Send, with the draft as
 // TST-418105
 // level: release
 // module: MOD-prompt-bar; MOD-participant-list; MOD-site-frame
-// guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
+// guards: UC-019; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
 // given: a draft-capable endpoint participant (drafter, this machine) and a read-only CLI session of the Bridge release-bridge (observer, Anthropic, USA), and a CI agent of the instance's list that the bar does not offer
 // input: open the page of the requirement, read the bar, choose drafter, Send and Review the draft
 // expect: the bar names drafter with its place, the only participant that can do the kind, and neither observer nor the CI agent, and there is nothing to choose among; nothing is sent before Send; the bar and the draft page each hold a folded "What is this?"
 test("TST-418105: offered participants, processing places and folded explanations are visible", async () => {
   const s = await scenario();
   await onRequirementPage(s);
-  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter · fixture-model — this machine");
   assert.equal(all(barOf(s), "option").length, 0, "observer cannot draft text, so there is nothing to choose among");
   assert.equal(s.endpointRequests.length, 0);
   const explanations = () => all(s.body, "details").filter((node) => node.textContent.includes("What is this?"));
@@ -466,8 +466,10 @@ async function withWorkflow(s, answers, verify) {
     mkdirSync(join(root, "ws"));
     const instance = workflowRepository(root, "instance", s.instance.files);
     const agentM = { version: "2026.10.0", commit: instance.commit }, id = "JOB-20261014-0900-a418";
-    const record = startRecord({ id, kind: "change-requirements", worksOn: [LOAN], participant: "ci-drafter", model: "ci-model", route: "ci hosted",
-      run: null, retries: null, startedBy: "github.com/akmaier", start: new Date("2026-10-14T09:00:00Z"), agentM,
+    // The record names the connection its job runs on — the endpoint fixture, whose key is the CI secret CI_KEY — and declares its context and capabilities (MOD-job-ledger): CI builds the
+    // participant from the record alone (MOD-workflow-entries).
+    const record = startRecord({ id, kind: "change-requirements", worksOn: [LOAN], participant: "ci-drafter", model: "ci-model", route: "ci hosted endpoint fixture secret CI_KEY",
+      declares: { context: 200000, capabilities: ["draft text", "read the repository"] }, run: null, retries: null, startedBy: "github.com/akmaier", start: new Date("2026-10-14T09:00:00Z"), agentM,
       inputs: [LOAN], limit: 5, destinations: [{ participant: "ci-drafter", place: "GitHub Actions in the USA", parts: [LOAN] }],
       // The parameter `source` is the account of the person who starts the job (the kind change-requirements; UC-019 step 6), which the drafted requirements name.
       params: { requirements: [LOAN], source: ACCOUNT, instruction: INSTRUCTION,

@@ -19,7 +19,7 @@
 // drawing it registers the review pages' strategies with the job runner, which the entries register themselves. Readings the texts leave open, which the cases state:
 //   - "A job started from the dashboard on the CI route" is read as the commit of MOD-runtimes' queueJob on the route `ci hosted` with the start record a run panel of the review pages makes (src/review-pages/jobs.mjs
 //     startRecord): the route `use-case/<id>/prompt` of ITM-363 no longer exists (ITM-551 removed it), and the prompt bar runs a change-use-case in the tab (UC-049 4a.1). The job is a change-use-case of UC-001.
-//   - The endpoint a CI agent's job calls is read from the record's parameter `endpoint` ({ name, kind, baseUrl, model }), the only place MOD-workflow-entries says a record carries it (tests/workflow-entries-job-workflow.test.mjs
+//   - The endpoint an agent's job on the CI route calls is read from the record's parameter `endpoint` ({ name, kind, baseUrl, model }), the only place MOD-workflow-entries says a record carries it (tests/workflow-entries-job-workflow.test.mjs
 //     takes the same reading); TST-373211 reads the record the drafting page writes and follows the text where it names none.
 //   - TST-373203, TST-373204, TST-373206 and TST-373207 run the entry on one machine that holds the token and the key, the mode of tests/workflow-entries-job-workflow.test.mjs (the entry reads the part from
 //     AGENT_M_PART and runs whole where it is not set); the workflow's two machines are walked by TST-373209.
@@ -84,7 +84,7 @@ test("TST-373201: UC-010 every flow has a system test that walks it", () => {
 
 // TST-373202 · level: system · module: system
 // guards: UC-010; NO SECRET IN THE REPOSITORY; EVERY SETTING IS REACHED FROM ONE PAGE; ONE CLICK PER DECISION
-// given: the product alice/thesis-tool without the job workflow, the instance with the CI agent ci-bot whose key is the secret FIXTURE_KEY, and the person's token stored in the browser
+// given: the product alice/thesis-tool without the job workflow, the instance with the agent ci-bot, which this browser's endpoint ci-bot offers, whose key is the secret FIXTURE_KEY, and the person's token stored in the browser
 // input: the person opens the Repositories tab of the Settings page, reads the line of Agent M's job workflow, and presses its button, Set up GitHub Actions
 // expect: before the click the line says Not installed and names the secrets AGENT_M_TOKEN and FIXTURE_KEY, with a link to the product's Actions secrets page and no field for a value; the click makes one commit on main that adds exactly the files the generated job workflow consists of; afterwards the line says Installed; the committed files hold neither the person's token nor the key, and name each secret as an Actions secret
 test("TST-373202: UC-010 precondition — the job workflow is installed in one click and its secrets are named, never asked for", async () => {
@@ -121,9 +121,9 @@ test("TST-373202: UC-010 precondition — the job workflow is installed in one c
 
 // TST-373203 · level: system · module: system
 // guards: UC-010; ONE DEFINITION, THREE DRIVERS; A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
-// given: the product with the job workflow installed from the Settings page, UC-001 accepted by an approval record, the CI agent ci-bot; the job change-use-case of UC-001 queued on the route ci hosted by MOD-runtimes' queueJob with the instruction INSTRUCTION and the endpoint in its parameters; the fixture endpoint answers UC-001 with the alternative flow 2a added
+// given: the product with the job workflow installed from the Settings page, UC-001 accepted by an approval record, the agent ci-bot on its endpoint ci-bot; the job change-use-case of UC-001 queued on the route ci hosted by MOD-runtimes' queueJob with the instruction INSTRUCTION and the endpoint in its parameters; the fixture endpoint answers UC-001 with the alternative flow 2a added
 // input: step 1 the start record committed; steps 2 to 4 the push starts the job workflow, which runs onRecordsChanged on a runner with the secrets AGENT_M_TOKEN and FIXTURE_KEY; step 5 the use cases of the product read as the dashboard reads them
-// expect: the queue commit holds the one file docs/jobs/<job>.md, whose route is ci hosted and whose parameters hold the instruction; the entry ends done naming the job; the endpoint is asked once, at its address, with the key as its authorisation and a request that begins with Agent M's AGENTS.md and holds the instruction, UC-001, UC-002 and the rule A LOAN HAS A DUE DATE; main then holds, in order, the queue commit, the taking naming the run's address, the commit that writes UC-001 with the alternative flow 2a and the commit that ends the job; the record ends done naming that commit as its result and the run as its log; the product has no other branch; UC-001 is no longer the accepted text but changed, and UC-002 is as it was
+// expect: the queue commit holds the one file docs/jobs/<job>.md, whose route is ci hosted followed by ci-bot's connection, endpoint ci-bot secret FIXTURE_KEY, and whose parameters hold the instruction; the entry ends done naming the job; the endpoint is asked once, at its address, with the key as its authorisation and a request that begins with Agent M's AGENTS.md and holds the instruction, UC-001, UC-002 and the rule A LOAN HAS A DUE DATE; main then holds, in order, the queue commit, the taking naming the run's address, the commit that writes UC-001 with the alternative flow 2a and the commit that ends the job; the record ends done naming that commit as its result and the run as its log; the product has no other branch; UC-001 is no longer the accepted text but changed, and UC-002 is as it was
 test("TST-373203: UC-010 the main flow — a job queued on the CI route is run by the job workflow and commits its artifacts open with its end record", async () => {
   const requests = endpoint();
   await world({ product: ACCEPTED }, async (w) => {
@@ -134,7 +134,7 @@ test("TST-373203: UC-010 the main flow — a job queued on the CI route is run b
     assert.equal(w.subjects()[0], `Queue job ${queued.id}: change-use-case`);
     assert.deepEqual(w.paths().filter((path) => path.startsWith("docs/jobs/")), [`docs/jobs/${queued.id}.md`]);
     const start = w.fileAt(queued.path);
-    assert.match(start, /^route: ci hosted$/m);
+    assert.match(start, /^route: ci hosted endpoint ci-bot secret FIXTURE_KEY$/m);
     assert.ok(start.includes(INSTRUCTION), "the parameters hold the instruction");
 
     const { status, run } = await pushRun(w);
@@ -330,7 +330,7 @@ test("TST-373209: UC-010 the main flow — on the workflow's two machines the ag
 
 // TST-373210 · level: system · module: system
 // guards: UC-010
-// given: the product with the job workflow installed, the instance with the CI agent ci-bot, and the drafting page of the use cases, where the person has chosen ci-bot for the requirement A LOAN HAS A DUE DATE
+// given: the product with the job workflow installed, the instance with the agent ci-bot, which this browser's endpoint ci-bot offers, and the drafting page of the use cases, where the person has chosen ci-bot for the requirement A LOAN HAS A DUE DATE
 // input: the person presses Prepare and reads the run panel
 // expect: known positive — the run panel is the one of ci-bot; it names that the calls are billed per use by the agent's provider
 test("TST-373210: UC-010 precondition — the run panel says that the calls are billed per use", async () => {
@@ -345,7 +345,7 @@ test("TST-373210: UC-010 precondition — the run panel says that the calls are 
 
 // TST-373211 · level: system · module: system
 // guards: UC-010; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: the product with the job workflow installed, the CI agent ci-bot, the requirement A LOAN HAS A DUE DATE, and the drafting page of the use cases, where the person chooses ci-bot and presses Run (the fixture endpoint answers the new use case UC-003)
+// given: the product with the job workflow installed, the agent ci-bot on this browser's endpoint ci-bot, the requirement A LOAN HAS A DUE DATE, and the drafting page of the use cases, where the person chooses ci-bot and presses Run (the fixture endpoint answers the new use case UC-003)
 // input: step 1 the click on Run, which queues the job; then the push starts the job workflow, which runs onRecordsChanged with the secrets AGENT_M_TOKEN and FIXTURE_KEY
 // expect: the page says that the job is queued on the route ci hosted; the run ends done and the endpoint is asked with the key; the job's record ends done and main holds UC-003 as the endpoint answered it
 test("TST-373211: UC-010 the main flow — a job the dashboard's page queues is run by the job workflow", async () => {

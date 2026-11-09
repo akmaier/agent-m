@@ -27,6 +27,7 @@
 
 import "./site-frame-dom.mjs";
 import test from "node:test";
+import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -104,7 +105,12 @@ const jobFile = (id, worksOn) => startRecord({ id, kind: "implement", worksOn: [
 
 const ROOT = new URL("../", import.meta.url);
 const REGISTER_HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${REGISTER_HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${REGISTER_HEAD}\n| dev-a | agent | model-a |\n`;
+// This browser's connection of dev-a's model: the coding agent claude of the Bridge lab-pc, at "this machine", with every capability an implementing job needs; the Bridge answers here
+// (tests/browser-connections-fixture.mjs).
+const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]) };
+const bridge = withBridge(["claude"]);
+test.after(() => bridge.restore());
 
 const productFiles = (model = "scrum", extra = {}) => ({
   "SPEC.md": SPEC, [DECLARATION_PATH]: declaration(model), [ASSIGNMENT]: assignment,
@@ -223,7 +229,7 @@ async function render({ model = "scrum", overview = null, pullRequests = PULLS, 
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
   const target = globalThis.document.createElement("div");
   globalThis.document.body.append(target);
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: product, tokenStored: true, ref: "main" }, store: {}, go() {} };
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: product, tokenStored: true, ref: "main" }, store: storeWith(SETTINGS), go() {} };
   await route.render(target, context, params);
   const press = async (element, event = { isTrusted: true }) => {
     const listener = handlers.filter(([at]) => at === element).at(-1)?.[1];

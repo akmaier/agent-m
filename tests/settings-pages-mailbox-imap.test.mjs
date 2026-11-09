@@ -2,7 +2,7 @@
 // docs/architecture/MOD-settings-pages.md and UC-037 state it: the address and the route `routeFor` preselects, changeable; the IMAP and SMTP servers with
 // their ports, the usual encryption preset for each port and the account preset to the address; the password's notice before the password field is
 // enabled; the Bridge among those this browser keeps, this computer's preset, and for one reached through the jump host the notice, ticked before saving;
-// the folders, INBOX preset; the processing places the participants declare, none preset, a place outside the EU stated as not compliant before saving;
+// the folders, INBOX preset; the processing places this browser's connections declare, none preset, a place outside the EU stated as not compliant before saving;
 // Store and test, one click: the connection stored and tested through the chosen Bridge, each part shown or its failure named; each step's explanation
 // folded. Also the Settings page's statement before an export, which names the mailbox's secrets (SPEC AN EXPORT STATES THAT IT CONTAINS SECRETS).
 // Run: node --test tests/settings-pages-mailbox-imap.test.mjs
@@ -15,8 +15,10 @@
 // Level: unit
 //
 // The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged, as tests/review-pages-whole-architecture.test.mjs does; the Bridges are
-// fake: a stand-in for fetch answers as a Bridge does and records every request; the instance is a host of this file whose docs/participants.md names the
-// processing places; the store is a Map-backed localStorage. Addresses, passwords and tokens are constructed. Where the texts leave a reading open, the
+// fake: a stand-in for fetch answers as a Bridge does and records every request; the instance is a host of this file whose docs/participants.md lists agents and a
+// person; the store is a Map-backed localStorage that keeps, beside the Bridges, three endpoints, which declare the processing places this machine, FAU data centre (EU)
+// and Anthropic, a provider in the USA (MOD-settings-pages, `mailbox`: "offered from the places this browser's connections declare (`endpointsOffered`,
+// `sessionsOffered`)"). Addresses, passwords and tokens are constructed. Where the texts leave a reading open, the
 // test states the reading it takes, and the pull request names it with its source:
 //   - "This computer's" Bridge is one reached on the loopback (MOD-bridge-client's handle route `loopback`, an address of 127.0.0.1): it is preset; with none, no
 //     Bridge is preset.
@@ -68,14 +70,18 @@ const PARTICIPANTS = `# Participants of this instance
 
 **REGISTER**
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| a-claude | CLI agent | example-model | 200000 | — | draft text | this machine | bridge lab-pc agent claude |
-| b-claude | CLI agent | example-model | 200000 | — | draft text | Anthropic, a provider in the USA | bridge laptop agent claude |
-| c-model | model endpoint | example-model | 200000 | — | draft text | FAU data centre (EU) | endpoint campus |
-| d-model | model endpoint | example-model | 200000 | — | draft text | this machine | endpoint local |
-| akmaier | person | — | — | — | draft text | — | account github.com/akmaier |
+| Name | Type | Model |
+|---|---|---|
+| a-claude | agent | example-model |
+| c-model | agent | campus-model |
+| akmaier | person | — |
 `;
+// The connections of this browser and the places they declare: the endpoints desk, fau and us-cloud, in the order the store lists them.
+const ENDPOINTS = {
+  desk: { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "example-model", place: "this machine", context: 200000 },
+  "us-cloud": { url: "https://cloud.example.test/v1", kind: "openai-compatible", model: "example-model", place: "Anthropic, a provider in the USA", context: 200000 },
+  fau: { url: "https://campus.example.test/v1", kind: "openai-compatible", model: "campus-model", place: "FAU data centre (EU)", context: 200000 },
+};
 const LOGIN = { user: "proxy-user", password: "web-login-constructed" };
 const JUMP = { hostname: "jump.example.test", user: "agentm", sshPort: 22, portRange: [40100, 40102], httpsAddress: "https://jump.example.test", login: LOGIN };
 const PASSWORD = "app-password-constructed-001";
@@ -88,6 +94,7 @@ function browser(t, { bridges = "all", participants = PARTICIPANTS, hostState = 
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
   Object.defineProperty(globalThis, "crypto", { configurable: true, value: webcrypto });
   const store = openStore("fixture/instance");
+  for (const [name, setting] of Object.entries(ENDPOINTS)) writeSetting(store, `endpoint:${name}`, setting);
   if (bridges === "all") writeSetting(store, "bridge:laptop", { address: "http://127.0.0.1:4711", token: "laptop-token" });
   if (bridges === "all" || bridges === "remote") {
     writeSetting(store, "bridge:lab-forward", { address: "http://localhost:9222", token: "forward-token" });
@@ -264,7 +271,7 @@ test("mailbox — a Bridge through the jump host is stored only after its notice
 
 // TST-472775 · level: unit · module: MOD-settings-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037
-// given: an instance whose participants declare three places — this machine, a provider in the USA, a data centre naming the EU —, and a person
+// given: a browser whose connections declare three places — this machine, a provider in the USA, a data centre naming the EU —, and a person
 // input: the places shown; the US provider ticked; Store and test without the notice's tick; with it; the other places ticked in another run
 // expect: the three places listed once each, none ticked; ticking the US provider shows the notice that processing personal data there does not comply with the GDPR and the EU AI Act, and the others show none; without the tick nothing is stored; with it the connection holds only the ticked place, outsideEu true and notCompliantNoted true; a connection with only this machine and the EU data centre needs no notice and records outsideEu false
 test("mailbox — a place outside the EU is stored only after its notice, and none is preset", async (t) => {
@@ -298,14 +305,15 @@ test("mailbox — a place outside the EU is stored only after its notice, and no
 
 // TST-472776 · level: unit · module: MOD-settings-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-037
-// given: an instance whose participants cannot be read
-// input: the page
-// expect: no place is offered and the page says the participants could not be read, with the reason; the connection can still be stored with no place
-test("mailbox — participants that cannot be read offer no place and say so", async (t) => {
+// given: an instance whose repository cannot be read (rate limited); this browser's three connections
+// input: the page; Store and test with no place ticked
+// expect: the places offered are the connections' three all the same — the places are read from this browser, not from the instance's register —, and nothing says that anything could not be read;
+//   the connection can be stored with no place
+test("mailbox — the places offered are this browser's connections', whether or not the instance can be read", async (t) => {
   const b = browser(t, { hostState: "unreadable" });
   const page = await b.page();
-  assert.deepEqual(byClass(page, "mailbox-place"), []);
-  assert.match(one(page, "mailbox-places-result").textContent, /could not be read.*rate limited/i);
+  assert.deepEqual(byClass(page, "mailbox-place").map((place) => place.getAttribute("data-place")).sort(), ["Anthropic, a provider in the USA", "FAU data centre (EU)", "this machine"]);
+  assert.doesNotMatch(one(page, "mailbox-places-result").textContent, /could not be read/i);
   await fill(page);
   await click(one(page, "mailbox-store-test"));
   assert.deepEqual(readSetting(b.store, "mailbox").places, []);
@@ -596,17 +604,17 @@ test("mailbox — the connected mailbox's Processing places show I have read thi
 
 // TST-472790 · level: unit · module: MOD-settings-pages
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037
-// given: the register's three places; this browser's endpoint GPT-OSS-120B at NHR, Erlangen, Germany, its endpoint nemotron run through GitHub Actions at Nvidia, United States, an endpoint without a place, and the CLI session laptop:claude its Bridge laptop offers, declared at Laptop, Germany
+// given: the three places of this browser's endpoints desk, fau and us-cloud; its endpoint GPT-OSS-120B at NHR, Erlangen, Germany, its endpoint nemotron run through GitHub Actions at Nvidia, United States, an endpoint without a place, and the CLI session laptop:claude its Bridge laptop offers, declared at Laptop, Germany
 // input: the mailbox page drawn, and the connected mailbox's Processing places opened
-// expect: both lists offer, beside the register's places, the place of every endpoint and CLI session the prompt bar offers from this browser — NHR, Erlangen, Germany; Nvidia, United States; Laptop, Germany — once each, and not the endpoint that declares no place; ticking Nvidia, United States shows the notice that it does not comply; counter-proof: with the places of the register only, as before, the three are missing and the case fails
-test("mailbox — the places of the endpoints and CLI sessions the prompt bar offers are offered with the register's", async (t) => {
+// expect: both lists offer the place of every endpoint and CLI session the prompt bar offers from this browser — the three, and NHR, Erlangen, Germany; Nvidia, United States; Laptop, Germany — once each, and not the endpoint that declares no place; ticking Nvidia, United States shows the notice that it does not comply; counter-proof: without the CLI session's places, Laptop, Germany is missing and the case fails
+test("mailbox — the places of the endpoints and CLI sessions the prompt bar offers are offered", async (t) => {
   const bridgeAnswer = (url) => (url.endsWith("/v1/agents") ? Response.json({ agents: [{ name: "claude", ready: true }] })
     : url.endsWith("/v1/pair") ? Response.json({ bridge: { name: "laptop" } }) : Response.json(TESTED));
   const b = browser(t, { bridgeAnswer });
   writeSetting(b.store, "endpoint:GPT-OSS-120B", { url: "https://hub.nhr.example/v1", kind: "openai-compatible", model: "gpt-oss-120b", place: "NHR, Erlangen, Germany", context: 131072 });
   writeSetting(b.store, "endpoint:nemotron", { url: "https://integrate.api.nvidia.example/v1", kind: "openai-compatible", model: "nvidia/nemotron-3-ultra-550b-a55b", place: "Nvidia, United States", context: 262144, secret: "NEMOTRON_API_KEY" });
   writeSetting(b.store, "endpoint:unplaced", { url: "https://unplaced.example/v1", kind: "openai-compatible", model: "m", context: 1000 });
-  writeSetting(b.store, "session:laptop:claude", { place: "Laptop, Germany", context: 200000, model: "claude-opus-5-5", capabilities: ["draft text", "read the repository", "write to the repository"] });
+  writeSetting(b.store, "session:laptop:claude", { place: "Laptop, Germany", capabilities: ["draft text", "read the repository", "write to the repository"], models: [{ model: "claude-opus-5-5", context: 200000 }] });
   const expected = ["Anthropic, a provider in the USA", "FAU data centre (EU)", "Laptop, Germany", "NHR, Erlangen, Germany", "Nvidia, United States", "this machine"];
   const page = await b.page();
   assert.deepEqual(byClass(page, "mailbox-place").map((place) => place.getAttribute("data-place")).sort(), expected);

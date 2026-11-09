@@ -29,8 +29,8 @@ const saveOf = (form) => byTag(form, "button").at(-1);
 const scripted = async (node) => { node.dispatchEvent(new Event("click")); await turn(); };
 const persons = async (node) => { node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true })); await turn(); };
 
-const HEAD = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n";
-const REGISTER = `# Participants of this instance\n\nThe participants.\n\n${HEAD}| ci-bot | CI agent | fixture-llm | 100000 | — | draft text | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |\n`;
+const HEAD = "| Name | Type | Model |\n|---|---|---|\n";
+const REGISTER = `# Participants of this instance\n\nThe participants.\n\n${HEAD}| dev-a | agent | fixture-llm |\n`;
 
 const formOver = (handed) => {
   const schema = participantSchema();

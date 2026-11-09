@@ -5,8 +5,8 @@
 
 This instance is the product: its process declaration docs/process.md, its role assignments docs/role-assignments/*.md
 and its participant list docs/participants.md are read as they stand, with MOD-product-process' schemas through
-MOD-documents, and judged with declarationFindings and roleAssignmentFindings against the workflow of the model the
-declaration names, as the instance's docs/process-models/ holds it — asked through node (tests/jsrun.py). The instance's
+MOD-documents, and judged with declarationFindings and roleAssignmentFindings — with no browser's connections and no
+sources, so that only its errors and the rules named here are read — against the workflow of the model the declaration names, as the instance's docs/process-models/ holds it — asked through node (tests/jsrun.py). The instance's
 SPEC is not opened: the declaration adds no gate a requirement names, so its findings do not depend on it. Each check runs
 first on a copy of these files with one change that it must find.
 """
@@ -55,7 +55,7 @@ def judged(files: dict, sprints: str | None = None) -> dict:
       return {{
         declaration: productProcess.declarationFindings(declared, cat, listed, '').map(brief),
         schema: filled.flatMap((a) => documents.documentFindings(productProcess.roleAssignmentSchema, a)).map(brief),
-        assignments: productProcess.roleAssignmentFindings(filled, wf, listed, []).map(brief),
+        assignments: productProcess.roleAssignmentFindings(filled, wf, listed, [], []).map(brief),
         sprints: chosen?.flow?.sprints ?? null,
         holders: Object.fromEntries(filled.map((a) => [a.path,
           (a.sections.find((s) => s.heading === '## Roles')?.rows ?? []).flatMap((r) => r.cells.Participants ?? [])])),

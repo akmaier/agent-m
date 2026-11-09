@@ -21,7 +21,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { SCRUM_MODEL, DRAFT, GATES, PARTICIPANTS, STORE, architecture, archRowOf, boxOf, boxes, byHand, choose, classed, drafting, found, handPlan, instanceFiles, marksOf, modulePath, moduleText, openPlan, plain,
+import { SCRUM_MODEL, DRAFT, GATES, SETTINGS, STORE, storeOf, architecture, archRowOf, boxOf, boxes, byHand, choose, classed, drafting, found, handPlan, instanceFiles, marksOf, modulePath, moduleText, openPlan, plain,
   planWrites, planned, pr, refused, rowOf, run, saved, savePlan, quiet, stepPath, stepText, stepsOf, textOf, titles, treeOf, typeInto, waitFor, walk, without, ARC_PATHS } from "./uc-045-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -474,14 +474,15 @@ test("TST-1061016: UC-045 2a a plan written by hand with + Step is checked when 
 
 // TST-1061017 · level: system · module: system
 // guards: UC-045; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; THE PAGE NAMES WHERE IT SENDS
-// given: the planned product without a plan; the participant local-llm whose context holds 300 tokens, and cloud-llm whose context holds 200000, at "a provider in the USA"; known positive: the same product with local-llm's context at 200000 sends
+// given: the planned product without a plan; the participant local-llm, whose connection ep1 declares a context of 300 tokens, and cloud-llm whose context holds 200000, at "a provider in the USA"; known positive: the same product with local-llm's context at 200000 sends
 // input: the planner presses Draft the plan with local-llm chosen
 // expect: the run panel says local-llm cannot hold what it would receive (832 tokens against its 300) and names the files it would receive; nothing is sent; cloud-llm is offered, with its context; with cloud-llm chosen the panel fits (no refusal), and Run sends to its endpoint ep2
 test("TST-1061017: UC-045 2b an input that does not fit the participant's context is not sent; the page says so and offers a participant with a larger context", async () => {
   const roomy = await drafting({ files: await planned({ plan: false }) }, DRAFT);
   try { assert.doesNotMatch(textOf(classed(roomy.page.target, "run-panel")[0]), /cannot hold/, "known positive: the context holds the input"); } finally { roomy.page.done(); }
-  const small = PARTICIPANTS.replace("| local-llm | model endpoint | model-a | 200000 |", "| local-llm | model endpoint | model-a | 300 |");
-  const { page, asked } = await drafting({ files: await planned({ plan: false }), instance: instanceFiles({ participants: small }) }, DRAFT);
+  // local-llm's connection, the endpoint ep1 of this browser, declares a context of 300 tokens (MOD-browser-store, Data: `endpoint:<name>`).
+  const small = storeOf({ ...SETTINGS, "endpoint:ep1": { ...SETTINGS["endpoint:ep1"], context: 300 } });
+  const { page, asked } = await drafting({ files: await planned({ plan: false }), store: small }, DRAFT);
   try {
     const panel = textOf(classed(page.target, "run-panel")[0]);
     assert.match(panel, /local-llm cannot hold what it would receive: \d+ tokens, its context holds 300/);

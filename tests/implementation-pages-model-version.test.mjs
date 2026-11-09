@@ -18,6 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
+import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 
 // ---------------------------------------------------------------- the document: the part of a browser's DOM that is used
 //
@@ -277,11 +278,16 @@ const MODEL_PATH = "docs/process-models/fixture-model.md";
 
 const PARTICIPANTS = `# Participants of this instance
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| alice | person | — | — | — | draft text, write to the repository, run code and tests | — | account github/alice |
-| bot-a | CI agent | fixture-endpoint | — | — | write to the repository, run code and tests | a lab | ci hosted secret BOT_A |
+| Name | Type | Model |
+|---|---|---|
+| alice | person | — |
+| bot-a | agent | fixture-endpoint |
 `;
+
+// This browser's connections: the Bridge lab, whose coding agent claude offers bot-a's model in a lab with every capability Developers needs (tests/browser-connections-fixture.mjs answers the
+// Bridge's requests), so that the role assignments' findings hold only what the model's change makes of them.
+const connections = () => storeWith({ "bridge:lab": bridgeSetting(), "session:lab:claude": session([["fixture-endpoint"]], { place: "a lab" }) });
+withBridge(["claude"]);
 
 const SPEC_TEXT = `# SPEC
 
@@ -385,7 +391,7 @@ async function pageOf(before, now) {
     page: "review",
     instance: { repository: "fixture/instance", host: instanceHostOf(now, NOW_COMMIT, before, BEFORE_COMMIT) },
     product: { address: "fixture/product", kind: "github", host: productHostOf(productFiles) },
-    store: { async get() { return null; }, async set() {} },
+    store: connections(),
     go() {},
   });
   return target;
@@ -474,7 +480,8 @@ test("process route — an unchanged model shows no comparison", async () => {
 test("process route — an unreadable declared commit shows one warning line and no comparison", async () => {
   const target = document.createElement("div");
   document.body.append(target);
-  const writes = [];
+  const store = connections();
+  const kept = store.storage.length;
   const head = instanceFiles(MODEL_NOW);
   await route.render(target, {
     page: "review",
@@ -483,7 +490,7 @@ test("process route — an unreadable declared commit shows one warning line and
       async readSnapshot(ref) { if (ref === BEFORE_COMMIT) throw new Error("NotFound: no such commit"); return fakeSnapshot(head, NOW_COMMIT); },
     } },
     product: { address: "fixture/product", kind: "github", host: productHostOf(productFiles) },
-    store: { async get() { return null; }, async set(...a) { writes.push(a); } },
+    store,
     go() {},
   });
   assert.ok(byClass(target, "model-card").length > 0 || byClass(target, "phases-panel").length > 0, "known positive: the page rendered");
@@ -495,5 +502,5 @@ test("process route — an unreadable declared commit shows one warning line and
   for (const name of ["version-change", "version-before", "version-after", "version-difference", "version-declaration-findings", "version-assignment-findings"]) {
     assert.equal(byClass(target, name).length, 0, name);
   }
-  assert.equal(writes.length, 0);
+  assert.equal(store.storage.length, kept, "nothing is written to this browser's settings");
 });

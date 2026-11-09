@@ -1,5 +1,5 @@
 // Clearing a Bridge names the resources that name it (ITM-464) — MOD-settings-pages' settings lines, as docs/architecture/MOD-settings-pages.md states them: a Bridge's Clear
-// names first the endpoints, participants and mailbox that name it (UC-042, 2a); this item adds the resources — the rows of the instance's docs/resources.md and of the chosen
+// names first the endpoints, CLI sessions, mailbox and resources that name it (UC-042, 2a); this item adds the resources — the rows of the instance's docs/resources.md and of the chosen
 // product's whose route is `bridge <name>` for that Bridge, read with MOD-resource-list's resourceSchema (through its index.mjs) — so that the person sees what stops working in this browser.
 // Run: node --test tests/settings-pages-clear-names-resources.test.mjs
 //

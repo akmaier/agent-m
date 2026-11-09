@@ -267,7 +267,7 @@ async function clearingConsequence(context, name) {
     ]),
     ...(mailbox ? ["The mailbox connection names it."] : []),
   ];
-  return sentences.length ? `${sentences.join(" ")} ${unread && sentences.length === 1 ? "" : "They will have no Bridge to go through."}`.trim() : "Nothing in this browser names this Bridge.";
+  return sentences.length ? `${sentences.join(" ")} ${lists.some((each) => each.unread) && sentences.length === 1 ? "" : "They will have no Bridge to go through."}`.trim() : "Nothing in this browser names this Bridge.";
 }
 
 // The Bridges this browser keeps, each under its name: `bridge:<name>`.

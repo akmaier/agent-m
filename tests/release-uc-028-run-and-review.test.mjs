@@ -229,7 +229,7 @@ test("each test is listed under exactly one level, the one it declares", async (
 
 // TST-773109 · level: release · module: MOD-test-pages
 // guards: UC-028; EVERY ARTIFACT NAMES ITS ORIGIN; A ROLE NAMES THE CAPABILITIES IT NEEDS; THE PAGE NAMES WHERE IT SENDS
-// given: the participants hosted-ci (run code and tests, route ci hosted) and writer (no such capability); the commit's level release has no record
+// given: the participants hosted-ci, an agent on the endpoint ci whose key is the CI secret CI_KEY (routes: the tab and ci hosted), and writer, an agent on the Bridge lab-pc's session claude, which declares no run code and tests; the commit's level release has no record
 // input: Run on this commit, hosted-ci and the name akmaier chosen
 // expect: only hosted-ci is offered; the panel names where the run happens (the route ci hosted, the commit and the levels); the job record the click commits names its origin: the person akmaier who started it, the participant hosted-ci and the commit it works on
 test("Run on this commit offers only a participant with the capability, names where the run happens, and the job record names who started it", async () => {

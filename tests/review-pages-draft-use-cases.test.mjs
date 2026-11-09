@@ -122,9 +122,13 @@ const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
-const ENDPOINT_ROW = "| drafter-a | model endpoint | example-model | 200000 | — | draft text | this machine | endpoint ep1 |";
-const CI_ROW = "| ci-agent | CI agent | model-x | 200000 | — | draft text | GitHub Actions in the USA | ci hosted secret CI_KEY |";
-const READER_ROW = "| reader | person | — | — | — | read the repository | — | the GitHub account `reader` |";
+const ENDPOINT_ROW = "| drafter-a | agent | example-model |";
+const CI_ROW = "| ci-agent | agent | model-x |";
+const READER_ROW = "| reader | person | — |";
+// The connections this browser keeps (MOD-browser-store, endpoint:<name>): ep1 offers drafter-a's model at "this machine"; ep6 offers ci-agent's at GitHub Actions in the
+// USA, its key the CI secret CI_KEY, so that its jobs are offered on CI too (MOD-runtimes' routesFor).
+const EP1 = { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 };
+const EP6 = { url: "https://ep6.example.test/v1", kind: "openai-compatible", model: "model-x", key: "sk-fixture-endpoint-key", place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" };
 function fakeInstance(register) {
   const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" }, ref: "main",
     commit: "abc123def4567890abc123def4567890abc123de", paths: [], read: async (path) => (path === "docs/participants.md" ? register : onDisk(path)), blob: () => null };
@@ -159,7 +163,8 @@ async function show(fake, params = { id: "draft" }, { register = registerOf(ENDP
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const store = openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
-  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
+  writeSetting(store, "endpoint:ep1", EP1);
+  writeSetting(store, "endpoint:ep6", EP6);
   const target = document.createElement("div");
   document.body.append(target);
   const context = { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance(register).host }, store, go() {},
@@ -292,24 +297,6 @@ test("use-case/draft — with neither graph stored, the page names the GraphNotS
   assert.deepEqual(byClass(target, "input", "requirement"), []);
   assert.deepEqual(asOfLines(target), []);
   assert.equal(fake.writes().length, 0);
-});
-
-// TST-494007 · level: unit · module: MOD-review-pages
-// guards: UC-017; UC-049; UC-007
-// given: a register with the CLI agent lead (route `bridge lab-pc agent claude`), the subagent sub (route `through lead`) and the subagent orphan (route `through nobody`), each declaring draft text; the product holds no job workflow
-// input: the page #use-case/id=draft
-// expect: lead and sub are listed, orphan is not (its route reaches no CLI agent of the register); the route of lead reads "bridge lab-pc", and the route of sub reads "bridge lab-pc" too — the route of the participant it is reached through — and not "no route of a job"
-test("use-case/draft — a subagent is listed with the route of the participant it is reached through", async () => {
-  const lead = "| lead | CLI agent | model-y | 200000 | — | draft text | this machine | bridge lab-pc agent claude |";
-  const sub = "| sub | CLI agent | model-z | 200000 | — | draft text | this machine | through lead |";
-  const orphan = "| orphan | CLI agent | model-w | 200000 | — | draft text | this machine | through nobody |";
-  const fake = fakeProduct();
-  const target = await show(fake, { id: "draft" }, { register: registerOf(lead, sub, orphan) });
-  const listed = byClass(target, "li", "participant");
-  assert.deepEqual(listed.map((item) => item.getAttribute("data-name")).sort(), ["lead", "sub"]);
-  const routeOfName = (name) => byClass(listed.find((item) => item.getAttribute("data-name") === name), "span", "route")[0].textContent;
-  assert.equal(routeOfName("lead"), "bridge lab-pc");
-  assert.equal(routeOfName("sub"), "bridge lab-pc");
 });
 
 // ---------------------------------------------------------------- the run panel
@@ -480,8 +467,8 @@ test("use-case/draft — the note of the job stands beside the use case it conce
 
 // TST-472622 · level: unit · module: MOD-review-pages
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; UC-007
-// given: a product that holds the job workflow, the CI agent among the participants
-// input: choosing the CI agent, the run panel, Run
+// given: a product that holds the job workflow, ci-agent among the participants, an agent on the endpoint ep6 whose setting names its CI secret CI_KEY (routes: the tab and ci hosted)
+// input: choosing ci-agent, the run panel, Run
 // expect: nothing sent to any endpoint; one commit holding the job's start record in docs/jobs/ and nothing else; the page says the job is queued, naming its identifier, and writes no use case
 test("use-case/draft — a job on the CI route is queued there and not run in the tab", async () => {
   endpointAnswers(drafted([OTHER]));
@@ -495,7 +482,7 @@ test("use-case/draft — a job on the CI route is queued there and not run in th
   assert.deepEqual(fake.writes()[0].files.map((file) => file.path.replace(/JOB-[^.]+/, "JOB")), ["docs/jobs/JOB.md"]);
   assert.match(byClass(target, "p", "queued")[0].textContent, /JOB-\d{8}-\d{4}-[0-9a-f]{4}/);
   const record = fake.writes()[0].files[0].text;
-  assert.match(record, /^route: ci hosted$/m, "the record names the route");
+  assert.match(record, /^route: ci hosted endpoint ep6 secret CI_KEY$/m, "the record names the route, followed by the connection's route");
   assert.ok(!record.includes("## Taken"), "and is not taken by the tab");
   assert.ok(!Object.keys(fake.files()).some((path) => path.startsWith("docs/use-cases/UC-003")), "no use case written");
 });
@@ -566,7 +553,7 @@ const billing = (target) => byClass(byClass(target, "section", "run-panel")[0], 
 
 // TST-1379001 · level: unit · module: MOD-review-pages
 // guards: UC-010; EVERY STEP EXPLAINS ITSELF
-// given: a product that holds the job workflow, the CI agent ci-agent among the participants (route ci hosted), the requirement A BOOK IS SHELVED checked
+// given: a product that holds the job workflow, ci-agent among the participants, an agent on the endpoint ep6 whose setting names its CI secret CI_KEY (routes: the tab and ci hosted), the requirement A BOOK IS SHELVED checked
 // input: choosing ci-agent and pressing Show the run panel
 // expect: the run panel holds one p.route-billing that names the route ci hosted and says the calls are billed per use by the agent's provider; nothing written, nothing sent
 test("use-case/draft — on the server's runners, the run panel says the calls are billed per use by the agent's provider", async () => {

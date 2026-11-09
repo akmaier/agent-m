@@ -152,7 +152,7 @@ export async function world({ server = "github", token = true, files = {}, histo
   const header = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
   const models = Object.fromEntries(Object.entries(MODEL_FILES).map(([name, path]) => [path, onDisk(path)]));
   const instance = await repoServer({ repo: INSTANCE, head: INSTANCE_HEAD, files: { "AGENTS.md": onDisk("AGENTS.md"), ...models,
-    "docs/participants.md": `${header}\n| drafter-a | model endpoint | example-model | 200000 | - | draft text | this machine | endpoint ep1 |\n` } });
+    "docs/participants.md": `${header}\n| drafter-a | agent | example-model |\n` } });
   const item = ({ module, realises }) => ({ title: `Do the work in ${module}`, outcome: `${module} does what the use case asks.`, realises: [realises], modules: [module], acceptance: [`unit tests of ${module}`] });
   const authorization = (init) => init?.headers?.Authorization ?? init?.headers?.authorization ?? init?.headers?.["PRIVATE-TOKEN"] ?? null;
   // GitHub knows no deletion in the git-data endpoints the fake serves: a tree entry whose sha is null is taken out of the request, and the file is deleted once the branch has moved on.
@@ -229,7 +229,8 @@ export async function world({ server = "github", token = true, files = {}, histo
   const store = openStore(INSTANCE);
   writeSetting(store, "github-token", TOKENS.instance);
   if (token) writeSetting(store, kind === "github" ? `github-token:${PRODUCT}` : "gitlab-token:gitlab.example.org/team/product", TOKENS[kind]);
-  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model" });
+  // The connection that offers drafter-a's model, at "this machine" (MOD-browser-store, endpoint:<name>).
+  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 });
   const productHost = connect(parseAddress(address), token ? { token: TOKENS[kind].value, tokenName: TOKENS[kind].name } : {});
   const instanceHostObject = connect(parseAddress(`https://github.com/${INSTANCE}`), { token: TOKENS.instance.value, tokenName: TOKENS.instance.name });
   const route = (name) => view.routes.find((candidate) => candidate.name === name);

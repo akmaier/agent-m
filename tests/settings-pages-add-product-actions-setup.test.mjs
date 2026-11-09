@@ -53,9 +53,9 @@ const NVIDIA_KEY = "nvapi-FIXTURE-KEY-0123456789";
 const PUBLIC_KEY = Buffer.alloc(32, 7).toString("base64");
 const text = (...lines) => `${lines.join("\n")}\n`;
 const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | hosted runner | ci hosted secret HOSTED_KEY |");
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| dev-a | agent | gpt-5 |");
 const LAYOUT = ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"];
 const JOB_WORKFLOW = ".github/workflows/agent-m-jobs.yml";
 
@@ -101,7 +101,8 @@ async function servers({ productFiles = { "README.md": "# Thesis tool\n" }, refu
   return { product, instance, secrets, sent, fetch };
 }
 
-// The route drawn over a fresh store holding the product's own token and the endpoint nvidia with its key and secret; `instanceHost`
+// The route drawn over a fresh store holding the product's own token, the endpoint nvidia with its key and secret, and the endpoint hosted
+// that names the secret HOSTED_KEY and whose key this browser does not keep; `instanceHost`
 // true hands the route a connected instance host, as MOD-site-frame's frame does, else only the instance's repository, as the dashboard's
 // own #add does. The address is typed. -> the target, the store and Step C.
 async function drawn({ address = WEB, instanceHost = false, extra = () => {} } = {}) {
@@ -110,6 +111,7 @@ async function drawn({ address = WEB, instanceHost = false, extra = () => {} } =
   writeSetting(store, "github-token", { value: INSTANCE_TOKEN, name: "GitHub token", expires: "2027-06-01", stored: "2026-01-01" });
   writeSetting(store, `github-token:${PRODUCT}`, { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-06-01", stored: "2026-01-01" });
   writeSetting(store, "endpoint:nvidia", { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nemotron", key: NVIDIA_KEY, secret: "NVIDIA_API_KEY" });
+  writeSetting(store, "endpoint:hosted", { kind: "openai-compatible", url: "https://hosted.example.test/v1", model: "gpt-5", secret: "HOSTED_KEY" });
   extra(store);
   const instance = { repository: INSTANCE, ...(instanceHost ? { host: connect(parseAddress(`https://github.com/${INSTANCE}`), { token: INSTANCE_TOKEN }) } : {}) };
   const target = document.createElement("div");
@@ -136,7 +138,7 @@ const actionsSettled = (stepC) => /Committed|not set up|Every workflow file stan
 
 // TST-2026110831 · level: unit · module: MOD-settings-pages
 // guards: UC-001; ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: a GitHub product with no review layout, no job workflow and no Actions secret; this browser keeps the product's own token, the instance's token, and endpoint:nvidia with its key and the secret NVIDIA_API_KEY; the instance's participant hosted-ci reads HOSTED_KEY, for which this browser keeps no value; the route is given only the instance's repository, as the dashboard's #add gives it
+// given: a GitHub product with no review layout, no job workflow and no Actions secret; this browser keeps the product's own token, the instance's token, and endpoint:nvidia with its key and the secret NVIDIA_API_KEY; endpoint:hosted names HOSTED_KEY, for which this browser keeps no value; the route is given only the instance's repository, as the dashboard's #add gives it
 // input: read Step C before the click; one person's click on Add product
 // expect: before the click, Step C states that the click writes Agent M's job workflow into the default branch and the secrets this browser keeps a value for into the repository's Actions secrets; the click makes two commits on the product, the layout's (SPEC.md among its files) and then the job workflow's (.github/workflows/agent-m-jobs.yml among them), and stores AGENT_M_TOKEN and NVIDIA_API_KEY, each sealed, in that order, nothing else; the product is in this browser's list; the panel shows the layout's commit as a link, names the job workflow's commit and the two secrets stored, names HOSTED_KEY as kept by no value here with the link to https://github.com/alice/thesis-tool/settings/secrets/actions; neither value appears on the panel or in clear in any request's body or address; the product's token goes only to api.github.com requests of the product
 test("TST-2026110831: Add product on GitHub writes the layout, then installs the job workflow and stores the known secrets in the same click", async () => {

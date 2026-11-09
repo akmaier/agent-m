@@ -83,11 +83,11 @@ const WORKFLOW_FILE = ".github/workflows/agent-m-jobs.yml";
 const MODEL_VERSION = "5".repeat(40);
 const TASK = "PLANTED-TASK-1300 look at the export";
 
-const COLUMNS = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
-const WORKERS = "draft text, read the repository, write to the repository, run code and tests";
+const COLUMNS = "| Name | Type | Model |\n|---|---|---|";
 const register = (...rows) => `# Participants of this instance\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n${COLUMNS}\n${rows.join("\n")}\n`;
-const ALICE = "| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |";
-const DEV_CI = `| dev-ci | model endpoint | model-ci | 200000 | — | ${WORKERS} | Anthropic, USA | endpoint ep1 secret KEY_A |`;
+const ALICE = "| alice | person | — |";
+// dev-ci, an agent of the model model-ci, which this browser's endpoint ep1 offers, naming the CI secret KEY_A of its key (open).
+const DEV_CI = "| dev-ci | agent | model-ci |";
 
 const frontMatter = (fields) => ["---", ...Object.entries(fields).flatMap(([key, value]) => (Array.isArray(value)
   ? [`${key}:`, ...value.map((entry) => `  - ${entry}`)] : [`${key}: ${value}`])), "---"].join("\n");
@@ -98,7 +98,7 @@ const declaration = (model) => [frontMatter({ model, model_file: `src/model-cata
   "# Process", "", "## Practices", "", "- none", "", "## Branches", "", "| Phase or time box | Branch |", "|---|---|", "", "## Definition of Done", "",
   "The job rules hold; no condition is added.", ""].join("\n");
 const assignment = (rows) => ["# Role assignment", "", "## Roles", "", "| Role | Participants |", "|---|---|", ...rows.map(([role, who]) => `| ${role} | ${who} |`), ""].join("\n");
-const queuedJob = (id, works) => ["---", `id: ${id}`, "kind: implement", "works_on:", `  - ${works}`, "route: ci hosted", "started_by: alice", "start: 2026-10-14 09:00 UTC",
+const queuedJob = (id, works) => ["---", `id: ${id}`, "kind: implement", "works_on:", `  - ${works}`, "route: ci hosted endpoint ep1 secret KEY_A", "started_by: alice", "start: 2026-10-14 09:00 UTC",
   "agent_m: unknown, commit unknown", "limit: 1", "---", "## Destinations", "", "## Parameters", "", "```json", "{}", "```", ""].join("\n");
 const UC1 = "docs/use-cases/UC-001-store.md";
 
@@ -139,21 +139,24 @@ const requests = [];
 beforeEach(() => { requests.length = 0; globalThis.fetch = async (url) => { requests.push(String(url)); throw new Error(`no request may be made: ${url}`); }; });
 afterEach(() => { globalThis.fetch = realFetch; Math.random = realRandom; mock.timers.reset(); });
 
-// A page of the product: this browser keeps the endpoint nvidia — place "NVIDIA, USA", context 128000, the CI secret NVIDIA_API_KEY, no key, no Bridge — which the instance's register
-// does not list, and the product's token. `participant` is nvidia as the bar offers it (endpointsOffered).
+// A page of the product: this browser keeps the endpoint nvidia — place "NVIDIA, USA", context 128000, the CI secret NVIDIA_API_KEY, no key, no Bridge — whose model no agent of the
+// instance's register names, the endpoint ep1 of the model model-ci, which dev-ci names, naming the CI secret KEY_A, and the product's token. `participant` is nvidia as the bar offers it
+// (endpointsOffered); `connections` what the bar offers.
 function open(files = productFiles()) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const store = openStore("alice/agent-m");
   writeSetting(store, "endpoint:nvidia", { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nvidia/nemotron", place: "NVIDIA, USA", context: 128000,
     secret: "NVIDIA_API_KEY" });
+  writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-ci", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000,
+    secret: "KEY_A" });
   writeSetting(store, "github-token", { value: "github_pat_INSTANCE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
   const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": register(ALICE, DEV_CI) });
   const product = repoOf(PRODUCT_WEB, files);
   const participant = endpointsOffered(store).find((each) => each.name === "nvidia");
   assert.ok(participant, "nvidia is offered");
-  return { store, instance, product, participant, page: { address: PRODUCT_WEB, host: product.host }, instanceSetup: { repository: "alice/agent-m", host: instance.host } };
+  return { store, instance, product, participant, connections: endpointsOffered(store), page: { address: PRODUCT_WEB, host: product.host }, instanceSetup: { repository: "alice/agent-m", host: instance.host } };
 }
 
 const spawn = (it, more = {}) => spawnEndpointJob({ kind: "converse", task: TASK, participant: it.participant, store: it.store, instance: it.instanceSetup, page: it.page, ofProduct: true,
@@ -214,9 +217,9 @@ test("a spawn given the instance's snapshot the bar read does not read it again"
 // expect: a route on CI, and none of the product's facts read: no pull request listed, none of the files the facts read
 test("a hand-over that works on a backlog item reads none of the product's facts", async () => {
   const it = open();
-  const participant = (await readParticipants(await defaultSnapshot(it.instance.host))).find((each) => each.name === "dev-ci");
+  const participant = (await readParticipants(await defaultSnapshot(it.instance.host), it.connections)).find((each) => each.name === "dev-ci");
   it.product.calls.length = 0;
-  const assessed = await assess({ handOver: { kind: "implement", works_on: ["ITM-005"], task: TASK }, participant, instance: it.instanceSetup, page: it.page });
+  const assessed = await assess({ handOver: { kind: "implement", works_on: ["ITM-005"], task: TASK }, participant, instance: it.instanceSetup, page: it.page, connections: it.connections });
   assert.equal(assessed.route?.kind, "ci");
   assert.equal(count(it.product.calls, "listPullRequests"), 0, it.product.calls.join(", "));
   assert.deepEqual(readsOf(it.product.calls).filter((path) => FACT_FILES.test(path)), [], it.product.calls.join(", "));
@@ -229,9 +232,9 @@ test("a hand-over that works on a backlog item reads none of the product's facts
 // expect: a route, and none of the product's facts read: no pull request listed, none of the files the facts read
 test("a hand-over that works on no item or step reads none of the product's facts", async () => {
   const it = open();
-  const participant = (await readParticipants(await defaultSnapshot(it.instance.host))).find((each) => each.name === "dev-ci");
+  const participant = (await readParticipants(await defaultSnapshot(it.instance.host), it.connections)).find((each) => each.name === "dev-ci");
   it.product.calls.length = 0;
-  const assessed = await assess({ handOver: { kind: "converse", works_on: ["UC-001"], task: TASK }, participant, instance: it.instanceSetup, page: it.page });
+  const assessed = await assess({ handOver: { kind: "converse", works_on: ["UC-001"], task: TASK }, participant, instance: it.instanceSetup, page: it.page, connections: it.connections });
   assert.equal(assessed.route?.kind, "ci");
   assert.equal(count(it.product.calls, "listPullRequests"), 0, it.product.calls.join(", "));
   assert.deepEqual(readsOf(it.product.calls).filter((path) => FACT_FILES.test(path)), [], it.product.calls.join(", "));
