@@ -20,7 +20,7 @@ if (findings.length || !register.rows.length) {
 }
 
 /** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login: string,
- *   install: Record<"macos" | "windows" | "linux", string> }} Agent */
+ *   keeps: { variable: string, pattern: string } | null, install: Record<"macos" | "windows" | "linux", string> }} Agent */
 
 /** What an agent is started inside on a Bridge (ARC-054); the Bridge's MOD-agent-enclosure implements it.
  * @typedef {{ wrap(command: string, args: string[], at: { workdir: string, writable: string[] }): { command: string, args: string[],
@@ -76,7 +76,15 @@ function loginMatches(login, result) {
   }
   return false;
 }
-const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, login: row.login.login, install: row.install });
+// Node's names of the platforms, as the register names them.
+const PLATFORMS = { darwin: "macos", win32: "windows", linux: "linux" };
+// The agent's login step on `platform`, and what of its output the enclosure keeps for it (ARC-054): the row's own, unless its Login check names
+// another under the platform's name — Claude Code's setup-token on macOS, whose keychain the enclosure closes.
+function loginOn(row, platform) {
+  const there = row.login[PLATFORMS[platform]] ?? {};
+  return { login: there.login ?? row.login.login, keeps: there.keeps ?? null };
+}
+const missingAgent = (row, platform) => ({ name: row.name, installed: false, version: null, loggedIn: null, ...loginOn(row, platform), install: row.install });
 function ownLoginEnvironment() {
   const credentials = new Set(rows.map((row) => row.keyVariable).filter((name) => name && name !== "—"));
   const environment = {};
@@ -130,18 +138,19 @@ export function keyProvider(keyVariable) {
 }
 
 /**
- * installedAgents({ enclosure?, workdir? }) -> Promise<Agent[]> — with an enclosure, the version and the login are asked inside it, in `workdir`, and an
- * agent whose version command does not answer there is missing: what is said of it is said of the agent as it will run.
+ * installedAgents({ enclosure?, workdir?, platform? }) -> Promise<Agent[]> — with an enclosure, the version and the login are asked inside it, in `workdir`, and an
+ * agent whose version command does not answer there is missing: what is said of it is said of the agent as it will run. Each agent's login step is the one
+ * of `platform`, Node's name of it, by default the one this runs on.
  * @returns {Promise<Agent[]>}
  */
-export async function installedAgents({ enclosure = null, workdir = null } = {}) {
+export async function installedAgents({ enclosure = null, workdir = null, platform = process.platform } = {}) {
   const enclosed = enclosure ? { enclosure, workdir: workdir ?? enclosure.home ?? process.cwd() } : null;
   return Promise.all(rows.map(async (row) => {
     const version = await invoke(row.command, row.version.args, undefined, null, enclosed);
-    if (version.error?.code === "ENOENT" || (enclosed && !version.ok)) return missingAgent(row);
+    if (version.error?.code === "ENOENT" || (enclosed && !version.ok)) return missingAgent(row, platform);
     const login = await invoke(row.command, row.login.args, undefined, null, enclosed);
     const loggedIn = loginMatches(row.login, login);
-    return { name: row.name, installed: true, version: versionOf(row, version.stdout), loggedIn, login: row.login.login, install: row.install };
+    return { name: row.name, installed: true, version: versionOf(row, version.stdout), loggedIn, ...loginOn(row, platform), install: row.install };
   }));
 }
 

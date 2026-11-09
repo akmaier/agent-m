@@ -23,11 +23,11 @@ const PASSED_WINDOWS = ["SystemRoot", "SystemDrive", "windir", "ComSpec", "PATHE
   "ProgramFiles(x86)", "ProgramW6432", "ProgramData", "CommonProgramFiles"];
 
 /**
- * agentEnvironment({ platform, env, home, identity }) -> Record<string, string> — the environment an agent receives: the passed variables of `env`,
- * its home and the folders below it, git's prompt switched off, and the git identity where `identity` names one. On Windows the account's own folders
- * of programs come before the PATH. Pure.
+ * agentEnvironment({ platform, env, home, identity, kept }) -> Record<string, string> — the environment an agent receives: the passed variables of `env`,
+ * its home and the folders below it, git's prompt switched off, the git identity where `identity` names one, and the logins its home keeps (`kept`, each
+ * variable with its value; logins.mjs). On Windows the account's own folders of programs come before the PATH. Pure.
  */
-export function agentEnvironment({ platform, env, home, identity }) {
+export function agentEnvironment({ platform, env, home, identity, kept = {} }) {
   const windows = platform === "win32";
   const chosen = {};
   for (const name of [...PASSED, ...(windows ? PASSED_WINDOWS : [])]) if (typeof env[name] === "string") chosen[name] = env[name];
@@ -44,5 +44,5 @@ export function agentEnvironment({ platform, env, home, identity }) {
   chosen.GIT_TERMINAL_PROMPT = "0";
   if (identity?.name) Object.assign(chosen, { GIT_AUTHOR_NAME: identity.name, GIT_COMMITTER_NAME: identity.name });
   if (identity?.email) Object.assign(chosen, { GIT_AUTHOR_EMAIL: identity.email, GIT_COMMITTER_EMAIL: identity.email });
-  return chosen;
+  return Object.assign(chosen, kept);
 }

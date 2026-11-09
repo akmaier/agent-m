@@ -123,7 +123,7 @@ export async function start(electron, supplied = {}) {
       const agent = (await installedAgents()).find((each) => each.name === value?.name);
       if (!agent?.login) throw new TypeError("This agent names no login step.");
       const [command, ...args] = agent.login.split(" ");
-      await enclosureFor(agent.name).openTerminal(command, args);
+      await enclosureFor(agent.name).openTerminal(command, args, agent.keeps);
       return { opened: true };
     }
     if (action === "save-agents") {

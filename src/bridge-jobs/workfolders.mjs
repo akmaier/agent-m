@@ -1,5 +1,7 @@
-// workfolders.mjs — the clones in an agent's working folder (MOD-bridge-jobs, Parts: workfolders.mjs; Data): a clone of the instance, one
-// clone per served product, and one working clone per running job, removed when the job ends.
+// workfolders.mjs — the clones in an agent's working folder (MOD-bridge-jobs, Parts: workfolders.mjs; Data), laid out as a local clone of
+// Agent M is: the working folder itself a clone of the instance, one clone per served product in `products/<name>/`, one working clone per
+// running job in `jobs/<id>/`, removed when the job ends, and the agent's home `home/`, which with `jobs/` git does not see in the instance's clone.
+// An agent started in the working folder finds Agent M's AGENTS.md at its root.
 //
 // Module: MOD-bridge-jobs
 //
@@ -9,7 +11,7 @@
 // it reports is the one the clone's origin names.
 
 import { execFile } from "node:child_process";
-import { mkdir, rm, stat } from "node:fs/promises";
+import { appendFile, mkdir, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { pullRequestsThroughCli } from "./pull-requests.mjs";
@@ -27,12 +29,15 @@ function git(cwd, args) {
   });
 }
 
-// The folder name a repository's address makes.
-export const slugOf = (address) => address.replace(/^[a-z]+:\/\//i, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+// The repository's name in its address, the folder `git clone` gives it: `https://github.com/acme/widget.git/` -> `widget`.
+const nameOf = (address) => address.replace(/\/+$/, "").replace(/\.git$/, "").split(/[/:]/).pop();
 
-// The Bridge's folders for one agent.
-export const foldersOf = (folder) => ({ instance: join(folder, "instance"), product: (address) => join(folder, "products", slugOf(address)),
+// The Bridge's folders for one agent: the working folder itself is the instance's clone.
+export const foldersOf = (folder) => ({ instance: folder, product: (address) => join(folder, "products", nameOf(address)),
   job: (id) => join(folder, "jobs", id) });
+
+// What the Bridge keeps in the instance's clone beside Agent M's own files, which no command of git there is to see.
+const BESIDE_THE_INSTANCE = ["/home/", "/jobs/"];
 
 // Work on one key — a clone, a product's taking — runs one after another: a clone's refs are one writer's at a time.
 const queues = new Map();
@@ -44,19 +49,39 @@ export function exclusively(folder, work) {
 
 const exists = (path) => stat(path).then(() => true, () => false);
 
-/** A clone of `address` in `folder`, made if it is not there, else brought up to what the origin holds. */
-export function cloneOrFetch(address, folder) {
+/**
+ * cloneOrFetch(address, folder, exclude = []) -> Promise<folder> — a clone of `address` made in `folder` itself, whatever the folder already holds, and
+ * brought up to what the origin holds; `exclude`, the patterns git is not to see there, written when the clone is made. Its default branch is checked out
+ * once, and git refuses that checkout where it would overwrite a file of the folder. Throws, naming both, where the folder holds a clone of another
+ * repository.
+ */
+export function cloneOrFetch(address, folder, exclude = []) {
   return exclusively(folder, async () => {
     if (await exists(join(folder, ".git"))) {
-      await git(folder, ["fetch", "--quiet", "--prune", "--tags", "origin"]);
-      return folder;
+      const origin = await git(folder, ["config", "--get", "remote.origin.url"]).catch(() => null);
+      if (origin !== address) throw new Error(`${folder} holds a clone of ${origin ?? "no repository"}, not of ${address}`);
+    } else {
+      await mkdir(folder, { recursive: true });
+      await git(folder, ["init", "--quiet"]);
+      await git(folder, ["remote", "add", "origin", address]);
+      if (exclude.length) {
+        await mkdir(join(folder, ".git", "info"), { recursive: true });
+        await appendFile(join(folder, ".git", "info", "exclude"), exclude.map((pattern) => `${pattern}\n`).join(""));
+      }
     }
-    await mkdir(dirname(folder), { recursive: true });
-    await rm(folder, { recursive: true, force: true });
-    await git(dirname(folder), ["clone", "--quiet", "--", address, folder]);
+    await git(folder, ["fetch", "--quiet", "--prune", "--tags", "origin"]);
+    // The first checkout, after the clone was made — or after a checkout git refused, which is tried again and refused again.
+    if ((await git(folder, ["rev-parse", "--verify", "--quiet", "HEAD"]).catch(() => null)) === null) {
+      await git(folder, ["remote", "set-head", "origin", "--auto"]);
+      const { branch } = await defaultHead(folder);
+      await git(folder, ["checkout", "--quiet", "-B", branch, "--track", `origin/${branch}`]);
+    }
     return folder;
   });
 }
+
+/** instanceClone(address, folder) -> Promise<folder> — the instance's clone in the agent's working folder itself, its home and jobs out of git's sight. */
+export const instanceClone = (address, folder) => cloneOrFetch(address, folder, BESIDE_THE_INSTANCE);
 
 /** The branch the clone's origin names as its default, and its head as the clone last fetched it. */
 export async function defaultHead(folder) {

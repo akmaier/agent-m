@@ -67,14 +67,14 @@ test("TST-320001: discovery reports register agents' version and own-login outco
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-011
 // given: a controlled PATH with one register command present and the other supported commands absent.
-// input: installedAgents() performs only discovery's version/login checks.
+// input: installedAgents({ platform: "linux" }) performs only discovery's version/login checks.
 // expect: the present entry is installed and missing commands are named unavailable without executing a task or reaching a real agent.
 test("TST-320002: discovery names missing supported commands without a task", async () => {
   const folder = fixture();
   try {
     const calls = join(folder, "calls");
     command(folder, "claude", `printf '%s\\n' \"$*\" >> ${calls}; case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"none\"}'; exit 1;; *) exit 64;; esac`);
-    const agents = await withPath(folder, () => installedAgents());
+    const agents = await withPath(folder, () => installedAgents({ platform: "linux" }));
     assert.equal(agents.find((agent) => agent.name === "claude").installed, true);
     assert.equal(agents.find((agent) => agent.name === "claude").loggedIn, false);
     assert.match(JSON.stringify(agents.find((agent) => agent.name === "claude")), /claude auth login/);

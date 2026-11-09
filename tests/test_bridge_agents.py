@@ -5,7 +5,8 @@
 
 The cases live in tests/test_bridge_agents.md. This file loads them, puts fixture executables of supported agents on the
 path and asks MOD-agent-processes, in Node, which agents are installed and what command its driver starts. That only the
-chosen agents are offered is MOD-bridge-jobs' and is not checked here.
+chosen agents are offered is MOD-bridge-jobs' and is not checked here. Discovery is asked for Linux, where every agent keeps its own
+login; Claude Code's login step on macOS is tests/agent-processes-login-1002.test.mjs' (TST-1002004).
 """
 import json
 import os
@@ -43,7 +44,7 @@ process.env.PATH = input.folder;
 delete process.env.CI;
 delete process.env.GITHUB_ACTIONS;
 if (input.kind === "discovery") {
-  process.stdout.write(JSON.stringify(await installedAgents()));
+  process.stdout.write(JSON.stringify(await installedAgents({ platform: "linux" })));
 } else {
   for (const name of input.keyVariables) process.env[name] = "secret-value-of-" + name;
   process.env.AGENT_M_FIXTURE_MARKER = "present";
