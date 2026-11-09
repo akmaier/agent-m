@@ -389,6 +389,23 @@ test("spec-entry — Accept ticked cannot be clicked while nothing is ticked", a
   assert.equal(bar.disabled, true);
 });
 
+// TST-472637 · level: unit · module: MOD-review-pages
+// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
+// given: the instance whose queue 2026-03-01_sample holds the entries 05, 06 and 07; a token
+// input: the route spec-entry with no id, as drawn
+// expect: known positive — Accept ticked and the tables of the list are drawn; Accept ticked stands after the heading SPEC changes and before the first table, its tick and its row (MOD-review-pages, the route `<k>`: "first *Accept ticked*, above the tables")
+// Planted fault: showList appending the bar after the tables (src/review-pages/flow.mjs) fails the assertion that Accept ticked stands before the first table.
+test("spec-entry — the list shows Accept ticked first, above the tables", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  const target = await show(fake);
+  const [bar] = byClass(target, "button", "accept-ticked");
+  const tables = find(target, (node) => node.localName === "table");
+  const [heading] = find(target, (node) => node.localName === "h2" && node.textContent === "SPEC changes");
+  assert.ok(bar && tables.length && heading, "known positive: the heading, Accept ticked and the tables are drawn");
+  const order = find(target, (node) => node === bar || node === heading || node === tables[0] || node === byClass(target, "input", "tick")[0]);
+  assert.deepEqual(order, [heading, bar, tables[0], byClass(target, "input", "tick")[0]], "the heading, then Accept ticked, then the first table and its first tick");
+});
+
 // TST-472670 · level: unit · module: MOD-review-pages
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: the entry 07 with a record of its proposal that names another section than the one the SPEC holds now

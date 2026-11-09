@@ -305,8 +305,10 @@ export function reviewRoute(kind) {
     target.append(el("h2", null, kind.title));
     if (service.reviewAll) target.append(reviewLink(context, `#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${service.count ? service.count(groups) : notAccepted(where.snapshot).length} not accepted`));
     if (kind.draft) target.append(reviewLink(context, `#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
-    target.append(explain(kind.explain.list));
+    // *Accept ticked*, with the note of its check, heads the list, above the tables.
     const check = bar ? await checkBeside(where, waiting[0]?.id) : null;
+    if (bar) target.append(bar, ...(check ? [check.note] : []));
+    target.append(explain(kind.explain.list));
     if (bar) {
       bar.addEventListener("click", async () => {
         bar.disabled = true;
@@ -322,7 +324,6 @@ export function reviewRoute(kind) {
       target.append(el("p", "problem", service.tokenNote, tokenStep(context)));
     }
     target.append(...tables);
-    if (bar) target.append(bar, ...(check ? [check.note] : []));
     const arrange = arrangeLink(context, kind);
     if (arrange) target.append(arrange, " ");
     target.append(reviewLink(context, `#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
