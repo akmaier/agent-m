@@ -117,8 +117,8 @@ person reviews it. Its formats are those of the modules it uses.
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
     fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
-    change of requirements drafted with the issue as its origin, run attended, each text it changes shown against the
-    text it replaces, then *Save*, which writes them as the kind's writer does, naming the issue — the job of `change-requirements` given the issue's number as its
+    change of requirements drafted with the issue as its origin, run attended, then *Save*, which writes them as the
+    kind's writer does, naming the issue, and links each entry written to the page where it is accepted — the job of `change-requirements` given the issue's number as its
     parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
     instance's snapshot, or, where it gives none, what its precondition names as required —; *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
