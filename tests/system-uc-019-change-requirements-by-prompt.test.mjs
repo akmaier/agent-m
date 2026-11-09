@@ -39,7 +39,7 @@ const ACCOUNT_SOURCE = /github\.com\/akmaier\)\*/;
 test("TST-418001: the prompt bar on the specification browser names where it sends and takes the open requirement as the target", async () => {
   const s = await scenario();
   const bar = barOf(s);
-  assert.equal(one(bar, "span", "participant").textContent, "drafter — this machine");
+  assert.equal(one(bar, "span", "participant").textContent, "drafter · fixture-model — this machine");
   assert.equal(all(bar, "option").length, 0, "observer cannot draft text, so there is nothing to choose among");
   await fromTrace(s);
   assert.equal(s.endpointRequests.length, 0, "nothing is sent while a requirement is only open");
@@ -70,7 +70,7 @@ test("TST-418002: one requirement traverses the bar, the route draft and Save", 
   assert.ok(messageLines(proposalWrites(s)[0]).every((line) => !line.includes(INSTRUCTION)), "no line of the commit names the instruction");
   // A message of the bar runs in the tab without a job record; the piece it hands on to change-requirements, run in this tab, has its own (UC-049 4a.1), which holds no word of it.
   assert.equal(recordTexts(s).length, 1, "one job record: the piece's");
-  assert.ok(/^kind: change-requirements$/m.test(recordTexts(s)[0]) && /^route: tab$/m.test(recordTexts(s)[0]) && !recordTexts(s)[0].includes(INSTRUCTION), recordTexts(s)[0]);
+  assert.ok(/^kind: change-requirements$/m.test(recordTexts(s)[0]) && /^route: tab endpoint drafter$/m.test(recordTexts(s)[0]) && !recordTexts(s)[0].includes(INSTRUCTION), recordTexts(s)[0]);
 });
 
 // TST-418003

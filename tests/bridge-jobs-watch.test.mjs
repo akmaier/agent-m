@@ -1,6 +1,6 @@
 // MOD-bridge-jobs' POST /v1/jobs, startWatching and stopWatching (ITM-327), as the accepted text of docs/architecture/MOD-bridge-jobs.md states
 // them: "startWatching(config) -> void — with the agents the Bridge offers and their working folders, starts reading every served product ...
-// at the given interval and after every hand-over: queued jobs whose participant's route names this Bridge and an agent it offers are taken — a
+// at the given interval and after every hand-over: queued jobs whose record's route names this Bridge and an agent it offers are taken — a
 // commit only on the head that was read, so that no other route takes them too — and run ... A product that cannot be read is skipped with its
 // reason, and read again at the next interval."; "stopWatching(reason) — stops taking jobs; on quit every job still running is stopped and its
 // record ends as cancelled, naming that the Bridge was quit"; "POST /v1/jobs — a job the page handed over: its start record is already committed
@@ -22,7 +22,7 @@
 //   - startWatching takes, beside the four things the file names, `instance`, the address of the instance repository whose docs/participants.md
 //     names the participants, and optionally `onSkipped({ product, reason })`, told of each product that could not be read.
 //   - Nothing is read at the start: the first reading is after one interval.
-//   - A participant of this Bridge is one whose route reads `bridge <bridge name> agent <agent>`; the agent it names must be offered with a folder.
+//   - A job of this Bridge is one whose record's route reads `bridge <bridge name> agent <agent>`; the agent it names must be offered with a folder.
 //   - A job ends `done` with its results the commits and the files its writer reports, and `draft:` what its writer shows; a failure ends it `failed`
 //     with the failure's message, and a quit `cancelled` with the reason "the Bridge was quit".
 // Each test states its input and its expected result before it runs (given / input / expect); where a test expects a job to be left alone, a job of the
@@ -72,19 +72,20 @@ function git(cwd, ...args) {
   return r.stdout.trim();
 }
 const script = (bin, name, body) => writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
-const ROW = (name, type, route) => `| ${name} | ${type} | example-model | 200000 | — | draft text, read the repository | this machine | ${route} |`;
+// The register names each agent with its model (MOD-participant-list); how an agent is reached is its job record's route, the connection it runs on.
 const PARTICIPANTS = `# Participants of this instance
 
 **REGISTER**
 
 The participants of the test instance.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-${[ROW("drafter", "CLI agent", "bridge lab-pc agent opencode"), ROW("other-drafter", "CLI agent", "bridge other-pc agent opencode"),
-  ROW("codex-drafter", "CLI agent", "bridge lab-pc agent codex"), ROW("claude-drafter", "CLI agent", "bridge lab-pc agent claude"),
-  ROW("ci-drafter", "CI agent", "ci hosted secret CI_KEY")].join("\n")}
+| Name | Type | Model |
+|---|---|---|
+${["drafter", "other-drafter", "codex-drafter", "claude-drafter", "ci-drafter"].map((name) => `| ${name} | agent | example-model |`).join("\n")}
 `;
+// The connection each agent's jobs run on: the route its records name (MOD-job-ledger).
+const ROUTES = { "drafter": "bridge lab-pc agent opencode", "other-drafter": "bridge other-pc agent opencode", "codex-drafter": "bridge lab-pc agent codex",
+  "claude-drafter": "bridge lab-pc agent claude", "ci-drafter": "ci hosted endpoint ci secret CI_KEY" };
 
 // A bare repository whose main holds the files given, and a seed clone of it that writes. -> { origin, seed }
 function repository(root, name, files) {
@@ -107,7 +108,8 @@ function push(seed, files, message) {
   return git(seed, "rev-parse", "HEAD");
 }
 
-const JOB = (id, participant, route = "bridge lab-pc") => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route, run: null, retries: null,
+const JOB = (id, participant, route = ROUTES[participant]) => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route, run: null, retries: null,
+  declares: { context: 200000, capabilities: ["draft text", "read the repository"] },
   startedBy: "alice", start: new Date("2026-10-11T09:00:00Z"), agentM: { version: "2026.10.0", commit: null }, inputs: [], limit: 3,
   destinations: [{ participant, place: "this machine", parts: ["the gate"] }], params: {} });
 const ID = (n) => `JOB-20261011-090${n}-aaa${n}`;
@@ -131,7 +133,7 @@ run) printf '%s\\n' "$PWD $*" >> ${calls}; ${commits}${gated ? `while [ ! -e ${g
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
   const instance = repository(root, "instance", { "docs/participants.md": PARTICIPANTS, "marker.md": "v1\n" });
   const first = git(instance.seed, "rev-parse", "HEAD");
-  push(instance.seed, { "marker.md": "v2\n", "docs/participants.md": PARTICIPANTS.replace("bridge lab-pc agent opencode", "bridge elsewhere agent opencode") }, "second");
+  push(instance.seed, { "marker.md": "v2\n", }, "second");
   const products = { [PRODUCT_A]: repository(root, "product-a", { "README.md": "A\n" }) };
   const queue = (product, job) => {
     const { path, text } = startRecord({ ...job, agentM: { version: "2026.10.0", commit: first } });
@@ -175,7 +177,7 @@ const runs = (w) => w.calls().filter((line) => / run /.test(line));
 
 // TST-472096 · level: unit · module: MOD-bridge-jobs
 // guards: UC-011; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
-// given: a product with one queued job of the participant `drafter`, whose route names this Bridge and opencode at the commit the record names; the instance, whose marker file reads v2 and whose register gives drafter another Bridge at its head, v1 and this Bridge at the commit the record names; opencode offered with a working folder
+// given: a product with one queued job of the participant `drafter`, whose record's route names this Bridge and opencode; the instance, whose marker file reads v2 at its head and v1 at the commit the record names; opencode offered with a working folder
 // input: startWatching with an interval of 100 ms; wait for the record's end
 // expect: the record is taken by `lab-pc` once and ends `done`, its results the writer's commit and file and its usage the agent's 11 and 7 tokens; the writer's commit is on the origin's main and its file shows the agent worked in <folder>/jobs/<id> and the instance's checkout held the marker v1 at the record's commit; the agent was started once, in that folder; the working clone is removed
 test("a queued job of this Bridge is taken, run in the agent's working folder with the instance at the record's commit, and ended with its results", async () => {
@@ -201,12 +203,12 @@ test("a queued job of this Bridge is taken, run in the agent's working folder wi
 
 // TST-472097 · level: unit · module: MOD-bridge-jobs
 // guards: UC-011; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
-// given: queued jobs of the participants other-drafter (a Bridge named other-pc), ci-drafter (a CI route), codex-drafter (this Bridge, an agent it does not offer) and, to show the watcher reads, drafter (this Bridge and opencode); opencode alone is offered
+// given: queued jobs whose records' routes name another Bridge (other-drafter, bridge other-pc agent opencode), CI (ci-drafter, ci hosted endpoint ci secret CI_KEY), this Bridge with an agent it does not offer (codex-drafter, bridge lab-pc agent codex) and, to show the watcher reads, this Bridge and opencode (drafter); opencode alone is offered
 // input: startWatching; wait for drafter's job to end, then three more intervals
 // expect: drafter's job ended; the other three records are exactly as they were committed; the agent was started once
 test("a job of another Bridge, another route or an agent not offered is left alone", async () => {
   await world(async (w) => {
-    const left = [w.queue(PRODUCT_A, JOB(ID(1), "other-drafter", "bridge other-pc")), w.queue(PRODUCT_A, JOB(ID(2), "ci-drafter", "ci hosted")),
+    const left = [w.queue(PRODUCT_A, JOB(ID(1), "other-drafter")), w.queue(PRODUCT_A, JOB(ID(2), "ci-drafter")),
       w.queue(PRODUCT_A, JOB(ID(3), "codex-drafter"))];
     const mine = w.queue(PRODUCT_A, JOB(ID(4), "drafter"));
     watch(w, [{ name: "opencode", folder: w.folder("agent-work") }]);

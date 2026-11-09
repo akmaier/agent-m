@@ -191,16 +191,16 @@ async function modelSinceOf(host, branch, declaration) {
 }
 
 // `ci`: the runs of the default branch's head, whether the configuration generated from the schedule is present, how the committed configuration differs from it (MOD-test-schedule's
-// configurationDrift, given the committed files, the schedule, the instance as the target, the resources and the participants), and whether the job workflow is present. It is "unknown" where
+// configurationDrift, given the committed files, the schedule, the instance as the target and the resources), and whether the job workflow is present. It is "unknown" where
 // the drift cannot be told: the product's server or the instance's address or commit is not known, or the schedule has an error finding (`InvalidSchedule`), which generates no configuration.
-async function ciFacts(host, branch, snapshot, instance, schedule, resources, register) {
+async function ciFacts(host, branch, snapshot, instance, schedule, resources) {
   const server = snapshot.repository?.server, at = instance.repository;
   if (!Object.hasOwn(CI_FILE, server) || typeof at?.path !== "string" || typeof at?.web !== "string" || typeof instance.commit !== "string") return "unknown";
   const files = {};
   for (const path of snapshot.paths.filter((each) => CI_FILE[server].test(each))) files[path] = (await snapshot.read(path)) ?? "";
   let drift;
   try {
-    drift = configurationDrift(files, schedule, { server, instance: server === "github" ? at.path : at.web, instanceCommit: instance.commit }, resources, register);
+    drift = configurationDrift(files, schedule, { server, instance: server === "github" ? at.path : at.web, instanceCommit: instance.commit }, resources);
   } catch (error) {
     if (error?.name === "InvalidSchedule") return "unknown";
     throw error;
@@ -216,7 +216,7 @@ async function schedulingFacts(host, branch, snapshot, instance, register) {
   const schedule = typeof saved === "string" ? readDocument(scheduleSchema, SCHEDULE, saved) : defaultSchedule();
   const resources = readRegister(resourceSchema(), RESOURCES, (await snapshot.read(RESOURCES)) ?? "");
   return { schedule, resourceNeeds: reachableBy(resources.rows.map((row) => ({ name: row.cells.Name, route: row.cells.Route }))),
-    ci: await ciFacts(host, branch, snapshot, instance, schedule, resources.document, register) };
+    ci: await ciFacts(host, branch, snapshot, instance, schedule, resources.document) };
 }
 
 const requirementsOf = async (snapshot) => {
@@ -329,7 +329,9 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   const { model, workflow, modelUnread } = await declaredWorkflow(declaration, instance, instanceAt);
   const registerText = await instance.read(PARTICIPANTS);
   const register = readDocument(participantSchema(), PARTICIPANTS, registerText ?? "");
-  const participants = registerText === null ? [] : participantsOf(register);
+  // The participants on the connections the caller gives: on a page this browser's, in CI and on a Bridge the one the record of the job that asks names; none
+  // where none are given, an agent then standing without a route.
+  const participants = registerText === null ? [] : participantsOf(register, options.connections ?? []);
 
   const jobs = await listJobs([{ address, snapshot }], new Map());
   const known = workflow !== null && workflow !== "unknown" ? workflow : null;

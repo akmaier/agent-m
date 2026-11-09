@@ -68,9 +68,12 @@ globalThis.fetch = async (address, init = {}) => {
   if (where.origin === "https://models.example") return json({ choices: [{ message: { content: JSON.stringify({ draft: { answer: "Done." }, answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
   throw new Error("no request leaves the fixtures: " + where.href);
 };
-const REGISTER = "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n"
-  + "| worker | model endpoint | model-t | 200000 | — | draft text | this machine | endpoint ep1 |\n";
-const participants = participantList.participantsOf(documents.readDocument(participantList.participantSchema(), "docs/participants.md", REGISTER));
+// The agent worker of the register, on this browser's one connection of its model: the endpoint ep1, called from the tab (MOD-prompt-bar's endpointsOffered).
+const REGISTER = "# Participants of this instance\n\n| Name | Type | Model |\n|---|---|---|\n| worker | agent | model-t |\n";
+const fixture = await import(url("tests/browser-connections-fixture.mjs")), promptBar = await import(url("src/prompt-bar/index.mjs"));
+const offered = promptBar.endpointsOffered(fixture.storeWith({ "endpoint:ep1": { kind: "openai-compatible", url: "https://models.example/v1", model: "model-t", key: "k", place: "this machine", context: 200000 } }));
+const participants = participantList.participantsOf(documents.readDocument(participantList.participantSchema(), "docs/participants.md", REGISTER), offered);
+if (participants.length !== 1 || participants[0].route !== "endpoint ep1") throw new Error("the fixture's endpoint does not offer worker's model: " + JSON.stringify(participants));
 const connections = { endpoints: { ep1: { config: { name: "ep1", kind: "openai-compatible", baseUrl: "https://models.example/v1", model: "model-t", key: "k" }, bridge: null } }, bridges: {} };
 const agentM = { version: "2026.10.0", commit: "c0ffee" };
 const JOB_PATH = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
@@ -178,15 +181,17 @@ async function ciEnd(input) {
     git(folder, "config", "user.name", "Alice Agent M token"); git(folder, "config", "user.email", "alice@example.org");
     return origin;
   };
-  const PARTICIPANTS = "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n"
-    + "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitLab's hosted runners | ci hosted secret FIXTURE_KEY |\n";
+  // The agent ci-bot of the register; its job's record names its connection — the endpoint fixture, whose key is the CI secret FIXTURE_KEY — and declares its context
+  // and capabilities, from which alone CI builds the participant (MOD-workflow-entries).
+  const PARTICIPANTS = "# Participants of this instance\n\n| Name | Type | Model |\n|---|---|---|\n| ci-bot | agent | fixture-llm |\n";
   const JOB = "JOB-20261016-0800-a1b2", PIPELINE = "https://gitlab.example.test/alice/thesis-tool/-/pipelines/4711", GATE = "docs/gates/GATE-fixture.md";
   const productDir = path.join(root, "ws", "product"), instanceDir = path.join(root, "ws", "instance");
   const saved = { fetch: globalThis.fetch };
   try {
     repository("instance", { "README.md": "# Instance\n", "docs/participants.md": PARTICIPANTS }, instanceDir);
     const agentM = { version: "2026.10.0", commit: git(instanceDir, "rev-parse", "HEAD") };
-    const start = ledger.startRecord({ id: JOB, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice",
+    const start = ledger.startRecord({ id: JOB, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot", model: "fixture-llm", route: "ci hosted endpoint fixture secret FIXTURE_KEY",
+      declares: { context: 100000, capabilities: ["read the repository", "write to the repository"] }, run: null, retries: null, startedBy: "alice",
       start: new Date("2026-10-16T08:00:00Z"), agentM, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: "GitLab's hosted runners", parts: ["gate-inputs"] }],
       params: { endpoint: { name: "fixture", kind: "openai-compatible", baseUrl: "https://llm.example.test/v1", model: "fixture-llm" } } });
     const origin = repository("product", { "README.md": "# Thesis tool\n", [start.path]: start.text }, productDir);

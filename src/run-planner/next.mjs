@@ -15,7 +15,7 @@
 //     and the visibility the facts hold and the product's resource needs). The item's role assignment and sprint are those of the team whose sprint holds it (`facts.held`), else the
 //     product's one in a model without sprints, as src/prompt-bar/hand-over.mjs takes them. Facts carry no source register, so the places a restricted source permits are left to the job's
 //     preparation, which refuses content to a place the source does not permit.
-//   - The route of an action is the text a job's record writes: `tab`, `ci hosted`, `ci runner:<label>`, `bridge <name>`.
+//   - The route of an action is the text a job's record writes, the connection's (MOD-job-ledger, `route`).
 //   - Every job of the run that has not ended counts against `jobs at once`, one that waits at a gate too (as the work-in-progress limit counts an item waiting for review); a resumption starts no further job.
 //     `startable` is asked with the items chosen earlier in the call as in progress, so that the work-in-progress limit holds across one call.
 //   - A job is resumed when it is a job of the run, waits at a named gate that has no resumption, and `facts.gateStates` gives that gate `passed`.
@@ -40,8 +40,15 @@ const action = (fields) => ({ do: "start", kind: null, worksOn: null, route: nul
 const known = (fact) => (fact === "unknown" ? null : fact ?? null);
 const moduleOf = (edge) => edge.to.split(".")[0];
 
-// The route as a job's record writes it.
-const routeText = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it, the connection's (MOD-job-ledger, `route`): a Bridge's coding agent and a coding agent on CI by their connection's route; on the tab
+// or CI a model endpoint's route follows the place it runs.
+function routeText(route, participant) {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+}
 
 // The refusal of a cycle: the finding at the first module of the cycle, naming the modules of it.
 function refusal(graph, cycle) {
@@ -91,8 +98,8 @@ function holderOf(item, states, facts, workflow) {
   for (const participant of facts.participants) {
     const verdict = startable(item, states, { workflow, assignment, sprint, held: facts.held, wip: workflow?.model?.flow?.wip ?? null, participants: [participant] });
     if (!verdict.startable) continue;
-    const offer = routesFor(participant, facts.participants, product, facts.resourceNeeds).find((each) => each.available);
-    if (offer) return { participant: participant.name, route: routeText(offer.route) };
+    const offer = routesFor(participant, product, facts.resourceNeeds).find((each) => each.available);
+    if (offer) return { participant: participant.name, route: routeText(offer.route, participant) };
   }
   return null;
 }

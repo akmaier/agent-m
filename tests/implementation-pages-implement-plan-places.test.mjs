@@ -8,8 +8,8 @@
 // Guards: UC-024; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // Level: unit
 //
-// The product is the V-model fixture of tests/implementation-pages-implement-plan-start.test.mjs (the steps ITM-012 and ITM-010 ticked); the role assignment gives dev-a and dev-b the roles Developer and Tester; dev-a
-// processes data at "this machine", dev-b at "elsewhere". The instance's register holds the source SRC-fixture, whose licence and places each test states. The recipe `implementation-inputs` is stood in for: the part it gives
+// The product is the V-model fixture of tests/implementation-pages-implement-plan-start.test.mjs (the steps ITM-012 and ITM-010 ticked); the role assignment gives dev-a and dev-b the roles Developer and Tester; dev-a's
+// connection (the coding agent claude of the Bridge lab-pc) processes data at "this machine", dev-b's (its coding agent codex) at "elsewhere". The instance's register holds the source SRC-fixture, whose licence and places each test states. The recipe `implementation-inputs` is stood in for: the part it gives
 // for ITM-012 cites SRC-fixture, the part for ITM-010 cites no source. Nothing reaches the network. Readings the tests state (the pull request names them):
 //   - "offered" is the option in <select data-participant-of="<step>"> of the step's <div data-job-of>; a participant a source forbids is not an option.
 //   - "the content is named": the text of <p data-withheld-of="<step>"> names the participant that is not offered, the source and the place.
@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -78,9 +79,12 @@ function productFiles({ model = "v-model", plan = true, declared = true, later =
 
 const ROOT = new URL("../", import.meta.url);
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |
-| dev-b | model endpoint | model-b | 200000 | — | read the repository, write to the repository, run code and tests, use tools | elsewhere | ci hosted secret DEV_KEY |
-| dev-c | model endpoint | model-c | 200000 | — | read the repository, write to the repository | a server in Singapore | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n| dev-c | agent | model-c |\n`;
+// This browser's connections: the Bridge lab-pc, whose coding agents offer model-a at "this machine" (claude) and model-b at "elsewhere" (codex), each with every capability an implementing job needs, and
+// model-c at "a server in Singapore" (opencode), which reads and writes the repository but does not run code and tests; the Bridge answers here.
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridge = withBridge([agent("claude", [["model-a"]]), agent("codex", [["model-b"]], { place: "elsewhere" }), agent("opencode", [["model-c"]], { place: "a server in Singapore", capabilities: ["read the repository", "write to the repository"] })]);
+test.after(() => bridge.restore());
 
 
 // The strategies the kinds name: stand-ins.
@@ -113,7 +117,7 @@ function hostOf(files, commits, failure = null) {
     },
   };
 }
-async function render(files, { register = REGISTER, failure = null, store = {}, licence = "restricted - fixture terms", places = ["this machine"] } = {}) {
+async function render(files, { register = REGISTER, failure = null, store = storeWith(SETTINGS), licence = "restricted - fixture terms", places = ["this machine"] } = {}) {
   const commits = [];
   const instance = hostOf({ "SPEC.md": "# Instance\n", "docs/participants.md": register, "docs/sources/SRC-fixture.md": sourceEntry(licence, places) }, [], null);
   const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: hostOf(files, commits, failure), tokenStored: true }, store, go() {} };

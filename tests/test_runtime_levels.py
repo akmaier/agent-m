@@ -81,7 +81,7 @@ function tokenFindings(text, server, token) {
 
 if (input.check === "routes") {
   const me = participantOf(input.participantRoute);
-  const offer = hostedOrRunner(runtimes.routesFor(me, [me], input.product, input.needs));
+  const offer = hostedOrRunner(runtimes.routesFor(me, input.product, input.needs));
   return { available: offer.available };
 }
 if (input.check === "kinds") {
@@ -93,7 +93,7 @@ if (input.check === "kinds") {
     const kind = await jobCatalogue.kindOf(name);
     if (kind.resources !== "none") continue;
     seen += 1;
-    if (!hostedOrRunner(runtimes.routesFor(me, [me], input.product, [])).available) unavailable.push(name);
+    if (!hostedOrRunner(runtimes.routesFor(me, input.product, [])).available) unavailable.push(name);
   }
   return { kinds: seen > 0, unavailable };
 }

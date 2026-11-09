@@ -94,10 +94,10 @@ test("the routes reachableBy gives are the form routesFor reads", () => {
   const needs = reachableBy([entry("gpu-box", "compute", { route: "bridge lab-pc" }), entry("cluster", "compute", { route: "runner:gpu" })]);
   assert.equal(needs.length, 2, "known positive");
   const onBridge = { name: "a", route: "bridge lab-pc agent claude" }, onRunner = { name: "b", route: "ci runner:gpu secret KEY" }, register = [onBridge, onRunner];
-  const bridgeOnly = routesFor(onBridge, register, product, [needs[0]]), runnerOnly = routesFor(onRunner, register, product, [needs[1]]);
+  const bridgeOnly = routesFor(onBridge, product, [needs[0]]), runnerOnly = routesFor(onRunner, product, [needs[1]]);
   assert.deepEqual([bridgeOnly[0].available, runnerOnly[0].available], [true, true]);
-  const wrong = routesFor(onBridge, register, product, [needs[1]]);
+  const wrong = routesFor(onBridge, product, [needs[1]]);
   assert.equal(wrong[0].available, false);
   assert.match(wrong[0].reason, /runner:gpu/);
-  assert.equal(routesFor(onRunner, register, product, [needs[0]])[0].available, false);
+  assert.equal(routesFor(onRunner, product, [needs[0]])[0].available, false);
 });

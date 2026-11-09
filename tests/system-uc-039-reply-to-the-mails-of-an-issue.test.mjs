@@ -26,7 +26,9 @@ afterEach(restoreWorld);
 const [M1, M2, M3] = [await mailOf("m1"), await mailOf("m2"), await mailOf("m3")];
 const ADA = "Ada Reporter <ada@example.invalid>";
 const CLOSED_WITH = "Closed with pull request https://github.com/alice/product/pull/9.";
-const CLI = "| agent-cli | CLI agent | model-c | 200000 | — | draft text | this machine | bridge lab-pc-4 agent claude |";
+// The agent agent-cli, whose model-c the CLI session claude of the Bridge lab-pc-4 offers at this machine (CLAUDE, the agent the Bridge lists with the declaration it keeps, MOD-bridge-http GET /v1/agents).
+const CLI = "| agent-cli | agent | model-c |";
+const CLAUDE = { name: "claude", place: "this machine", capabilities: ["draft text"], models: [{ model: "model-c", context: 200000 }] };
 const day = /\d{4}-\d{2}-\d{2}/.source;
 
 // The issue 4 as the standard fixture's: closed, listing the mails given.
@@ -67,7 +69,7 @@ test("main flow, steps 1 to 4: the issue read, the participant chosen, one draft
       assert.match(textOf(item), new RegExp(`${ERIKA.name}.*2026-10-18.*${subject}`), `${mail.id}: reporter, date and subject`);
     }
     await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm"], "only the participant whose place the mailbox allows");
+    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm", "ep1"], "only the participant whose place the mailbox allows, and its endpoint itself");
     assert.match(textOf(one(p.main(), "reply-participants")), /this machine/);
     await choose(p);
     assert.match(textOf(one(p.main(), "run-panel")), /local-llm.*this machine/s, "the panel names the participant and its place");
@@ -187,7 +189,7 @@ test("alternative 2a: Close and reply closes the open issue and the drafting app
     assert.equal(JSON.parse(patches[0].body).state, "closed");
     assert.ok(patches[0].path.endsWith("/issues/6"));
     await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm"]);
+    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
   });
 });
 
@@ -254,17 +256,17 @@ test("alternative 3a: a reply written without a participant opens an empty draft
 
 // TST-969007 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; EVERY OUTGOING MAIL IS RELEASED BY A PERSON
-// given: the register lists the CLI agent agent-cli (this machine, reached through the Bridge lab-pc-4 as the agent claude) beside local-llm and cloud-llm; the mailbox allows this machine
+// given: the register lists the agent agent-cli, whose model the CLI session claude of the Bridge lab-pc-4 offers at this machine, beside local-llm and cloud-llm; the mailbox allows this machine
 // input: agent-cli chosen and a name typed; the person's click on Run
-// expect: agent-cli is offered with its place and the run panel names it; the Bridge receives one ask for the agent claude whose input holds the issue, what solved it and the mail, and nothing that sends; the texts it returns are stored as drafts in Drafts; no send request reaches Graph and no mail operation of sending is asked of the Bridge — nothing is sent without the confirmation of step 5 (flow: UC-039 alternative 3b)
+// expect: agent-cli is offered with its place, after local-llm and before the connections themselves (ep1, lab-pc-4:claude), and the run panel names it; the Bridge receives one ask for the agent claude whose input holds the issue, what solved it and the mail, and nothing that sends; the texts it returns are stored as drafts in Drafts; no send request reaches Graph and no mail operation of sending is asked of the Bridge — nothing is sent without the confirmation of step 5 (flow: UC-039 alternative 3b)
 test("alternative 3b: a CLI agent receives the job through its Bridge, returns the texts, and nothing is sent", async () => {
   const texts = [];
-  const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])], rows: [CLOUD, LOCAL, CLI], texts });
+  const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])], rows: [CLOUD, LOCAL, CLI], texts, agents: [CLAUDE] });
   await lastly(p, async () => {
     await openIssueAfterReading(p, 4);
     await waitFor(() => byClass(p.main(), "participant").length > 0);
     const names = byClass(p.main(), "participant").map((radio) => radio.value);
-    assert.deepEqual(names, ["local-llm", "agent-cli"]);
+    assert.deepEqual(names, ["local-llm", "agent-cli", "ep1", "lab-pc-4:claude"]);
     await choose(p, "Reviewer Rae", 1);
     assert.match(textOf(one(p.main(), "run-panel")), /agent-cli.*this machine/s);
     texts.push({ mail: M1.id, text: "Fixed in version 1.5." });

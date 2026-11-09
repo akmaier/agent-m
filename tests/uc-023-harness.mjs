@@ -102,9 +102,9 @@ export async function record(id, kind, path, body) {
 // offers. The instance's participant list stays for the draft page of MOD-review-pages, which chooses its deriving and its reviewing participant from the register (jobs.mjs, loadStage).
 const registerHead = readOriginal("docs/participants.md").split("\n");
 const header = registerHead.slice(0, registerHead.findIndex((line) => line.startsWith("|---")) + 1).join("\n");
-const register = (context) => txt(header,
-  `| drafter | model endpoint | model-a | ${context} | - | draft text | this machine | endpoint drafter |`,
-  `| reviewer | model endpoint | model-b | ${context} | - | draft text | this machine | endpoint reviewer |`);
+const register = () => txt(header,
+  "| drafter | agent | model-a |",
+  "| reviewer | agent | model-b |");
 
 const FIXTURE_ORIGINS = ["https://api.github.com", "https://raw.githubusercontent.com", "https://fixture-endpoint.example.test", "https://fixture-b.example.test"];
 export const outside = [];
@@ -209,7 +209,7 @@ export async function scenario({ now = {}, remove = [], extra = {}, answers = []
   for (let at = 0; at < scenarios * 16; at += 1) await product.change("README.md", current["README.md"]);
   const chapterFolder = "docs/sources/SRC-vibe-coding/2026-10-05/";
   const chapters = Object.fromEntries(readdirSync(new URL(chapterFolder, ROOT)).filter((path) => path.endsWith(".md")).map((path) => [chapterFolder + path, readOriginal(chapterFolder + path)]));
-  const instance = await repoServer({ head: INSTANCE_HEAD, files: { "docs/participants.md": register(context), "AGENTS.md": readOriginal("AGENTS.md"), "docs/sources/SRC-vibe-coding.md": readOriginal("docs/sources/SRC-vibe-coding.md"), ...chapters },
+  const instance = await repoServer({ head: INSTANCE_HEAD, files: { "docs/participants.md": register(), "AGENTS.md": readOriginal("AGENTS.md"), "docs/sources/SRC-vibe-coding.md": readOriginal("docs/sources/SRC-vibe-coding.md"), ...chapters },
     handlers: [handler, (url, init) => (url.pathname === `/repos/${repo}` ? response({ default_branch: "main", private: false, archived: false, permissions: { push: true }, description: "" })
       : url.pathname.startsWith(`/repos/${repo}/`) ? product.fetch(url, init) : null)] });
   globalThis.fetch = (input, init) => {
@@ -314,8 +314,8 @@ export const lines = (message) => message.split("\n");
 
 // ---------------------------------------------------------------- a job without the page
 
-// The participants of the register above as MOD-participant-list gives them, and a third with the drafter's model.
-const endpoint = (name, model, context = 300000) => ({ name, type: "model endpoint", model, context, price: null, capabilities: ["draft text"], place: "this machine", route: `endpoint ${name}` });
+// The participants of the register above on the endpoints the scenario stores, as MOD-participant-list gives them, and a third with the drafter's model.
+const endpoint = (name, model, context = 300000) => ({ name, type: "model endpoint", model, context, capabilities: ["draft text"], place: "this machine", route: `endpoint ${name}` });
 export const DRAFTER = endpoint("drafter", "model-a"), REVIEWER = endpoint("reviewer", "model-b"), TWIN = endpoint("twin", "model-a"), SMALL = endpoint("small", "model-c", 100);
 export const USAGE = { inputTokens: 10, outputTokens: 5, minutes: null, cost: null };
 /** driver(participant, answers) — a Driver that answers in turn (the last answer again once they are used) and keeps every input it is sent in `inputs`. */

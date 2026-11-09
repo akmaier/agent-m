@@ -50,6 +50,7 @@ jobs:
       AGENT_M_RUNNER: @@runner@@
       AGENT_M_PRODUCT_DIR: ${{ github.workspace }}/product
       AGENT_M_KEY_NAMES: "@@key-names@@"
+      AGENT_M_CI_AGENTS: @@ci-agents@@
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,6 +80,7 @@ jobs:
       AGENT_M_RESULT_DIR: ${{ github.workspace }}/result
       AGENT_M_TOKEN_NAME: "@@token@@"
       AGENT_M_KEY_NAMES: "@@key-names@@"
+      AGENT_M_CI_AGENTS: @@ci-agents@@
       AGENT_M_TOKEN: ${{ secrets.@@token@@ }}
 @@key-env@@    steps:
       - uses: actions/checkout@v4
@@ -140,6 +142,7 @@ jobs:
       AGENT_M_RESULT_DIR: ${{ github.workspace }}/result
       AGENT_M_MODEL_USER: "agent-m-model"
       AGENT_M_KEY_NAMES: "@@key-names@@"
+      AGENT_M_CI_AGENTS: @@ci-agents@@
       AGENT_M_KEY: "@@agent@@"
 @@agent-key-env@@    steps:
       - uses: actions/checkout@v4

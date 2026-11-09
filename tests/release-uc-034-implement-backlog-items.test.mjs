@@ -63,6 +63,7 @@ const EVIDENCE = {
   "WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET": [[TARGET, "TST-1171102"]],
   "A PROCESS REQUIREMENT ADDS TO THE MODEL": [["tests/release-sprint-16-practice-workflow.test.mjs", "TST-478005"], [GATE, "TST-805402"]],
   "A ROLE NAMES THE CAPABILITIES IT NEEDS": [["tests/release-uc-048-fill-the-roles.test.mjs", "TST-1063102"], ["tests/release-uc-031-requirements-of-a-model.test.mjs", "TST-802305"]],
+  "A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL": [[UC24, "TST-740322"]],
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": [[UC24, "TST-740315"]],
   "THE PAGE NAMES WHERE IT SENDS": [[UC24, "TST-740316"]],
   "THE GATE IS RECORDED": [[UC24, "TST-740308"], ["tests/release-itm-1338-gate-record-link.test.mjs", "TST-1338101"], [RECORD, "TST-805501"]],
@@ -86,13 +87,13 @@ const EVIDENCE = {
 
 // TST-805301 · level: release · module: system
 // guards: UC-034
-// given: UC-034 as committed text, whose `realises` lists thirty-seven requirements, and the release tests named in EVIDENCE
+// given: UC-034 as committed text, whose `realises` lists thirty-eight requirements, and the release tests named in EVIDENCE
 // input: read UC-034's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-034 realises these thirty-seven requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no release case written by developer-sonnet-j guards A BACKLOG ITEM NAMES THE MODULES IT CHANGES, the requirement its ITM-817 built
+// expect: known positive — UC-034 realises these thirty-eight requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no release case written by developer-sonnet-j guards A BACKLOG ITEM NAMES THE MODULES IT CHANGES, the requirement its ITM-817 built
 test("TST-805301: UC-034 every requirement it realises has a release test that guards it", () => {
   const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
-  assert.equal(realised.length, 37, "known positive: UC-034 realises thirty-seven requirements");
+  assert.equal(realised.length, 38, "known positive: UC-034 realises thirty-eight requirements");
   assert.deepEqual([...realised].sort(), Object.keys(EVIDENCE).sort(), "the map holds exactly the requirements UC-034 realises");
   for (const [requirement, named] of Object.entries(EVIDENCE)) {
     assert.ok(named.length > 0, `${requirement}: a test is named`);
@@ -127,8 +128,9 @@ const workflowOf = (gated) => ({
   gates: gated ? [{ name: "Planning -> Development", from: "Planning", to: "Development", artifacts: "plan", condition: "the plan is accepted", decider: "Product Owner", addedBy: null, practice: null }] : [],
   roles: [{ name: "Product Owner", filledBy: "person", howMany: "one", capabilities: ["read the repository"] }, DEVELOPERS], branches: {}, done: [],
 });
-const PARTICIPANTS = [{ name: "alice", type: "person", model: null, capabilities: ["read the repository", "write to the repository"], place: null, route: "account alice" },
-  { name: "dev-a", type: "CLI agent", model: "model-a", capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "this machine", route: "bridge lab agent claude" }];
+// The participants as MOD-participant-list's participantsOf joins them: alice, a person, on no connection; dev-a on the coding agent claude of the Bridge lab, which offers its model.
+const PARTICIPANTS = [{ name: "alice", type: "person", model: null, context: null, capabilities: [], place: null, route: null },
+  { name: "dev-a", type: "CLI agent", model: "model-a", context: 200000, capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "this machine", route: "bridge lab agent claude" }];
 const ASSIGNMENT_DOC = readDocument(roleAssignmentSchema, "docs/role-assignments/team1.md", lines("# team1", "", "## Roles", "", "| Role | Participants |", "|---|---|", "| Product Owner | alice |", "| Developers | dev-a |"));
 const merged = (id, number) => ({ number, title: `${id} work`, branch: `work/${id}`, base: "main", head: "a".repeat(40), state: "merged", draft: false, url: `https://example.invalid/${number}`, opened: "2026-10-13T08:00:00Z",
   merged: "2026-10-13T09:00:00Z", closed: null });

@@ -38,12 +38,12 @@ async function ready(texts = []) {
 // guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-039
 // given: the open issue 6 and its mail, found, without a draft; a mailbox that allows the place "this machine"; a register with local-llm there and cloud-llm in the USA
 // input: the person's click on Draft question; the point typed, local-llm chosen, a name given
-// expect: a section opens with a field for the point and the participants — local-llm alone —; no run panel before the point, a participant and a name are given; then the run panel names local-llm and its place and the parts it receives: the issue, the person's point and the mail by its identifier, and no "Solved by"; nothing is sent or stored yet
+// expect: a section opens with a field for the point and the participants — local-llm, the agent on this browser's endpoint ep1 at this machine, and ep1 itself, a connection the prompt bar offers —; no run panel before the point, a participant and a name are given; then the run panel names local-llm and its place and the parts it receives: the issue, the person's point and the mail by its identifier, and no "Solved by"; nothing is sent or stored yet
 test("Draft question asks for the person's point and a participant at an allowed place, and its run panel names what the participant receives", async () => {
   const f = await ready();
   await trusted(one(f.item, "draft-question"));
   await waitFor(() => byClass(f.item, "question-drafting").length > 0 && byClass(f.item, "participant").length > 0);
-  assert.deepEqual(byClass(f.item, "participant").map((radio) => radio.value), ["local-llm"]);
+  assert.deepEqual(byClass(f.item, "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
   const radio = one(f.item, "participant");
   radio.checked = true;
   one(f.item, "person").value = "Reviewer Rae";

@@ -1,6 +1,7 @@
 // The world of the system and release tests of UC-037 "Connect a mailbox" (tests/system-uc-037-connect-mailbox.test.mjs, tests/release-uc-037-connect-mailbox.test.mjs) — a helper, no test of its own, and it holds no
 // expected result. The page is MOD-site-frame's real `startPage` on the main page over the view of MOD-settings-pages, in the browser and the repositories of tests/main-page-home-harness.mjs (the instance
-// alice/agent-m at https://alice.github.io/agent-m/, whose docs/participants.md declares the processing places of the rows a test names). Over that world this file puts what UC-037 reaches:
+// alice/agent-m at https://alice.github.io/agent-m/, whose docs/participants.md lists the team, and whose browser keeps the endpoints that declare the processing places a test names — the places a mailbox's mail
+// may go are those this browser's connections declare, MOD-settings-pages, `mailbox`). Over that world this file puts what UC-037 reaches:
 //   - the Bridge as MOD-desktop-shell's `compose` builds it (ITM-430), on the loopback, paired with the origin https://alice.github.io — the same start as tests/mod-desktop-shell-mail-composition.test.mjs, with its
 //     stand-in for ssh2 — answering every /v1/mail/<operation> with the real mailHandlers of MOD-mail-protocols; the browser's requests to it are made over node:http with the Origin header a browser sets;
 //   - the jump host's web server: requests to https://jump.example.test/bridge/<name>/… are kept and passed to the same composed Bridge, as the proxy configuration of MOD-bridge-client forwards them;
@@ -43,12 +44,13 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
 const BASE_FETCH = globalThis.fetch;
 const CRLF = "\r\n";
 
-// ---------------------------------------------------------------- the participants' register
+// ---------------------------------------------------------------- the participants' register and this browser's connections
 
-const ROW = (name, place) => `| ${name} | model endpoint | ${name}-model | 200000 | — | draft text | ${place} | endpoint ep1 |`;
-export const ROWS = [ROW("local-llm", "this machine"), ROW("campus-llm", "FAU data centre (EU)"), ROW("cloud-llm", "a provider in the USA")];
-const REGISTER = (rows) => ["# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|", ...rows, ""].join("\n");
+// The endpoints this browser keeps, by name, each with the place where it processes data; the store lists them by name, so their places stand in this order.
+const ENDPOINT = (model, place) => ({ url: "https://models.example.test/v1", kind: "openai-compatible", model, place, context: 200000 });
+export const CONNECTIONS = { desk: ENDPOINT("desk-model", "this machine"), fau: ENDPOINT("fau-model", "FAU data centre (EU)"), "us-cloud": ENDPOINT("cloud-model", "a provider in the USA") };
+const REGISTER = ["# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "",
+  "| Name | Type | Model |", "|---|---|---|", "| alice | person | — |", "| desk-agent | agent | desk-model |", "| fau-agent | agent | fau-model |", "| cloud-agent | agent | cloud-model |", ""].join("\n");
 
 // ---------------------------------------------------------------- the mail servers
 
@@ -364,14 +366,14 @@ export const waitFor = async (condition, what = "the condition") => {
  * Opens the dashboard of the instance alice/agent-m in a browser of its own at `fragment` (Settings, where none is given). Precondition the test names:
  *   - `bridges`: the Bridges this browser keeps — `lab-pc` on this computer's loopback (the composed Bridge, with its pairing token), `gpu-box` through the jump host at port 40100 of its range
  *     (the jump host stored with its HTTPS address and web-server login), `wrong-token` (the composed Bridge with a token it never issued), `gone` (an address where nothing listens);
- *   - `imap`, `smtp`: the options of the mail servers; `graphFolders`: the folders Microsoft Graph holds; `signIn`: the stand-in's options; `rows`: the participants' register;
+ *   - `imap`, `smtp`: the options of the mail servers; `graphFolders`: the folders Microsoft Graph holds; `signIn`: the stand-in's options; `connections`: the endpoints this browser keeps, by name;
  *   - `storage`: a localStorage to start with (a browser that has been used before); `bridge`: a composed Bridge to share with an earlier browser; `views`: the views the main page serves
  *     (the settings pages' where none are given).
  * Returns the page's main element and what the fixtures kept; `stop()` closes what it started and must be called in a `finally`.
  */
-export async function openDashboard({ fragment = "#settings", bridges = ["lab-pc", "gpu-box"], imap = {}, smtp = {}, graphFolders = { inbox: 7, Receipts: 2, drafts: 0, sentitems: 5 }, signIn = {}, rows = ROWS, storage = null, bridge = null, views = [settingsView] } = {}) {
+export async function openDashboard({ fragment = "#settings", bridges = ["lab-pc", "gpu-box"], imap = {}, smtp = {}, graphFolders = { inbox: 7, Receipts: 2, drafts: 0, sentitems: 5 }, signIn = {}, connections = CONNECTIONS, storage = null, bridge = null, views = [settingsView] } = {}) {
   Object.defineProperty(globalThis, "fetch", { configurable: true, writable: true, value: BASE_FETCH });
-  const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows) };
+  const files = { ...instanceFiles(), "docs/participants.md": REGISTER };
   const repositories = network({ [INSTANCE]: files, [PRODUCT]: smallProduct() });
   repositories.install();
   const context = browser();
@@ -386,6 +388,7 @@ export async function openDashboard({ fragment = "#settings", bridges = ["lab-pc
   const ownBridge = !bridge;
   const composed = bridge ?? await composedBridge();
   if (!storage) {
+    for (const [name, setting] of Object.entries(connections)) writeSetting(store, `endpoint:${name}`, setting);
     if (bridges.includes("lab-pc")) writeSetting(store, "bridge:lab-pc", { address: composed.address, token: composed.token });
     if (bridges.includes("gpu-box")) {
       writeSetting(store, "bridge:gpu-box", { port: 40100, token: composed.token });

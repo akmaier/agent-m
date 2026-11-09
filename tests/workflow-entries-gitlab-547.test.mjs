@@ -53,11 +53,14 @@ const ENDPOINT_NAME = "fixture-endpoint";
 const PROJECT = "https://gitlab.example.test/alice/thesis-tool";
 const PIPELINE = "https://gitlab.example.test/alice/thesis-tool/-/pipelines/4711";
 
+// The coding agents on CI the job workflow declares (AGENT_M_CI_AGENTS, MOD-runtimes' jobWorkflowFiles).
+const CI_AGENTS = [{ name: "dev-ci", agent: "claude", runner: "hosted", secret: "FIXTURE_KEY", place: "Anthropic, USA", capabilities: ["run code and tests"],
+  models: [{ model: "fixture-model", context: 200000 }] }];
 // What the GitLab job (src/runtimes/workflow/gitlab.yml) gives an entry: GitLab's predefined variables and the names the template sets.
 const gitlab = (extra = {}) => ({ GITLAB_CI: "true", CI_PIPELINE_SOURCE: "api", CI_PROJECT_DIR: "/builds/alice/thesis-tool", CI_PROJECT_URL: PROJECT, CI_COMMIT_REF_NAME: "main",
   CI_COMMIT_SHA: SHA, GITLAB_USER_LOGIN: "alice", CI_PIPELINE_URL: PIPELINE,
   AGENT_M_RUNNER: "hosted", AGENT_M_PRODUCT_DIR: "/builds/alice/thesis-tool", AGENT_M_TOKEN_NAME: "ALICE_TOKEN", AGENT_M_TOKEN: TOKEN, AGENT_M_KEY_NAMES: "FIXTURE_KEY OTHER_KEY",
-  FIXTURE_KEY: KEY, AGENT_M_INPUT_JOB: JOB, AGENT_M_INPUT_TASK: "Fix the loan due date", AGENT_M_INPUT_ENDPOINT: ENDPOINT_NAME, ...extra });
+  AGENT_M_CI_AGENTS: JSON.stringify(CI_AGENTS), FIXTURE_KEY: KEY, AGENT_M_INPUT_JOB: JOB, AGENT_M_INPUT_TASK: "Fix the loan due date", AGENT_M_INPUT_ENDPOINT: ENDPOINT_NAME, ...extra });
 // GitHub's names for another run, which GitLab's job never sets; the tests put them beside GitLab's to show which service decides.
 const githubNames = (extra = {}) => ({ GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_WORKSPACE: "/home/runner/work/thesis-tool", GITHUB_SERVER_URL: "https://github.com",
   GITHUB_REPOSITORY: "alice/thesis-tool", GITHUB_REF_NAME: "release", GITHUB_SHA: "f".repeat(40), GITHUB_RUN_ID: "99", GITHUB_ACTOR: "bob", GITHUB_TOKEN: "ghs_workflowtoken",
@@ -75,7 +78,7 @@ test("ciEnvironment — a GitLab job's variables are read into the CiEnvironment
     event: { name: "api", payload: { inputs: { job: JOB, task: "Fix the loan due date", endpoint: "fixture-endpoint" } } },
     checkout: "/builds/alice/thesis-tool", repository: "https://gitlab.example.test/alice/thesis-tool", branch: "main", agentM: { commit: SHA }, token: null, now: NOW,
     job: { runner: "hosted", productDir: "/builds/alice/thesis-tool", instanceDir: "/builds/alice/instance", actor: "alice", runUrl: "https://gitlab.example.test/alice/thesis-tool/-/pipelines/4711",
-      tokenName: "ALICE_TOKEN", personToken: TOKEN, keys: { FIXTURE_KEY: KEY, OTHER_KEY: null }, summaryFile: null, part: null, resultDir: null, agentKey: null, modelUser: null, keyHolder: null, outputFile: null },
+      tokenName: "ALICE_TOKEN", personToken: TOKEN, keys: { FIXTURE_KEY: KEY, OTHER_KEY: null }, ciAgents: CI_AGENTS, summaryFile: null, part: null, resultDir: null, agentKey: null, modelUser: null, keyHolder: null, outputFile: null },
   });
 });
 
@@ -158,7 +161,7 @@ test("ciEnvironment — without GITLAB_CI a GitHub job is read as before", () =>
       entry: "onDispatch", service: "github", event: { name: "workflow_dispatch", payload: { inputs: { job: "JOB-1" } } },
       checkout: "/home/runner/work/thesis-tool", repository: "https://github.com/alice/thesis-tool", branch: "main", agentM: { commit: SHA }, token: "ghs_workflowtoken", now: NOW,
       job: { runner: "hosted", productDir: "/home/runner/work/thesis-tool/product", instanceDir: "/home/runner/work/thesis-tool/instance", actor: "alice",
-        runUrl: "https://github.com/alice/thesis-tool/actions/runs/4711", tokenName: "ALICE_TOKEN", personToken: TOKEN, keys: { FIXTURE_KEY: KEY }, summaryFile: "/home/runner/summary.md", part: null, resultDir: null, agentKey: null, modelUser: null, keyHolder: null, outputFile: null },
+        runUrl: "https://github.com/alice/thesis-tool/actions/runs/4711", tokenName: "ALICE_TOKEN", personToken: TOKEN, keys: { FIXTURE_KEY: KEY }, ciAgents: [], summaryFile: "/home/runner/summary.md", part: null, resultDir: null, agentKey: null, modelUser: null, keyHolder: null, outputFile: null },
     });
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
@@ -170,10 +173,11 @@ const GATE_PATH = "docs/gates/GATE-fixture.md";
 const REASON = "every artifact meets the condition";
 const gateText = (decision, reason) => text("# Gate fixture", "", `decision: ${decision}`, `reason: ${reason}`);
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitLab's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |");
 const ENDPOINT = { name: "fixture", kind: "openai-compatible", baseUrl: "https://llm.example.test/v1", model: "fixture-llm" };
-const jobStart = (agentM) => ({ id: JOB, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null,
+const jobStart = (agentM) => ({ id: JOB, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot", model: "fixture-llm",
+  route: "ci hosted endpoint ci-bot secret FIXTURE_KEY", declares: { context: 100000, capabilities: ["read the repository", "write to the repository"] }, run: null, retries: null,
   startedBy: "alice", start: new Date("2026-10-16T08:00:00Z"), agentM, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: "GitLab's hosted runners", parts: ["gate-inputs"] }],
   params: { endpoint: ENDPOINT } });
 

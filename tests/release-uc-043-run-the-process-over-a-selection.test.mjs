@@ -167,7 +167,7 @@ test("TST-1045302: UC-043 a job waits at its gate until the gate's decider has r
   const written = await recordGateDecision(world.host, { gate: GATE, job, decider: { name: "bob", kind: "person" }, role: "Reviewer", decision: "passed", reason: "", on: [HEAD] }, await context());
   assert.match(written.path, /^docs\/gates\/.*validation-verification-operation-maintenance/);
   const resumed = (await world.next()).filter((action) => action.do === "resume");
-  assert.deepEqual(resumed.map((action) => [action.job, action.worksOn, action.participant, action.route]), [[job, "ITM-101", "dev-a", "ci hosted"]]);
+  assert.deepEqual(resumed.map((action) => [action.job, action.worksOn, action.participant, action.route]), [[job, "ITM-101", "dev-a", "bridge lab-pc agent claude"]], "the route its record names: its connection's");
 });
 
 // ---------------------------------------------------------------- the holder of the role

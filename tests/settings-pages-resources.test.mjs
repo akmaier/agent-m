@@ -52,8 +52,12 @@ const BROWSER_LLM = LLM.replace("ci:LLM_KEY", "browser");
 const PRODUCT_LIST = list("thesis-tool", DLLS, CLUSTER);
 const INSTANCE_LIST = list("agent-m", LLM, CLUSTER);
 const PARTICIPANTS = ["# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-drafter | CI agent | ci-model | 200000 | — | draft text, run code and tests | GitHub Actions in the USA | ci runner:gpu secret CI_KEY |", ""].join("\n");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-drafter | agent | ci-model |", ""].join("\n");
+// The connection of this browser that offers ci-drafter's model: the coding agent on CI gpu-coder, claude on the self-hosted runner gpu, its key named as the CI secret
+// CI_KEY, so that its jobs may run on that runner (MOD-browser-store, `ci-agent:<name>`).
+const CONNECTION = { agent: "claude", runner: "gpu", secret: "CI_KEY", place: "NHR@FAU, Erlangen", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+  models: [{ model: "ci-model", context: 200000 }] };
 const WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n" };
 
 // The page: a world of the repositories, the real hosts over it, a context as the frame hands it to a route, and the route rendered.
@@ -66,6 +70,7 @@ async function open(t, { productFiles = { "docs/resources.md": PRODUCT_LIST }, i
   const store = freshStore();
   // The product's own token, as the settings page stores it: the person the job and the commit are made as.
   writeSetting(store, `github-token:${PRODUCT_REPO}`, { name: "Agent M", expires: "2027-06-01", stored: "2026-01-01", value: PRODUCT_TOKEN });
+  writeSetting(store, "ci-agent:gpu-coder", CONNECTION);
   const went = [];
   const context = { page: "review", instance: { repository: INSTANCE, host: connect(parseAddress(`https://github.com/${INSTANCE}`), { token: TOKEN }) },
     product: product ? { address: PRODUCT, kind: "github", host: connect(parseAddress(PRODUCT), { token: PRODUCT_TOKEN }) } : null, store, went, go(name, params) { went.push([name, params]); } };
@@ -277,9 +282,9 @@ test("resources — Copy from the instance copies an entry into the product's li
 
 // TST-642010 · level: unit · module: MOD-settings-pages
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: a private product with Agent M's job workflow, whose list holds cluster reached by the runner gpu; the instance's register holds the CI agent ci-drafter on `ci runner:gpu secret CI_KEY`
+// given: a private product with Agent M's job workflow, whose list holds cluster reached by the runner gpu; the instance's register holds the agent ci-drafter, whose model this browser's coding agent on CI gpu-coder offers on the runner gpu with the CI secret CI_KEY
 // input: press Check on cluster; a click a script makes on Run; the person's click on Run
-// expect: the page names the job on the runner gpu and ci-drafter, and shows the run panel with ci-drafter as destination and a button Run; the script's click writes nothing; the person's click writes one commit in the product's repository adding one file docs/jobs/JOB-….md that names the kind check-resource, the participant ci-drafter, the route "ci runner:gpu" and the resource cluster, signed with the product's token, and the page says "Queued as JOB-…"
+// expect: the page names the job on the runner gpu and ci-drafter, and shows the run panel with ci-drafter as destination and a button Run; the script's click writes nothing; the person's click writes one commit in the product's repository adding one file docs/jobs/JOB-….md that names the kind check-resource, the participant ci-drafter, the route of its connection "ci runner:gpu agent claude secret CI_KEY" and the resource cluster, signed with the product's token, and the page says "Queued as JOB-…"
 test("resources — a compute resource reached by a runner is checked by a check job, shown in the run panel and queued on the person's click", async (t) => {
   registerOnce();
   const page = await open(t, { productFiles: { "docs/resources.md": PRODUCT_LIST, ...WORKFLOW }, visibility: "private" });
@@ -300,7 +305,8 @@ test("resources — a compute resource reached by a runner is checked by a check
   assert.equal(paths.length, 1);
   assert.match(paths[0], /^docs\/jobs\/JOB-\d{8}-\d{4}-[0-9a-f]{4}\.md$/);
   const record = commit.files[paths[0]];
-  for (const text of ["check-resource", "ci-drafter", "ci runner:gpu", "UC-040", "cluster"]) assert.ok(record.includes(text), `the job record holds ${text}`);
+  for (const text of ["check-resource", "ci-drafter", "UC-040", "cluster"]) assert.ok(record.includes(text), `the job record holds ${text}`);
+  assert.match(record, /^route: ci runner:gpu agent claude secret CI_KEY$/m);
   assert.equal(commit.authorization, `Bearer ${PRODUCT_TOKEN}`);
   assert.match(withClass(entry(page.target, "cluster"), "resource-queued")[0].textContent, /^Queued as JOB-\d{8}-\d{4}-[0-9a-f]{4} on the runner gpu/);
   assert.equal(page.world.commits(INSTANCE).length, 0);
@@ -310,13 +316,13 @@ test("resources — a compute resource reached by a runner is checked by a check
 // guards: UC-040; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: the same page of TST-642010 but the product is public
 // input: press Check on cluster
-// expect: the page says that no CI agent of the instance reaches the runner gpu and gives the reason MOD-runtimes' routesFor gives (a self-hosted runner serves private repositories only); it offers no Run and writes nothing
+// expect: the page says that no participant on a connection of this browser reaches the runner gpu and gives the reason MOD-runtimes' routesFor gives (a self-hosted runner serves private repositories only); it offers no Run and writes nothing
 test("resources — a runner is not offered for a public product, and the page says why", async (t) => {
   registerOnce();
   const page = await open(t, { productFiles: { "docs/resources.md": PRODUCT_LIST, ...WORKFLOW }, visibility: "public" });
   await pressed(buttonLabelled(entry(page.target, "cluster"), "Check"));
   const said = withClass(entry(page.target, "cluster"), "resource-no-runner")[0].textContent;
-  assert.match(said, /^No CI agent of the instance reaches the runner gpu: .*private.*Nothing can check cluster until one does\.$/);
+  assert.match(said, /^No participant on a connection of this browser reaches the runner gpu: .*private.*Nothing can check cluster until one does\.$/);
   assert.equal(buttonLabelled(entry(page.target, "cluster"), "Run"), undefined);
   assert.equal(productCommits(page).length, 0);
 });
@@ -595,19 +601,22 @@ test("resources — Check through a Bridge sends no resource key, and an endpoin
 
 // TST-1031001 · level: unit · module: MOD-settings-pages
 // guards: UC-040; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
-// given: the product's list holds dlls (a repository), shared-llm (an endpoint at http://workstation.example.org:8000/v1) and coder (an agent at https://agents.example.org/coder)
+// given: the product's list holds dlls (a repository), shared-llm (an endpoint at http://workstation.example.org:8000/v1 serving example-model, its Pin) and coder (an agent at https://agents.example.org/coder serving
+//   coder-model, its Pin); this browser keeps no endpoint at either address
 // input: the resources route drawn for the product; Add as participant pressed on shared-llm and on coder
-// expect: an endpoint and an agent each have an Add as participant button, and a repository has none (known positive: the other buttons of the entry are there); pressing it on shared-llm calls go("participants", { type: "model endpoint", address: "http://workstation.example.org:8000/v1" }) and on coder go("participants", { type: "CLI agent", address: "https://agents.example.org/coder" }) — one call each, nothing written, no request to any server
-test("resources — an endpoint or an agent that also works on the product opens the participants route with its type and address", async (t) => {
-  const CODER = "| coder | agent | https://agents.example.org/coder | — | — | — | bridge workstation | the group's workstation | no | — |";
+// expect: an endpoint and an agent each have an Add as participant button, and a repository has none (known positive: the other buttons of the entry are there); pressing it opens `participants` with the type agent and the model the
+//   resource serves, filled in (MOD-settings-pages, `resources`; UC-040 2a: "a link opens UC-017 with the type *agent* and the served model prefilled"), the served model being the resource's Pin (MOD-resource-list, Data: Pin, "the
+//   identifier of the served model for an endpoint and an agent"): go("participants", { type: "agent", model: "example-model" }) on shared-llm and go("participants", { type: "agent", model: "coder-model" }) on coder — one call each,
+//   nothing written, no request to any server
+test("resources — an endpoint or an agent that also works on the product opens the participants route with the type agent and the model it serves", async (t) => {
+  const CODER = "| coder | agent | https://agents.example.org/coder | coder-model | — | — | bridge workstation | the group's workstation | no | — |";
   const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, LLM, CODER) } });
   assert.ok(buttonLabelled(entry(page.target, "dlls"), "Check"), "known positive: the repository's entry has its buttons");
   assert.equal(Boolean(buttonLabelled(entry(page.target, "dlls"), "Add as participant")), false, "a repository has no Add as participant");
   const before = page.world.requests.length;
   await pressed(buttonLabelled(entry(page.target, "shared-llm"), "Add as participant"));
   await pressed(buttonLabelled(entry(page.target, "coder"), "Add as participant"));
-  assert.deepEqual(page.went, [["participants", { type: "model endpoint", address: "http://workstation.example.org:8000/v1" }],
-    ["participants", { type: "CLI agent", address: "https://agents.example.org/coder" }]]);
+  assert.deepEqual(page.went, [["participants", { type: "agent", model: "example-model" }], ["participants", { type: "agent", model: "coder-model" }]]);
   assert.equal(page.world.requests.length, before);
   assert.deepEqual(page.world.commits(PRODUCT_REPO), []);
 });

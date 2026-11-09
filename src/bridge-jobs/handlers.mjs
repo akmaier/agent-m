@@ -65,7 +65,9 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
         const { folder } = offered(agent.name);
         // An agent with a working folder is asked in its enclosure, where it will run; one without is not offered for work, and is said of as it is.
         const loggedIn = folder ? await loggedInEnclosed(offered(agent.name)) : agent.loggedIn;
-        listed.push({ name: agent.name, version: agent.version, ready: loggedIn === true && Boolean(folder), loggedIn });
+        // Each with its declaration as the Bridge's settings keep it: place, capabilities, models with their context.
+        const { place = null, capabilities = [], models = [] } = offered(agent.name);
+        listed.push({ name: agent.name, version: agent.version, ready: loggedIn === true && Boolean(folder), loggedIn, place, capabilities, models });
       }
       return { agents: listed, missing: found.filter((agent) => !agent.installed).map((agent) => ({ name: agent.name })) };
     },

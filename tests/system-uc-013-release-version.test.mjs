@@ -44,7 +44,7 @@ const UC013_FLOWS = [
     id: "TST-473093",
     flow: "2a",
     guards: ["UC-013", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER"],
-    expectedText: ["Only the implementer", "assign a second participant", "no candidate"],
+    expectedText: ["No runner runs the level", "assign a second participant", "no candidate"],
   },
   {
     id: "TST-473094",

@@ -1,6 +1,6 @@
 // The harness of the system and release tests of UC-032 (Maintain the backlog): the real routes of MOD-implementation-pages (`backlog`, `board`, `progress`, `plan`, `implement`) are drawn into a fixture DOM over the real
 // MOD-repository-hosts GitHub host, which talks to tests/app-harness.mjs' fake of GitHub's API (repoServer: git-data commits, the contents API, batch reads), a fake of the pull requests listing and of "Create a
-// reference", and, for the model endpoints a job asks, a fake of two endpoints. The product is the instance repository itself, as tests/implementation-pages-sprints.mjs holds it. A person's click is the page's own
+// reference", for the model endpoints a job asks, a fake of two endpoints, and, for the coding agents of this browser's Bridge, tests/browser-connections-fixture.mjs' fake of that Bridge. The product is the instance repository itself, as tests/implementation-pages-sprints.mjs holds it. A person's click is the page's own
 // listener called with a trusted event (`isTrusted` true), a script's click one whose `isTrusted` is false; no input event of the operating system is made and nothing reaches the network.
 // Imported by tests/system-uc-032-maintain-the-backlog.test.mjs and the release tests of UC-032. It holds no test and no expected result: what it builds are inputs, and every test states its own expected values.
 //
@@ -25,6 +25,7 @@ import { blobSha } from "../src/text-tools/index.mjs";
 import { artifactSchemas, readDocument } from "../src/documents/index.mjs";
 import { planSchemas } from "../src/work-plans/index.mjs";
 import { found, row, part } from "./implementation-pages-sprints.mjs";
+import { CODING, agent, bridgeAnswer, bridgeSetting, storeWith } from "./browser-connections-fixture.mjs";
 export { found, row, part };
 
 export const ADDRESS = `https://github.com/${REPO}`;
@@ -92,11 +93,13 @@ export const sprintText = ({ n, goal = "A goal", start = "2026-10-20", end = "",
 export const UC1 = lines("---", "id: UC-001", "title: Load", "area: lending", "actors:", "  - Member", "realises:", "  - RULE ONE", "---", "# UC-001 Load", "", "**Goal.** Load.");
 export const UC1_PATH = "docs/use-cases/UC-001-load.md";
 const blobOf = async (text) => (await import("node:crypto")).createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest("hex");
-const failedJob = lines("---", "id: JOB-20261028-1000-f001", "kind: implement", "works_on:", "  - ITM-007", "participant: dev-a", "model: example-model", "route: ci hosted", "started_by: alice",
+// What a job of dev-a on its connection declares (MOD-job-ledger): the context and the capabilities of the Bridge's coding agent claude.
+const DECLARES = JSON.stringify({ context: 200000, capabilities: CODING });
+const failedJob = lines("---", "id: JOB-20261028-1000-f001", "kind: implement", "works_on:", "  - ITM-007", "participant: dev-a", "model: model-c", "route: bridge lab-pc agent claude", `declares: ${DECLARES}`, "started_by: alice",
   "start: 2026-10-28 10:00 UTC", "agent_m: unknown, commit unknown", "limit: 1", "---", "## Destinations", "", "## Parameters", "", "```json", "{}", "```", "", "## End", "", "at: 2026-10-28 11:00 UTC",
   "state: failed", "");
 
-const runningJob = lines("---", "id: JOB-20261029-0900-r001", "kind: implement", "works_on:", "  - ITM-010", "participant: dev-a", "model: example-model", "route: ci hosted", "started_by: alice",
+const runningJob = lines("---", "id: JOB-20261029-0900-r001", "kind: implement", "works_on:", "  - ITM-010", "participant: dev-a", "model: model-c", "route: bridge lab-pc agent claude", `declares: ${DECLARES}`, "started_by: alice",
   "start: 2026-10-29 09:00 UTC", "agent_m: unknown, commit unknown", "limit: 1", "---", "## Destinations", "", "## Parameters", "", "```json", "{}", "```");
 
 /** product({ model, files }) -> the files of the product, `files` laid over them (a path set to null is left out). */
@@ -202,21 +205,30 @@ export function endpoints(draft, asked) {
     return json({ choices: [{ message: { content: JSON.stringify({ draft, answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
   };
 }
-const endpointOf = (name, model) => JSON.stringify({ url: `https://${name}.example.test/v1`, kind: "openai-compatible", model, key: `k-${name}` });
-/** The browser's settings of a page: the model endpoints ep1 and ep2, as MOD-browser-store keeps them. */
-export const STORE = { prefix: "", storage: { getItem: (key) => (key === "endpoint:ep1" ? endpointOf("ep1", "model-a") : key === "endpoint:ep2" ? endpointOf("ep2", "model-b") : null) } };
-const register = (...rows) => lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|", ...rows);
-const BUILDS = "read the repository, write to the repository, run code and tests, use tools";
-export const PARTICIPANTS = register("| local-llm | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |",
-  "| cloud-llm | model endpoint | model-b | 200000 | — | draft text | a provider in the USA | endpoint ep2 |",
-  `| dev-a | model endpoint | model-c | 200000 | — | ${BUILDS} | this machine | ci hosted secret DEV_KEY |`, `| dev-b | model endpoint | model-d | 200000 | — | ${BUILDS} | this machine | ci hosted secret DEV_KEY |`);
+/**
+ * The browser's settings of a page, as MOD-browser-store keeps them: the model endpoints ep1 (model-a, this machine) and ep2 (model-b, a provider in the USA), which draft text and read; and the Bridge lab-pc, whose
+ * coding agents the Bridge declares itself (LAB_PC).
+ */
+export const SETTINGS = {
+  "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k-ep1", place: "this machine", context: 200000 },
+  "endpoint:ep2": { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k-ep2", place: "a provider in the USA", context: 200000 },
+  "bridge:lab-pc": bridgeSetting(),
+};
+/** The agents the Bridge lab-pc lists ready, each with the declaration it keeps for it (MOD-bridge-http, GET /v1/agents): claude and codex, which offer model-c and model-d on this machine with every capability an implementing job needs. */
+export const LAB_PC = [agent("claude", [["model-c"]]), agent("codex", [["model-d"]])];
+/** storeOf(settings) -> a Store of MOD-browser-store holding `settings` (SETTINGS unless given), fresh for each page. */
+export const storeOf = (settings = SETTINGS) => storeWith(settings);
+/** The browser's settings of a page: SETTINGS. */
+export const STORE = storeOf();
+const register = (...rows) => lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", "| Name | Type | Model |", "|---|---|---|", ...rows);
+/** The instance's register: local-llm and cloud-llm, agents of model-a and model-b, which the endpoints ep1 and ep2 offer; dev-a and dev-b, agents of model-c and model-d, which the Bridge's coding agents offer. */
+export const PARTICIPANTS = register("| local-llm | agent | model-a |", "| cloud-llm | agent | model-b |", "| dev-a | agent | model-c |", "| dev-b | agent | model-d |");
 
 /**
- * open(name, params, { files, pullRequests, server, store }) -> { target, srv, route, press, click, done, html } — the route `name` drawn for the product `files` behind the fake of GitHub with `pullRequests` (the fake
- * holds a list a test can replace through `pulls.list`), `server` the test's own request handlers; `press(element)` is a person's click awaited, `script(element)` a script's click. `done()` ends the page.
+ * open(name, params, { files, pullRequests, server, store, agents }) -> { target, srv, route, press, click, done, html } — the route `name` drawn for the product `files` behind the fake of GitHub with `pullRequests` (the fake
+ * holds a list a test can replace through `pulls.list`), `server` the test's own request handlers, `agents` those the Bridge lab-pc lists (LAB_PC unless given); `press(element)` is a person's click awaited, `script(element)` a script's click. `done()` ends the page.
  */
-export async function open(name, params = {}, { files, pullRequests = PULL_REQUESTS, server = [], store = {}, pulls = { list: pullRequests } } = {}) {
+export async function open(name, params = {}, { files, pullRequests = PULL_REQUESTS, server = [], store = storeOf(), pulls = { list: pullRequests }, agents = LAB_PC } = {}) {
   const { view } = await import("../src/implementation-pages/index.mjs");
   for (const [at, strategies] of view.strategies.entries()) {
     try { registerStrategies(`tests/uc-032-harness.mjs#${at}`, strategies); } catch { /* registered already */ }
@@ -234,7 +246,8 @@ export async function open(name, params = {}, { files, pullRequests = PULL_REQUE
     created.push(body);
     return json({ ref: body.ref, object: { sha: body.sha } }, 201);
   };
-  const srv = await repoServer({ files, handlers: [pullsApi, refsApi, ...server], head: HEAD });
+  const handed = [];
+  const srv = await repoServer({ files, handlers: [pullsApi, refsApi, ...server, bridgeAnswer(agents, handed)], head: HEAD });
   const real = globalThis.fetch;
   globalThis.fetch = srv.fetch;
   const host = connect(parseAddress(ADDRESS), { token: TOKEN });
@@ -254,7 +267,7 @@ export async function open(name, params = {}, { files, pullRequests = PULL_REQUE
     await listener(event);
     await settle();
   };
-  return { target, srv, route, created, done, html: () => target.innerHTML, press: (element) => call(element, { isTrusted: true }), script: (element) => call(element, { isTrusted: false }) };
+  return { target, srv, route, created, handed, done, html: () => target.innerHTML, press: (element) => call(element, { isTrusted: true }), script: (element) => call(element, { isTrusted: false }) };
 }
 
 // ---------------------------------------------------------------- readings of the backlog page, and the Product Owner's two ways to add items

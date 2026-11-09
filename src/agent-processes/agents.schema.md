@@ -16,6 +16,7 @@ Task's arguments never hold the prompt: the agent reads it on its standard input
       { "name": "Command", "value": { "type": "text", "required": true } },
       { "name": "Version", "value": { "type": "text", "required": true } },
       { "name": "Task", "value": { "type": "text", "required": true } },
+      { "name": "Model", "value": { "type": "text" } },
       { "name": "Login check", "value": { "type": "text", "required": true } },
       { "name": "Key variable", "value": { "type": "text" } },
       { "name": "Endpoint", "value": { "type": "text" } },

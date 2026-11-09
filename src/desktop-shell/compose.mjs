@@ -16,7 +16,7 @@ import * as testSchedule from "../test-schedule/index.mjs";
 import * as resultRecords from "../result-records/index.mjs";
 import * as issueHandling from "../issue-handling/index.mjs";
 import { closeTunnels, ensureKey, openTunnels, tunnelHandlers } from "../tunnels/index.mjs";
-import { loadSettings } from "./settings.mjs";
+import { composeSettingsHandlers, loadSettings } from "./settings.mjs";
 import { agentEnclosure } from "../agent-enclosure/index.mjs";
 
 const STRATEGIES = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
@@ -33,8 +33,8 @@ export function composeJobHandlers(settings, enclosures = null) {
   return jobHandlers({ agents: settings.agents ?? [], enclosures });
 }
 
-export function composeBridgeHandlers(settings, enclosures = null) {
-  return { jobs: composeJobHandlers(settings, enclosures), mail: mailHandlers(), tunnels: tunnelHandlers };
+export function composeBridgeHandlers(settings, enclosures = null, dataFolder = null) {
+  return { jobs: composeJobHandlers(settings, enclosures), mail: mailHandlers(), tunnels: tunnelHandlers, ...(dataFolder ? { settings: composeSettingsHandlers(settings, dataFolder) } : {}) };
 }
 
 export function bridgeStrategyRegistrations() {
@@ -81,7 +81,7 @@ export async function compose({ instance, origin, dataFolder, port = bridgeApi.d
   const enclosures = bridgeEnclosures(dataFolder);
   // The pair answer names the Bridge by the settings in force and its release by build.json's version, null for a start without it.
   const bridge = await serveBridge({ host: "127.0.0.1", port: port === 0 ? 0 : settings.port, origin, dataFolder, paused, name: () => settings.name, version },
-    composeBridgeHandlers(settings, enclosures));
+    composeBridgeHandlers(settings, enclosures, dataFolder));
   await openTunnels(dataFolder, settings.tunnels, Number(new URL(bridge.address).port));
   const jobs = createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching, enclosures });
   jobs.start();

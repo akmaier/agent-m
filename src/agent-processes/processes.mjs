@@ -85,6 +85,16 @@ function keyHolderOptions(row, keyHolder) {
     env: Object.fromEntries(Object.entries(row.keyHolder.env ?? {}).map(([name, value]) => [name, render(value)])) };
 }
 
+// The arguments that start an agent with its participant's model, as the register's Model column gives them (A JOB RUNS ON A CONNECTION THAT OFFERS ITS
+// PARTICIPANT'S MODEL); none for a participant without a model, or where an endpoint is given, whose own options name its model. An agent whose Model is `—`
+// refuses a participant that names a model before it starts.
+function modelOptions(row, participant, endpoint) {
+  const model = typeof participant?.model === "string" && participant.model ? participant.model : null;
+  if (model === null || endpoint != null) return [];
+  if (!row.model) throw failure("ModelUnsupported", `${row.name} cannot be started with the model ${model}`);
+  return (row.model.args ?? []).map((arg) => arg.replaceAll("{model}", model));
+}
+
 function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment, input = null, keyHolder = null, enclosure = null, writable = [workdir]) {
   return new Promise((resolve) => {
     // Through the key holder the agent inherits no declared key variable; the holder's address and the placeholder are set as its settings below.
@@ -164,9 +174,10 @@ export function processDriver(agent, { workdir, keyVariable, endpoint, keyHolder
       const row = helpers.configuration(agent.name);
       if (!row) throw failure("AgentMissing", "the selected agent is not supported");
       const configured = endpointOptions(row, endpoint, keyVariable);
+      const modelArgs = modelOptions(row, participant, endpoint);
       const held = keyHolderOptions(row, keyHolder);
       const folder = input.workdir ?? workdir;
-      const result = await started(row.command, [...held.args, ...row.task.args, ...configured.args],
+      const result = await started(row.command, [...held.args, ...row.task.args, ...modelArgs, ...configured.args],
         folder, keyVariable, options, helpers.ownLoginEnvironment, { ...configured.env, ...held.env }, driverPrompt(input), keyHolder, enclosure, writable ?? [folder]);
       if (result.stopError) {
         throw failure("AgentFailed", "the agent process could not be stopped", {

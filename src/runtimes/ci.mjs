@@ -69,13 +69,14 @@ export function pinnedInstance(text) {
 
 // withEndpoint(start, store) -> start — the start of a job for a model endpoint the browser stores, with the endpoint's kind, address and model as the parameter `endpoint` and the name of the
 // CI secret of its key as the parameter `secret`, which is where a CI run reads the driver of its participant from (MOD-workflow-entries, onRecordsChanged) — the same `endpoint` and `secret`
-// that a start from the server's own page takes as inputs. The endpoint is the browser's setting `endpoint:<the participant's name>` (MOD-browser-store); its key is never copied. A start
+// that a start from the server's own page takes as inputs. The endpoint is the browser's setting `endpoint:<name>` of the connection the start's route names, `… endpoint <name>` (MOD-job-ledger, `route`), else of the participant's name (MOD-browser-store); its key is never copied. A start
 // that already holds an `endpoint` or a `secret`, a participant whose endpoint the browser does not keep, and a call without a store are left as they are.
 function withEndpoint(start, store) {
   const params = start.params ?? {};
-  if (store === null || !start.participant || "endpoint" in params || "secret" in params) return start;
+  if (store === null || !start.participant || start.route === "any" || "endpoint" in params || "secret" in params) return start;
   let stored = null;
-  try { stored = readSetting(store, `endpoint:${start.participant}`); } catch (error) { if (error?.name !== "StorageUnavailable") throw error; }
+  const name = /(?:^|\s)endpoint\s+(\S+)/.exec(String(start.route ?? ""))?.[1] ?? start.participant;
+  try { stored = readSetting(store, `endpoint:${name}`); } catch (error) { if (error?.name !== "StorageUnavailable") throw error; }
   if (!stored || typeof stored.url !== "string" || typeof stored.kind !== "string" || typeof stored.model !== "string") return start;
   const secret = typeof stored.secret === "string" && SECRET_NAME.test(stored.secret) ? { secret: stored.secret } : {};
   return { ...start, params: { ...params, endpoint: { kind: stored.kind, baseUrl: stored.url, model: stored.model }, ...secret } };
@@ -257,7 +258,9 @@ function mergeGitlabCi(text, names) {
  * n-th key and no other, the 0th none, each working only where the plan names its n, and the job `<route>` that writes, which receives the token and every key and
  * runs no agent; on GitLab each id begins `agent-m-`, and what a job receives is decided by its environment (gitlabVariableScopes). `instance.repository` is `owner/name` on github.com and `instance.commit` a
  * 40-digit commit, at which each job checks out the instance. `secrets.token` is the name of the secret that holds the person's
- * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. Pure.
+ * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. `agents`, this browser's coding agents on CI, each
+ * { name, agent, runner, secret, place, capabilities, models } as MOD-browser-store keeps it under `ci-agent:<name>`, are named in each job as AGENT_M_CI_AGENTS, a JSON
+ * list, for the jobs of the route `any` (MOD-workflow-entries). Pure.
  * The templates are the module's, read as it is loaded: the same files in Node and in a browser. Throws TypeError for a server that is neither, a repository or commit of another form, or a name of a secret or a runner label
  * that is not a plain name.
  * @param {"github" | "gitlab"} server
@@ -265,9 +268,10 @@ function mergeGitlabCi(text, names) {
  * @param {{ token: string, keys: string[] }} secrets
  * @param {string[]} runners
  * @param {string | null} [gitlabCi]
+ * @param {object[]} [agents]
  * @returns {Array<{ path: string, text: string }>}
  */
-export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = null) {
+export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = null, agents = []) {
   if (!Object.hasOwn(WORKFLOW_PATH, server)) throw new TypeError(`the job workflow is written for GitHub or GitLab, not ${server}`);
   if (!REPOSITORY.test(instance.repository)) throw new TypeError(`the instance is owner/name: ${instance.repository}`);
   if (!COMMIT.test(instance.commit)) throw new TypeError(`the instance is at a commit of 40 hexadecimal digits: ${instance.commit}`);
@@ -278,7 +282,10 @@ export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = 
 
   const [head, routeJobs] = TEMPLATES[server].split(JOB_MARKER);
   const github = server === "github";
-  const common = { repository: instance.repository, commit: instance.commit, token: secrets.token, "key-names": secrets.keys.join(" ") };
+  const declared = agents.map((each) => ({ name: each.name, agent: each.agent, runner: each.runner && each.runner !== "hosted" ? each.runner : "hosted", secret: each.secret,
+    place: each.place ?? null, capabilities: Array.isArray(each.capabilities) ? each.capabilities : [], models: Array.isArray(each.models) ? each.models : [] }));
+  const common = { repository: instance.repository, commit: instance.commit, token: secrets.token, "key-names": secrets.keys.join(" "),
+    "ci-agents": JSON.stringify(JSON.stringify(declared)) };
   // Every agent's job of every route names the model's user, as whom a model's run works on the agent's machine where that machine can make it (MOD-workflow-entries):
   // the templates hold its name.
   const routes = [{ runner: "hosted", id: "hosted", "runs-on": "ubuntu-latest", tags: "" },

@@ -1,24 +1,24 @@
 // The check of THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE (ITM-1187): a model endpoint or a CLI session that the prompt bar offers from this browser's
-// configuration declares its capabilities, its place and its model, and counts as a participant for every rule of the SPEC, though no participant list lists it. As the check names it: an
+// configuration declares its capabilities, its place and the models it offers, each with its context, and counts as a participant for every rule of the SPEC, though no participant list lists it. As the check names it: an
 // endpoint or CLI session without a place or a model is not offered; the page names each with its place before a message is sent; a page of mail gives a CLI session the mail's `MAIL-`
-// identifier only; a restricted source's content is refused to an endpoint whose place its entry does not permit; counter-proof: the same endpoint at a permitted place receives it, and with
+// identifier only; a connection is offered once for each model it names with its context, with the capabilities it declares, and only with its place; a restricted source's content is refused to an endpoint whose place its entry does not permit; counter-proof: the same endpoint at a permitted place receives it, and with
 // recording off a conversation with an endpoint writes nothing to a repository. docs/architecture/MOD-prompt-bar.md (Interfaces, startPromptBar) gives the offer: "It first reads this browser's
-// configuration, and reads no participant list for the offer (UC-049 1). It offers each model endpoint the store keeps under `endpoint:<name>` ... and each CLI session — a coding agent that a
-// Bridge the store keeps under `bridge:<name>` offers, as MOD-bridge-client's `testBridge` lists it ready —, whose configuration declares a place, a context and a model". The requests that
+// connections, and reads no participant list for the offer (UC-049 1): `endpointsOffered` and `sessionsOffered`"; and sessionsOffered: "for each Bridge the store keeps under `bridge:<name>`
+// ..., each agent MOD-bridge-client's `testBridge` lists ready whose declaration, as the Bridge keeps it and its list gives it, lacks nothing, one `Connection` for each model". The requests that
 // drawing the bar sends are counted here: testBridge's two, `GET /v1/pair` and `GET /v1/agents`, for each Bridge the store keeps, and none with no Bridge stored; the instance's
 // docs/participants.md is not read for the offer.
 // Run: node --test tests/prompt-bar-endpoints.test.mjs
 //
 // Module: MOD-prompt-bar
-// Guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049; THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
-// Guards: A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
+// Guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049; UC-044; THE PAGE NAMES WHERE IT SENDS; A CONNECTION DECLARES WHERE IT PROCESSES DATA
+// Guards: A CONNECTION NAMES THE MODELS IT OFFERS; A CONNECTION DECLARES ITS CAPABILITIES; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
 // Guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // Level: component
 //
 // The real MOD-prompt-bar, MOD-bridge-client, MOD-job-runner (prepareJob, the tool read-file), MOD-runtimes, MOD-job-catalogue (the kind `converse`) and MOD-markdown-render run as they are; the
 // repository servers are fixtures in memory that keep every read and every commit attempt; the model endpoint at https://models.example and the Bridge mac at http://127.0.0.1:7777 stand behind
 // the global `fetch`, which keeps every request. The page of mail is MOD-maintenance-pages' route `mail` in the world of tests/maintenance-pages-world.mjs. Readings the texts leave open, which the
-// tests state (the pull request names them): a CLI session is named `<bridge>:<agent>`, as its setting `session:<bridge>:<agent>` is, as an endpoint is named as its setting `endpoint:<name>` is;
+// tests state (the pull request names them): a CLI session is named `<bridge>:<agent>`, by the Bridge kept as `bridge:<bridge>` and the agent its GET /v1/agents lists, as an endpoint is named as its setting `endpoint:<name>` is;
 // a Bridge that cannot be tested offers no session and is named nowhere in the bar. Each test states its expected result in its own text; none reads it from a document.
 
 import test, { afterEach } from "node:test";
@@ -75,7 +75,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 const envelope = (answer) => JSON.stringify({ draft: { answer }, answers: [] });
 const realFetch = globalThis.fetch;
 
-// `agents` gives, for each Bridge's address, the agents it lists: { name, ready }. The Bridge at GONE refuses the connection. `calls` keeps every request as "<origin> <method> <path>",
+// `agents` gives, for each Bridge's address, the agents it lists: { name, ready } and the declaration the Bridge keeps for it, { place, capabilities, models } (MOD-bridge-http,
+// GET /v1/agents), none where it is left out. The Bridge at GONE refuses the connection. `calls` keeps every request as "<origin> <method> <path>",
 // with what the page showed at that moment.
 function network(agents = {}, showing = () => "") {
   const calls = [];
@@ -87,7 +88,7 @@ function network(agents = {}, showing = () => "") {
     const listed = agents[where.origin];
     if (!listed) return json({ error: "not-found" }, 404);
     if (where.pathname === "/v1/pair") return json({ bridge: { name: where.port === "7777" ? "mac" : "lab", version: "1.0.0", platform: "darwin" }, origin: "https://alice.github.io" });
-    if (where.pathname === "/v1/agents") return json({ agents: listed.map(({ name, ready }) => ({ name, version: "1.0.0", ready, loggedIn: ready })), missing: [] });
+    if (where.pathname === "/v1/agents") return json({ agents: listed.map(({ name, ready, place = null, capabilities = [], models = [] }) => ({ name, version: "1.0.0", ready, loggedIn: ready, place, capabilities, models })), missing: [] });
     if (where.pathname === "/v1/ask") return json({ ask: "ask-1" });
     if (where.pathname === "/v1/ask/ask-1") return json({ state: "done", text: envelope("Noted on the Bridge."), calls: [], usage: null });
     return json({ error: "not-found" }, 404);
@@ -102,14 +103,13 @@ try { registerStrategies("tests/prompt-bar-endpoints.test.mjs", { recipes: { "ch
 // ---------------------------------------------------------------- what this browser declares, and the instance
 
 const ENDPOINT = { kind: "openai-compatible", url: `${MODELS}/v1`, model: "model-drafter", key: "sk-fixture", place: "Anthropic, USA", context: 200000 };
-const CLI = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"]; // the capabilities a CLI session is prefilled with, as a CLI agent's
-const SESSION = { place: "this machine", context: 200000, model: "claude-model", capabilities: CLI };
+const CLI = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"]; // the capabilities the sessions declare
+const SESSION = { place: "this machine", capabilities: CLI, models: [{ model: "claude-model", context: 200000 }] }; // the declaration a Bridge keeps for its agent
 
-// The instance's participant list: a CLI agent on the Bridge mac's agent codex and a model endpoint on `endpoint no-place`, each with its place and model, which this browser reaches. It is not
-// read for the offer, so neither is offered (the counter-proof of UC-049 1).
-const LISTED = ["# Participants of this instance", "", "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| listed-cli | CLI agent | model-listed | 200000 | — | draft text | this machine | bridge mac agent codex |",
-  "| listed-endpoint | model endpoint | model-listed | 200000 | — | draft text | Anthropic, USA | endpoint no-place |", ""].join("\n");
+// The instance's participant list: a person and an agent of model-drafter, the model of this browser's endpoint drafter. It is not read for the offer, so the agent is not
+// offered (the counter-proof of UC-049 1).
+const LISTED = ["# Participants of this instance", "", "| Name | Type | Model |", "|---|---|---|",
+  "| alice | person | — |", "| listed-agent | agent | model-drafter |", ""].join("\n");
 
 const sha = (text) => createHash("sha1").update(text).digest("hex");
 // The instance's repository in memory (default branch `trunk`): `reads` keeps every path read, `attempts` every commit attempt.
@@ -167,34 +167,34 @@ async function sends(it, words) {
 }
 
 // TST-1187101 · level: component · module: MOD-prompt-bar
-// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; UC-049
-// given: this browser declares the endpoints drafter (place "Anthropic, USA", context, model), no-place (no place) and no-model (no model), and keeps the Bridge mac, which lists the agents claude, codex, gemini and idle — the first three ready, idle not —, whose sessions declare: mac:claude a place "this machine", a context and a model; mac:codex no place; mac:gemini no model; mac:idle everything; the instance's participant list holds listed-cli (`bridge mac agent codex`) and listed-endpoint (`endpoint no-place`), each with its place and model
+// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A CONNECTION DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; UC-049
+// given: this browser declares the endpoints drafter (place "Anthropic, USA", context, model), no-place (no place) and no-model (no model), and keeps the Bridge mac, which lists the agents claude, codex, gemini and idle — the first three ready, idle not —, each with the declaration the Bridge keeps: mac:claude a place "this machine" and the model claude-model with its context; mac:codex no place; mac:gemini no model; mac:idle everything; the instance's participant list holds alice and listed-agent, an agent of drafter's model
 // input: startPromptBar, until the bar is drawn
-// expect: the selector offers exactly "drafter — Anthropic, USA" and "mac:claude — this machine", in that order: no endpoint or session lacking a place or a model, no agent that is not ready, and no participant of the list; drawing sent the Bridge mac testBridge's two requests, GET /v1/pair then GET /v1/agents, and nothing else; the instance's docs/participants.md was not read
+// expect: the selector offers exactly "drafter · model-drafter — Anthropic, USA" and "mac:claude · claude-model — this machine", in that order: no endpoint or session lacking a place or a model, no agent that is not ready, and no participant of the list; drawing sent the Bridge mac testBridge's two requests, GET /v1/pair then GET /v1/agents, and nothing else; the instance's docs/participants.md was not read
 test("an endpoint or CLI session without a place or a model is not offered, nor the participants of the instance's list", async () => {
   const it = page({
-    settings: { "endpoint:drafter": ENDPOINT, "endpoint:no-place": { ...ENDPOINT, place: "" }, "endpoint:no-model": { ...ENDPOINT, model: "" }, "bridge:mac": { address: MAC, token: "token-mac" },
-      "session:mac:claude": SESSION, "session:mac:codex": { ...SESSION, place: "" }, "session:mac:gemini": { ...SESSION, model: "" }, "session:mac:idle": SESSION },
-    agents: { [MAC]: [{ name: "claude", ready: true }, { name: "codex", ready: true }, { name: "gemini", ready: true }, { name: "idle", ready: false }] },
+    settings: { "endpoint:drafter": ENDPOINT, "endpoint:no-place": { ...ENDPOINT, place: "" }, "endpoint:no-model": { ...ENDPOINT, model: "" }, "bridge:mac": { address: MAC, token: "token-mac" } },
+    agents: { [MAC]: [{ name: "claude", ready: true, ...SESSION }, { name: "codex", ready: true, ...SESSION, place: "" }, { name: "gemini", ready: true, ...SESSION, models: [] },
+      { name: "idle", ready: false, ...SESSION }] },
   });
   await drawn(it);
-  assert.deepEqual(offered(it), ["drafter — Anthropic, USA", "mac:claude — this machine"]);
+  assert.deepEqual(offered(it), ["drafter · model-drafter — Anthropic, USA", "mac:claude · claude-model — this machine"]);
   assert.deepEqual(said(it.calls), [`${MAC} GET /v1/pair`, `${MAC} GET /v1/agents`]);
   assert.equal(it.instance.reads.includes("docs/participants.md"), false, "the participant list is not read for the offer");
 });
 
 // TST-1187102 · level: component · module: MOD-prompt-bar
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PAGE NAMES WHERE IT SENDS; UC-049
-// given: this browser declares the endpoint drafter ("Anthropic, USA") and keeps the Bridge mac, which offers its agent claude ready, the session mac:claude declared at "this machine"; recording off
+// given: this browser declares the endpoint drafter ("Anthropic, USA") and keeps the Bridge mac, which offers its agent claude ready, with the declaration it keeps for mac:claude at "this machine"; recording off
 // input: the bar drawn; mac:claude chosen; Send "what does this page say?"
-// expect: before any message the selector names each with its place, "drafter — Anthropic, USA" and "mac:claude — this machine"; the message goes to the Bridge mac (one POST /v1/ask) and none to the endpoint, and at the moment of that request the page already says "Sent to:" and names "mac:claude — this machine"; the answer "Noted on the Bridge." is shown
+// expect: before any message the selector names each with its model and its place, "drafter · model-drafter — Anthropic, USA" and "mac:claude · claude-model — this machine"; the message goes to the Bridge mac (one POST /v1/ask) and none to the endpoint, and at the moment of that request the page already says "Sent to:" and names "mac:claude — this machine"; the answer "Noted on the Bridge." is shown
 test("the page names each endpoint and CLI session with its place, and the destination before the message is sent", async () => {
-  const it = page({ settings: { "endpoint:drafter": ENDPOINT, "bridge:mac": { address: MAC, token: "token-mac" }, "session:mac:claude": SESSION },
-    agents: { [MAC]: [{ name: "claude", ready: true }] } });
+  const it = page({ settings: { "endpoint:drafter": ENDPOINT, "bridge:mac": { address: MAC, token: "token-mac" } },
+    agents: { [MAC]: [{ name: "claude", ready: true, ...SESSION }] } });
   await drawn(it);
-  assert.deepEqual(offered(it), ["drafter — Anthropic, USA", "mac:claude — this machine"]);
+  assert.deepEqual(offered(it), ["drafter · model-drafter — Anthropic, USA", "mac:claude · claude-model — this machine"]);
   const chooser = one(it.target, "participant");
-  chooser.value = "mac:claude";
+  chooser.value = "mac:claude · claude-model";
   chooser.dispatchEvent(new Event("change"));
   await sends(it, "what does this page say?");
   const asked = it.calls.filter((call) => call.said === `${MAC} POST /v1/ask`);
@@ -206,7 +206,7 @@ test("the page names each endpoint and CLI session with its place, and the desti
 
 // TST-1187103 · level: component · module: MOD-prompt-bar
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049
-// given: (a) this browser declares the endpoint drafter and keeps no Bridge; (b) it also keeps the Bridges mac and lab, each offering its agent claude ready, both sessions declared; (c) it keeps, beside drafter, only the Bridge gone, whose address refuses the connection
+// given: (a) this browser declares the endpoint drafter and keeps no Bridge; (b) it also keeps the Bridges mac and lab, each offering its agent claude ready with the declaration it keeps; (c) it keeps, beside drafter, only the Bridge gone, whose address refuses the connection
 // input: startPromptBar on each, until the bar is drawn
 // expect: (a) drawing sends no request at all, and of the instance it reads only docs/conversation-recording.md — not docs/participants.md; (b) drawing sends four requests, GET /v1/pair and GET /v1/agents to each Bridge in the store's order of its settings — lab, then mac —, and offers drafter, lab:claude and mac:claude; (c) drawing sends one request, GET /v1/pair to gone, offers drafter alone, and the bar names no Bridge and shows no problem
 test("drawing the bar sends testBridge's two requests to each Bridge this browser keeps, and none without one", async () => {
@@ -214,22 +214,22 @@ test("drawing the bar sends testBridge's two requests to each Bridge this browse
   await drawn(none);
   assert.deepEqual(said(none.calls), []);
   assert.deepEqual(none.instance.reads, ["docs/conversation-recording.md"]);
-  const two = page({ settings: { "endpoint:drafter": ENDPOINT, "bridge:mac": { address: MAC, token: "token-mac" }, "bridge:lab": { address: LAB, token: "token-lab" },
-    "session:mac:claude": SESSION, "session:lab:claude": SESSION }, agents: { [MAC]: [{ name: "claude", ready: true }], [LAB]: [{ name: "claude", ready: true }] } });
+  const two = page({ settings: { "endpoint:drafter": ENDPOINT, "bridge:mac": { address: MAC, token: "token-mac" }, "bridge:lab": { address: LAB, token: "token-lab" } },
+    agents: { [MAC]: [{ name: "claude", ready: true, ...SESSION }], [LAB]: [{ name: "claude", ready: true, ...SESSION }] } });
   await drawn(two);
   assert.deepEqual(said(two.calls), [`${LAB} GET /v1/pair`, `${LAB} GET /v1/agents`, `${MAC} GET /v1/pair`, `${MAC} GET /v1/agents`]);
-  assert.deepEqual(offered(two), ["drafter — Anthropic, USA", "lab:claude — this machine", "mac:claude — this machine"]);
-  const gone = page({ settings: { "endpoint:drafter": ENDPOINT, "bridge:gone": { address: GONE, token: "token-gone" }, "session:gone:claude": SESSION } });
+  assert.deepEqual(offered(two), ["drafter · model-drafter — Anthropic, USA", "lab:claude · claude-model — this machine", "mac:claude · claude-model — this machine"]);
+  const gone = page({ settings: { "endpoint:drafter": ENDPOINT, "bridge:gone": { address: GONE, token: "token-gone" } } });
   await drawn(gone);
   assert.deepEqual(said(gone.calls), [`${GONE} GET /v1/pair`]);
-  assert.deepEqual(offered(gone), ["drafter — Anthropic, USA"]);
+  assert.deepEqual(offered(gone), ["drafter · model-drafter — Anthropic, USA"]);
   assert.equal(byClass(gone.target, "problem").length, 0);
   assert.equal(textOf(gone.target).includes("gone"), false);
 });
 
 // TST-1187104 · level: component · module: MOD-prompt-bar
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; UC-049
-// given: the CLI session mac:claude as the bar offers it (offer.mjs sessionsOffered over a store keeping the Bridge mac, which offers claude ready, the session declared at "this machine" with the capabilities a CLI agent is prefilled with); the endpoint drafter as the bar offers it (endpointsOffered), declared at "this machine"; MOD-maintenance-pages' route mail after its reading, one mail listed from Erika Mustermann, on a mailbox that allows "this machine"
+// given: the CLI session mac:claude as the bar offers it (offer.mjs sessionsOffered over a store keeping the Bridge mac, which offers claude ready with the declaration it keeps, at "this machine" with the capabilities a CLI agent is prefilled with); the endpoint drafter as the bar offers it (endpointsOffered), declared at "this machine"; MOD-maintenance-pages' route mail after its reading, one mail listed from Erika Mustermann, on a mailbox that allows "this machine"
 // input: the route's subject's paramsFor for the session, and for the endpoint
 // expect: the session is offered as a CLI agent at "this machine" that declares write to the repository; the page it is given holds the mail's MAIL- identifier and none of the mail's text, its sender's name or address; the counter-proof: the endpoint, at the same place, which does not write, is given the mail's text
 test("a page of mail gives a CLI session of this browser the mail's MAIL- identifier only", async () => {
@@ -237,9 +237,8 @@ test("a page of mail gives a CLI session of this browser the mail's MAIL- identi
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   const store = openStore("alice/agent-m");
   writeSetting(store, "bridge:mac", { address: MAC, token: "token-mac" });
-  writeSetting(store, "session:mac:claude", SESSION);
   writeSetting(store, "endpoint:drafter", { ...ENDPOINT, place: "this machine" });
-  network({ [MAC]: [{ name: "claude", ready: true }] });
+  network({ [MAC]: [{ name: "claude", ready: true, ...SESSION }] });
   const [session] = await offer.sessionsOffered(store);
   const [endpoint] = endpointsOffered(store);
   globalThis.fetch = realFetch;
@@ -306,4 +305,32 @@ test("with recording off a conversation with an endpoint of this browser writes 
   await sends(on, "first");
   assert.ok(on.instance.attempts.some((attempt) => attempt.files.some((file) => /^docs\/conversations\//.test(file.path) && file.text.includes("first"))), "known positive: with recording on the message is recorded");
   await tick();
+});
+
+// TST-20261109151 · level: component · module: MOD-prompt-bar
+// guards: A CONNECTION NAMES THE MODELS IT OFFERS; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; UC-044; UC-049
+// given: this browser's settings: the endpoint drafter naming its one model model-drafter with its context, last tested as calling a tool; the endpoint plain, the same without a test; the endpoint nowhere, without a place; the Bridge mac, whose agent claude, ready, is declared — as the Bridge keeps it — at "this machine" with the capabilities draft text and run code and tests and the two models claude-big (200000) and claude-small (100000), and whose agent codex, ready, names the model codex-bare without its context
+// input: endpointsOffered(store) and offer.mjs's sessionsOffered(store)
+// expect: drafter is offered with its model and context and the capabilities draft text, read the repository and use tools, and plain with draft text and read the repository only — no use tools, since its test found none; nowhere is not offered (counter-proof: plain at a place is); mac:claude is offered once with each of its two models, each with its context, its place "this machine" and the capabilities it declares; codex-bare, a model without its context, is not offered
+test("a connection is offered once for each model it names with its context, with the capabilities it declares, and only with its place", async () => {
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+  const store = openStore("alice/agent-m");
+  writeSetting(store, "endpoint:drafter", ENDPOINT);
+  writeSetting(store, "last-test:endpoint:drafter", { at: "2026-11-09T10:00:00Z", outcome: "works", tools: true });
+  writeSetting(store, "endpoint:plain", { ...ENDPOINT, model: "model-plain" });
+  writeSetting(store, "endpoint:nowhere", { ...ENDPOINT, place: "" });
+  writeSetting(store, "bridge:mac", { address: MAC, token: "token-mac" });
+  network({ [MAC]: [{ name: "claude", ready: true, place: "this machine", capabilities: ["draft text", "run code and tests"],
+    models: [{ model: "claude-big", context: 200000 }, { model: "claude-small", context: 100000 }] },
+  { name: "codex", ready: true, place: "this machine", capabilities: CLI, models: [{ model: "codex-bare", context: null }] }] });
+  const endpoints = endpointsOffered(store);
+  assert.deepEqual(endpoints.map(({ name, model, context, capabilities, place }) => ({ name, model, context, capabilities, place })), [
+    { name: "drafter", model: "model-drafter", context: 200000, capabilities: ["draft text", "read the repository", "use tools"], place: "Anthropic, USA" },
+    { name: "plain", model: "model-plain", context: 200000, capabilities: ["draft text", "read the repository"], place: "Anthropic, USA" },
+  ]);
+  const sessions = await offer.sessionsOffered(store);
+  assert.deepEqual(sessions, [
+    { name: "mac:claude", type: "CLI agent", model: "claude-big", context: 200000, place: "this machine", capabilities: ["draft text", "run code and tests"], route: "bridge mac agent claude" },
+    { name: "mac:claude", type: "CLI agent", model: "claude-small", context: 100000, place: "this machine", capabilities: ["draft text", "run code and tests"], route: "bridge mac agent claude" },
+  ]);
 });

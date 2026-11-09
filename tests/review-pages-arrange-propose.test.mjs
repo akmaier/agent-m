@@ -98,8 +98,8 @@ const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
-const DRAFTER = "| drafter-a | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |";
-const READER = "| reader | person | — | — | — | read the repository | — | the GitHub account `reader` |";
+const DRAFTER = "| drafter-a | agent | model-a |";
+const READER = "| reader | person | — |";
 function fakeInstance(register) {
   const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" }, ref: "main",
     commit: "abc123def4567890abc123def4567890abc123de", paths: [], read: async (path) => (path === "docs/participants.md" ? register : onDisk(path)), blob: () => null };
@@ -126,7 +126,7 @@ test.afterEach(() => { globalThis.fetch = realFetch; });
 async function show(fake, { kind = "use-cases", register = registerOf(DRAFTER, READER), token = true } = {}) {
   const store = openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
-  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
+  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 });
   const target = document.createElement("div");
   document.body.append(target);
   await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance(register).host }, store, go() {}, product: { address: ON_GITHUB.web, kind: "github", host: fake.host } }, { kind });

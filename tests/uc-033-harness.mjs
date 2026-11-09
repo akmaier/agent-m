@@ -141,10 +141,11 @@ export function recordWrites() {
 export const pullOf = (branch, state) => ({ number: 9, title: `${branch}: work`, branch, base: "main", head: "2".repeat(40), mergeCommit: state === "merged" ? "3".repeat(40) : null, state, draft: false,
   url: `${PRODUCT_URL}/pull/9`, opened: "2026-10-29T09:10:00Z", merged: state === "merged" ? "2026-10-29T09:50:00Z" : null, closed: state === "merged" ? "2026-10-29T09:50:00Z" : null, body: `Job: ${branch}` });
 
-/** The record of a job of kind `kind` that works on `worksOn` (an item's identifier or an issue's address), started by the person, taken by a CI agent. */
-export const jobRecord = (id, kind, worksOn) => lines("---", `id: ${id}`, `kind: ${kind}`, "works_on:", `  - ${worksOn}`, "participant: ci-bot", "model: fixture-llm", "route: ci hosted", "run:", "retries:", "started_by: Reviewer Rae",
-  "start: 2026-10-29 09:00 UTC", "agent_m: 0fb048a1bac50be9beb68fb798e226f8ca2c7f00, commit 0fb048a1bac50be9beb68fb798e226f8ca2c7f00", "inputs:", "  - issue #6", "limit: 5", "task: in parameters", "conversation:", "---",
-  "## Destinations", "", "- ci-bot, at GitHub's hosted runners: issue #6.", "", "## Parameters", "", "```json", "{", "  \"issue\": 6", "}", "```", "");
+/** The record of a job of kind `kind` that works on `worksOn` (an item's identifier or an issue's address), started by the person, taken by the agent dev-cli on the CLI session claude of the Bridge lab-pc-4. */
+export const jobRecord = (id, kind, worksOn) => lines("---", `id: ${id}`, `kind: ${kind}`, "works_on:", `  - ${worksOn}`, "participant: dev-cli", "model: fixture-llm", "route: bridge lab-pc-4 agent claude", "run:", "retries:", "started_by: Reviewer Rae",
+  "start: 2026-10-29 09:00 UTC", "agent_m: 0fb048a1bac50be9beb68fb798e226f8ca2c7f00, commit 0fb048a1bac50be9beb68fb798e226f8ca2c7f00", "inputs:", "  - issue #6", "limit: 5", "task: in parameters", "conversation:",
+  'declares: {"context":100000,"capabilities":["draft text","read the repository","write to the repository","run code and tests"]}', "---",
+  "## Destinations", "", "- dev-cli, at this machine: issue #6.", "", "## Parameters", "", "```json", "{", "  \"issue\": 6", "}", "```", "");
 
 // ---------------------------------------------------------------- the state of an item (UC-033 step 5)
 

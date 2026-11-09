@@ -66,8 +66,8 @@ const foreignConfiguration = (server, paths) => server === "github"
  * file, the generated file and, on GitLab, `.gitlab-ci.yml` with the include entry where it lacks it; `generated` is the result of
  * ciConfiguration. Throws InvalidSchedule for a schedule with an error finding. Reads the product at the snapshot only.
  */
-export async function filesOf(schedule, { server, instance, instanceCommit, resources, participants }, snapshot) {
-  const generated = ciConfiguration(schedule, { server, instance, instanceCommit }, resources, participants);
+export async function filesOf(schedule, { server, instance, instanceCommit, resources }, snapshot) {
+  const generated = ciConfiguration(schedule, { server, instance, instanceCommit }, resources);
   const files = [{ path: SCHEDULE_FILE, text: writeDocument(scheduleSchema, schedule) },
     ...Object.entries(generated.files).map(([path, text]) => ({ path, text }))];
   if (generated.include) {

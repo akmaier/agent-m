@@ -14,7 +14,16 @@ import { RuntimeError } from "./ci.mjs";
 const JOB_RECORD = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 
 // The route as a job's record writes it: `tab`, `ci hosted`, `ci runner:<label>`, `bridge <name>`.
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "bridge" ? `bridge ${route.bridge}` : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 /**
  * retryJob(record, choice, host, head, queue) -> Promise<{ path, commit }> — queues a new job with a new identifier and the record's inputs and parameters, which names the one it retries.
@@ -29,7 +38,7 @@ export async function retryJob(record, choice, host, head, queue) {
   const snapshot = await host.readSnapshot(defaultBranch);
   const taken = new Set(snapshot.paths.map((path) => JOB_RECORD.exec(path)?.[1]).filter(Boolean));
   const start = {
-    id: newJobId(new Date(), taken), kind: record.kind, worksOn: [...record.worksOn], participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null,
+    id: newJobId(new Date(), taken), kind: record.kind, worksOn: [...record.worksOn], participant: participant.name, model: participant.model ?? null, route: recordRoute(route, participant), ...(participant.route ? { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } } : {}), run: null,
     retries: record.id, startedBy: record.startedBy, start: new Date(), agentM: { ...record.agentM }, inputs: [...record.inputs], limit: record.limit, task: record.task,
     conversation: record.conversation, destinations: record.destinations.map((each) => ({ ...each, parts: [...each.parts] })), params: structuredClone(record.params),
   };

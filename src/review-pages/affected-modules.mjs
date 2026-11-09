@@ -59,7 +59,7 @@ export async function affectedCheck(where, useCase) {
   else await Promise.all([snapshot.readMany?.(own), instance.readMany?.(theirs)]);
   const stage = await loadStage(where, KIND, instance);
   const chosen = stage.drafters.find((each) => {
-    const offer = routesFor(each, stage.participants, stage.product, stage.needs)[0];
+    const offer = routesFor(each, stage.product, stage.needs)[0];
     return offer?.available && offer.route.kind === "tab";
   });
   if (!chosen) {

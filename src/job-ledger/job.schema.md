@@ -17,7 +17,7 @@ example shows.
   Data table's two forms of the same heading (ITM-252's Outcome). All three are optional fields of this schema; which of
   them a given record carries is MOD-job-ledger's to read, not this schema's to enforce — `documentFindings` does not
   check a section's fields yet (MOD-documents, checks.mjs).
-- `declares` holds, for a model endpoint the instance's list does not hold, `{ context, capabilities }` as one line of JSON,
+- `declares` holds, for a job of an agent, what the connection it runs on declares for its model, `{ context, capabilities }` as one line of JSON,
   for a value no scalar type of this language expresses.
 - `## End`'s `usage:` and `cost:` hold the `Usage` and `Cost` values as one line of JSON each, for a value no scalar type
   of this language expresses (the Data table fixes no other form for them). `notes:` holds the writer's notes as a JSON
@@ -62,7 +62,9 @@ example shows.
   "appended": [
     { "heading": "## Taken", "repeat": false, "fields": {
       "at": { "type": "time", "required": true },
-      "by": { "type": "text", "required": true }
+      "by": { "type": "text", "required": true },
+      "connection": { "type": "text", "required": false },
+      "declares": { "type": "text", "required": false }
     } },
     { "heading": "## Gate reached", "repeat": true, "fields": {
       "at": { "type": "time", "required": true },

@@ -243,6 +243,9 @@ const { blobSha } = await import("./uc-028-world.mjs");
 const CHANGELOG = "# Changelog\n";
 const RC_TESTS = declarations([["901", "unit", "A GUARDED RULE"], ["907", "user", "A GUARDED RULE; A SECOND RULE"]]).replaceAll("the list holds one entry", "the tag of the release appears");
 const scheduleRunsOn = (who) => SCHEDULE.replace("| release | | | | ✓ | ✓ | |", `| release | | | | ✓ | ✓ | ${who} |`).replace("| user | | | | ✓ | ✓ | |", `| user | | | | ✓ | ✓ | ${who} |`);
+// The schedule with every row on the server's runners: a release candidate's complete run is queued on the runner each row of the schedule names, and refused with
+// NoRunner for a level whose row names none (MOD-release-evidence's startReleaseCandidate); `runs on` is `hosted` or `runner:<label>` (MOD-test-schedule).
+const ON_HOSTED = SCHEDULE.replaceAll(" | |\n", " | hosted |\n");
 const jobWorkflow = { [WORKFLOW]: "name: Agent M jobs\n" };
 
 // TST-773009 · level: system · module: MOD-test-pages; MOD-result-records
@@ -282,7 +285,7 @@ test("1a: a release candidate's user-level tests are a checklist for the assigne
 // A release in progress: the candidate is started on the panel, its run ends with the records given, and the report is read again.
 async function releasing(rows, { earlier = null } = {}) {
   const world = product({ files: { "SPEC.md": SPEC, "tests/sample.test.mjs": declarations([["901", "unit", "A GUARDED RULE"], ["902", "unit", "A SECOND RULE"], ["905", "unit", "A GUARDED RULE", ["// runs: 10", "// phrasings: 2"]]]),
-    "docs/tests/schedule.md": scheduleRunsOn("a-second-person"), "CHANGELOG.md": CHANGELOG, ...jobWorkflow, ...(earlier ? { "docs/tests/releases/v2026.3.0.md": earlier.report } : {}) } });
+    "docs/tests/schedule.md": ON_HOSTED, "CHANGELOG.md": CHANGELOG, ...jobWorkflow, ...(earlier ? { "docs/tests/releases/v2026.3.0.md": earlier.report } : {}) } });
   const COMMIT = world.headOf("main");
   world.branch("test-results", earlier ? { [`runs/${earlier.commit}/20260901-1000-release-candidate-aaaa.md`]: earlier.record } : {});
   const target = await renderRoute(releaseRoute, context(world), {});

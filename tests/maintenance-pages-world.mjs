@@ -57,20 +57,27 @@ async function mailOf(key, over = {}) {
     subject: `Subject ${key}`, date: "2026-10-18T08:00:00Z", text: `Hello,\n${SECRET}.\nKind regards\nErika Mustermann`, attachments: [], folder: "INBOX", ...over };
 }
 
+// The register is the team (MOD-participant-list): a person, or an agent naming its model. How an agent is reached is this browser's: the endpoints ep1 (model-a, at this machine) and ep2 (model-b, at a
+// provider in the USA), and, where a test declares them in `sessions`, the CLI sessions of the Bridge lab-pc-4. local-llm is offered on ep1, cloud-llm on ep2; no connection offers checker's model-c.
 const REGISTER = (rows) => ["# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|", ...rows, ""].join("\n");
-const LOCAL = "| local-llm | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |";
-const CLOUD = "| cloud-llm | model endpoint | model-b | 200000 | — | draft text | a provider in the USA | endpoint ep2 |";
-const NO_DRAFTER = "| checker | model endpoint | model-c | 200000 | — | read the repository | this machine | endpoint ep1 |";
+  "| Name | Type | Model |", "|---|---|---|", ...rows, ""].join("\n");
+const LOCAL = "| local-llm | agent | model-a |";
+const CLOUD = "| cloud-llm | agent | model-b |";
+const NO_DRAFTER = "| checker | agent | model-c |";
+/** An agent whose model fixture-llm the CLI session claude of the Bridge lab-pc-4 offers (FIXER_SESSIONS): it can write to the repository and run code and tests. */
+const FIXER = "| dev-cli | agent | fixture-llm |";
+/** The CLI session claude of the Bridge lab-pc-4, with the declaration the Bridge keeps for it (MOD-bridge-http, GET /v1/agents): every capability, at this machine, the model fixture-llm. */
+const FIXER_SESSIONS = { claude: { place: "this machine", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests"], models: [{ model: "fixture-llm", context: 100000 }] } };
 
 const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) => ({ number, title: `Issue ${number}`, body: withMailIds(`Issue ${number}.`, mails.map((mail) => mail.id)), state, labels, comments });
 
 /**
  * The world: the mails of the mailbox (`mails`, found by `find`), the drafts in Drafts (`drafts`: { ref, inReplyTo, mail }), GitHub's issues of alice/product, the participants' register and the places the mailbox allows.
  * Returns what the fakes kept: the operations the Bridge received, the requests GitHub received, the texts the endpoint returned.
+ * `sessions` ({ agent: declaration }) are the CLI sessions of the Bridge lab-pc-4, which its /v1/pair and /v1/agents then list ready, each with the declaration the Bridge keeps; none by default.
  * For the route `mail` (ITM-964): `reading` is what the Bridge's operation `read` returns; `answer(request)` is the answer of a model endpoint or of an agent on the Bridge to a request ({ origin, body }), a draft object that is wrapped as the endpoint answers; `product` adds files to the product's repository, `instance` to the instance's.
  */
-function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, createStatus = null, reading = null, stateDelay = 0, answer = null, product = {}, instance = {} }) {
+function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, createStatus = null, reading = null, stateDelay = 0, answer = null, product = {}, instance = {}, sessions = {} }) {
   const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows), ...instance };
   const productFiles = { ...smallProduct(), ...product };
   let pending = {};
@@ -82,8 +89,8 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
   prototype.hasAttribute ??= function hasAttribute(name) { return this.getAttribute(name) !== null && this.getAttribute(name) !== undefined; };
   writeSetting(context.store, "mailbox", { address: "reports@example.org", route: "imap", folders: ["INBOX"], places,
     imap: { bridge: "lab-pc-4", jumpHostNoted: false, imap: { host: "imap.example.org", port: 993, security: "tls" }, smtp: { host: "smtp.example.org", port: 587, security: "starttls" }, account: "reports@example.org", password: "mail-password-966" } });
-  writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1" });
-  writeSetting(context.store, "endpoint:ep2", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k2" });
+  writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1", place: "this machine", context: 200000 });
+  writeSetting(context.store, "endpoint:ep2", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k2", place: "a provider in the USA", context: 200000 });
   const asked = new Map();
   const kept = { bridge: [], github: [], endpoint: [], ask: [], drafts: [...drafts], issues: issues.map((issue) => ({ ...issue })), send, commentStatus, createStatus, created: [] };
   let nextUid = 100;
@@ -125,6 +132,9 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       }
       return json({ error: "not-found", message: `unknown operation ${operation}` }, 404);
     }
+    // testBridge's two requests, which sessionsOffered sends: the Bridge names itself and lists the agents of `sessions` ready.
+    if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/pair" && method === "GET") return json({ bridge: { name: "lab-pc-4", version: "1.0.0", platform: "linux" }, origin: "https://alice.github.io" });
+    if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/agents" && method === "GET") return json({ agents: Object.entries(sessions).map(([name, declared]) => ({ name, version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] });
     if (url.origin === BRIDGE && url.pathname === "/v1/ask" && method === "POST") {
       const request = { origin: url.origin, body: JSON.parse(init.body) };
       kept.ask.push(request);
@@ -218,4 +228,4 @@ const start = async (extra = {}) => {
 };
 
 
-export { mailReadings, mailRead, openMail, routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, issueRecord };
+export { mailReadings, mailRead, openMail, routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, FIXER, FIXER_SESSIONS, issueRecord };

@@ -156,6 +156,10 @@ const repositoryPath = (address) => { try { return new URL(address).pathname.rep
  * and the participant's route; a failure of either is shown in the bar by name, and
  * nothing is thrown to the caller. `stop` removes the bar and aborts a message that is running.
  */
+// The key of a connection the bar offers, by which the selector names and keeps it: its name and the model it offers — a CLI session offers one for each model it can
+// run (UC-049 step 1: `hub · claude-opus-5-5 — Anthropic, USA`).
+const keyOf = (connection) => `${connection.name} · ${connection.model}`;
+
 export function startPromptBar(target, setup) {
   const { store, instance } = setup;
   // `jobs` holds each job followed — its follower, its part of the bar, its repository's address and host, and whether it has ended —, by its identifier.
@@ -181,7 +185,7 @@ export function startPromptBar(target, setup) {
     recording = on;
     recorded.hidden = !on;
   };
-  const chosen = () => offered.find((each) => each.name === (selector.value ?? offered[0].name)) ?? offered[0];
+  const chosen = () => offered.find((each) => keyOf(each) === (selector.value ?? keyOf(offered[0]))) ?? offered[0];
   // A participant's answer stands once, in the conversation: its text is the bar's `answer`.
   const line = (message) => {
     const text = el("div", message.from === "participant" ? "text answer" : "text");
@@ -297,7 +301,7 @@ export function startPromptBar(target, setup) {
     keepJobs();
     refreshStop();
     const route = view.route ?? "";
-    const waiting = view.end !== null || route === "" ? [] : [el("p", "waiting", route.startsWith("bridge ") ? `waiting for the Bridge ${route.slice("bridge ".length)}` : "waiting for GitHub Actions")];
+    const waiting = view.end !== null || route === "" ? [] : [el("p", "waiting", route.startsWith("bridge ") ? `waiting for the Bridge ${route.split(/\s+/)[1]}` : "waiting for GitHub Actions")];
     const secret = view.missingSecret === null ? [] : [el("p", "missing-secret", `Not run: the secret ${view.missingSecret} is missing. Add it on the server's page of this repository's secrets: `, secretsLink(job.host))];
     const run = view.address === null ? [] : [el("p", "run-address", "Run: ", linkTo(view.address))];
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
@@ -403,7 +407,7 @@ export function startPromptBar(target, setup) {
     const page = about ?? pageOf();
     async function assessAndQueue(check = true) {
       const hand = await handPart();
-      const assessment = await hand.assess({ handOver, participant, instance, page });
+      const assessment = await hand.assess({ handOver, participant, instance, page, connections: reached });
       render(assessment);
       if (check && onGitHub(assessment) && (assessment.route?.kind === "ci" || assessment.needsWorkflow)) {
         const lack = await hand.actionsLack({ participant, page, instance, store, snapshot: assessment.snapshot });
@@ -522,7 +526,7 @@ export function startPromptBar(target, setup) {
     where.replaceChildren("runs here");
     let ready;
     try {
-      ready = await (await sendPart()).prepareHandOver({ handOver: piece, subject, participant, conversation, store, instance, product: about ?? setup.product() });
+      ready = await (await sendPart()).prepareHandOver({ handOver: piece, subject, participant, conversation, store, instance, product: about ?? setup.product(), connections: reached });
     } catch (failure) {
       where.replaceChildren("not handed over");
       item.append(problem(`Nothing was run. ${said(failure)}`));
@@ -621,7 +625,7 @@ export function startPromptBar(target, setup) {
       const earlier = conversationOf(store);
       let ready;
       try {
-        ready = await (await sendPart()).prepareMessage({ subject, participant, instruction, conversation: earlier, store, instance, product: about ?? setup.product() });
+        ready = await (await sendPart()).prepareMessage({ subject, participant, instruction, conversation: earlier, store, instance, product: about ?? setup.product(), connections: reached });
       } catch (failure) {
         show(problem(`Nothing was sent. ${said(failure)}`));
         return;
@@ -731,7 +735,7 @@ export function startPromptBar(target, setup) {
     if (recordingOn) await record(page, who, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
     const conversationPath = recordingOn ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
     const spawned = await (await handPart()).spawnEndpointJob({ kind: BAR_KIND, task: instruction, participant, store, instance, page, ofProduct: about !== null || setup.product() !== null,
-      conversation: conversationPath, source, entry: subject.entry, instanceSnapshot });
+      conversation: conversationPath, source, entry: subject.entry, instanceSnapshot, connections: reached });
     if (spawned.refused) {
       const parts = [problem(`Nothing was spawned: ${spawned.refused}.`)];
       if (spawned.needsWorkflow) {
@@ -782,9 +786,9 @@ export function startPromptBar(target, setup) {
       chooser.replaceChildren(el("p", "none-able", `No endpoint or CLI session of this browser can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
       return;
     }
-    const named = (each) => `${each.name} — ${placeOf(each)}`;
+    const named = (each) => `${keyOf(each)} — ${placeOf(each)}`;
     // The same offer keeps its selector: replacing it while it takes focus would close its list before a choice is made.
-    const names = offered.map((each) => each.name).join("\n");
+    const names = offered.map(keyOf).join("\n");
     if (selector && names === offeredNames) return relabel();
     offeredNames = names;
     if (offered.length === 1) {
@@ -793,10 +797,10 @@ export function startPromptBar(target, setup) {
       selector = el("select", "participant");
       for (const each of offered) {
         const option = el("option", null, named(each));
-        option.value = each.name;
+        option.value = keyOf(each);
         selector.append(option);
       }
-      selector.value = offered.some((each) => each.name === kept) ? kept : offered[0].name;
+      selector.value = offered.some((each) => keyOf(each) === kept) ? kept : keyOf(offered[0]);
       selector.addEventListener("focus", () => judge().catch(() => {}));
       selector.addEventListener("change", (event) => {
         try { writeTabValue(store, CHOSEN, event.target.value); } catch { /* the tab keeps no values */ }

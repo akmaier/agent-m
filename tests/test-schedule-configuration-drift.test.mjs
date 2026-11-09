@@ -1,6 +1,6 @@
 // The committed configuration against the schedule (ITM-745) — MOD-test-schedule's configurationDrift(files, schedule, target,
-// resources, participants), as the accepted text of docs/architecture/MOD-test-schedule.md states it under Interfaces: where the
-// committed configuration differs from the one ciConfiguration generates from the same schedule, target, resources and participants;
+// resources), as the accepted text of docs/architecture/MOD-test-schedule.md states it under Interfaces: where the
+// committed configuration differs from the one ciConfiguration generates from the same schedule, target and resources;
 // on GitLab a .gitlab-ci.yml without the include entry; empty when they agree; for a configuration Agent M did not generate, its
 // triggers and the rows they run, as far as they can be read.
 // Run: node --test tests/test-schedule-configuration-drift.test.mjs
@@ -24,7 +24,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { scheduleSchema, defaultSchedule, ciConfiguration, configurationDrift } from "../src/test-schedule/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
-import { participantSchema } from "../src/participant-list/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
@@ -39,37 +38,27 @@ const SERVERS = [["github", GITHUB, GITHUB_FILE], ["gitlab", GITLAB, GITLAB_FILE
 const HEAD = "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |\n|---|---|---|---|---|---|---|";
 const scheduleOf = (rows) => readDocument(scheduleSchema, "docs/tests/schedule.md", `---\nnightly: 03:30\n---\n## Levels\n\n${HEAD}\n${rows.join("\n")}\n`);
 // Every row ticked on every occasion but `paid`, which is ticked wherever the default ticks it; component runs on the runner lab.
-const REAL = scheduleOf([
-  "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | lab-runner |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | |",
-  "| paid | | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"]);
+const REAL_ROWS = [
+  "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | runner:lab |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | |",
+  "| paid | | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"];
+const REAL = scheduleOf(REAL_ROWS);
 // The same, but paid and component are ticked for the release candidate only: one secret line and one runner line per file.
 const ONCE = scheduleOf([
-  "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | | | | ✓ | | lab-runner |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | |",
+  "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | | | | ✓ | | runner:lab |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | |",
   "| paid | | | | ✓ | | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"]);
 
-const participantsOf = (route) => readDocument(participantSchema(), "docs/participants.md", `# Participants of this instance
-
-**REGISTER**
-
-The participants of the test instance.
-
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| lab-runner | CI agent | example-model | 200000 | — | draft text, run code and tests | this machine | ${route} |
-`);
-const PARTICIPANTS = participantsOf("ci runner:lab secret LAB_KEY");
 const RESOURCE_HEAD = "| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |\n|---|---|---|---|---|---|---|---|---|---|";
 const resourcesOf = (secret) => readDocument(resourceSchema(), "docs/resources.md",
   `# Resources of this product\n\n**REGISTER**\n\nThe resources.\n\n${RESOURCE_HEAD}\n| oracle | endpoint | https://api.example.org/v1 | example-model | — | — | runner:cpu | the vendor | yes | ci:${secret} |\n`);
 const RESOURCES = resourcesOf("ORACLE_KEY");
 
 // The files of a product that merged the generated configuration: the generated files, on GitLab with a .gitlab-ci.yml that includes them.
-function generated(schedule, target, resources = RESOURCES, participants = PARTICIPANTS) {
-  const { files, include } = ciConfiguration(schedule, target, resources, participants);
+function generated(schedule, target, resources = RESOURCES) {
+  const { files, include } = ciConfiguration(schedule, target, resources);
   return include ? { ...files, [include.file]: `stages:\n  - test\ninclude:\n  ${include.entry}\n` } : files;
 }
 const place = (files, path, text) => ({ ...files, [path]: text });
-const drift = (files, schedule, target) => configurationDrift(files, schedule, target, RESOURCES, PARTICIPANTS);
+const drift = (files, schedule, target) => configurationDrift(files, schedule, target, RESOURCES);
 const linesOf = (text) => text.split("\n");
 const lineAt = (text, pattern, nth = 0) => {
   const at = linesOf(text).flatMap((line, i) => (pattern.test(line) ? [i] : []))[nth];
@@ -96,25 +85,25 @@ function assertOne(found, path, at, mention, text = null) {
 
 // TST-745001 · level: unit · module: MOD-test-schedule
 // guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027
-// given: a schedule whose row paid is ticked and whose row component runs on the participant lab-runner (route runner:lab), resources with one endpoint whose secret is ci:ORACLE_KEY, and the files ciConfiguration generates from them for GitHub and for GitLab (for GitLab also the product's .gitlab-ci.yml that holds the include entry); then the default schedule with no resource and no participant
-// input: configurationDrift(files, schedule, target, resources, participants) for each, with the files unedited
+// given: a schedule whose row paid is ticked and whose row component runs on runner:lab, resources with one endpoint whose secret is ci:ORACLE_KEY, and the files ciConfiguration generates from them for GitHub and for GitLab (for GitLab also the product's .gitlab-ci.yml that holds the include entry); then the default schedule with no resource
+// input: configurationDrift(files, schedule, target, resources) for each, with the files unedited
 // expect: the empty list for each, and nothing thrown — and the generated files do hold ORACLE_KEY and the label lab, so that the case is not empty of what it tests
 for (const [server, target, path] of SERVERS) {
-  test(`configurationDrift — ${server}: the unedited files with a paid secret and a runner participant give no difference`, () => {
+  test(`configurationDrift — ${server}: the unedited files with a paid secret and a self-hosted runner give no difference`, () => {
     const files = generated(REAL, target);
     assert.match(files[path], /ORACLE_KEY/);
     assert.match(files[path], /\blab\b/);
-    assert.deepEqual(configurationDrift(files, REAL, target, RESOURCES, PARTICIPANTS), []);
+    assert.deepEqual(configurationDrift(files, REAL, target, RESOURCES), []);
     if (server === "gitlab") assert.ok(".gitlab-ci.yml" in files, "the product's .gitlab-ci.yml, with the include entry");
-    const bare = generated(defaultSchedule(), target, NONE, NONE);
-    assert.deepEqual(configurationDrift(bare, defaultSchedule(), target, NONE, NONE), []);
+    const bare = generated(defaultSchedule(), target, NONE);
+    assert.deepEqual(configurationDrift(bare, defaultSchedule(), target, NONE), []);
   });
 }
 
 // TST-745002 · level: unit · module: MOD-test-schedule
 // guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027
 // given: the files generated for the schedule with a secret and a runner (REAL), each in turn with the text of one single line changed (a suffix added), and in turn with one single line removed — every line of the file, one case per line
-// input: configurationDrift(files, REAL, target, resources, participants), for GitHub and for GitLab
+// input: configurationDrift(files, REAL, target, resources), for GitHub and for GitLab
 // expect: exactly one difference for each case, with the path of the file and a text that begins with the number of that line — an inserted or removed line shifts none of the others into a difference
 for (const [server, target, path] of SERVERS) {
   test(`configurationDrift — ${server}: each single edited line, and each single removed line, gives exactly one difference with its path`, () => {
@@ -176,31 +165,31 @@ for (const [server, target, path] of SERVERS) {
 
 // TST-745005 · level: unit · module: MOD-test-schedule
 // guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; NO SECRET IN THE REPOSITORY; UC-027
-// given: the files generated for REAL with the resource whose secret is ci:ORACLE_KEY and the participant lab-runner on runner:lab
-// input: configurationDrift(files, REAL, target, resources, participants) with (a) resources whose secret is ci:OTHER_KEY, (b) no resource, (c) a participant lab-runner on runner:other, (d) no participant of that name — the rest as generated
-// expect: (a) differences, the secret lines among them; (b) differences, the secret lines among them; (c) differences, the runner lines among them; (d) the call throws InvalidSchedule, as ciConfiguration does for a runner no participant offers — the secrets and the runner label are those of the resources and the participants passed in, none read back from the committed files
+// given: the files generated for REAL with the resource whose secret is ci:ORACLE_KEY and the row component on runner:lab
+// input: configurationDrift(files, schedule, target, resources) with (a) resources whose secret is ci:OTHER_KEY, (b) no resource, (c) the schedule REAL with the row component on runner:other — the rest as generated
+// expect: (a) differences, the secret lines among them; (b) differences, the secret lines among them; (c) differences, the runner lines among them — the secrets and the runner label are those of the resources and the schedule passed in, none read back from the committed files
 for (const [server, target, path] of SERVERS) {
-  test(`configurationDrift — ${server}: the secrets and the runner are those of the resources and participants passed in`, () => {
+  test(`configurationDrift — ${server}: the secrets and the runner are those of the resources and the schedule passed in`, () => {
     const files = generated(REAL, target);
     const secret = server === "github" ? "ORACLE_KEY: ${{ secrets.ORACLE_KEY }}" : "# Secrets, read from the CI variables: ORACLE_KEY";
     const runner = server === "github" ? "runs-on: [self-hosted, lab]" : "tags: [lab]";
-    const other = configurationDrift(files, REAL, target, resourcesOf("OTHER_KEY"), PARTICIPANTS);
+    const other = configurationDrift(files, REAL, target, resourcesOf("OTHER_KEY"));
     assert.ok(other.length >= 3 && other.every((found) => found.path === path), JSON.stringify(other));
     assert.ok(other.some((found) => found.difference.includes(secret)), "the secret line, as committed, is named");
-    const none = configurationDrift(files, REAL, target, NONE, PARTICIPANTS);
+    const none = configurationDrift(files, REAL, target, NONE);
     assert.ok(none.length >= 3 && none.every((found) => found.path === path), JSON.stringify(none));
     assert.ok(none.some((found) => found.difference.includes(secret)));
-    const moved = configurationDrift(files, REAL, target, RESOURCES, participantsOf("ci runner:other secret LAB_KEY"));
+    const elsewhere = scheduleOf(REAL_ROWS.map((row) => row.replace("runner:lab", "runner:other")));
+    const moved = configurationDrift(files, elsewhere, target, RESOURCES);
     assert.ok(moved.length >= 5 && moved.every((found) => found.path === path), JSON.stringify(moved));
     assert.ok(moved.some((found) => found.difference.includes(runner)));
-    assert.throws(() => configurationDrift(files, REAL, target, RESOURCES, NONE), (error) => error.name === "InvalidSchedule");
   });
 }
 
 // TST-745006 · level: unit · module: MOD-test-schedule
 // guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027
 // given: the generated GitHub file; and with it, in turn, the file left out, and the file whose first line is changed
-// input: configurationDrift(files, REAL, GITHUB, resources, participants)
+// input: configurationDrift(files, REAL, GITHUB, resources)
 // expect: the file left out gives exactly one difference, with its path, that says the file is missing; the changed file exactly one, with its path and line 1
 test("configurationDrift — a generated file that is missing gives one difference with its path", () => {
   const text = generated(REAL, GITHUB)[GITHUB_FILE];
@@ -214,7 +203,7 @@ test("configurationDrift — a generated file that is missing gives one differen
 // TST-745007 · level: unit · module: MOD-test-schedule
 // guards: GITLAB PRODUCTS ARE SUPPORTED; THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027
 // given: the generated GitLab file and, beside it, a .gitlab-ci.yml of the product that (a) has an include: with another entry only, (b) has no include: key, (c) names the entry only in a comment, (d) is left out; and one that holds the entry among others, and one that holds it with quotes
-// input: configurationDrift(files, REAL, GITLAB, resources, participants)
+// input: configurationDrift(files, REAL, GITLAB, resources)
 // expect: (a) to (d) exactly one difference each, with the path .gitlab-ci.yml and a text that names the entry `- local: .gitlab/agent-m-tests.yml`; the two that hold the entry, none. On GitHub, a .gitlab-ci.yml among the files is no difference
 test("configurationDrift — GitLab: a .gitlab-ci.yml without the include entry gives a difference", () => {
   const { ".gitlab-ci.yml": _included, ...base } = generated(REAL, GITLAB);

@@ -224,24 +224,24 @@ test("TST-969205: nothing is written and nothing is sent unless a person clicks,
 
 // TST-969206 · level: release · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS
-// given: the closed issue 4 lists m1; the register lists local-llm (this machine), cloud-llm (a provider in the USA) and checker (this machine, cannot draft text)
+// given: the closed issue 4 lists m1; the register lists local-llm (on the endpoint ep1, at this machine), cloud-llm (on ep2, at a provider in the USA) and checker (whose model no connection offers, so it cannot draft text)
 // input: the issue opened with a mailbox that allows only this machine; again with a mailbox that allows this machine and the USA (outside the EU); again with a mailbox that allows no place; each time local-llm and cloud-llm are chosen in turn
-// expect: where only this machine is allowed local-llm is the only participant offered and the checker never is; where the USA is allowed too cloud-llm is offered, its place named and marked as not compliant with the GDPR and the EU AI Act, and its run panel names the place the mail goes to; where no place is allowed no participant is offered and the page says why; no model endpoint is asked in any of the three until Run
+// expect: where only this machine is allowed local-llm and, after it, the endpoint ep1 itself are the participants offered and the checker never is; where the USA is allowed too cloud-llm and ep2 are offered, its place named and marked as not compliant with the GDPR and the EU AI Act, and its run panel names the place the mail goes to; where no place is allowed no participant is offered and the page says why; no model endpoint is asked in any of the three until Run
 test("TST-969206: only participants at a place the mailbox allows are offered, and the page names where the mail goes", async () => {
   const M1 = await mailOf("m1");
   const issues = () => [issueRecord(4, "closed", [M1], { comments: ["Closed with pull request https://github.com/alice/product/pull/9."] })];
   const visit = async (places, fn) => {
-    const p = await openReplies({ inbox: [rawMail("m1")], issues: issues(), places, rows: [LOCAL, CLOUD, "| checker | model endpoint | model-c | 200000 | — | read the repository | this machine | endpoint ep1 |"] });
+    const p = await openReplies({ inbox: [rawMail("m1")], issues: issues(), places, rows: [LOCAL, CLOUD, "| checker | agent | model-c |"] });
     await lastly(p, async () => { await openIssueAfterReading(p, 4); await fn(p); assert.deepEqual(p.w.kept.endpoint, [], "no endpoint is asked before Run"); });
   };
   await visit([{ place: "this machine", outsideEu: false }], async (p) => {
     await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm"]);
+    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
   });
   restoreWorld();
   await visit([{ place: "this machine", outsideEu: false }, { place: "a provider in the USA", outsideEu: true }], async (p) => {
     await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value).sort(), ["cloud-llm", "local-llm"]);
+    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value).sort(), ["cloud-llm", "ep1", "ep2", "local-llm"]);
     const cloud = byClass(p.main(), "reply-participant").find((node) => node.getAttribute("data-participant") === "cloud-llm");
     assert.match(textOf(cloud), /a provider in the USA/);
     assert.match(textOf(one(cloud, "not-compliant")), /outside the EU.*GDPR.*EU AI Act/);

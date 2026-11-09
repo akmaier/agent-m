@@ -231,11 +231,12 @@ test("alternative 4b: without Propose the author decides a mail by hand with an 
 
 // TST-965006 · level: system · module: MOD-maintenance-pages
 // guards: UC-038; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
-// given: a register whose only participant that drafts text processes data in the USA, and a mailbox that allows this machine only
+// given: a register whose only participant that drafts text is an agent on this browser's endpoint ep2 in the USA, the endpoint ep1 declared in the USA as well, and a mailbox that allows this machine only
 // input: Mail opened, which reads the mailbox
 // expect: the page says that no participant processes data at a place the mailbox allows, links the mailbox's processing places, and offers no participant; nothing was sent; the author can still decide a mail by hand (flow: UC-038 alternative 4c)
 test("alternative 4c: no participant at an allowed place is said, the mailbox's places are linked and nothing is sent", async () => {
-  const p = await open({ rows: [CLOUD] });
+  const p = await open({ rows: [CLOUD], settings: { "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1",
+    place: "a provider in the USA", context: 200000 } } });
   await lastly(p, async () => {
     await mailboxRead(p);
     itemOf(p.main(), A.id);

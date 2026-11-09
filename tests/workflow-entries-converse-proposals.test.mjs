@@ -93,15 +93,16 @@ const LINKS = text("# The sources this product meets", "", "| Source | Version |
 // Agent M's own SPEC.md, which the fixture instance holds: a kind of requirement-form takes the form its draft is checked by from it.
 const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |");
 
 const PRODUCT_FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "docs/sources.md": LINKS, [UC_PATH]: UC_BEFORE, [ARC_PATH]: ARC_BEFORE, [MOD_PATH]: MOD_READER, ...RECORDS,
   ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" };
 const INSTRUCTION = "Tell the member the due date";
 const JOB = "JOB-20261026-0800-a1b2";
+// The record names the connection ci-bot runs on — the endpoint whose key is the CI secret FIXTURE_KEY — and what it declares (MOD-job-ledger).
 const converseStart = (agentM, params = {}) => ({ id: JOB, kind: "converse", worksOn: ["https://github.com/alice/thesis-tool"], participant: "ci-bot", model: "fixture-llm",
-  route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-26T08:00:00Z"), agentM, inputs: [], limit: 2,
+  route: "ci hosted endpoint ci-bot secret FIXTURE_KEY", declares: { context: 100000, capabilities: ["draft text", "read the repository"] }, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-26T08:00:00Z"), agentM, inputs: [], limit: 2,
   destinations: [{ participant: "ci-bot", place: "GitHub's hosted runners", parts: ["instruction"] }], params: { endpoint: ENDPOINT, instruction: INSTRUCTION, source: PO, ...params } });
 const recordFile = (start) => { const { path, text: body } = startRecord(start); return [path, body]; };
 
@@ -514,8 +515,8 @@ test("TST-2026111104: a piece whose writer writes nothing lists the writer's not
 
 // ---------------------------------------------------------------- the job whose task travels with its hand-over (the endpoint's own job spawned by the bar)
 
-// The endpoint's own converse job, as the bar spawns it: route ci hosted, task `with the hand-over`, `declares` draft text and read the repository, the person's source.
-const declared = (agentM) => ({ ...converseStart(agentM, { endpoint: undefined, instruction: undefined }), participant: "fixture-endpoint", task: "with the hand-over",
+// The endpoint's own converse job, as the bar spawns it: route ci hosted endpoint fixture-endpoint secret FIXTURE_KEY, task `with the hand-over`, `declares` draft text and read the repository, the person's source.
+const declared = (agentM) => ({ ...converseStart(agentM, { endpoint: undefined, instruction: undefined }), participant: "fixture-endpoint", task: "with the hand-over", route: "ci hosted endpoint fixture-endpoint secret FIXTURE_KEY",
   declares: { context: 100000, capabilities: ["draft text", "read the repository"] }, destinations: [{ participant: "fixture-endpoint", place: "GitHub's hosted runners", parts: ["instruction"] }] });
 const DISPATCH_ENDPOINT = JSON.stringify({ kind: ENDPOINT.kind, baseUrl: ENDPOINT.baseUrl, model: ENDPOINT.model });
 

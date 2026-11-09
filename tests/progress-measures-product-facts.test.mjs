@@ -86,9 +86,9 @@ const JOB = ["---", "id: JOB-20261014-0900-a1b2", "kind: implement", "works_on:"
   "## Destinations", "", "## Parameters", "", "```json", "{}", "```", ""].join("\n");
 
 const REGISTER = ["# Participants of this instance", "", "**REGISTER**", "", "The people and agents of the fixture instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |",
-  "| developer-a | CLI agent | example-model | 200000 | — | read the repository, write to the repository, run code and tests | this machine | bridge lab-pc agent claude |",
+  "| Name | Type | Model |", "|---|---|---|",
+  "| alice | person | — |",
+  "| developer-a | agent | example-model |",
   ""].join("\n");
 
 const UC1 = "docs/use-cases/UC-001-store.md", UC2 = "docs/use-cases/UC-002-pages.md";
@@ -181,7 +181,7 @@ const work = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, { scope:
 // guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
 // given: the fixture product (UC-001 accepted by a record naming its blob, UC-002 open; one open SPEC change entry; scrum declared at the commit 5…5; alice and developer-a in the instance's register; four backlog items; team1's sprint; team1's role assignment; one passed gate record; one job record; a merged and an open pull request) and its instance
 // input: productFacts(host, instance, instanceAt, now, { scope: "work" })
-// expect: address "https://github.com/alice/product"; UC-001 accepted and UC-002 open in statuses; one queue, 2026-03-01_waiting, whose entry 01 is open; the declaration's model "scrum"; model and workflow of scrum with the phases Sprint Planning, Development, Sprint Review, Sprint Retrospective; modelUnread null; participants alice and developer-a; plan.order null and plan.items ITM-001 to ITM-004; sprints [docs/backlog/sprints/team1/01.md]; assignments [docs/role-assignments/team1.md]; gates [the one record]; one job JOB-20261014-0900-a1b2 of a product at the address; pullRequests numbered 1 and 2
+// expect: address "https://github.com/alice/product"; UC-001 accepted and UC-002 open in statuses; one queue, 2026-03-01_waiting, whose entry 01 is open; the declaration's model "scrum"; model and workflow of scrum with the phases Sprint Planning, Development, Sprint Review, Sprint Retrospective; modelUnread null; participants alice (person) and developer-a (agent: no connection is given); plan.order null and plan.items ITM-001 to ITM-004; sprints [docs/backlog/sprints/team1/01.md]; assignments [docs/role-assignments/team1.md]; gates [the one record]; one job JOB-20261014-0900-a1b2 of a product at the address; pullRequests numbered 1 and 2
 test("productFacts, scope work — reads the statuses, queues, declaration with model and workflow, participants, backlog, sprints, role assignments, gates, jobs and pull requests", async () => {
   const f = fixture();
   const facts = await work(f);
@@ -196,7 +196,7 @@ test("productFacts, scope work — reads the statuses, queues, declaration with 
   assert.deepEqual(facts.workflow.phases.map((p) => p.name), ["Sprint Planning", "Development", "Sprint Review", "Sprint Retrospective"]);
   assert.equal(facts.workflow.model.name, "scrum");
   assert.equal(facts.modelUnread, null);
-  assert.deepEqual(facts.participants.map((p) => [p.name, p.type]), [["alice", "person"], ["developer-a", "CLI agent"]]);
+  assert.deepEqual(facts.participants.map((p) => [p.name, p.type]), [["alice", "person"], ["developer-a", "agent"]]);
   assert.equal(facts.plan.order, null);
   assert.deepEqual(facts.plan.items.map((i) => i.id), ["ITM-001", "ITM-002", "ITM-003", "ITM-004"]);
   assert.deepEqual(facts.sprints.map((s) => s.path), ["docs/backlog/sprints/team1/01.md"]);

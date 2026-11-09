@@ -21,7 +21,7 @@ import { cancelJob, liveState, liveStates, jobLog, jobTrail, retryJob, revertAft
 import { productFacts } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
 import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
-import { currentJob } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, currentJob, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 import { bridgesOf, liveStatesOf, sourcesOf } from "./sources.mjs";
 import { waitingOf, waitsList } from "./waits.mjs";
@@ -216,7 +216,7 @@ export const jobs = { name: "jobs", entry: null, title: "Every job", render };
 
 const usageText = (usage) => [usage.inputTokens != null && `${usage.inputTokens} input tokens`, usage.outputTokens != null && `${usage.outputTokens} output tokens`,
   usage.minutes != null && `${usage.minutes} minutes`].filter(Boolean).join(", ");
-// NO COST IS GUESSED: the amount only where the runtime or the declared price made one known; else the usage that was reported, with its price unknown; else unknown.
+// NO COST IS GUESSED: the amount only where the runtime reported one; else the usage that was reported, with its price unknown; else unknown.
 function costLine(cost) {
   if (cost.known) return `${cost.amount} ${cost.currency} (${cost.basis})`;
   const usage = cost.usage ? usageText(cost.usage) : "";
@@ -298,7 +298,16 @@ async function renderJob(target, context, params, note = null) {
 
 const RETRIABLE = new Set(["failed", "cancelled", "ended without record"]);
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 // The parameters of the records whose retry opened the prompt bar, by the job: the bar's Subject gives them to the kind (the address carries the kind alone).
 const RETRY_PARAMS = new Map();
@@ -334,7 +343,8 @@ async function retryControls(context, held, read) {
   try {
     const instanceHost = context.instance.host;
     const snapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
-    facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
+    facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work", connections });
     visibility = (await host.repositoryInfo()).visibility;
   } catch (failure) {
     box.append(el("p", "warn retry-unreadable", `Retry could not be prepared: ${String(failure?.message ?? failure)}`));
@@ -373,7 +383,7 @@ async function retryControls(context, held, read) {
   let offered = new Map();
   const fillRoutes = () => {
     const chosen = holders.find((each) => each.name === participant.value);
-    offered = new Map(routesFor(chosen, facts.participants, { visibility, jobWorkflow }, []).filter((each) => each.available).map((each) => [recordRoute(each.route), each.route]));
+    offered = new Map(routesFor(chosen, { visibility, jobWorkflow }, []).filter((each) => each.available).map((each) => [recordRoute(each.route), each.route]));
     route.replaceChildren(...[...offered.keys()].map((text) => { const option = el("option", null, text); option.value = text; return option; }));
   };
   participant.addEventListener("change", fillRoutes);

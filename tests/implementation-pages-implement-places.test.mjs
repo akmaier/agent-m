@@ -7,8 +7,8 @@
 // Guards: UC-024; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // Level: unit
 //
-// The product is the Scrum fixture of tests/implementation-pages-implement.test.mjs with the sprint selecting ITM-001 and ITM-005; team1's assignment gives the role Builders to dev-a, who processes data at
-// "this machine", and to dev-b, who processes data at "elsewhere". The instance's register holds the source SRC-fixture, whose licence and places are as each test states. The recipe
+// The product is the Scrum fixture of tests/implementation-pages-implement.test.mjs with the sprint selecting ITM-001 and ITM-005; team1's assignment gives the role Builders to dev-a, whose connection, the coding agent claude
+// of the Bridge lab-pc, processes data at "this machine", and to dev-b, whose connection, the coding agent codex of that Bridge, processes data at "elsewhere". The instance's register holds the source SRC-fixture, whose licence and places are as each test states. The recipe
 // `implementation-inputs` is stood in for: the part it gives for ITM-005 cites SRC-fixture, the part for ITM-001 cites no source, so ITM-005's job would include the source's content and ITM-001's would not.
 // Nothing reaches the network. Readings the texts leave open, which the tests state (the pull request names them):
 //   - "offered" is the option in <select data-participant-of="<item>">; a participant a source forbids is not an option.
@@ -16,12 +16,13 @@
 //   - A job that includes no content of the source is judged as before: every holder of the role is offered.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import test, { afterEach } from "node:test";
+import test, { after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -90,8 +91,12 @@ const OPEN_PRS = [pr({ number: 1, item: "ITM-001" }), pr({ number: 2, item: "ITM
 
 const ROOT = new URL("../", import.meta.url);
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const CAPABILITIES = "read the repository, write to the repository, run code and tests, use tools";
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | ${CAPABILITIES} | this machine | ci hosted secret DEV_KEY |\n| dev-b | model endpoint | model-b | 200000 | — | ${CAPABILITIES} | elsewhere | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n`;
+// This browser's connections: the Bridge lab-pc, whose coding agent claude offers model-a at "this machine" and whose coding agent codex offers model-b at "elsewhere", each with every capability an implementing job
+// needs; the Bridge answers here.
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridge = withBridge([agent("claude", [["model-a"]]), agent("codex", [["model-b"]], { place: "elsewhere" })]);
+after(() => bridge.restore());
 const assignmentBoth = lines("# team1", "", "## Roles", "", "| Role | Participants |", "|---|---|", "| Owner | alice |", "| Builders | dev-a, dev-b |", "| Checker | dev-a |");
 const sourceEntry = (licence, places) => lines("---", "id: SRC-fixture", "title: The fixture source", "kind: document", "authority: normative", `licence: ${licence}`,
   ...(places.length ? ["places:", ...places.map((place) => `  - ${place}`)] : []), "---", "# SRC-fixture The fixture source", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
@@ -112,7 +117,7 @@ function hostOf(files) {
 async function render({ licence = "restricted - fixture terms", places = ["this machine"] } = {}) {
   const files = { ...productFiles({ selection: ["ITM-001", "ITM-005"] }), "docs/role-assignments/team1.md": assignmentBoth };
   const instance = hostOf({ "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": files["docs/process-models/fixture.md"], "docs/sources/SRC-fixture.md": sourceEntry(licence, places) });
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: hostOf(files), tokenStored: true }, store: {}, go() {} };
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: hostOf(files), tokenStored: true }, store: storeWith(SETTINGS), go() {} };
   const target = document.createElement("div");
   document.body.append(target);
   await route.render(target, context, {});

@@ -16,8 +16,8 @@ the text after the front matter begins directly with `## Levels`, as a job's rec
   `scheduleFindings` names a `minutes` that is not a whole number from 1.
 - `## Levels` names one row for each of the five levels of `EVERY TEST HAS ONE LEVEL`, and a sixth, `paid`, for a test
   that calls a paid service or a model, which cuts across them. A cell of its five occasion columns is `✓` or left
-  out. `runs on` is `hosted` or the name of a participant of the instance with *run code and tests* whose route is a
-  self-hosted runner, left out where the row names none. `shards` is the number of parallel jobs the row's tests are
+  out. `runs on` is `hosted` or `runner:<label>`, a
+  self-hosted runner identified by its label, left out where the row names none. `shards` is the number of parallel jobs the row's tests are
   split across, a whole number from 1, empty for 1; a table may leave the column out, and every row then has one shard.
   `scheduleFindings` names a `shards` that is not a whole number from 1.
 

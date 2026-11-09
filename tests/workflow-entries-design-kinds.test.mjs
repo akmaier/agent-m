@@ -72,12 +72,13 @@ const LINKS = text("# The sources this product meets", "", "| Source | Version |
 // Agent M's own SPEC.md, which the fixture instance holds: a kind of requirement-form takes the form its draft is checked by from it.
 const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |");
 
 const INSTRUCTION = "Tell the member the due date";
 const jobStart = (id, kind, params, agentM) => ({ id, kind, worksOn: [kind === "change-use-case" ? "UC-001" : RULE], participant: "ci-bot", model: "fixture-llm",
-  route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-08T08:00:00Z"), agentM, inputs: [], limit: 2,
+  route: "ci hosted endpoint ci-bot secret FIXTURE_KEY", declares: { context: 100000, capabilities: ["draft text", "read the repository", "write to the repository"] },
+  run: null, retries: null, startedBy: "alice", start: new Date("2026-10-08T08:00:00Z"), agentM, inputs: [], limit: 2,
   destinations: [{ participant: "ci-bot", place: "GitHub's hosted runners", parts: ["instruction"] }], params: { endpoint: ENDPOINT, ...params } });
 const recordFile = (start) => { const { path, text: body } = startRecord(start); return [path, body]; };
 const USE_CASE_JOB = "JOB-20261008-0800-a1b2", REQUIREMENTS_JOB = "JOB-20261008-0801-c3d4";

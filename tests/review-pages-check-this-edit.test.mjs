@@ -20,7 +20,7 @@
 //     one compiler form, beside the marks of the schema and the graph; they stay while the text is edited.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import { fakeProduct, contextOf, draw, find, byClass, click, until, buttonsNamed, pages, writeSetting, ARC_PATH, ARC1, MOD_PATH } from "./review-pages-draft-world.mjs";
+import { fakeProduct, contextOf, draw, find, byClass, click, until, buttonsNamed, pages, ARC_PATH, ARC1, MOD_PATH } from "./review-pages-draft-world.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -42,7 +42,6 @@ test.afterEach(() => { globalThis.fetch = realFetch; });
 
 async function editPage(fake, id = "ARC-001") {
   const context = contextOf(fake);
-  writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
   const { target } = await draw(fake, "decision", { id, edit: "1" }, { context });
   return target;
 }
@@ -94,7 +93,7 @@ test("decision/<id>/edit — without a chosen reviewer nothing is prepared or se
   await until(() => byClass(target, "p", "problem").some((node) => /Choose the participant/.test(node.textContent)), "the request to choose");
   assert.equal(byClass(target, "section", "run-panel").length, 0);
   assert.equal(requests.length, 0);
-  const module_ = await draw(fake, "module", { id: "MOD-reader", edit: "1" }, { context: (() => { const context = contextOf(fake); writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false }); return context; })() });
+  const module_ = await draw(fake, "module", { id: "MOD-reader", edit: "1" }, { context: contextOf(fake) });
   assert.equal(byClass(module_.target, "section", "check-edit").length, 1, MOD_PATH);
   const useCase = await draw(fake, "use-case", { id: "UC-007", edit: "1" });
   assert.equal(byClass(useCase.target, "section", "check-edit").length, 0, "a use case has no such check");

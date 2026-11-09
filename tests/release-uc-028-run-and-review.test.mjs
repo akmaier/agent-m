@@ -31,6 +31,9 @@ const TESTS = declarations([["901", "unit", "A GUARDED RULE"], ["902", "unit", "
   ["905", "release", "A GUARDED RULE"]]);
 const FILES = { "SPEC.md": SPEC, "tests/sample.test.mjs": TESTS, "docs/tests/schedule.md": SCHEDULE, [WORKFLOW]: "name: Agent M jobs\n", "CHANGELOG.md": "# Changelog\n" };
 const scheduleRunsOn = (who) => SCHEDULE.replace("| release | | | | ✓ | ✓ | |", `| release | | | | ✓ | ✓ | ${who} |`).replace("| user | | | | ✓ | ✓ | |", `| user | | | | ✓ | ✓ | ${who} |`);
+// The schedule with every row on the server's runners: a release candidate's complete run is queued on the runner each row of the schedule names, and refused with
+// NoRunner for a level whose row names none (MOD-release-evidence's startReleaseCandidate); `runs on` is `hosted` or `runner:<label>` (MOD-test-schedule).
+const ON_HOSTED = SCHEDULE.replaceAll(" | |\n", " | hosted |\n");
 const written = (world) => world.calls.filter((call) => call.fn === "commitFiles");
 const filesWritten = (world) => written(world).flatMap((call) => call.change.files);
 
@@ -137,7 +140,7 @@ test("a model-dependent test shows the rate of a number of runs fixed in advance
 
 // A candidate whose run has ended with the rows given; the panel has read the report again. With `complete` false the page is read while a level has no record.
 async function releasing(rows, { earlier = null, complete = true } = {}) {
-  const world = product({ files: { ...FILES, "docs/tests/schedule.md": scheduleRunsOn("a-second-person"), ...(earlier ? { "docs/tests/releases/v2026.3.0.md": earlier.report } : {}) } });
+  const world = product({ files: { ...FILES, "docs/tests/schedule.md": ON_HOSTED, ...(earlier ? { "docs/tests/releases/v2026.3.0.md": earlier.report } : {}) } });
   const COMMIT = world.headOf("main");
   world.branch("test-results", earlier ? { [`runs/${earlier.commit}/20260901-1000-release-candidate-aaaa.md`]: earlier.record } : {});
   const target = await renderRoute(releaseRoute, context(world), {});
@@ -229,7 +232,7 @@ test("each test is listed under exactly one level, the one it declares", async (
 
 // TST-773109 · level: release · module: MOD-test-pages
 // guards: UC-028; EVERY ARTIFACT NAMES ITS ORIGIN; A ROLE NAMES THE CAPABILITIES IT NEEDS; THE PAGE NAMES WHERE IT SENDS
-// given: the participants hosted-ci (run code and tests, route ci hosted) and writer (no such capability); the commit's level release has no record
+// given: the participants hosted-ci, an agent on the coding agent on CI ci whose key is the CI secret CI_KEY (route: ci hosted), and writer, an agent on the Bridge lab-pc's coding agent claude, whose declaration names no run code and tests; the commit's level release has no record
 // input: Run on this commit, hosted-ci and the name akmaier chosen
 // expect: only hosted-ci is offered; the panel names where the run happens (the route ci hosted, the commit and the levels); the job record the click commits names its origin: the person akmaier who started it, the participant hosted-ci and the commit it works on
 test("Run on this commit offers only a participant with the capability, names where the run happens, and the job record names who started it", async () => {
@@ -310,7 +313,7 @@ test("the runs page carries a folded explanation of its steps", async () => {
 // input: the panel is drawn
 // expect: it holds a folded explanation (details with the class explain)
 test("the release panel carries a folded explanation of its steps", async () => {
-  const other = product({ files: { ...FILES, "docs/tests/schedule.md": scheduleRunsOn("a-second-person") } });
+  const other = product({ files: { ...FILES, "docs/tests/schedule.md": ON_HOSTED } });
   other.branch("test-results", {});
   const panel = await renderRoute(releaseRoute, context(other), {});
   assert.ok(byClass(panel, "explain").length >= 1, "the release panel explains itself");

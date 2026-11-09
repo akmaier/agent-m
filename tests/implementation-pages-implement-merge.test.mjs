@@ -28,6 +28,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { startRecord } = await import("../src/job-ledger/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -117,7 +118,9 @@ const ROOT = new URL("../", import.meta.url);
 // The server's page on which the rule behind greenToMerge is set, as the host's webLinks gives it (MOD-repository-hosts' WebLinks `branchProtection`).
 const BRANCH_PROTECTION = `${ADDRESS}/settings/branches`;
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n`;
+// This browser keeps no connection: the pull requests and Merge need none.
+const STORE = () => storeWith({});
 
 // A host of this file's own: the part of MOD-repository-hosts' interface the route uses, recording what it is asked for. `refuse` is what mergePullRequest throws, if anything; `greenToMerge` is what repositoryInfo
 // gives for it (ITM-1170).
@@ -148,7 +151,7 @@ async function render(pulls, { refuse = null, extraPulls = [], greenToMerge = nu
   const all = [...pulls, ...extraPulls];
   const host = hostOf(productFiles(pulls), all, calls, refuse, greenToMerge);
   const instanceHost = hostOf({ "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": productFiles([])["docs/process-models/fixture.md"] }, [], []);
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} };
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: STORE(), go() {} };
   const target = document.createElement("div");
   document.body.append(target);
   await route.render(target, context, {});

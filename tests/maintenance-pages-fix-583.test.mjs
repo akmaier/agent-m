@@ -7,13 +7,13 @@
 // Guards: UC-012; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // Level: component
 //
-// The world is tests/maintenance-pages-world.mjs: its model endpoint ep1 is the participant local-llm, its fake GitHub holds the issues of alice/product and takes git commits to the product; to its register this file adds the CI agent ci-bot, which declares write to the repository
-// and run code and tests and whose route is the server's own runners. The page, MOD-issue-handling, MOD-job-catalogue, MOD-job-runner, MOD-run-planner, MOD-runtimes and MOD-repository-hosts are the real ones. Readings the texts leave open, which the tests state (the pull request names them):
+// The world is tests/maintenance-pages-world.mjs: its model endpoint ep1 offers the participant local-llm, its fake GitHub holds the issues of alice/product and takes git commits to the product; to its register this file adds the agent dev-cli, whose model the
+// CLI session claude of the Bridge lab-pc-4 offers with write to the repository and run code and tests, at this machine, on the route bridge lab-pc-4 agent claude. The page, MOD-issue-handling, MOD-job-catalogue, MOD-job-runner, MOD-run-planner, MOD-runtimes and MOD-repository-hosts are the real ones. Readings the texts leave open, which the tests state (the pull request names them):
 //   - The fix is a section of the issue's page, <section class="issue-fix">, shown for an open issue whose class is bug — by its label, or by the person's click on Bug — and for no other class. It has what the analysis has under its own class names: <input class="fix-participant"> (radio)
 //     for each participant of the register that declares what the kind needs (write to the repository, run code and tests), <input class="fix-person">, and beside them <input class="fix-requirement"> (the requirement the fix restores) and <input class="fix-modules"> (the modules it changes, separated
 //     by commas, prefilled with the modules whose folder holds a file the analysis names as wrong); once a participant and a name are given, the run panel of the kind fix-bug. Run is the person's click.
 //   - Run queues the job on the participant's route — a start record under docs/jobs/ committed to the product — and runs nothing in the tab; the page then shows <p class="job-queued">. The job's parameters are `issue`, `violated` (the requirement typed, left out when blank), `wrong`
-//     (the files the analysis proposed), `modules` and `route` (as the record writes the route). A route that is not available — here a product without the job workflow — is named with its reason and nothing is written.
+//     (the files the analysis proposed), `modules` and `route` (as the record writes the route). A route that is not available — here one that does not reach a resource the product's list names — is named with its reason and nothing is written.
 //   - Without a participant that declares what the kind needs, the section says so, <p class="issue-no-fixer">, and offers <button class="uc-017"> that goes, on a click, to Agent M's own use case UC-017 (the context's `go("use-case", { id: "UC-017", product: "" })`, the empty product naming the instance itself); it offers no run panel.
 //   - After the section, <div class="issue-fix-trail"> names the newest job of the kind fix-bug whose works_on names the issue's address (<p class="fix-job">) and the pull request of the branch named after the job (<a class="fix-pull-request">, <p class="fix-pull"> with its state);
 //     once it is merged, <button class="close-with-links"> "Close with links" — the person's click — closes the issue with closeWithLinks: the note "Closed with <the pull request's address>." and the state closed.
@@ -27,7 +27,7 @@ import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { runStrategies } from "../src/run-planner/index.mjs";
 import { resourceStrategies } from "../src/resource-list/index.mjs";
-import { LOCAL, buttonsOf, byClass, flush, one, restoreWorld, textOf, trusted, waitFor, world, routeNamed, pages } from "./maintenance-pages-world.mjs";
+import { FIXER, FIXER_SESSIONS, LOCAL, buttonsOf, byClass, flush, one, restoreWorld, textOf, trusted, waitFor, world, routeNamed, pages } from "./maintenance-pages-world.mjs";
 
 // The strategies the page's own view hands the frame, and those the prompt bar hands it on the dashboard (the recipes `implementation-inputs` and `resource-pins`), which the harness does not register.
 for (const [at, strategies] of [...(pages.view?.strategies ?? []), runStrategies, resourceStrategies].entries()) {
@@ -42,12 +42,14 @@ const issueRecord = (number, labels) => ({ number, title: `Export loses pages ${
 const issuesOf = () => [issueRecord(5, []), issueRecord(6, ["defect"]), issueRecord(7, ["change"]), issueRecord(8, ["defect"])];
 const ADDRESS = (number) => `${PRODUCT_URL}/issues/${number}`;
 
-const CI_AGENT = "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |";
 const WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" };
 const moduleText = (id, folder) => ["---", `id: ${id}`, `title: ${id}`, `folder: ${folder}`, "realises: []", "follows:", "  - ARC-001", "uses: []", "provides: []", "---", `# ${id} ${id}`, "",
   "## Responsibility", "", "It stores.", "", "## Parts", "", "- index.mjs", "", "## Data", "", "Nothing.", "", "## Interfaces", "", "None.", "", "## Files", "", "None.", "", "## Uses", "", "None.", ""].join("\n");
 const decision = ["---", "id: ARC-001", "title: The whole", "designs:", "  - MOD-store", "---", "# ARC-001 The whole", "", "## Context", "", "c", "", "## Decision", "", "d", "", "## Alternatives", "", "a", "", "## Consequences", "", "q", ""].join("\n");
 const PRODUCT_FILES = { ...WORKFLOW, "docs/architecture/ARC-001-whole.md": decision, "docs/architecture/MOD-store.md": moduleText("MOD-store", "src/store/"), "src/store/read.mjs": "export const read = 1;\n" };
+// The product's resource list naming a compute that only the Bridge lab-pc-5 reaches.
+const GPU = ["# Resources", "", "What this is built with and runs on.", "", "| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |", "|---|---|---|---|---|---|---|---|---|---|",
+  "| gpu | compute | gpu.example.test | — | — | — | bridge lab-pc-5 | this machine | — | — |", ""].join("\n");
 const PROPOSAL = { class: "bug", reasoning: "FIRST RULE holds, and the code breaks it: the export drops pages.", wrong: ["src/store/read.mjs", "tests/store.test.mjs"] };
 
 // The instance, as its register holds the book (the recipe chapters-for-tests of the kind reads chapter 13), read from this repository.
@@ -57,8 +59,8 @@ const BOOK = { "docs/sources/SRC-vibe-coding.md": onDisk("docs/sources/SRC-vibe-
   ...Object.fromEntries(readdirSync(new URL(`../${BOOK_FOLDER}`, import.meta.url)).map((name) => [BOOK_FOLDER + name, onDisk(BOOK_FOLDER + name)])) };
 
 /** The world with the product chosen. */
-function start({ product = PRODUCT_FILES, rows = [LOCAL, CI_AGENT], ...over } = {}) {
-  const w = world({ mails: [], issues: issuesOf(), rows, answer: () => ({ draft: PROPOSAL, answers: [] }), product, instance: BOOK, ...over });
+function start({ product = PRODUCT_FILES, rows = [LOCAL, FIXER], ...over } = {}) {
+  const w = world({ mails: [], issues: issuesOf(), rows, answer: () => ({ draft: PROPOSAL, answers: [] }), product, instance: BOOK, sessions: FIXER_SESSIONS, ...over });
   w.context.product = { address: PRODUCT_URL, kind: "github", host: connect(parseAddress(PRODUCT_URL), { token: PRODUCT_TOKEN }), tokenStored: true };
   return w;
 }
@@ -74,7 +76,7 @@ const writtenFiles = (w) => [...new Map(w.kept.github.filter((request) => reques
 const jobFiles = (w) => writtenFiles(w).filter((entry) => entry.path.startsWith("docs/jobs/"));
 
 /** The issue opened, its fix section drawn, a participant and a name given, and the run panel drawn. */
-async function ready(w, number = 6, { participant = "ci-bot", requirement = "" } = {}) {
+async function ready(w, number = 6, { participant = "dev-cli", requirement = "" } = {}) {
   const detail = await open(w, number);
   await waitFor(() => byClass(detail, "issue-analysis").length > 0 && fixOf(detail) !== undefined);
   assert.ok(fixOf(detail), `issue ${number} shows the section to fix it`);
@@ -89,17 +91,17 @@ async function ready(w, number = 6, { participant = "ci-bot", requirement = "" }
 
 // TST-583201 · level: component · module: MOD-maintenance-pages, MOD-issue-handling, MOD-job-catalogue, MOD-runtimes
 // guards: UC-012; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
-// given: known positive first — the issue 6 labelled defect; the register lists the model endpoint local-llm (draft text) and the CI agent ci-bot (write to the repository, run code and tests); the product has the job workflow
-// input: the route issue 6; the participant ci-bot, the name "Reviewer Rae" and the requirement FIRST RULE; Run by a script and then by a person
-// expect: the participants offered are ci-bot alone; the run panel states ci-bot's place and the parts it receives — the issue, the confirmed analysis and the instruction to write the regression test first among them; before the person's click nothing is written and no endpoint is asked; after it one file docs/jobs/JOB-….md is committed, a record of kind fix-bug working on the issue's address https://github.com/alice/product/issues/6, participant ci-bot, route ci hosted, with the parameters issue 6, violated FIRST RULE and route ci hosted; the page says the job is queued on the route ci hosted; nothing ran in the tab
+// given: known positive first — the issue 6 labelled defect; the register lists local-llm (on the model endpoint ep1: draft text) and dev-cli (on the Bridge lab-pc-4's CLI session claude: write to the repository, run code and tests); the product has the job workflow
+// input: the route issue 6; the participant dev-cli, the name "Reviewer Rae" and the requirement FIRST RULE; Run by a script and then by a person
+// expect: the participants offered are dev-cli alone; the run panel states dev-cli's place (this machine) and the parts it receives — the issue, the confirmed analysis and the instruction to write the regression test first among them; before the person's click nothing is written and no endpoint is asked; after it one file docs/jobs/JOB-….md is committed, a record of kind fix-bug working on the issue's address https://github.com/alice/product/issues/6, participant dev-cli, route bridge lab-pc-4 agent claude, with the parameters issue 6, violated FIRST RULE and route bridge lab-pc-4; the page says the job is queued on the route bridge lab-pc-4; nothing ran in the tab
 test("issue — Fix offers the participants that can run tests, shows their run panel, and Run queues a fix-bug job of the issue on the participant's route", async () => {
   const w = start();
   const detail = await ready(w, 6, { requirement: "FIRST RULE" });
-  assert.deepEqual(byClass(fixOf(detail), "fix-participant").map((radio) => radio.value), ["ci-bot"]);
+  assert.deepEqual(byClass(fixOf(detail), "fix-participant").map((radio) => radio.value), ["dev-cli"]);
   assert.equal(byClass(fixOf(detail), "issue-problem").length, 0, textOf(one(fixOf(detail), "issue-problem") ?? fixOf(detail)));
   const panel = one(fixOf(detail), "run-panel");
   assert.equal(byClass(panel, "blocking").length, 0, textOf(one(panel, "blocking") ?? panel));
-  for (const wanted of ["ci-bot", "GitHub's hosted runners", "issue #6", "confirmed analysis", "regression test first"]) assert.ok(textOf(panel).includes(wanted), `the panel names ${wanted}`);
+  for (const wanted of ["dev-cli", "this machine", "issue #6", "confirmed analysis", "regression test first"]) assert.ok(textOf(panel).includes(wanted), `the panel names ${wanted}`);
   assert.deepEqual(jobFiles(w), [], "nothing is written before Run");
 
   const run = buttonsOf(panel, "Run")[0];
@@ -113,15 +115,15 @@ test("issue — Fix offers the participants that can run tests, shows their run 
   const files = jobFiles(w);
   assert.equal(files.length, 1, files.map((entry) => entry.path).join(", "));
   const record = files[0].content;
-  for (const wanted of ["kind: fix-bug", `${ADDRESS(6)}`, "ci-bot", "route: ci hosted", '"issue": 6', '"violated": "FIRST RULE"', '"route": "ci hosted"']) assert.ok(record.includes(wanted), `the record holds "${wanted}": ${record}`);
-  assert.match(textOf(one(fixOf(detail), "job-queued")), /queued on the route ci hosted/);
+  for (const wanted of ["kind: fix-bug", `${ADDRESS(6)}`, "dev-cli", "route: bridge lab-pc-4 agent claude", '"issue": 6', '"violated": "FIRST RULE"', '"route": "bridge lab-pc-4"']) assert.ok(record.includes(wanted), `the record holds "${wanted}": ${record}`);
+  assert.match(textOf(one(fixOf(detail), "job-queued")), /queued on the route bridge lab-pc-4/);
   assert.equal(w.kept.endpoint.length, 0, "nothing was run in the tab: no endpoint was asked");
   assert.equal(issueOf(w, 6).state, "open");
 });
 
 // TST-583202 · level: component · module: MOD-maintenance-pages
-// guards: UC-012; A PARTICIPANT DECLARES ITS CAPABILITIES
-// given: known positive first (TST-583201's world offers ci-bot); a register that lists only the model endpoint local-llm, which declares draft text
+// guards: UC-012; A CONNECTION DECLARES ITS CAPABILITIES
+// given: known positive first (TST-583201's world offers dev-cli); a register that lists only local-llm, whose model endpoint ep1 can draft text
 // input: the route issue 6; the button UC-017 clicked
 // expect: the section says that no participant that can run code and tests is configured and that a model endpoint cannot fix; it offers no participant, no name field and no run panel; the click goes to Agent M's own use case UC-017 (the context's go with the empty product), and before it nothing goes; nothing is written
 test("issue — without a participant that can run tests the page says so and leads to UC-017 (UC-012 5b)", async () => {
@@ -170,7 +172,7 @@ test("issue — the fix is offered for an issue whose class is bug, and for no o
 // TST-583204 · level: component · module: MOD-maintenance-pages, MOD-issue-handling
 // guards: UC-012; A BACKLOG ITEM NAMES THE MODULES IT CHANGES
 // given: the issue 5, which the participant local-llm analyses as a bug naming the files src/store/read.mjs and tests/store.test.mjs as wrong; the product's module MOD-store has the folder src/store/
-// input: Analyse by a person; the person's click on Confirm bug; the participant ci-bot, a name, the requirement FIRST RULE; Run by a person
+// input: Analyse by a person; the person's click on Confirm bug; the participant dev-cli, a name, the requirement FIRST RULE; Run by a person
 // expect: the field of the modules holds MOD-store; the job's record holds the parameters issue 5, violated FIRST RULE, wrong with both files and modules [MOD-store]; the run panel names the module's file and its code among the parts it sends
 test("issue — the modules the analysis names are prefilled, and the confirmed analysis travels with the job", async () => {
   const w = start();
@@ -186,7 +188,7 @@ test("issue — the modules the analysis names are prefilled, and the confirmed 
   await trusted(byClass(detail, "set-class").find((node) => node.getAttribute("data-class") === "bug"));
   await waitFor(() => fixOf(detail) !== undefined);
   assert.equal(one(fixOf(detail), "fix-modules").value, "MOD-store");
-  const radio = byClass(fixOf(detail), "fix-participant").find((each) => each.value === "ci-bot");
+  const radio = byClass(fixOf(detail), "fix-participant").find((each) => each.value === "dev-cli");
   radio.checked = true;
   one(fixOf(detail), "fix-person").value = "Reviewer Rae";
   one(fixOf(detail), "fix-requirement").value = "FIRST RULE";
@@ -203,20 +205,20 @@ test("issue — the modules the analysis names are prefilled, and the confirmed 
 
 // TST-583205 · level: component · module: MOD-maintenance-pages
 // guards: UC-012; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: known positive first — the product has the job workflow; a product without it; the issue 6
-// input: the participant ci-bot and a name in each; Run by a person
-// expect: with the workflow a record is committed; without it the page names the reason (the product has no Agent M job workflow yet) beside the run panel and nothing is written
+// given: known positive first — the product's files; the same with a resource list naming the compute gpu, reached by the Bridge lab-pc-5; the issue 6
+// input: the participant dev-cli (on the Bridge lab-pc-4) and a name in each; Run by a person
+// expect: without the resource a record is committed; with it the page names the reason (the job needs gpu, reached by bridge lab-pc-5, which this route does not reach) beside the run panel and nothing is written
 test("issue — a route that is not available is named with its reason, and nothing is written", async () => {
   const good = start();
   await trusted(buttonsOf(one(fixOf(await ready(good)), "run-panel"), "Run")[0]);
   await waitFor(() => jobFiles(good).length > 0);
   assert.equal(jobFiles(good).length, 1, "known positive");
   restoreWorld();
-  const w = start({ product: { "docs/architecture/MOD-store.md": moduleText("MOD-store", "src/store/") } });
+  const w = start({ product: { ...PRODUCT_FILES, "docs/resources.md": GPU } });
   const detail = await ready(w);
   await trusted(buttonsOf(one(fixOf(detail), "run-panel"), "Run")[0]);
   await waitFor(() => byClass(fixOf(detail), "issue-problem").length > 0);
-  assert.match(textOf(fixOf(detail)), /the product has no Agent M job workflow yet/);
+  assert.match(textOf(fixOf(detail)), /the job needs gpu, reached by bridge lab-pc-5, which this route does not reach/);
   assert.equal(byClass(fixOf(detail), "job-queued").length, 0);
   assert.deepEqual(jobFiles(w), []);
 });
@@ -224,10 +226,11 @@ test("issue — a route that is not available is named with its reason, and noth
 // ---------------------------------------------------------------- the fix's trail and the issue closed with links
 
 const FIX_JOB = "JOB-20261028-0900-a1b2";
-const FIX_RECORD = startRecord({ id: FIX_JOB, kind: "fix-bug", worksOn: [ADDRESS(6)], participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-28T09:00:00Z"),
-  agentM: { version: "unreleased", commit: "f".repeat(40) }, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: "GitHub's hosted runners", parts: [] }], params: { issue: 6 } });
-const OTHER_RECORD = startRecord({ id: "JOB-20261028-0800-0000", kind: "fix-bug", worksOn: [ADDRESS(7)], participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-28T08:00:00Z"),
-  agentM: { version: "unreleased", commit: "f".repeat(40) }, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: "GitHub's hosted runners", parts: [] }], params: { issue: 7 } });
+const DECLARES = { context: 100000, capabilities: FIXER_SESSIONS.claude.capabilities };
+const FIX_RECORD = startRecord({ id: FIX_JOB, kind: "fix-bug", worksOn: [ADDRESS(6)], participant: "dev-cli", model: "fixture-llm", route: "bridge lab-pc-4 agent claude", declares: DECLARES, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-28T09:00:00Z"),
+  agentM: { version: "unreleased", commit: "f".repeat(40) }, inputs: [], limit: 2, destinations: [{ participant: "dev-cli", place: "this machine", parts: [] }], params: { issue: 6 } });
+const OTHER_RECORD = startRecord({ id: "JOB-20261028-0800-0000", kind: "fix-bug", worksOn: [ADDRESS(7)], participant: "dev-cli", model: "fixture-llm", route: "bridge lab-pc-4 agent claude", declares: DECLARES, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-28T08:00:00Z"),
+  agentM: { version: "unreleased", commit: "f".repeat(40) }, inputs: [], limit: 2, destinations: [{ participant: "dev-cli", place: "this machine", parts: [] }], params: { issue: 7 } });
 const WITH_FIX = { ...PRODUCT_FILES, [FIX_RECORD.path]: FIX_RECORD.text, [OTHER_RECORD.path]: OTHER_RECORD.text };
 
 /** The world with the fix job of issue 6 and the pull requests the server lists for the branches: `pulls` maps a branch to the pull request as GitHub gives it, or to nothing. */

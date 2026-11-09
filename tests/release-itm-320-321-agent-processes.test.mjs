@@ -114,8 +114,8 @@ test("TST-320321902: public Driver separates local own-login execution from name
     await withEnvironment({ CI: "true", ANTHROPIC_API_KEY: "ci-constructed-key" }, () =>
       withPath(folder, () => driver({ ...CLAUDE, loggedIn: false }, folder, "ANTHROPIC_API_KEY").send({ ...INPUT, workdir: folder })));
     const [local, ci] = readFileSync(record, "utf8").trim().split("\n").map(JSON.parse);
-    assert.deepEqual(local, { name: "claude", args: ["-p", "--output-format", "json"], stdin: INPUT.prompt, cwd: folder, key: null });
-    assert.deepEqual(ci, { name: "claude", args: ["-p", "--output-format", "json"], stdin: INPUT.prompt, cwd: folder, key: "ci-constructed-key" });
+    assert.deepEqual(local, { name: "claude", args: ["-p", "--output-format", "json", "--model", "fixture"], stdin: INPUT.prompt, cwd: folder, key: null });
+    assert.deepEqual(ci, { name: "claude", args: ["-p", "--output-format", "json", "--model", "fixture"], stdin: INPUT.prompt, cwd: folder, key: "ci-constructed-key" });
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 

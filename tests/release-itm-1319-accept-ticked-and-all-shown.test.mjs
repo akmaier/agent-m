@@ -23,7 +23,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PRODUCT_FILES, INSTANCE_COMMIT, MOD_READER, fakeProduct, draw, byClass, buttonsNamed, find, click, contextOf, fetched, text, writeSetting, pages } from "./review-pages-draft-world.mjs";
+import { PRODUCT_FILES, INSTANCE_COMMIT, MOD_READER, fakeProduct, draw, byClass, buttonsNamed, find, click, contextOf, fetched, text, pages } from "./review-pages-draft-world.mjs";
 
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { workStrategies } = await import("../src/work-plans/index.mjs");
@@ -74,7 +74,6 @@ const acceptedBy = async (target) => {
 async function page(model, params, read = []) {
   const fake = world(model), state = participant();
   const context = contextOf(fake);
-  writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model" });
   for (const id of read) await draw(fake, "use-case", { id }, { context });
   const { target } = await draw(fake, "use-case", params, { context });
   return { fake, target, state, before: { writes: fake.writes().length, fetched: fetched.length, asked: state.asked.length } };

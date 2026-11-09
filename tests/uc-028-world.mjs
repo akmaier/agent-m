@@ -1,6 +1,6 @@
 // The world the independent tests of UC-028 (Run and review the tests of a commit) run in: a product repository that keeps commits, branches and tags in memory and answers MOD-repository-hosts' interface
-// (repositoryInfo, readSnapshot, readHistory, listTags, createTag, commitFiles, listPullRequests, listCiRuns, ciRunLog, webLinks), the instance that holds the register of participants, the small DOM of
-// tests/site-frame-dom.mjs, and the finders and record texts the tests of UC-028 share. It holds no test and no expected result; nothing reaches the network. A commit written by the page lands on its branch,
+// (repositoryInfo, readSnapshot, readHistory, listTags, createTag, commitFiles, listPullRequests, listCiRuns, ciRunLog, webLinks), the instance that holds the register of participants, the browser's store with
+// the connections that offer the register's models and the Bridge it keeps behind a stub of `fetch`, the small DOM of tests/site-frame-dom.mjs, and the finders and record texts the tests of UC-028 share. It holds no test and no expected result; nothing reaches the network. A commit written by the page lands on its branch,
 // so that a page drawn again reads it, and a refused commit (a branch that moved on) fails as the host fails.
 //
 // Module: MOD-test-pages
@@ -108,21 +108,53 @@ export function instance(register) {
   return world.host;
 }
 
+// The register (MOD-participant-list: Name, Type, Model): hosted-ci works with ci-model, writer with writer-model. How each model is reached is this browser's (CONNECTIONS).
 export const REGISTER = `# Participants of this instance
 
 **REGISTER**
 
 The participants of the test instance.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| hosted-ci | CI agent | example-model | 200000 | — | draft text, run code and tests | the server | ci hosted secret CI_KEY |
-| writer | CLI agent | example-model | 200000 | — | draft text, read the repository | this machine | bridge lab-pc agent claude |
+| Name | Type | Model |
+|---|---|---|
+| hosted-ci | agent | ci-model |
+| writer | agent | writer-model |
 `;
-export const WRITERS_ONLY = REGISTER.replace("| hosted-ci | CI agent | example-model | 200000 | — | draft text, run code and tests | the server | ci hosted secret CI_KEY |\n", "");
+export const WRITERS_ONLY = REGISTER.replace("| hosted-ci | agent | ci-model |\n", "");
+
+// ---------------------------------------------------------------- the browser: its store and the Bridge it keeps
+
+// A localStorage over a Map, for MOD-browser-store; each context opens the instance's store over it.
+const kept = new Map();
+globalThis.localStorage = { getItem: (k) => (kept.has(k) ? kept.get(k) : null), setItem: (k, v) => { kept.set(k, String(v)); },
+  removeItem: (k) => { kept.delete(k); }, key: (i) => [...kept.keys()][i] ?? null, get length() { return kept.size; } };
+const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
+
+// The connections this browser keeps (MOD-browser-store): the coding agent on CI ci, claude on the server's runners, which offers ci-model on the server, its key
+// the CI secret CI_KEY, with the capabilities of a coding agent, so that its jobs are offered on CI; and the Bridge lab-pc, which keeps the declaration of its
+// coding agent claude (MOD-bridge-jobs, GET /v1/agents): writer-model at "this machine" with the capabilities draft text and read the repository.
+export const BRIDGE_ADDRESS = "http://127.0.0.1:47811";
+export const CONNECTIONS = {
+  "ci-agent:ci": { agent: "claude", runner: "hosted", secret: "CI_KEY", place: "the server", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+    models: [{ model: "ci-model", context: 200000 }] },
+  "bridge:lab-pc": { address: BRIDGE_ADDRESS, token: "fixture-bridge-token" },
+};
+const LAB_CLAUDE = { name: "claude", version: "1.0.0", ready: true, loggedIn: true, place: "this machine", capabilities: ["draft text", "read the repository"], models: [{ model: "writer-model", context: 200000 }] };
+// The Bridge lab-pc as the prompt bar's testBridge meets it: GET /v1/pair names it, GET /v1/agents lists claude ready with its declaration. Every other address is refused. These two
+// requests are the Bridge's answer to the browser's offer of its connections, which every page makes when it is drawn; they are no job's and are kept apart in `bridgeAsked`.
+export const bridgeAsked = [];
+globalThis.fetch = async (input) => {
+  const address = String(input?.url ?? input);
+  const json = (value) => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
+  if (address === `${BRIDGE_ADDRESS}/v1/pair`) { bridgeAsked.push(address); return json({ bridge: { name: "lab-pc" } }); }
+  if (address === `${BRIDGE_ADDRESS}/v1/agents`) { bridgeAsked.push(address); return json({ agents: [LAB_CLAUDE], missing: [] }); }
+  throw new TypeError(`the test's network refuses ${address}`);
+};
 
 export function context(world, { register = REGISTER, tokenStored = true, went = [] } = {}) {
-  return { page: "main", instance: { repository: "alice/agent-m", host: instance(register) }, store: null, go: (name, given) => went.push([name, given]),
+  const store = openStore("alice/agent-m");
+  for (const [key, value] of Object.entries(CONNECTIONS)) writeSetting(store, key, value);
+  return { page: "main", instance: { repository: "alice/agent-m", host: instance(register) }, store, go: (name, given) => went.push([name, given]),
     product: { address: PRODUCT, kind: "github", host: world.host, tokenStored } };
 }
 

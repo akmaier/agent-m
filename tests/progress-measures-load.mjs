@@ -21,8 +21,8 @@ const frontMatter = (fields) => ["---", ...Object.entries(fields).flatMap(([key,
   ? [`${key}:`, ...value.map((entry) => `  - ${entry}`)] : [`${key}: ${value}`])), "---"].join("\n");
 
 const REGISTER = ["# Participants of this instance", "", "**REGISTER**", "", "The people and agents of the fixture instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |", ""].join("\n");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| alice | person | — |", ""].join("\n");
 
 const SPEC = ["# Product — Specification", "", "## 1. Section", "",
   "**FIRST RULE** *(Product Owner)*", "The first rule holds.", "*Check:* `tests/unit.test.mjs`", "",

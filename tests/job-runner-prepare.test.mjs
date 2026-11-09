@@ -8,7 +8,7 @@
 // Guards: THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // Guards: NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; THE CORRECTION LOOP HAS A FIXED LIMIT; NO REVIEWER IS THE DRAFTER
 // Guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
-// Guards: A PARTICIPANT DECLARES ITS CAPABILITIES
+// Guards: A CONNECTION DECLARES ITS CAPABILITIES
 // Level: component
 //
 // The kinds are the catalogue's own (MOD-job-catalogue). The strategies they name come from modules that do not offer them
@@ -173,14 +173,14 @@ test("prepareJob — a precondition's finding keeps the job from starting", asyn
 });
 
 // TST-472338 · level: component · module: MOD-job-runner
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: A CONNECTION DECLARES ITS CAPABILITIES
 // given: known positive first — derive-requirements, whose participant needs `draft text`, for drafter-a; then for reader-r, which can only read the repository
 // input: prepareJob("derive-requirements", its context, { drafter, reviewers: [] }) for each
-// expect: nothing blocking for drafter-a; for reader-r one error under A PARTICIPANT DECLARES ITS CAPABILITIES, naming reader-r and the capability it lacks
+// expect: nothing blocking for drafter-a; for reader-r one error under A CONNECTION DECLARES ITS CAPABILITIES, naming reader-r and the capability it lacks
 test("prepareJob — a drafter without a capability the kind needs keeps the job from starting, named", async () => {
   assert.deepEqual((await prepared("derive-requirements", { drafter: DRAFTER, reviewers: [] })).blocking, []);
   const job = await prepared("derive-requirements", { drafter: READER, reviewers: [] });
-  assert.deepEqual(brief(job.blocking), [["error", "A PARTICIPANT DECLARES ITS CAPABILITIES"]]);
+  assert.deepEqual(brief(job.blocking), [["error", "A CONNECTION DECLARES ITS CAPABILITIES"]]);
   assert.ok(job.blocking[0].what.includes("reader-r") && job.blocking[0].what.includes("draft text"), job.blocking[0].what);
 });
 

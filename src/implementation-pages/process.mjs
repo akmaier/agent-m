@@ -38,6 +38,7 @@ import { readSetting } from "../browser-store/index.mjs";
 import { readDocument, writeDocument, documentFindings } from "../documents/index.mjs";
 import { catalogue, modelSchema, modelFindings, modelDiagram, planGrid } from "../model-catalogue/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { declarationSchema, declarationFindings, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { showDifference, renderMermaid } from "../markdown-render/index.mjs";
@@ -265,7 +266,9 @@ export const route = {
       }))).filter(Boolean);
       const assignments = await Promise.all(productSnapshot.paths.filter((path) => ASSIGNMENT_FILE.test(path)).sort()
         .map(async (path) => readDocument(roleAssignmentSchema, path, await productSnapshot.read(path))));
-      const assignmentProblems = roleAssignmentFindings(assignments, workflowNow, participants, sources);
+      // The holders on this browser's connections (MOD-prompt-bar's endpointsOffered, sessionsOffered).
+      const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
+      const assignmentProblems = roleAssignmentFindings(assignments, workflowNow, participants, connections, sources);
 
       const listed = (className, findings) => el("ul", className, ...findings.map((finding) =>
         el("li", null, `${finding.kind}: ${finding.what}`)));

@@ -118,8 +118,8 @@ function judged(destination, need, rule, fix, kindName) {
 function blockingOf(destination, kind, parts, context, notLike, kindName) {
   const sources = [...new Set(parts.flatMap((part) => part.sources))].filter((source) => source in context.places.sources);
   return [
-    ...judged(destination, { capabilities: kind.needs }, "A PARTICIPANT DECLARES ITS CAPABILITIES",
-      `choose a participant that declares it, or declare it for ${destination.participant.name} in ${REGISTER}`, kindName),
+    ...judged(destination, { capabilities: kind.needs }, "A CONNECTION DECLARES ITS CAPABILITIES",
+      `choose a participant whose connection declares it, or a connection of ${destination.participant.name}'s model that declares it`, kindName),
     ...sources.flatMap((source) => judged(destination, { places: [{ from: source, allowed: context.places.sources[source] }] },
       "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS", `choose a participant at a place ${source} permits`, kindName)),
     ...(context.places.mailbox ? judged(destination, { places: [{ from: "the mailbox", allowed: context.places.mailbox }] },

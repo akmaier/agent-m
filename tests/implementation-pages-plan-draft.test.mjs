@@ -10,7 +10,8 @@
 // Level: unit
 //
 // The product is a V-model fixture held in memory behind a host of this file's own that keeps the commits it is given; the instance is a second host holding AGENTS.md, the participants' register and
-// the V-model's file. The participant local-llm drafts text at "this machine" through the endpoint ep1, which this file answers in place of `fetch` with the drafted plan of the kind draft-plan
+// the V-model's file. The agent local-llm drafts text at "this machine" through the endpoint ep1, the one connection this browser keeps, which offers its model model-a (the agent checker's model
+// model-c no connection offers), and which this file answers in place of `fetch` with the drafted plan of the kind draft-plan
 // (src/job-catalogue/kinds/draft-plan/answer.schema.json); nothing reaches the network, and Mermaid is replaced by a recorder that keeps the text of every diagram it is handed. The strategies of the
 // view are registered, as the frame registers them. Readings the texts leave open, which the tests state (the pull request names them):
 //   - *Draft the plan* is a `button` of type `button` with the class `btn` and the attribute `data-draft-plan`, offered where the plan can be drafted: a model that plans its work, its architecture
@@ -40,6 +41,7 @@ import { readFileSync } from "node:fs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 import "./site-frame-dom.mjs";
+import { storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "plan");
@@ -107,9 +109,9 @@ function productFiles(architecture = ARCHITECTURE) {
   return files;
 }
 const REGISTER = lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| local-llm | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |",
-  "| checker | model endpoint | model-c | 200000 | — | read the repository | this machine | endpoint ep1 |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| local-llm | agent | model-a |",
+  "| checker | agent | model-c |");
 const instanceFiles = () => ({ "SPEC.md": "# Instance\n", "AGENTS.md": "# AGENTS.md of the instance\n", "docs/participants.md": REGISTER, [MODEL_FILE]: V_MODEL });
 
 // A host of this file's own, answering the part of MOD-repository-hosts' interface the route uses: it keeps every request in `calls` and every commit in `commits`, whose files it then holds. Its
@@ -137,7 +139,8 @@ function hostOf(files, calls, commits, web) {
     },
   };
 }
-const STORE = { prefix: "", storage: { getItem: (key) => (key === "endpoint:ep1" ? JSON.stringify({ url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1" }) : null) } };
+// This browser's settings: the endpoint ep1, which offers model-a at "this machine" (MOD-browser-store, Data).
+const STORE = storeWith({ "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1", place: "this machine", context: 200000 } });
 
 // The answer of the endpoint ep1: the plan drafted from the bottom up — MOD-reader, MOD-loose, MOD-writer after Reader, the subsystem ARC-002 after Writer, the system after Sub and Loose.
 const DRAFT = { steps: [
@@ -193,7 +196,7 @@ const planCommits = (page) => page.commits.filter((request) => request.files.som
 
 // TST-1058001 · level: unit · module: MOD-implementation-pages
 // guards: UC-045; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the V-model fixture without a plan, its architecture accepted; the instance's participants local-llm (draft text, model model-a, at "this machine", endpoint ep1) and checker (no draft text)
+// given: the V-model fixture without a plan, its architecture accepted; the instance's participants local-llm (model model-a, on the endpoint ep1, which drafts text at "this machine") and checker (whose model no connection offers)
 // input: the route's render; a click by a script on Draft the plan; then the person's click on it
 // expect: the page holds <button type="button" class="btn" data-draft-plan> "Draft the plan"; the render prepares no job — it reads no AGENTS.md — and writes nothing; the script's click draws nothing and reads nothing; the person's click prepares the job — it reads AGENTS.md (known positive) — and offers local-llm alone; its run panel names local-llm, model-a and "this machine", and the parts architecture-and-model sends: docs/architecture/ARC-001-whole.md, ARC-002-sub.md, MOD-reader.md, MOD-writer.md, MOD-loose.md and docs/process.md; nothing is sent to ep1 before Run
 // Planted fault: a run panel without the participant's place, or a button that prepares the job on a script's click, fails.

@@ -14,7 +14,7 @@
 // IMPLEMENTER). The page is reached as the address #models/name=<name> leads to it (tests/uc-031-harness.mjs). Where the page and UC-031 or the SPEC disagree the case follows the text and is marked `todo` with the word
 // FINDING. Readings the texts leave open, which the cases state:
 //   - "A role names the capabilities it needs ... only a participant with all of them can be assigned to it" is guarded in the model through the role's capabilities as saved, and in a product through the findings of its role assignment
-//     (MOD-product-process' roleAssignmentFindings), which name a holder that lacks one.
+//     (MOD-product-process' roleAssignmentFindings, given this browser's connections), which warn of an agent holder no connection of whose model has one (UC-048 3b).
 //   - "whether a person, an agent, or either may fill it" is read as: a role that only an agent may fill is not filled by a person of the instance's list.
 //   - "The process dashboard shows a product's progress in the measure its model definition names" is read as: the measure the saved definition names is the one the progress page of a product that declares it draws; the page draws
 //     the burn-down for remaining items per time box, the board's cumulative flow for items per state over time, the grid of requirements by phases for plan entries per phase.
@@ -84,14 +84,16 @@ const MODEL_PATH = (name) => `docs/process-models/${name}.md`;
 const SPEC = specOf("A LOAN HAS A DUE DATE", "A LATE LOAN IS NAMED");
 // The product's declaration of the model saved at `name`, read as MOD-product-process reads it.
 const declarationOf = (name) => readDocument(declarationSchema, "docs/process.md", declaration(MODEL_PATH(name)));
-// The instance's participants: alice, a person; dev-a and dev-b, agents with every capability a builder needs; local-llm, an agent that drafts text only.
-const EVERY = "draft text, read the repository, write to the repository, run code and tests, use tools";
+// The instance's participants: alice, a person; dev-a and dev-b, agents of example-model; local-llm, an agent of model-a.
 const registerOf = () => readDocument(participantSchema(), "docs/participants.md", ["# Participants of this instance", "", "**REGISTER**", "", "The people and agents of the test instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  `| alice | person | — | — | — | ${EVERY} | — | account github.com/alice |`,
-  `| dev-a | CLI agent | example-model | 200000 | — | ${EVERY} | this machine | bridge lab-pc agent claude |`,
-  `| dev-b | CLI agent | example-model | 200000 | — | ${EVERY} | this machine | bridge lab-pc agent claude |`,
-  "| local-llm | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |", ""].join("\n"));
+  "| Name | Type | Model |", "|---|---|---|", "| alice | person | — |", "| dev-a | agent | example-model |", "| dev-b | agent | example-model |", "| local-llm | agent | model-a |", ""].join("\n"));
+// This browser's connections, as MOD-prompt-bar's sessionsOffered and endpointsOffered give them: the coding agent claude of the Bridge lab-pc, which offers
+// example-model with every capability a builder needs; the model endpoint ep1, which offers model-a and can only draft text and read the repository.
+const EVERY = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"];
+const CONNECTIONS = [
+  { name: "lab-pc:claude", type: "CLI agent", model: "example-model", context: 200000, capabilities: EVERY, place: "this machine", route: "bridge lab-pc agent claude" },
+  { name: "ep1", type: "model endpoint", model: "model-a", context: 200000, capabilities: ["draft text", "read the repository"], place: "this machine", route: "endpoint ep1" },
+];
 const assignmentOf = (...rows) => readDocument(roleAssignmentSchema, "docs/role-assignments/team.md", ["# Team", "", "## Roles", "", "| Role | Participants |", "|---|---|", ...rows.map(([role, who]) => `| ${role} | ${who} |`), ""].join("\n"));
 /** The model `name` as the catalogue reads it from the commits of `page`, with the findings it has. */
 async function savedModel(page, name) {
@@ -218,7 +220,7 @@ test("TST-802309: UC-031 a gate is decided by a role of the model or by a named 
 
 // TST-802304 · level: release · module: system
 // guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; UC-031
-// given: the editor on the adapted V-model; the instance's participants alice (a person), dev-a and dev-b (agents with every capability) and local-llm (an agent that drafts text only)
+// given: the editor on the adapted V-model; the instance's participants alice (a person), dev-a and dev-b (agents whose connection has every capability) and local-llm (an agent whose connection drafts text and reads only)
 // input: the author adds the role Auditor that only a person may fill (person), the role Scanner that only an agent may fill (agent) and the role Guest (either); gives a phase a role the model does not define; types the value "robot" as who fills a role; presses Save; the role assignments of a product that declares the saved model are judged
 // expect: a phase naming a role the model lacks, and a role filled by "robot", are each named beside their part and block Save; the three values person, agent and either are saved and read back as typed; a role assignment that gives Auditor to the agents alone is an error naming Auditor, and the same assignment with alice is none
 test("TST-802304: UC-031 the model names for each role whether a person, an agent or either fills it, and a role that needs a person has one", async () => {
@@ -242,7 +244,7 @@ test("TST-802304: UC-031 the model names for each role whether a person, an agen
     assert.deepEqual(findings, []);
     assert.deepEqual(["Auditor", "Scanner", "Guest"].map((name) => model.roles.find((role) => role.name === name).filledBy), ["person", "agent", "either"]);
     const workflow = workflowOf(declarationOf("v-model-people-and-agents"), model, [], SPEC);
-    const judged = (...rows) => roleAssignmentFindings([assignmentOf(...rows)], workflow, registerOf(), []).filter((each) => each.kind === "error").map((each) => each.what);
+    const judged = (...rows) => roleAssignmentFindings([assignmentOf(...rows)], workflow, registerOf(), CONNECTIONS, []).filter((each) => each.kind === "error").map((each) => each.what);
     assert.match(judged(["Auditor", "dev-b"], ["Scanner", "dev-a"]).join("\n"), /Auditor/, "Auditor needs a person, and an agent holds it");
     assert.doesNotMatch(judged(["Auditor", "alice"], ["Scanner", "dev-a"]).join("\n"), /Auditor/, "known positive: a person holds Auditor");
   } finally { page.done(); }
@@ -262,7 +264,7 @@ test("TST-802312: UC-031 a role that only an agent may fill is not given to a pe
       await page.press(saveOf(page));
       const { model } = await savedModel(page, "v-model-scanner");
       const workflow = workflowOf(declarationOf("v-model-scanner"), model, [], SPEC);
-      const judged = (who) => roleAssignmentFindings([assignmentOf(["Scanner", who])], workflow, registerOf(), []).filter((each) => each.kind === "error" && /Scanner/.test(each.what));
+      const judged = (who) => roleAssignmentFindings([assignmentOf(["Scanner", who])], workflow, registerOf(), CONNECTIONS, []).filter((each) => each.kind === "error" && /Scanner/.test(each.what));
       assert.deepEqual(judged("dev-a"), [], "known positive: an agent holds Scanner");
       assert.ok(judged("alice").length >= 1, "a person holds Scanner, which only an agent may fill");
     } finally { page.done(); }
@@ -272,9 +274,9 @@ test("TST-802312: UC-031 a role that only an agent may fill is not given to a pe
 
 // TST-802305 · level: release · module: system
 // guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-031
-// given: the editor on the adapted V-model; the instance's participants dev-a (every capability), dev-b (every capability) and local-llm (draft text only)
+// given: the editor on the adapted V-model; the instance's participants dev-a and dev-b, whose connection has every capability, and local-llm, whose one connection, a model endpoint, drafts text and reads only
 // input: the author adds the role Security reviewer (either, one) needing "read the repository, run code and tests"; then types a role without capabilities; saves the first; a product that declares the saved model gives the role to local-llm, then to dev-a
-// expect: UC-031 step 3 and 4: the role without capabilities is named beside Roles and blocks Save; the saved role's capabilities are the two typed, in that order; the role assignment that gives Security reviewer to local-llm is an error naming local-llm, Security reviewer and the capability it lacks, and the one that gives it to dev-a is none
+// expect: UC-031 step 3 and 4: the role without capabilities is named beside Roles and blocks Save; the saved role's capabilities are the two typed, in that order; the role assignment that gives Security reviewer to local-llm has a warning naming local-llm, Security reviewer and the capability its connection lacks, run code and tests — the assignment stays possible and no job of the role goes to that connection (UC-048 3b) —, and the one that gives it to dev-a has none
 test("TST-802305: UC-031 a role names the capabilities its holder needs, and only a participant with all of them can hold it", async () => {
   const page = await edit("v-model");
   try {
@@ -290,12 +292,12 @@ test("TST-802305: UC-031 a role names the capabilities its holder needs, and onl
     const { model } = await savedModel(page, "v-model-capabilities");
     assert.deepEqual(model.roles.find((role) => role.name === "Security reviewer").capabilities, ["read the repository", "run code and tests"]);
     const workflow = workflowOf(declarationOf("v-model-capabilities"), model, [], SPEC);
-    const lacking = roleAssignmentFindings([assignmentOf(["Security reviewer", "local-llm"])], workflow, registerOf(), []).filter((each) => each.kind === "error");
-    assert.ok(lacking.length >= 1, "local-llm lacks a capability");
-    assert.ok(lacking.every((each) => each.what.includes("local-llm") && each.what.includes("Security reviewer")));
-    assert.match(lacking.map((each) => each.what).join("\n"), /read the repository|run code and tests/);
-    const holds = roleAssignmentFindings([assignmentOf(["Security reviewer", "dev-a"])], workflow, registerOf(), []).filter((each) => each.kind === "error");
-    assert.deepEqual(holds.filter((each) => /Security reviewer/.test(each.what)), [], "dev-a has both capabilities");
+    const lacking = roleAssignmentFindings([assignmentOf(["Security reviewer", "local-llm"])], workflow, registerOf(), CONNECTIONS, []).filter((each) => each.rule === "A ROLE NAMES THE CAPABILITIES IT NEEDS");
+    assert.ok(lacking.length >= 1, "local-llm's connection lacks a capability");
+    assert.ok(lacking.every((each) => each.kind === "warning" && each.what.includes("local-llm") && each.what.includes("Security reviewer")));
+    assert.match(lacking.map((each) => each.what).join("\n"), /run code and tests/);
+    const holds = roleAssignmentFindings([assignmentOf(["Security reviewer", "dev-a"])], workflow, registerOf(), CONNECTIONS, []);
+    assert.deepEqual(holds.filter((each) => /Security reviewer/.test(each.what)), [], "dev-a's connection has both capabilities");
   } finally { page.done(); }
 });
 

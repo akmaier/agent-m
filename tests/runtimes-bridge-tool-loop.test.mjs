@@ -4,7 +4,7 @@
 // For UC-049 step 4. Run: node --test tests/runtimes-bridge-tool-loop.test.mjs
 //
 // Module: MOD-runtimes
-// Guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; A PARTICIPANT DECLARES ITS CAPABILITIES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// Guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; A CONNECTION DECLARES ITS CAPABILITIES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // Level: component
 //
 // The readings, each from the sentence that gives it.
@@ -104,7 +104,7 @@ test("runOnTab — an endpoint the Bridge calls is offered the kind's tools, eac
 });
 
 // TST-497010 · level: component · module: MOD-runtimes
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; ONE DEFINITION, THREE DRIVERS
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; ONE DEFINITION, THREE DRIVERS
 // given: the job of TST-497009 with the drafter declared with draft text and read the repository only; known positive first — the declaring drafter's first ask is an exchange; the Bridge answers the draft {"draft":{"answer":"plain"},"answers":[]} at once
 // input: runOnTab of each
 // expect: the declaring drafter's POST body has the key exchange (the known positive); the other's single POST body has exactly the keys endpoint and input, the endpoint the configuration, the input "Answer." followed by the form of the answer; one ask only; the draft { answer: "plain" }, stopped because passed

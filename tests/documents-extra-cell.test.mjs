@@ -22,8 +22,8 @@ import { participantSchema } from "../src/participant-list/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
-const PARTICIPANTS = ["Name", "Type", "Model", "Context", "Price", "Capabilities", "Processing place", "Route"];
-const ROW = ["alice", "person", "—", "—", "—", "read the repository", "—", "account github.com/alice"];
+const PARTICIPANTS = ["Name", "Type", "Model"];
+const ROW = ["dev-a", "agent", "model-x"];
 const register = (rows) => ["# Participants of this instance", "", "**REGISTER**", "", "The people and agents.", "",
   `| ${PARTICIPANTS.join(" | ")} |`, `|${PARTICIPANTS.map(() => "---").join("|")}|`, ...rows.map((cells) => `| ${cells.join(" | ")} |`), ""].join("\n");
 const findingsOf = (schema, path, body) => documentFindings(schema, readDocument(schema, path, body));
@@ -31,16 +31,16 @@ const extra = (found) => found.filter((each) => /more cells|beyond/.test(each.wh
 
 // TST-1155001 · level: unit · module: MOD-documents
 // guards: A DATA FORMAT IS DEFINED ONCE
-// given: the participants register with a row of nine cells (one beyond the eight columns), and the same register with the row's eight cells
+// given: the participants register with a row of four cells (one beyond the three columns), and the same register with the row's three cells
 // input: documentFindings for each
-// expect: one finding for the first, an error at the line of that row (the 9th line of the text), naming the cell "hi" and the numbers 9 and 8; none for the second (the counter-proof: a row with exactly the header's cells)
+// expect: one finding for the first, an error at the line of that row (the 9th line of the text), naming the cell "hi" and the numbers 4 and 3; none for the second (the counter-proof: a row with exactly the header's cells)
 test("TST-1155001 a register row with one cell more than its header names is named, at its row, and a row with the header's cells is not", () => {
   const schema = participantSchema();
   const found = extra(findingsOf(schema, "docs/participants.md", register([[...ROW, "hi"]])));
   assert.equal(found.length, 1);
   assert.equal(found[0].kind, "error");
   assert.equal(found[0].line, 9);
-  for (const part of ["hi", "9", "8"]) assert.equal(found[0].what.includes(part), true, `${part}: ${found[0].what}`);
+  for (const part of ["hi", "4", "3"]) assert.equal(found[0].what.includes(part), true, `${part}: ${found[0].what}`);
   assert.deepEqual(extra(findingsOf(schema, "docs/participants.md", register([ROW]))), []);
 });
 
@@ -51,7 +51,7 @@ test("TST-1155001 a register row with one cell more than its header names is nam
 // expect: exactly one finding, at the first row, naming both cells beyond the last column ("a" and "b"); none for the second and the third
 test("TST-1155002 only the row with cells beyond the last column is named, with all of them; a row with fewer cells is not", () => {
   const schema = participantSchema();
-  const found = extra(findingsOf(schema, "docs/participants.md", register([[...ROW, "a", "b"], ROW, ROW.slice(0, 7)])));
+  const found = extra(findingsOf(schema, "docs/participants.md", register([[...ROW, "a", "b"], ROW, ROW.slice(0, 2)])));
   assert.equal(found.length, 1);
   assert.equal(found[0].line, 9);
   assert.equal(found[0].what.includes("a") && found[0].what.includes("b"), true, found[0].what);
@@ -59,13 +59,13 @@ test("TST-1155002 only the row with cells beyond the last column is named, with 
 
 // TST-1155003 · level: unit · module: MOD-documents
 // guards: A DATA FORMAT IS DEFINED ONCE
-// given: a cell with an escaped bar (`read\|write`) in a row of exactly the eight columns, and a row of eight cells inside a fenced block under the table
+// given: a cell with an escaped bar (`model\|x`) in a row of exactly the three columns, and a row of nine cells inside a fenced block under the table
 // input: documentFindings
 // expect: no finding of this kind: an escaped bar is one cell, and a line in a fenced block is no row
 test("TST-1155003 an escaped bar is one cell, and a row inside a fenced block is no row", () => {
   const schema = participantSchema();
   const cells = [...ROW];
-  cells[5] = "read\\|write";
+  cells[2] = "model\\|x";
   const body = `${register([cells])}\n\`\`\`\n| a | b | c | d | e | f | g | h | i |\n\`\`\`\n`;
   assert.deepEqual(extra(findingsOf(schema, "docs/participants.md", body)), []);
 });
@@ -128,7 +128,7 @@ test("TST-1155006 an empty cell, or a dash, beyond the last column loses nothing
 
 // TST-1155007 · level: unit · module: MOD-documents
 // guards: A DATA FORMAT IS DEFINED ONCE
-// given: the register whose separator line (the dashes under the header) has one dash cell more than the header names, and whose one row has the eight cells
+// given: the register whose separator line (the dashes under the header) has one dash cell more than the header names, and whose one row has the three cells
 // input: documentFindings
 // expect: no finding of this kind: the separator line is no row of the table
 test("TST-1155007 the separator line under the header is no row", () => {

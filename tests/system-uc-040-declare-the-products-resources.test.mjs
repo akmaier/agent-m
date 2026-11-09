@@ -69,8 +69,12 @@ const LLM = "| shared-llm | endpoint | http://workstation.example.org:8000/v1 | 
 const PRODUCT_LIST = list("thesis-tool", DLLS, CLUSTER);
 const INSTANCE_LIST = list("agent-m", LLM, CLUSTER);
 const PARTICIPANTS = ["# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-drafter | CI agent | ci-model | 200000 | — | draft text, run code and tests | GitHub Actions in the USA | ci runner:gpu secret CI_KEY |", ""].join("\n");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-drafter | agent | ci-model |", ""].join("\n");
+// The connection of this browser that offers ci-drafter's model: the coding agent on CI gpu-coder, claude on the self-hosted runner gpu, its key named as the CI secret
+// CI_KEY, so that its jobs may run on that runner (MOD-browser-store, `ci-agent:<name>`).
+const CONNECTION = { agent: "claude", runner: "gpu", secret: "CI_KEY", place: "NHR@FAU, Erlangen", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+  models: [{ model: "ci-model", context: 200000 }] };
 const WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n" };
 
 // A person opens the page at `fragment`: the frame started on the module view of MOD-settings-pages, over this browser's store with the instance's token, the product with its own, and the Bridges `bridges`.
@@ -80,7 +84,7 @@ function visit(t, fragment, { productFiles = { "docs/resources.md": PRODUCT_LIST
     repositories: { [INSTANCE]: { files: instanceFiles }, [PRODUCT_REPO]: { files: productFiles, visibility },
       "alice/dlls": { files: { "README.md": CONTENT } }, "alice/dlls2": { files: { "README.md": CONTENT } } },
     settings: { "github-token": { value: TOKEN, name: "Agent M · akmaier/agent-m", expires: "2027-01-01" }, products: [PRODUCT],
-      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" },
+      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" }, "ci-agent:gpu-coder": CONNECTION,
       ...Object.fromEntries(Object.entries(bridges).map(([name, kept]) => [`bridge:${name}`, typeof kept === "string" ? { address: kept, token: BRIDGE_TOKEN } : kept])) },
   });
 }
@@ -220,9 +224,9 @@ test("UC-040 steps 3, 6, 7, 8 — through the frame, a compute resource on a Bri
 
 // TST-1041004 · level: system · module: MOD-settings-pages; MOD-resource-list
 // guards: UC-040; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
-// given: the product is private and holds Agent M's job workflow; the instance's register holds the CI agent ci-drafter on `ci runner:gpu secret CI_KEY`
+// given: the product is private and holds Agent M's job workflow; the instance's register holds the agent ci-drafter, whose model this browser's coding agent on CI gpu-coder offers on the runner gpu with the CI secret CI_KEY
 // input: choose the kind compute, name "gpu-box", give the address "gpu01.example.org", press "+ Add resource"; type the route "runner:gpu" and the place "the group's workstation"; press Save; open the page again; press Check on gpu-box; a click a script makes on Run; the person's click on Run
-// expect: Save gives one commit holding only docs/resources.md with the row; 7b "The route is a self-hosted runner. The browser cannot reach it; Agent M offers a check job on that runner label through the (flow: UC-040 steps 3, 7 and 7b) product's workflow and shows its result on the dashboard": Check names the job and the runner gpu and shows the run panel naming ci-drafter, with a button Run, and writes nothing; the script's click writes nothing; the person's click gives one commit that adds one file docs/jobs/JOB-<date>-<time>-<4 hex>.md to alice/thesis-tool and changes no other, made with the product's token; the record names the kind check-resource, the participant ci-drafter, the route "ci runner:gpu" and the resource gpu-box; docs/resources.md is not among the files of that commit; nothing is committed to the instance
+// expect: Save gives one commit holding only docs/resources.md with the row; 7b "The route is a self-hosted runner. The browser cannot reach it; Agent M offers a check job on that runner label through the (flow: UC-040 steps 3, 7 and 7b) product's workflow and shows its result on the dashboard": Check names the job and the runner gpu and shows the run panel naming ci-drafter, with a button Run, and writes nothing; the script's click writes nothing; the person's click gives one commit that adds one file docs/jobs/JOB-<date>-<time>-<4 hex>.md to alice/thesis-tool and changes no other, made with the product's token; the record names the kind check-resource, the participant ci-drafter, the route of its connection "ci runner:gpu agent claude secret CI_KEY" and the resource gpu-box; docs/resources.md is not among the files of that commit; nothing is committed to the instance
 test("UC-040 step 7b — through the frame, a compute resource on a runner is checked by a check job that is shown first and queued on the person's click", async (t) => {
   const page = await visit(t, FRAGMENT);
   await add(page, "compute", "gpu-box", "gpu01.example.org");
@@ -258,14 +262,14 @@ test("UC-040 step 7b — through the frame, a compute resource on a runner is ch
 
 // TST-1041005 · level: system · module: MOD-settings-pages; MOD-resource-list
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
-// given: the product is public (a self-hosted runner serves a private repository only) and holds Agent M's job workflow; its list names cluster on the runner gpu; the instance's register holds ci-drafter on `ci runner:gpu`
+// given: the product is public (a self-hosted runner serves a private repository only) and holds Agent M's job workflow; its list names cluster on the runner gpu; the instance's register holds ci-drafter, on this browser's coding agent on CI gpu-coder, on the runner gpu with the CI secret CI_KEY
 // input: press Check on cluster
-// expect: 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the page says that no CI agent of the instance reaches the runner gpu and that nothing (flow: UC-040 steps 7b and 9b) can check cluster until one does, gives the reason (the runner serves private repositories only), offers no Run, and writes nothing
+// expect: 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the page says that no participant on a connection of this browser reaches the runner gpu and that nothing (flow: UC-040 steps 7b and 9b) can check cluster until one does, gives the reason (the runner serves private repositories only), offers no Run, and writes nothing
 test("UC-040 steps 7b, 9b — through the frame, a check job is not offered where no runtime reaches the resource, and the page names the resource and the route", async (t) => {
   const page = await visit(t, FRAGMENT, { visibility: "public" });
   await click(labelled(entry(page, "cluster"), "Check"));
   const said = withClass(entry(page, "cluster"), "resource-no-runner")[0].textContent;
-  assert.match(said, /^No CI agent of the instance reaches the runner gpu: .*private.*Nothing can check cluster until one does\.$/);
+  assert.match(said, /^No participant on a connection of this browser reaches the runner gpu: .*private.*Nothing can check cluster until one does\.$/);
   assert.equal(Boolean(labelled(entry(page, "cluster"), "Run")), false, "no Run is offered");
   assert.equal(allCommits(page).length, 0);
 });
@@ -558,9 +562,12 @@ test("UC-040 step 5 — through the frame, a secret is named in the list and a k
 
 // TST-1041015 · level: system · module: MOD-resource-list; MOD-runtimes
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
-// given: a list of four resources: dlls read on its host, cluster on the runner gpu, hpc on the Bridge hpc, and the endpoint local-llm called at its own address; the instance's register holds the CI agents ci-gpu on `ci runner:gpu secret K` and ci-hosted on `ci hosted secret K`, both in a private product that holds the job workflow
-// input: reachableBy over the list; routesFor for each CI agent with the needs it gives
-// expect: 9 "Agent M offers only the runtimes and participants that reach it by its route": the needs are cluster (runner:gpu) and hpc (bridge hpc) and not dlls or local-llm; for the need cluster alone ci-gpu is (flow: UC-040 steps 9 and 9b) offered and ci-hosted is not; for the needs cluster and hpc neither is offered; 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the reason of a refused offer names the resource and its route (cluster and runner:gpu; hpc and bridge hpc). This walks the chain of the two modules without a page: the pages that start a job hand routesFor no needs
+// given: a list of four resources: dlls read on its host, cluster on the runner gpu, hpc on the Bridge hpc, and the endpoint local-llm called at its own address; two participants on their connections' routes, dev-ep on the
+//   endpoint ep1 that names the CI secret K (`endpoint ep1 secret K`: the tab and the server's own runners) and dev-hpc on the coding agent claude of the Bridge hpc (`bridge hpc agent claude`), both in a private product that holds the job workflow
+// input: reachableBy over the list; routesFor for each participant with the needs it gives
+// expect: 9 "Agent M offers only the runtimes and participants that reach it by its route": the needs are cluster (runner:gpu) and hpc (bridge hpc) and not dlls or local-llm; with no need every route is offered (known positive); for the need hpc alone dev-hpc is (flow: UC-040 steps 9 and 9b) offered and
+//   neither route of dev-ep is; for the need cluster neither participant is offered, since the tab, the server's own runners and the Bridge hpc do not reach the runner gpu; 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the reason of a refused offer names the resource
+//   and its route (hpc and bridge hpc; cluster and runner:gpu). This walks the chain of the two modules without a page: the pages that start a job hand routesFor no needs
 test("UC-040 steps 9, 9b — the routes of a job's participants reach only the resources the list says they reach, and a refusal names the resource and the route", async () => {
   const { reachableBy } = await import("../src/resource-list/index.mjs");
   const { routesFor } = await import("../src/runtimes/index.mjs");
@@ -568,38 +575,41 @@ test("UC-040 steps 9, 9b — the routes of a job's participants reach only the r
   const list = [resource("dlls", "repository", "read on its host"), resource("cluster", "compute", "runner:gpu"), resource("hpc", "compute", "bridge hpc"), resource("local-llm", "endpoint", "http://localhost:8000/v1")];
   const needs = reachableBy(list);
   assert.deepEqual(needs, [{ resource: "cluster", route: "runner:gpu" }, { resource: "hpc", route: "bridge hpc" }]);
-  const gpu = { name: "ci-gpu", route: "ci runner:gpu secret K" }, hosted = { name: "ci-hosted", route: "ci hosted secret K" };
+  const endpoint = { name: "dev-ep", route: "endpoint ep1 secret K" }, bridge = { name: "dev-hpc", route: "bridge hpc agent claude" };
   const product = { visibility: "private", jobWorkflow: true };
-  const offered = (participant, wanted) => routesFor(participant, [gpu, hosted], product, wanted).map((offer) => offer.available);
-  assert.deepEqual(offered(gpu, []), [true], "known positive: with no need the runner's agent is offered");
-  assert.deepEqual(offered(gpu, [needs[0]]), [true]);
-  assert.deepEqual(offered(hosted, [needs[0]]), [false]);
-  assert.deepEqual(offered(gpu, needs), [false]);
-  const refusal = routesFor(hosted, [gpu, hosted], product, [needs[0]])[0].reason;
-  assert.ok(refusal.includes("cluster") && refusal.includes("runner:gpu"), refusal);
-  const second = routesFor(gpu, [gpu, hosted], product, needs)[0].reason;
-  assert.ok(second.includes("hpc") && second.includes("bridge hpc"), second);
+  const offered = (participant, wanted) => routesFor(participant, product, wanted).map((offer) => offer.available);
+  assert.deepEqual(offered(endpoint, []), [true, true], "known positive: with no need the tab and the server's own runners are offered");
+  assert.deepEqual(offered(bridge, []), [true], "known positive: with no need the Bridge's agent is offered");
+  assert.deepEqual(offered(bridge, [needs[1]]), [true]);
+  assert.deepEqual(offered(endpoint, [needs[1]]), [false, false]);
+  assert.deepEqual(offered(endpoint, [needs[0]]), [false, false]);
+  assert.deepEqual(offered(bridge, [needs[0]]), [false]);
+  const refusal = routesFor(endpoint, product, [needs[1]])[0].reason;
+  assert.ok(refusal.includes("hpc") && refusal.includes("bridge hpc"), refusal);
+  const second = routesFor(bridge, product, needs)[0].reason;
+  assert.ok(second.includes("cluster") && second.includes("runner:gpu"), second);
 });
 
 // TST-1041016 · level: system · module: MOD-settings-pages; MOD-resource-list
 // guards: UC-040; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES; ONE CLICK PER DECISION
-// given: the product's list holds the endpoint shared-llm and the repository dlls; the participants route is among the frame's routes
+// given: the product's list holds the endpoint shared-llm, which serves example-model (its Pin), and the repository dlls; the participants route is among the frame's routes
 // input: press Add as participant on shared-llm; follow the fragment the frame wrote
-// expect: 2a "a link opens UC-017 with type and address prefilled. The two entries share no fields": a repository has no such button; the press writes nothing, sets a fragment that names the route (flow: UC-040 alternative 2a) participants and the type "model endpoint" and the address http://workstation.example.org:8000/v1, and the participants page opened at it holds that type and that address in its form
-test("UC-040 alternative 2a — through the frame, a system that also works on the product opens the participants page with its type and address", async (t) => {
+// expect: 2a "a link opens UC-017 with the type *agent* and the served model prefilled. The two entries share no fields": a repository has no such button; the press writes nothing, sets a fragment that names the route (flow: UC-040 alternative 2a)
+//   participants, the type agent and the model example-model — the served model, the resource's Pin (MOD-resource-list, Data: Pin) —, and the participants page opened at it holds that type and that model in its form
+test("UC-040 alternative 2a — through the frame, a system that also works on the product opens the participants page with the type agent and the model it serves", async (t) => {
   const page = await visit(t, FRAGMENT, { productFiles: LLM_ROW_ONLY });
   assert.equal(Boolean(labelled(entry(page, "dlls"), "Add as participant")), false, "no Add as participant is offered");
   assert.ok(labelled(entry(page, "dlls"), "Check"), "known positive: the repository's entry has its buttons");
   await click(labelled(entry(page, "shared-llm"), "Add as participant"));
   const fragment = decodeURIComponent(page.location.hash);
   assert.match(fragment, /^#participants/);
-  assert.ok(fragment.includes("model endpoint") && fragment.includes("http://workstation.example.org:8000/v1"), fragment);
+  assert.ok(fragment.includes("type=agent") && fragment.includes("model=example-model"), fragment);
   assert.equal(allCommits(page).length, 0);
   await go(page, page.location.hash);
   assert.equal(byTag(page.main(), "h2")[0].textContent, "Participants");
   const values = byTag(page.main(), "input").map((input) => input.value).concat(byTag(page.main(), "select").map((select) => select.value), byTag(page.main(), "textarea").map((area) => area.value));
-  assert.ok(values.includes("model endpoint") || values.some((value) => value.includes("model endpoint")), "the type is prefilled");
-  assert.ok(values.some((value) => value.includes("http://workstation.example.org:8000/v1")), "the address is prefilled");
+  assert.ok(values.includes("agent"), "the type is prefilled");
+  assert.ok(values.includes("example-model"), "the model is prefilled");
 });
 
 // TST-1041021 · level: system · module: MOD-settings-pages; MOD-resource-list

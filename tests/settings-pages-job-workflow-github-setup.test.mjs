@@ -8,8 +8,9 @@
 // Guards: UC-010; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; GITLAB PRODUCTS ARE SUPPORTED
 // Level: unit
 //
-// The repository servers are fixtures in memory, as in tests/settings-pages-settings-regressions.test.mjs: an instance whose participants register has the CI participant
-// hosted-ci (key HOSTED_KEY), and a writable product whose host notes every commit and every secret it is asked to store. The values are fixtures. Nothing reaches the network.
+// The repository servers are fixtures in memory, as in tests/settings-pages-settings-regressions.test.mjs: an instance whose participants register lists an agent, and a writable
+// product whose host notes every commit and every secret it is asked to store. The keys the job workflow reads are the secrets this browser's endpoints name (MOD-runtimes,
+// actionsSetup): hosted (HOSTED_KEY, whose key this browser does not keep) and nvidia (NVIDIA_API_KEY, with its key). The values are fixtures. Nothing reaches the network.
 // Each test states its input and its expected result before it runs.
 
 import test from "node:test";
@@ -55,9 +56,9 @@ const NVIDIA_KEY = "nvapi-FIXTURE-KEY-0123456789";
 const INSTANCE_COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const text = (...lines) => `${lines.join("\n")}\n`;
 const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | hosted runner | ci hosted secret HOSTED_KEY |");
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| dev-a | agent | gpt-5 |");
 const instanceHost = {
   async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
   async readSnapshot(ref) {
@@ -86,6 +87,7 @@ async function line(chosen, tokenKey) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   const browserStore = openStore("fixture/instance");
   writeSetting(browserStore, tokenKey, { value: TOKEN, name: "Agent M · product", expires: "2027-01-01" });
+  writeSetting(browserStore, "endpoint:hosted", { kind: "openai-compatible", url: "https://hosted.example.test/v1", model: "gpt-5", secret: "HOSTED_KEY" });
   writeSetting(browserStore, "endpoint:nvidia", { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nemotron", key: NVIDIA_KEY, secret: "NVIDIA_API_KEY" });
   const target = document.createElement("div");
   await settingsRoute().render(target, { instance: { repository: "fixture/instance", host: instanceHost }, product: chosen, store: browserStore, go() {} }, {});
@@ -95,7 +97,7 @@ async function line(chosen, tokenKey) {
 
 // TST-2026110921 · level: unit · module: MOD-settings-pages
 // guards: UC-010; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
-// given: a writable GitHub product without the job workflow and without any Actions secret; this browser keeps the product's token under github-token:fixture/product and endpoint:nvidia with its key and the secret NVIDIA_API_KEY; the instance's participant hosted-ci reads HOSTED_KEY
+// given: a writable GitHub product without the job workflow and without any Actions secret; this browser keeps the product's token under github-token:fixture/product and endpoint:hosted naming the secret HOSTED_KEY without its key, and endpoint:nvidia with its key and the secret NVIDIA_API_KEY
 // input: the person opens Repositories and reads the job workflow line; a script clicks its button; then the person clicks it
 // expect: the line says Not installed, names the missing secrets AGENT_M_TOKEN, HOSTED_KEY, NVIDIA_API_KEY, names HOSTED_KEY as kept by no value here with the repository's secrets page, and offers one button reading Set up GitHub Actions; the script's click writes nothing; the person's click is one commit on main and then AGENT_M_TOKEN stored with the token and NVIDIA_API_KEY with the key; the line then names the commit and the two secrets stored; neither value is anywhere on the line
 test("TST-2026110921: a GitHub product's line names what is missing and Set up GitHub Actions sets it up on the person's click", async () => {

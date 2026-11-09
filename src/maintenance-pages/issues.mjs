@@ -52,6 +52,7 @@ import { personAccount } from "../source-register/index.mjs";
 import { jobTrail, queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { recordRoute } from "../prompt-bar/hand-over.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { runPanel, schemaForm } from "../site-frame/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
@@ -118,8 +119,10 @@ async function runSection({ context, product, issue, kindName, title, text, name
     const instanceHost = context.instance.host;
     const instanceSnapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
     const register = await instanceSnapshot.read(REGISTER);
-    const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document);
-    // A person holds roles and decides but is no driver of a job (MOD-participant-list's `eligible`): the work is handed to the other four types.
+    // The instance's participants on this browser's connections (MOD-prompt-bar's endpointsOffered, sessionsOffered).
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
+    const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document, connections);
+    // A person holds roles and decides but is no driver of a job (MOD-participant-list's `eligible`): the work is handed to the agents on their connections.
     const admitted = eligible(participants.filter((each) => each.type !== "person"), { capabilities: definition.needs }).eligible;
     if (admitted.length === 0) { section.append(none()); return section; }
 
@@ -155,7 +158,7 @@ async function runSection({ context, product, issue, kindName, title, text, name
         stage.append(runPanel(prepared, { onRun: async () => {
           try {
             if (route && (!offer || !offer.available)) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route a job can take"), { name: "RouteUnavailable" });
-            const record = { id, kind: kindName, worksOn: [issueAddress(product, issue.number)], participant: chosen.name, model: chosen.model, route: route ? recordRoute(offer.route) : "tab", run: null, retries: null, startedBy: name, start: now, agentM,
+            const record = { id, kind: kindName, worksOn: [issueAddress(product, issue.number)], participant: chosen.name, model: chosen.model, route: route ? recordRoute(offer.route, chosen) : recordRoute({ kind: "tab" }, chosen), ...(chosen.route ? { declares: { context: chosen.context ?? null, capabilities: chosen.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: name, start: now, agentM,
               inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
             if (route) {
               const queued = await queueJob(product.host, record, offer.route, head.commit, connectionsOf(chosen, context.store).bridges[offer.route.bridge]);
@@ -487,7 +490,7 @@ async function fixSection({ context, product, issue, proposal }) {
     const info = await product.host.repositoryInfo();
     const listed = await head.read(RESOURCES);
     const needs = typeof listed === "string" ? reachableBy(readRegister(resourceSchema(), RESOURCES, listed).rows.map((row) => ({ name: row.cells.Name, route: row.cells.Route }))) : [];
-    return routesFor(chosen, participants, { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) }, needs)[0] ?? null;
+    return routesFor(chosen, { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) }, needs)[0] ?? null;
   };
   const paramsOf = async (_, { offer }) => {
     const violated = String(requirement.value ?? "").trim();

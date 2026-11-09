@@ -33,12 +33,12 @@ import { readDocument } from "../src/documents/index.mjs";
 import { declarationSchema, productWorkflow, recordGateDecision, roleAssignmentSchema } from "../src/product-process/index.mjs";
 import { ADDRESS, FIRST, GATES, backlogProduct, openScrum, PARTICIPANTS, SECOND, STORE_TEST, fieldOf, found, instance, jobCheck, jobPull, jobRecord, lines, modulePath, openImplement, planned, pr, quiet, servers, startRecords, stepRows,
   textOf } from "./uc-024-harness.mjs";
+import { LAB_PC } from "./uc-032-harness.mjs";
+import { agent } from "./browser-connections-fixture.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-024-implement-modules.md";
 const SELF = "tests/release-uc-024-implement-the-architecture.test.mjs";
-const BUILDS = "read the repository, write to the repository, run code and tests, use tools";
-const register = (...rows) => PARTICIPANTS.trimEnd().split("\n").filter((row) => !/^\| dev-[ab] /.test(row)).concat(rows).join("\n") + "\n";
 const assignment = (rows) => lines("# plan", "", "## Roles", "", "| Role | Participants |", "|---|---|", ...rows);
 const rulesOf = (status) => status.findings.map((each) => each.rule);
 
@@ -73,8 +73,9 @@ const EVIDENCE = {
   "THE DEFAULT DEFINITION OF DONE IS THE JOB RULES": [[SELF, "TST-740314"], ["tests/release-sprint-06-uc-002-implementation-pages.test.mjs", "TST-472500"]],
   "A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN": [["tests/release-itm-1171-target-branch.test.mjs", "TST-1171101"], ["tests/release-sprint-06-uc-002-implementation-pages.test.mjs", "TST-472502"]],
   "WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET": [["tests/release-itm-1171-target-branch.test.mjs", "TST-1171102"], ["tests/release-sprint-06-uc-002-implementation-pages.test.mjs", "TST-472504"]],
-  "A PARTICIPANT DECLARES ITS CAPABILITIES": [[SELF, "TST-740305"], ["tests/release-uc-049-talk-to-an-agent-in-the-prompt-bar.test.mjs", "TST-513211"]],
-  "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA": [[SELF, "TST-740316"], ["tests/release-uc-049-talk-to-an-agent-in-the-prompt-bar.test.mjs", "TST-513205"]],
+  "A CONNECTION DECLARES ITS CAPABILITIES": [[SELF, "TST-740305"], ["tests/release-uc-049-talk-to-an-agent-in-the-prompt-bar.test.mjs", "TST-513211"]],
+  "A CONNECTION DECLARES WHERE IT PROCESSES DATA": [[SELF, "TST-740316"], ["tests/release-uc-049-talk-to-an-agent-in-the-prompt-bar.test.mjs", "TST-513205"]],
+  "A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL": [[SELF, "TST-740322"]],
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": [[SELF, "TST-740315"]],
   "ONE DEFINITION, THREE DRIVERS": [["tests/release-uc-010-run-a-job-in-github-actions.test.mjs", "TST-373308"]],
   "THE LOCAL BRIDGE REQUIRES A TOKEN": [["tests/release-itm-263-bridge-client.test.mjs", "TST-263901"]],
@@ -107,13 +108,13 @@ const BUILT_BY_WRITER = {
 
 // TST-740301 · level: release · module: system
 // guards: UC-024
-// given: UC-024 as committed text, whose `realises` lists forty-four requirements, and the release tests named in EVIDENCE
+// given: UC-024 as committed text, whose `realises` lists forty-five requirements, and the release tests named in EVIDENCE
 // input: read UC-024's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-024 realises these forty-four requirements; each has at least one release test named, except those the SPEC guards at review only ("no automatic check; at review"), listed in AT_REVIEW; each test named stands in its file with the level release and guards that requirement; no case of this file guards a requirement in BUILT_BY_WRITER
+// expect: known positive — UC-024 realises these forty-five requirements; each has at least one release test named, except those the SPEC guards at review only ("no automatic check; at review"), listed in AT_REVIEW; each test named stands in its file with the level release and guards that requirement; no case of this file guards a requirement in BUILT_BY_WRITER
 test("TST-740301: UC-024 every requirement it realises whose check is a test has a release test that guards it", () => {
   const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
-  assert.equal(realised.length, 44, "known positive: UC-024 realises forty-four requirements");
+  assert.equal(realised.length, 45, "known positive: UC-024 realises forty-five requirements");
   assert.deepEqual([...realised].sort(), Object.keys(EVIDENCE).sort(), "the map holds exactly the requirements UC-024 realises");
   for (const [requirement, named] of Object.entries(EVIDENCE)) {
     if (!AT_REVIEW.includes(requirement)) assert.ok(named.length > 0, `${requirement}: a release test is named`);
@@ -207,8 +208,8 @@ test("TST-740304: a step or an item that names what is not accepted cannot be st
 // ---------------------------------------------------------------- roles, gates
 
 // TST-740305 · level: release · module: system
-// guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; UC-024
-// given: a V-model product whose role assignment gives Developer and Tester to dev-a and local-llm; dev-b has every capability and holds no role; local-llm declares only draft text
+// guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A CONNECTION DECLARES ITS CAPABILITIES; UC-024
+// given: a V-model product whose role assignment gives Developer and Tester to dev-a and local-llm; dev-b's connection has every capability and dev-b holds no role; local-llm's connection, the model endpoint ep1, declares only draft text and read the repository
 // input: the author opens Implement and presses Start jobs
 // expect: for each ready step the participants offered are dev-a alone — neither dev-b, who holds no role, nor local-llm, which cannot write and run tests; each start record names dev-a
 test("TST-740305: a job goes only to a holder of its role who has the capabilities the job needs", async () => {
@@ -389,7 +390,7 @@ test("TST-740314: without a declared condition, the Definition of Done is the jo
 
 // TST-740315 · level: release · module: system
 // guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-024
-// given: SRC-letters, restricted, permits only "this machine", and the product keeps its content in docs/sources/SRC-letters/, the folder of MOD-mail; dev-a works at this machine, dev-b at "a provider in the USA", both Developer and Tester; then the same source permitting both places
+// given: SRC-letters, restricted, permits only "this machine", and the product keeps its content in docs/sources/SRC-letters/, the folder of MOD-mail; dev-a's connection works at this machine, dev-b's at "a provider in the USA", both Developer and Tester; then the same source permitting both places
 // input: the author opens Implement, ITM-103 (MOD-mail) ready, and presses Start jobs with dev-b chosen wherever it is offered
 // expect: ITM-103 offers dev-a alone and names dev-b, SRC-letters and its place; no start record sends ITM-103's job to dev-b; where the source permits both places, ITM-103 offers dev-a and dev-b
 test("TST-740315: content of a restricted source is never given to a participant at a place the source does not permit", async () => {
@@ -399,8 +400,8 @@ test("TST-740315: content of a restricted source is never given to a participant
     "", "## Responsibility", "", "r", "", "## Interfaces", "", "- `read` — i");
   const files = await planned({ files: { ...GATES, [modulePath("MOD-mail")]: mail, "docs/sources/SRC-letters/1/letter.md": "Dear reader.\n",
     "docs/role-assignments/plan.md": assignment(["| Product owner | alice |", "| Developer | dev-a, dev-b |", "| Tester | dev-a, dev-b |", "| Reviewer | bob |"]) } });
-  const participants = register(`| dev-a | model endpoint | model-c | 200000 | — | ${BUILDS} | this machine | ci hosted secret DEV_KEY |`, `| dev-b | model endpoint | model-d | 200000 | — | ${BUILDS} | a provider in the USA | ci hosted secret DEV_KEY |`);
-  const page = await openImplement({}, { files, instance: instance({ "docs/participants.md": participants, "docs/sources/SRC-letters.md": letters(["this machine"]) }) });
+  const agents = [LAB_PC[0], agent("codex", [["model-d"]], { place: "a provider in the USA" })];
+  const page = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters(["this machine"]) }), agents });
   try {
     assert.deepEqual(fieldOf(page, "ITM-103", "participant").childNodes.map(textOf), ["dev-a"]);
     assert.match(textOf(fieldOf(page, "ITM-103", "withheld")), /dev-b.*SRC-letters|SRC-letters.*dev-b/);
@@ -411,13 +412,13 @@ test("TST-740315: content of a restricted source is never given to a participant
     assert.equal(forMail.length, 1);
     assert.match(forMail[0].text, /^participant: dev-a$/m);
   } finally { page.done(); }
-  const both = await openImplement({}, { files, instance: instance({ "docs/participants.md": participants, "docs/sources/SRC-letters.md": letters(["this machine", "a provider in the USA"]) }) });
+  const both = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters(["this machine", "a provider in the USA"]) }), agents });
   try { assert.deepEqual(fieldOf(both, "ITM-103", "participant").childNodes.map(textOf), ["dev-a", "dev-b"]); } finally { both.done(); }
 });
 
 // TST-740316 · level: release · module: system
-// guards: THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; UC-024
-// given: a V-model product, ITM-101 ready; dev-a processes data at "this machine"
+// guards: THE PAGE NAMES WHERE IT SENDS; A CONNECTION DECLARES WHERE IT PROCESSES DATA; UC-024
+// given: a V-model product, ITM-101 ready; dev-a's connection, the coding agent claude of the Bridge lab-pc, processes data at "this machine"
 // input: the author opens Implement, reads the part of ITM-101 before any click, then presses Start jobs
 // expect: before anything is sent the page names the participant with its place ("dev-a processes data at this machine") and what goes to it ("dev-a at this machine: …" with the step's files); nothing is written before the click; the start record's ## Destinations names dev-a at this machine, as the page named it
 test("TST-740316: before a job is started the page names each destination, a participant with its processing place", async () => {
@@ -437,7 +438,7 @@ test("TST-740316: before a job is started the page names each destination, a par
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; NO SECRET IN THE REPOSITORY; UC-024
 // given: a V-model product on GitHub, ITM-101 and ITM-103 ready, the author's token github_pat_HARNESS… stored; the instance is akmaier/agent-m
 // input: the author presses Start jobs
-// expect: one commit to the product's repository, alice/thesis-tool, holds a record docs/jobs/JOB-<id>.md for each job naming its inputs, participant dev-a, model, route ci hosted, who started it (the field started_by) and its start; nothing is written to the instance; no record holds the token
+// expect: one commit to the product's repository, alice/thesis-tool, holds a record docs/jobs/JOB-<id>.md for each job naming its inputs, participant dev-a, model, the route of its connection bridge lab-pc agent claude, what that connection declares, who started it (the field started_by) and its start; nothing is written to the instance; no record holds the token
 test("TST-740317: each job started is recorded in its product's repository with its inputs, participant, route and start, and no secret", async () => {
   const page = await openImplement({}, { files: await planned({ files: GATES }) });
   try {
@@ -446,10 +447,34 @@ test("TST-740317: each job started is recorded in its product's repository with 
     const records = startRecords(page);
     assert.equal(records.length, 2);
     for (const record of records) {
-      for (const field of [/^participant: dev-a$/m, /^model: model-c$/m, /^route: ci hosted$/m, /^started_by: /m, /^start: \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC$/m, /^inputs:\n {2}- /m]) assert.match(record.text, field);
+      for (const field of [/^participant: dev-a$/m, /^model: model-c$/m, /^route: bridge lab-pc agent claude$/m, /^declares: \{"context":200000,"capabilities":\[/m, /^started_by: /m, /^start: \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC$/m, /^inputs:\n {2}- /m]) assert.match(record.text, field);
       assert.doesNotMatch(record.text, /github_pat_/);
     }
     assert.ok(page.log.length > 0 && page.log.every((each) => each.repository === "alice/thesis-tool"), "nothing is written to the instance");
+  } finally { page.done(); }
+});
+
+// TST-740322 · level: release · module: system
+// guards: A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL; UC-024
+// given: a V-model product whose role assignment gives Developer and Tester to dev-a, of the model model-c, and dev-b, of the model model-d; this browser's Bridge lab-pc offers model-c through its coding agent claude, and its coding agent codex offers model-e, so that no connection offers model-d; known positive first: with codex offering model-d, dev-b is offered too
+// input: the author opens Implement, ITM-101 and ITM-103 ready, and presses Start jobs
+// expect: each ready step offers dev-a alone; each start record names dev-a with its model model-c and the route of the connection that offers it, bridge lab-pc agent claude, and is handed to that Bridge; no record names dev-b
+test("TST-740322: a job goes to a connection that offers its participant's model, with that model, and an agent whose model no connection offers gets none", async () => {
+  const files = await planned({ files: { ...GATES, "docs/role-assignments/plan.md": assignment(["| Product owner | alice |", "| Developer | dev-a, dev-b |", "| Tester | dev-a, dev-b |", "| Reviewer | bob |"]) } });
+  const offered = await openImplement({}, { files });
+  try { assert.deepEqual(fieldOf(offered, "ITM-101", "participant").childNodes.map(textOf), ["dev-a", "dev-b"], "known positive: with a connection of model-d, dev-b is offered"); } finally { offered.done(); }
+  const page = await openImplement({}, { files, agents: [LAB_PC[0], agent("codex", [["model-e"]])] });
+  try {
+    for (const step of ["ITM-101", "ITM-103"]) assert.deepEqual(fieldOf(page, step, "participant").childNodes.map(textOf), ["dev-a"], step);
+    await page.press(found(page.target, "[data-start-jobs]")[0]);
+    await quiet();
+    const records = startRecords(page);
+    assert.equal(records.length, 2);
+    for (const record of records) {
+      for (const field of [/^participant: dev-a$/m, /^model: model-c$/m, /^route: bridge lab-pc agent claude$/m]) assert.match(record.text, field);
+      assert.doesNotMatch(record.text, /dev-b/);
+    }
+    assert.deepEqual(page.handed.map((each) => each.record).sort(), records.map((record) => record.path).sort(), "each job is handed to the Bridge of its connection");
   } finally { page.done(); }
 });
 

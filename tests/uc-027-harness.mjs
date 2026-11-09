@@ -11,8 +11,8 @@
 // Level: system
 //
 // Authored by developer-opus-e (ITM-772). The product (`shop`) is alice/shop: a README, the resource list naming the paid endpoint oracle with the CI secret ci:ORACLE_KEY, and test files whose
-// declarations are three unit tests (one of them calls oracle), one component test, two system tests and one release test. The instance alice/agent-m lists the participants lab-runner (a CI agent with
-// "run code and tests" on the self-hosted runner labelled lab), hosted-ci (a CI agent with "run code and tests" on the server's hosted runners) and writer (a CLI agent without it).
+// declarations are three unit tests (one of them calls oracle), one component test, two system tests and one release test. The instance alice/agent-m lists the participants alice (a person) and
+// writer (an agent).
 
 import "./site-frame-dom.mjs";
 import { createHash } from "node:crypto";
@@ -33,10 +33,9 @@ const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.s
 // ---------------------------------------------------------------- the instance and the product's files
 
 export const REGISTER = lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| lab-runner | CI agent | example-model | 200000 | — | draft text, run code and tests | this machine | ci runner:lab secret LAB_KEY |",
-  "| hosted-ci | CI agent | example-model | 200000 | — | draft text, run code and tests | the server | ci hosted secret CI_KEY |",
-  "| writer | CLI agent | example-model | 200000 | — | draft text, read the repository | this machine | bridge lab-pc agent claude |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| alice | person | — |",
+  "| writer | agent | example-model |");
 
 const RESOURCE_HEAD = ["| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |", "|---|---|---|---|---|---|---|---|---|---|"];
 /** The product's docs/resources.md holding `rows` (resource rows as Markdown). */

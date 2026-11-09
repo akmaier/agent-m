@@ -20,7 +20,8 @@
 
 import { readDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
-import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { heldItems, planSchemas } from "../work-plans/index.mjs";
@@ -85,7 +86,10 @@ export const route = {
     const model = cat.models.find((m) => m.path === text(declaration.fields.model_file)) ?? null;
     const spec = specText ?? "";
     const participantsDoc = readDocument(participantSchema(), PARTICIPANTS, participantsText ?? "");
+    // The members of the instance's list, one each, and each agent on the connections of this browser that offer its model (UC-048 step 3).
     const participants = participantsOf(participantsDoc);
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
+    const joined = participantsOf(participantsDoc, connections);
 
     // The practices the declaration names, from their files, for the roles they add.
     const named = model ? workflowOf(declaration, model, [], spec).practices : [];
@@ -107,25 +111,28 @@ export const route = {
 
     const assignments = await Promise.all(productSnapshot.paths.filter((p) => ASSIGNMENT_FILE.test(p)).sort()
       .map(async (p) => readDocument(roleAssignmentSchema, p, await productSnapshot.read(p))));
-    const findings = workflow ? roleAssignmentFindings(assignments, workflow, participantsDoc, sources) : [];
+    const findings = workflow ? roleAssignmentFindings(assignments, workflow, participantsDoc, connections, sources) : [];
 
     // The findings of a role assignment of this name and these holders, read together with the product's other ones.
     function findingsOf(name, holders) {
       const path = pathOf(name);
       const edited = readDocument(roleAssignmentSchema, path, assignmentText(name, holders));
-      return roleAssignmentFindings([...assignments.filter((a) => a.path !== path), edited], workflow, participantsDoc, sources)
+      return roleAssignmentFindings([...assignments.filter((a) => a.path !== path), edited], workflow, participantsDoc, connections, sources)
         .filter((f) => f.artifact === path);
     }
 
-    // Who may hold a role: the participants of the right type that have every capability it needs.
-    const mayHold = (role) => eligible(participants.filter((p) => fits(role.filledBy, p)), { capabilities: role.capabilities }).eligible;
-    const whoText = (p) => `${h(p.name)} <span class="muted small">(${h(p.type)}${p.place ? `, ${h(p.place)}` : ""})</span>`;
-    function missingText(role) {
-      const candidates = participants.filter((p) => fits(role.filledBy, p));
-      const lacking = role.capabilities.filter((c) => !candidates.some((p) => p.capabilities.includes(c)));
-      return `<span class="warn">no participant has ${h(lacking.length ? listed(lacking) : `all of ${listed(role.capabilities)}`)}</span>`
-        + ` — <a href="#participants">add a participant who has it</a>`;
+    // Who may hold a role: the members of the type it allows (UC-048 step 3); an agent is shown with its model and each connection of this browser that
+    // offers it, with its processing place and whether it has every capability the role needs (3b).
+    const mayHold = (role) => participants.filter((p) => fits(role.filledBy, p));
+    function whoText(p, role = null) {
+      if (p.type === "person") return `${h(p.name)} <span class="muted small">(person)</span>`;
+      const on = joined.filter((each) => each.name === p.name && each.route);
+      const lacks = (each) => (role ? role.capabilities.filter((c) => !each.capabilities.includes(c)) : []);
+      const where = on.length ? on.map((each) => `${h(each.route)}, ${h(each.place)}${lacks(each).length ? ` — <span class="warn">lacks ${h(listed(lacks(each)))}</span> — <a href="#endpoints">endpoints</a> · <a href="#bridge">Bridges</a>` : role ? " — has every capability the role needs" : ""}`).join("; ")
+        : `<span class="warn">no connection of this browser offers it</span> — <a href="#endpoints">endpoints</a> · <a href="#bridge">Bridges</a>`;
+      return `${h(p.name)} <span class="muted small">(agent, ${h(p.model ?? "")}: ${where})</span>`;
     }
+    const missingText = () => `<span class="warn">no participant of the list may fill it</span> — <a href="#participants">add a participant</a>`;
 
     let editing = null; // { name, isNew } — the assignment whose form is open, in memory only
 
@@ -141,7 +148,7 @@ export const route = {
       ${workflow.roles.map((role) => {
         const may = mayHold(role);
         return `<tr data-role="${h(role.name)}"><td data-label="Role">${h(role.name)}</td><td data-label="Filled by">${h(role.filledBy)}</td><td data-label="How many">${h(role.howMany)}</td>
-          <td class="small" data-label="Needs">${role.capabilities.map(h).join(", ")}</td><td data-label="Who may hold it">${may.length ? may.map(whoText).join("<br>") : missingText(role)}</td></tr>`;
+          <td class="small" data-label="Needs">${role.capabilities.map(h).join(", ")}</td><td data-label="Who may hold it">${may.length ? may.map((p) => whoText(p, role)).join("<br>") : missingText(role)}</td></tr>`;
       }).join("")}</tbody></table>
       ${folded("roles-and-participants")}</section>`;
 
@@ -165,7 +172,7 @@ export const route = {
         const offered = offeredFor(role, held);
         ticked.set(role.name, offered.filter((p) => held.includes(p.name)).map((p) => p.name));
         const ticks = offered.map((p) => `<label><input type="checkbox" data-hold="${h(role.name)}|${h(p.name)}"${held.includes(p.name) ? " checked" : ""}>
-          ${whoText(p)}</label>`).join("<br>");
+          ${whoText(p, role)}</label>`).join("<br>");
         return `<tr data-role="${h(role.name)}"><td data-label="Role">${h(role.name)}</td><td data-label="How many">${h(role.howMany)}</td><td data-label="Participants">${ticks || missingText(role)}</td></tr>`;
       }).join("");
       const found = findingsOf(editing.name ?? "", ticked);

@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { withMailIds } from "../src/mail-records/index.mjs";
-import { ADDRESS, CI_AGENT, CI_NO_RUN, CI_NO_WRITE, ERIKA, LOCAL, PERSON, PRODUCT_URL, READER, SECRET, analysed, buttonsOf, byClass, changeOf, decided, drafted, everyWrite, fixOf, flush, issueNow, issueOf,
+import { ADDRESS, ERIKA, FIXER, LOCAL, NO_RUN_SESSIONS, PERSON, PRODUCT_URL, READER, RUNNER, SECRET, analysed, buttonsOf, byClass, changeOf, decided, drafted, everyWrite, fixOf, flush, issueNow, issueOf,
   issueWrites, jobFiles, mailOf, one, open, queueFiles, queued, restoreWorld, saved, start, textOf, trusted, waitFor, writtenFiles } from "./uc-012-harness.mjs";
 
 // The map reads files only and draws no page, so that there is no world to put back after it.
@@ -45,7 +45,7 @@ const EVIDENCE = {
   "CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI": [[SELF, "TST-585305"]],
   "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS": [[SELF, "TST-585306"]],
   "A ROLE NAMES THE CAPABILITIES IT NEEDS": [[SELF, "TST-585307"]],
-  "A PARTICIPANT DECLARES ITS CAPABILITIES": [[SELF, "TST-585308"]],
+  "A CONNECTION DECLARES ITS CAPABILITIES": [[SELF, "TST-585308"]],
   "ONE CLICK PER DECISION": [[SELF, "TST-585311"]],
   "A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL": [[SELF, "TST-585312"]],
   "NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY": [[SELF, "TST-585313"]],
@@ -139,7 +139,7 @@ test("TST-585303: UC-012 a change of an existing requirement from an issue carri
 
 // TST-585304 · level: release · module: system
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-012
-// given: the open issue 5; in one world it is confirmed as a change and the change saved; in another it is confirmed as a bug and its fix queued with ci-bot
+// given: the open issue 5; in one world it is confirmed as a change and the change saved; in another it is confirmed as a bug and its fix queued with dev-cli
 // input: Save of the change; Run of the fix
 // expect: the entry's rationale has the line "**Issue:** #5 of https://github.com/alice/product" (UC-012 step 6: each entry names the issue; MOD-spec-changes, Data: the rationale's line) and names the issue and the person's source, the account github.com/alice (the kind change-requirements: its parameter `source` is the account of the person who starts it); the fix's job record works on https://github.com/alice/product/issues/5
 test("TST-585304: UC-012 the change and the fix name the issue they came from", async () => {
@@ -165,8 +165,8 @@ const NO_FACTS = async () => ({ pullRequest: null, commits: [], files: [], revie
 
 // TST-585305 · level: release · module: system
 // guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; UC-012
-// given: the open issue 5, confirmed as a bug; ci-bot can run code and tests; the fix's pull request #9 is open in one world and merged in another
-// input: the author queues the fix with ci-bot; opens the issue again
+// given: the open issue 5, confirmed as a bug; dev-cli's connection can run code and tests; the fix's pull request #9 is open in one world and merged in another
+// input: the author queues the fix with dev-cli; opens the issue again
 // expect: the analysis and the fix's Run write to the product the jobs' records under docs/jobs/ only, the fix's among them, and no code and no test; while #9 is open the page offers no Close with links and the issue stays open; once #9 is merged the page offers Close with links (known positive)
 test("TST-585305: UC-012 the fix writes no code to the default branch, and the issue is closed only after its pull request is merged", async () => {
   for (const state of ["open", "merged"]) {
@@ -189,14 +189,14 @@ test("TST-585305: UC-012 the fix writes no code to the default branch, and the i
 
 // TST-585306 · level: release · module: system
 // guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; UC-012
-// given: the register lists local-llm (a model endpoint), ci-bot (a CI agent) and alice (a person), each declaring draft text; the open issue 5, not classified
+// given: the register lists the agents local-llm (on the model endpoint ep1) and dev-cli (on the Bridge's CLI session claude), whose connections draft text, and the person alice; the open issue 5, not classified
 // input: the author opens the issue; clicks a class by a script, then by the person
-// expect: the analysis is offered to the agents local-llm and ci-bot, and not to the person alice; the script's click sets no label; the person's click sets it
+// expect: the analysis is offered to the agents local-llm and dev-cli, and not to the person alice; the script's click sets no label; the person's click sets it
 test("TST-585306: UC-012 the work is handed to agents and the decision is the person's", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], rows: [LOCAL, CI_AGENT, PERSON] });
+  const w = start({ issues: [issueOf(5, NAMING)], rows: [LOCAL, FIXER, PERSON] });
   const detail = await open(w, 5);
   await waitFor(() => byClass(detail, "participant").length > 0);
-  assert.deepEqual(byClass(one(detail, "issue-analysis"), "participant").map((radio) => radio.value).sort(), ["ci-bot", "local-llm"]);
+  assert.deepEqual(byClass(one(detail, "issue-analysis"), "participant").map((radio) => radio.value).sort(), ["dev-cli", "local-llm"]);
   byClass(detail, "set-class").find((node) => node.getAttribute("data-class") === "bug").dispatchEvent(new Event("click"));
   await flush();
   assert.deepEqual(issueNow(w, 5).labels, [], "a script's click decides nothing");
@@ -208,30 +208,30 @@ test("TST-585306: UC-012 the work is handed to agents and the decision is the pe
 
 // TST-585307 · level: release · module: system
 // guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-012
-// given: the register lists local-llm (draft text), checker (read the repository only), ci-bot (write to the repository, run code and tests) and ci-runner (run code and tests, not write to the repository); the open issue 5, confirmed as a bug
+// given: the register lists local-llm, checker, dev-cli and dev-runner, whose connections declare: ep1 draft text; the session opencode read the repository only; claude write to the repository, run code and tests; codex run code and tests, not write to the repository; the open issue 5, confirmed as a bug
 // input: the author opens the issue, confirms the bug, and opens the fix
-// expect: the analysis, which needs draft text, is offered to local-llm, ci-bot and ci-runner, not to checker; the fix, which needs both write to the repository and run code and tests, is offered to ci-bot alone
+// expect: the analysis, which needs draft text, is offered to local-llm, dev-cli and dev-runner, not to checker; the fix, which needs both write to the repository and run code and tests, is offered to dev-cli alone
 test("TST-585307: UC-012 the analysis and the fix are offered only to participants with every capability they need", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_BUG, rows: [LOCAL, READER, CI_AGENT, CI_NO_WRITE] });
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_BUG, rows: [LOCAL, READER, FIXER, RUNNER] });
   const detail = await open(w, 5);
   await waitFor(() => byClass(detail, "participant").length > 0);
-  assert.deepEqual(byClass(one(detail, "issue-analysis"), "participant").map((radio) => radio.value).sort(), ["ci-bot", "ci-runner", "local-llm"]);
+  assert.deepEqual(byClass(one(detail, "issue-analysis"), "participant").map((radio) => radio.value).sort(), ["dev-cli", "dev-runner", "local-llm"]);
   await decided(detail, "bug");
   await waitFor(() => fixOf(detail) !== undefined && byClass(fixOf(detail), "fix-participant").length > 0);
-  assert.deepEqual(byClass(fixOf(detail), "fix-participant").map((radio) => radio.value), ["ci-bot"]);
+  assert.deepEqual(byClass(fixOf(detail), "fix-participant").map((radio) => radio.value), ["dev-cli"]);
 });
 
 // TST-585308 · level: release · module: system
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-012
-// given: the open issue 5, confirmed as a bug; the register lists local-llm and ci-bot, which declares write to the repository and run code and tests; counter-proof: the same ci-bot declared without run code and tests
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; UC-012
+// given: the open issue 5, confirmed as a bug; the register lists local-llm and dev-cli, whose connection, the Bridge's session claude, declares write to the repository and run code and tests; counter-proof: the same session declared without run code and tests
 // input: the author confirms the bug and opens the fix, in each world
-// expect: with the declaration ci-bot is offered for the fix; without it no participant is, the page says that no participant that can run code and tests is configured and leads to UC-017, and offers no run panel
+// expect: with the declaration dev-cli is offered for the fix; without it no participant is, the page says that no participant that can run code and tests is configured and leads to UC-017, and offers no run panel
 test("TST-585308: UC-012 what a participant declares decides whether the fix is handed to it", async () => {
-  for (const [row, offered] of [[CI_AGENT, true], [CI_NO_RUN, false]]) {
-    const w = start({ issues: [issueOf(5, NAMING)], rows: [LOCAL, row] });
+  for (const [sessions, offered] of [[undefined, true], [NO_RUN_SESSIONS, false]]) {
+    const w = start({ issues: [issueOf(5, NAMING)], rows: [LOCAL, FIXER], ...(sessions ? { sessions } : {}) });
     const detail = await decided(await open(w, 5), "bug");
     await waitFor(() => fixOf(detail) !== undefined && (byClass(fixOf(detail), "fix-participant").length > 0 || byClass(fixOf(detail), "issue-no-fixer").length > 0));
-    assert.deepEqual(byClass(fixOf(detail), "fix-participant").map((radio) => radio.value), offered ? ["ci-bot"] : []);
+    assert.deepEqual(byClass(fixOf(detail), "fix-participant").map((radio) => radio.value), offered ? ["dev-cli"] : []);
     assert.equal(byClass(fixOf(detail), "issue-no-fixer").length, offered ? 0 : 1);
     if (!offered) assert.match(textOf(one(fixOf(detail), "issue-no-fixer")), /No participant that can run code and tests is configured/);
     restoreWorld();
@@ -339,9 +339,9 @@ const holdsMail = (text) => MAIL_WORDS.filter((word) => text.includes(word));
 
 // TST-585312 · level: release · module: system
 // guards: A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; UC-012
-// given: the open issue 5 created from a mail (UC-038), its text neutral and listing the mail's MAIL- identifier; the mail from Erika Mustermann, reporting "the export of my thesis fails with error E42", in the mailbox of the Bridge lab-pc-4; the issue confirmed as a bug; ci-bot writes to the repository
-// input: the author queues the fix with ci-bot
-// expect: known positive — the run panel names what ci-bot receives, among it the part "issue #5"; it names nothing of the mail, not its text, its sender's name or address, and no part from the mailbox; the job's record holds none of them; no request for a mail reached the Bridge
+// given: the open issue 5 created from a mail (UC-038), its text neutral and listing the mail's MAIL- identifier; the mail from Erika Mustermann, reporting "the export of my thesis fails with error E42", in the mailbox of the Bridge lab-pc-4; the issue confirmed as a bug; dev-cli writes to the repository
+// input: the author queues the fix with dev-cli
+// expect: known positive — the run panel names what dev-cli receives, among it the part "issue #5"; it names nothing of the mail, not its text, its sender's name or address, and no part from the mailbox; the job's record holds none of them; no request for a mail reached the Bridge
 test("TST-585312: UC-012 the fix of an issue from a mail is given the neutral issue, never the mail", async () => {
   const { w } = await fromMail({ analysis: AS_BUG });
   const detail = await queued(await confirmed(w, "bug"));

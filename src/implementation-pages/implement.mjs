@@ -50,7 +50,16 @@ const DONE_CHECK = "agent-m done";
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
 const h = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const explain = (html) => `<details class="explain"><summary>What is this?</summary><div>${html}</div></details>`;
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 // Why a ready item or step returned (UC-034 7a, UC-024 10a): the reason its state carries — a rejected gate's End, as MOD-work-plans' itemStates passes it on —, drawn beside its state. A state with no reason, or not ready, draws none.
 const returnedBy = (state) => (state?.state === "ready" && text(state.reason) ? `<p class="small" data-returned>${h(state.reason)}</p>` : "");
@@ -107,7 +116,7 @@ const prepareFor = (m, definition, params, participant) => prepareJob(definition
 async function startJob(m, { definition, worksOn, participant, params, limit = null }) {
   const job = { kind: definition.name, participant: participant.name };
   try {
-    const offer = routesFor(participant, m.participants, m.productInfo, []).find((each) => each.available);
+    const offer = routesFor(participant, m.productInfo, []).find((each) => each.available);
     if (!offer) throw new Error(`${participant.name} has no route a job can take`);
     const bridge = offer.route.kind === "bridge" ? bridgesOf([participant], m.context.store)[offer.route.bridge] : undefined;
     if (offer.route.kind === "bridge" && !bridge) throw new Error(`The Bridge ${offer.route.bridge} is not connected in this browser, so the job cannot be handed to it`);
@@ -115,13 +124,13 @@ async function startJob(m, { definition, worksOn, participant, params, limit = n
     const id = newJobId(new Date(), m.taken);
     m.taken.add(id);
     job.id = id;
-    const record = { id, kind: definition.name, worksOn, participant: participant.name, model: participant.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: personOf(m.context), start: new Date(),
+    const record = { id, kind: definition.name, worksOn, participant: participant.name, model: participant.model, route: recordRoute(offer.route, participant), ...(participant.route ? { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: personOf(m.context), start: new Date(),
       agentM: agentMOf(m.instanceSnapshot), inputs: prepared.parts.map((part) => part.name), limit: limit ?? prepared.limit,
       destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
     const defaultBranch = (await m.context.product.host.repositoryInfo()).defaultBranch;
     const head = (await m.context.product.host.readSnapshot(defaultBranch)).commit;
     const queued = await queueJob(m.context.product.host, record, offer.route, head, bridge);
-    return { id, path: queued.path, route: recordRoute(offer.route) };
+    return { id, path: queued.path, route: recordRoute(offer.route, participant) };
   } catch (failure) {
     throw Object.assign(failure, { job });
   }
@@ -434,7 +443,7 @@ async function draw(target, context, params) {
     <td data-label="Start">${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>${row.withheld.length ? "No holder of the implementing role is at a place the linked sources permit for this job." : "No holder of the implementing role can write and run tests."}</p>${withheldText(row)}` : `
       <label>Participant <select data-participant-of="${h(row.id)}">${row.holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
       ${withheldText(row)}
-      <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, participants, productInfo, []).map((offer) => `${h(recordRoute(offer.route))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
+      <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, productInfo, []).map((offer) => `${h(recordRoute(offer.route, participant))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
       <p class="small">Attempt limit: ${h(definition.limit)}. Merges: <select data-merges-of="${h(row.id)}"><option value="agent">the coding agent</option><option value="person">a person</option></select>.
         Target branch: ${h(targetBranch(row.id, { sprints: [...judged.sprints.values()], order: null, branches: workflow.branches ?? {}, defaultBranch: info.defaultBranch }))}. ${gatesText.length ? `Gates: ${gatesText.join(", ")}.` : "No gate stands before the merge."}</p>
       <div data-sent="${h(row.id)}"></div>`) : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
@@ -467,19 +476,19 @@ async function draw(target, context, params) {
       const participant = row.holders.find((each) => each.name === choice(row.id)) ?? row.holders[0];
       let id = null, routeName = null;
       try {
-        const offer = routesFor(participant, participants, productInfo, []).find((each) => each.available);
+        const offer = routesFor(participant, productInfo, []).find((each) => each.available);
         if (!offer) throw new Error(`${participant.name} has no route a job can take`);
-        routeName = recordRoute(offer.route);
+        routeName = recordRoute(offer.route, participant);
         const { prepared } = await sentFor(prepareFor(row.id, merges(row.id)), participant);
         id = newJobId(now(), taken);
         taken.add(id);
-        const record = { id, kind: "implement", worksOn: [row.id], participant: participant.name, model: participant.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: personOf(context), start: now(),
+        const record = { id, kind: "implement", worksOn: [row.id], participant: participant.name, model: participant.model, route: recordRoute(offer.route, participant), ...(participant.route ? { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: personOf(context), start: now(),
           agentM: { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" }, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
           destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: { items: [row.id], merges: merges(row.id) } };
         const defaultBranch = (await product.host.repositoryInfo()).defaultBranch;
         const head = (await product.host.readSnapshot(defaultBranch)).commit;
         const queued = await queueJob(product.host, record, offer.route, head, bridgesOf([participant], context.store)[offer.route.bridge]);
-        lines.push(`<li>${h(row.id)}: job ${h(id)} (<code>${h(queued.path)}</code>) is queued on the route ${h(recordRoute(offer.route))}.</li>`);
+        lines.push(`<li>${h(row.id)}: job ${h(id)} (<code>${h(queued.path)}</code>) is queued on the route ${h(recordRoute(offer.route, participant))}.</li>`);
       } catch (failure) {
         const said = failure?.name === "WorkflowMissing" ? `the job workflow is missing (${(failure.files ?? []).join(", ")})` : failure?.message ?? failure;
         // UC-034 4a: a start record committed before the route failed (queueOnBridge's `failure.queued`) is a job that stays queued; the route that did not answer is named, and the job's page (UC-036) cancels or reassigns it.

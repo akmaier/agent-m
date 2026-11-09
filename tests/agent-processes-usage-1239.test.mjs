@@ -68,7 +68,7 @@ test("TST-1239001: Claude Code's JSON result gives the driver its answer and the
   assert.deepEqual(result.usage, { inputTokens: 17, outputTokens: 9, minutes: null, cost: null },
     "the tokens Claude Code reported reach the job; its cost stays unknown");
   assert.equal(result.text, "Blue");
-  assert.deepEqual(call, { argv: ["-p", "--output-format", "json"], stdin: INPUT.prompt, cwd: folder });
+  assert.deepEqual(call, { argv: ["-p", "--output-format", "json", "--model", "fixture-model"], stdin: INPUT.prompt, cwd: folder });
   assert.equal(output, RESULT_LINE, "the agent's output is streamed as it printed it");
 });
 

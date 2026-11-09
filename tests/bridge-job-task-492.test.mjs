@@ -48,9 +48,9 @@ const PARTICIPANTS = `# Participants of this instance
 
 The participants of the test instance.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| drafter | CLI agent | example-model | 200000 | — | draft text, read the repository | this machine | bridge lab-pc agent opencode |
+| Name | Type | Model |
+|---|---|---|
+| drafter | agent | example-model |
 `;
 
 function repository(root, name, files) {
@@ -73,7 +73,8 @@ function push(seed, files, message) {
   return git(seed, "rev-parse", "HEAD");
 }
 
-const JOB = (id, task, params = {}) => ({ id, kind: "converse", worksOn: ["UC-049"], participant: "drafter", model: "example-model", route: "bridge lab-pc", run: null,
+const JOB = (id, task, params = {}) => ({ id, kind: "converse", worksOn: ["UC-049"], participant: "drafter", model: "example-model", route: "bridge lab-pc agent opencode",
+  declares: { context: 200000, capabilities: ["draft text", "read the repository"] }, run: null,
   retries: null, startedBy: "alice", start: new Date("2026-10-16T09:00:00Z"), agentM: { version: "2026.10.0", commit: null }, inputs: [], limit: 3, task,
   destinations: [{ participant: "drafter", place: "this machine", parts: ["instruction"] }], params });
 const ID = (n) => `JOB-20261016-090${n}-bbb${n}`;

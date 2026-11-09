@@ -177,7 +177,6 @@ test("nextVersion — a product with no release tag yet starts at YYYY.1.0", () 
 
 const CANDIDATE_VERSION = "2026.4.0";
 const PARTICIPANT_IMPLEMENTER = "developer-sonnet-b";
-const PARTICIPANT_RUNNER = "developer-sonnet-e";
 
 function jobRecordText({ id, kind, participant, worksOn }) {
   return ["---", `id: ${id}`, `kind: ${kind}`, "works_on:", ...worksOn.map((w) => `  - ${w}`),
@@ -196,11 +195,12 @@ function candidateHost({ runsOn, tags = {}, jobs = {} } = {}) {
   return fakeHost({ defaultBranch: "main", branchFiles, extraCommits: { candidate: { ...branchFiles } }, tags });
 }
 
-const CANDIDATE_RUNNERS = { release: PARTICIPANT_RUNNER, user: PARTICIPANT_RUNNER };
+// Every row names its runner (schedule.schema.md, `runs on`): the server's own, and the self-hosted runner lab for the release tests.
+const CANDIDATE_RUNNERS = { unit: "hosted", component: "hosted", system: "hosted", paid: "hosted", release: "runner:lab", user: "hosted" };
 
 // TST-472470 · level: unit · module: MOD-release-evidence
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: a product with no release candidate tagged yet, its schedule naming a runner for "release" and "user", one prior implement job by a different participant
+// given: a product with no release candidate tagged yet, its schedule naming a runner for every row, one prior implement job
 // input: startReleaseCandidate(host, "2026.4.0", <candidate commit>, "a changelog entry", "akmaier")
 // expect: candidate "v2026.4.0-rc.1" (the next free N, here 1); a commitFiles call queuing the run (MOD-job-ledger's own record format), whose "## Parameters" json names the candidate's version, tag and commit and keeps the changelog entry given
 test("startReleaseCandidate — the next free N, and the complete run queued with the candidate's version, tag and changelog entry", async () => {
@@ -253,52 +253,46 @@ test("startReleaseCandidate — TagExists propagates from the host's createTag",
 
 // TST-472473 · level: unit · module: MOD-release-evidence
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: a schedule whose "user" row names no one ("release" does)
+// given: a schedule whose "user" row names no runner, every other row one; and one whose "unit" row names none
 // input: startReleaseCandidate(host, ...)
-// expect: rejects NoRunner, naming the level "user"
-// counter-proof: planting `if (level !== "release" && level !== "user")` as `if (level !== "user")` (dropping the
-//                "release"-only guard so "release" row is also checked here, double-reporting) still names "user"
-//                first in this fixture and would pass; instead planting the loop to `continue` unconditionally before
-//                the empty-runner check fails this test, since no NoRunner is ever thrown
-test("startReleaseCandidate — NoRunner naming a person-run level the schedule names no one for", async () => {
-  const host = candidateHost({ runsOn: { release: PARTICIPANT_RUNNER } }); // user: left out
-  await assert.rejects(
-    () => startReleaseCandidate(host, CANDIDATE_VERSION, host.shaOf.candidate, "entry", "akmaier"),
-    (error) => error.name === "NoRunner" && error.level === "user",
-  );
+// expect: rejects NoRunner, naming the level "user", and "unit"; nothing is tagged
+test("startReleaseCandidate — NoRunner naming a level whose row names no runner", async () => {
+  for (const level of ["user", "unit"]) {
+    const host = candidateHost({ runsOn: { ...CANDIDATE_RUNNERS, [level]: "" } });
+    await assert.rejects(
+      () => startReleaseCandidate(host, CANDIDATE_VERSION, host.shaOf.candidate, "entry", "akmaier"),
+      (error) => error.name === "NoRunner" && error.level === level,
+    );
+    assert.equal(host.calls.some((c) => c.fn === "createTag"), false, "nothing is tagged");
+  }
 });
 
 // TST-472474 · level: unit · module: MOD-release-evidence
 // guards: RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
-// given: the schedule's "release" row names PARTICIPANT_IMPLEMENTER; every recorded implement job also names PARTICIPANT_IMPLEMENTER — no other participant has ever implemented anything
+// given: every row of the schedule names a runner — "release" the self-hosted runner lab —; every recorded implement job names PARTICIPANT_IMPLEMENTER
 // input: startReleaseCandidate(host, ...)
-// expect: rejects NoRunner naming "release" — only the implementer could run the release tests (2a)
-// counter-proof: planting `implementers.size > 0` as `implementers.size > 1` in candidate.mjs's checkRunners fails
-//                this test's assert.rejects (one implementer, as here, would no longer be caught)
-test("startReleaseCandidate — NoRunner naming \"release\" where only the implementer could run the release tests (2a)", async () => {
+// expect: resolves; the complete run is queued as a job without a participant, so that no implementer runs the release tests: its record names no participant
+test("startReleaseCandidate — the complete run is a job without a participant, on the runners the rows name", async () => {
   const host = candidateHost({
-    runsOn: { release: PARTICIPANT_IMPLEMENTER, user: PARTICIPANT_RUNNER },
+    runsOn: CANDIDATE_RUNNERS,
     jobs: {
       "JOB-20261001-0900-aaaa": { kind: "implement", participant: PARTICIPANT_IMPLEMENTER, worksOn: ["ITM-200"] },
       "JOB-20261002-0900-bbbb": { kind: "implement", participant: PARTICIPANT_IMPLEMENTER, worksOn: ["ITM-201"] },
     },
   });
-  await assert.rejects(
-    () => startReleaseCandidate(host, CANDIDATE_VERSION, host.shaOf.candidate, "entry", "akmaier"),
-    (error) => error.name === "NoRunner" && error.level === "release",
-  );
+  const result = await startReleaseCandidate(host, CANDIDATE_VERSION, host.shaOf.candidate, "entry", "akmaier");
+  assert.equal(result.candidate, "v2026.4.0-rc.1");
+  const [{ text }] = host.calls.find((c) => c.fn === "commitFiles").change.files;
+  assert.doesNotMatch(text, /^participant: \S/m);
 });
 
 // TST-472475 · level: unit · module: MOD-release-evidence
 // guards: RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
-// given: the schedule's "release" row names PARTICIPANT_RUNNER, who differs from the recorded implementer
+// given: the schedule's rows naming `hosted` and `runner:lab`, and no implement job
 // input: startReleaseCandidate(host, ...)
-// expect: resolves (no NoRunner) — a known positive beside the counter-proof above, since a negative result (no rejection) is otherwise unverified (CLAUDE.md §6a Nr. 2)
-test("startReleaseCandidate — no NoRunner where the release row's runner differs from every recorded implementer", async () => {
-  const host = candidateHost({
-    runsOn: CANDIDATE_RUNNERS,
-    jobs: { "JOB-20261001-0900-aaaa": { kind: "implement", participant: PARTICIPANT_IMPLEMENTER, worksOn: ["ITM-200"] } },
-  });
+// expect: resolves (no NoRunner) — a known positive beside TST-472473
+test("startReleaseCandidate — no NoRunner where every row names a runner", async () => {
+  const host = candidateHost({ runsOn: CANDIDATE_RUNNERS });
   const result = await startReleaseCandidate(host, CANDIDATE_VERSION, host.shaOf.candidate, "entry", "akmaier");
   assert.equal(result.candidate, "v2026.4.0-rc.1");
 });

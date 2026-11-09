@@ -65,13 +65,18 @@ const NO_TASK = "the task travels with its hand-over, and this run was started w
 const JOB = "JOB-20261016-0900-a1b2", IN_RECORD = "JOB-20261016-0901-c3d4";
 
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| hand-bot | Model endpoint | fixture-llm | 100000 | — | draft text, read the repository | GitHub's hosted runners | endpoint fixture secret FIXTURE_KEY |",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| hand-bot | agent | fixture-llm |",
+  "| ci-bot | agent | fixture-llm |");
+// What a connection of these jobs declares (MOD-job-ledger, `declares`), and the route each record names after the CI route: the endpoint of its participant, its key
+// the CI secret FIXTURE_KEY.
+const DECLARED = { context: 100000, capabilities: ["draft text", "read the repository"] };
+const connectionOf = (participant) => `endpoint ${participant} secret FIXTURE_KEY`;
 
 // The job's record names the commit of Agent M that runs — the instance's checkout is at it —, so the records are made once the instance exists.
-const jobStart = (id, { agentM, participant = "hand-bot", task = "with the hand-over", params = {}, declares, kind = "decide-gate" }) => ({ id, ...(declares ? { declares } : {}), kind, worksOn: ["A LOAN HAS A DUE DATE"], participant,
-  model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-16T08:00:00Z"), agentM, inputs: [], limit: 2, task,
+// `declares: null` leaves `declares` out of the record.
+const jobStart = (id, { agentM, participant = "hand-bot", task = "with the hand-over", params = {}, declares = DECLARED, kind = "decide-gate" }) => ({ id, ...(declares ? { declares } : {}), kind, worksOn: ["A LOAN HAS A DUE DATE"], participant,
+  model: "fixture-llm", route: `ci hosted ${connectionOf(participant)}`, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-16T08:00:00Z"), agentM, inputs: [], limit: 2, task,
   destinations: [{ participant, place: "GitHub's hosted runners", parts: ["gate-inputs"] }], params });
 
 function git(cwd, ...args) {
@@ -293,7 +298,7 @@ const holdsTask = (haystack) => haystack.includes("zebra-498");
 
 // TST-498001 · level: component · module: MOD-workflow-entries
 // guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: a product whose `main` holds a queued job of kind decide-gate for the model endpoint hand-bot, route `ci hosted`, whose record says task `with the hand-over` and holds no instruction; the instance's participants list hand-bot with the route `endpoint fixture secret FIXTURE_KEY`; the fixture endpoint answers the fixed draft; no coding agent on the PATH; the job workflow's environment with the person's token, the key FIXTURE_KEY and a file for GITHUB_STEP_SUMMARY
+// given: a product whose `main` holds a queued job of kind decide-gate for the agent hand-bot, route `ci hosted endpoint hand-bot secret FIXTURE_KEY` with its `declares`, whose record says task `with the hand-over` and holds no instruction; the instance's participants list hand-bot as an agent of the model fixture-llm; the fixture endpoint answers the fixed draft; no coding agent on the PATH; the job workflow's environment with the person's token, the key FIXTURE_KEY and a file for GITHUB_STEP_SUMMARY
 // input: onDispatch with the inputs job, task "Please widen the footer of the lending page to 960 pixels, token zebra-498" and endpoint the JSON text of { kind openai-compatible, baseUrl https://llm.example.test/v1, model fixture-llm }
 // expect: outcome `done`; the endpoint is asked once, at https://llm.example.test/v1/chat/completions, for the model fixture-llm, with the key FIXTURE_KEY's value as its bearer, its body holding the token zebra-498 once; on main in order: the commit that takes the job, the writer's commit, the commit that ends it; the record's End says `state: done`, names the writer's commit and the file as results, holds no draft; every commit message and every file at every commit of the product holds no zebra-498 — while the request the endpoint was sent does, which shows that the search finds the token where it is; nothing the entry printed holds zebra-498; the file GITHUB_STEP_SUMMARY names holds the answer "The footer is widened, token otter-498", and so does the log
 test("TST-498001: a dispatched hand-over runs Agent M's own loop with the task and the endpoint, and writes the task nowhere", async () => {
@@ -364,7 +369,7 @@ test("TST-498003: a hand-over whose participant's key is missing is not run, nam
 
 // TST-498004 · level: component · module: MOD-workflow-entries
 // guards: UC-049
-// given: a product whose `main` holds a queued job of the route `ci hosted` that says task `with the hand-over`, and another that says task `in parameters` and names its endpoint in its parameters, for the CI agent ci-bot; the fixture endpoint
+// given: a product whose `main` holds a queued job of the route `ci hosted endpoint hand-bot secret FIXTURE_KEY` that says task `with the hand-over`, and another that says task `in parameters` and names its endpoint in its parameters, for the agent ci-bot on the route `ci hosted endpoint ci-bot secret FIXTURE_KEY`; the fixture endpoint
 // input: onRecordsChanged
 // expect: outcome `done`; the job that says `in parameters` is taken and ends `state: done` (the known positive) after one request to the endpoint — the only request, so that the hand-over job was not run —; the record of the hand-over job is exactly as queued
 test("TST-498004: onRecordsChanged leaves a job whose task travels with its hand-over queued", async () => {
@@ -830,8 +835,6 @@ test("TST-1189004: no other secret is read: the person's token and a name that i
 
 // ---------------------------------------------------------------- an endpoint the instance does not list (ITM-1192)
 
-const DECLARED = { context: 100000, capabilities: ["draft text", "read the repository"] };
-
 // TST-1192001 · level: component · module: MOD-workflow-entries
 // guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
 // given: as TST-498001, but the queued job's participant is "nvidia", whom the instance's participants do not list, and its record declares the context 100000 and the capabilities draft text and read the repository (`declares`), its place in ## Destinations
@@ -855,14 +858,14 @@ test("TST-1192001: a hand-over of an endpoint the instance does not list runs as
 
 // TST-1192002 · level: component · module: MOD-workflow-entries
 // guards: UC-049; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
-// given: as TST-1192001, but the record of the unlisted "nvidia" declares nothing — the form of a job handed to a participant of the instance's list —; and, as the known positive, TST-1192001's record
+// given: as TST-1192001, but the record of "nvidia" declares nothing (no `declares`): it names no connection its participant is built from, and nothing of it is read from the instance's list; as the known positive, TST-1192001's record
 // input: onDispatch with the task, the endpoint and the secret FIXTURE_KEY
-// expect: outcome `failed`, the summary says the instance does not list nvidia; the endpoint is never asked and main is as it was
-test("TST-1192002: a hand-over to an unlisted participant whose record declares nothing still fails", async () => {
-  await world({ records: [{ ...HAND_OVER, participant: "nvidia" }] }, async (w) => {
+// expect: outcome `failed`, the summary says the record declares no connection for nvidia; the endpoint is never asked and main is as it was
+test("TST-1192002: a hand-over whose record declares nothing fails", async () => {
+  await world({ records: [{ ...HAND_OVER, participant: "nvidia", declares: null }] }, async (w) => {
     const status = await w.dispatch(INPUTS);
     assert.equal(status.outcome, "failed");
-    assert.match(status.summary, /names the participant nvidia, whom the instance does not list/);
+    assert.match(status.summary, /declares no connection for the participant nvidia/);
     assert.equal(w.starts().length, 0);
     assert.equal(w.mainHead(), w.head, "main is as it was");
   });

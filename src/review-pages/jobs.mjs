@@ -26,13 +26,23 @@ import { editedResult, flagged, passagesLine, placeLine, shownOnPanel, showCurre
 import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered, throughActions } from "../prompt-bar/index.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 
 // The route as a job's record writes it: `tab`, `ci hosted`, `ci runner:<label>`, `bridge <name>`.
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 // The endpoints of the participants as the tab's route calls them: the configuration the page stored for each, and whether it is reached through a Bridge.
 export function connectionsOf(participants, store) {
@@ -64,7 +74,9 @@ export async function loadStage(where, jobKind, instance = null) {
   const definition = await kindOf(jobKind);
   const instanceSnapshot = instance ?? (context.product ? await defaultSnapshot(context.instance.host) : snapshot);
   const register = await instanceSnapshot.read(REGISTER);
-  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  // The instance's participants on this browser's connections (MOD-prompt-bar's endpointsOffered and sessionsOffered).
+  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
+  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register), connections);
   const info = await host.repositoryInfo();
   const product = { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) };
   const needs = definition.resources === "none" ? [] : [];
@@ -80,7 +92,7 @@ export function participantList(drafters, participants, product, needs, role = "
     box.name = role;
     box.value = participant.name;
     const route = el("span", "route");
-    const offers = routesFor(participant, participants, product, needs);
+    const offers = routesFor(participant, product, needs);
     route.append(offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job");
     const item = el("li", role, el("label", null, box, ` ${participant.name} `), el("span", "place", participant.place ?? "no processing place declared"), " ", route);
     for (const offer of offers) if (!offer.available) item.append(" ", el("span", "reason", offer.reason));
@@ -167,7 +179,9 @@ export async function preparedRun(run, snapshot = run.snapshot, params = run.par
     places: run.places ?? { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
   let prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
   if (run.relax) prepared = run.relax(prepared);
-  const offer = routesFor(chosen, run.participants, run.product, run.needs)[0];
+  // An endpoint that names the CI secret of its key and no Bridge runs through GitHub Actions (MOD-prompt-bar's throughActions): its job is queued on CI.
+  const offers = routesFor(chosen, run.product, run.needs);
+  const offer = (throughActions(chosen, context.store) ? offers.find((each) => each.route.kind === "ci") : null) ?? offers[0];
   return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
 }
 
@@ -193,7 +207,7 @@ export async function panelOf(run) {
 /** startRecord(run) -> the start record of the job a run of `preparedRun` prepared, on the route its offer names, for MOD-runtimes' queueJob. */
 export function startRecord(run) {
   const { token, prepared, id, now, agentM, offer, chosen, params, worksOn } = run;
-  return { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
+  return { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route, chosen), ...(chosen.route ? { declares: { context: chosen.context ?? null, capabilities: chosen.capabilities ?? [] } } : {}), run: null, retries: null,
     startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
 }
@@ -797,7 +811,7 @@ async function checkDraft(run, draft) {
 
 function dueDiligenceMissingText(failure, run) {
   const registries = (failure.decisions ?? []).map((each) => each.registry).filter(Boolean);
-  const offered = run.participants.flatMap((participant) => routesFor(participant, run.participants, run.product, run.needs)
+  const offered = run.participants.flatMap((participant) => routesFor(participant, run.product, run.needs)
     .map((offer) => ({ participant, offer }))).find(({ offer }) => offer.available && offer.route.kind !== "tab");
   const route = offered ? ` Try ${recordRoute(offered.offer.route)} with ${offered.participant.name}.` : " Try a participant that can reach the web.";
   return `${failure.message}${registries.length ? ` Registry: ${registries.join(", ")}.` : ""}${route}`;

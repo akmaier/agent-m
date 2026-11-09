@@ -152,11 +152,15 @@ function fakeHost({ defaultBranch = "main", branchFiles = {}, tags = {} } = {}) 
 
 const WORKFLOW_PATH = ".github/workflows/agent-m-jobs.yml";
 const SCHEDULE_PATH = "docs/tests/schedule.md";
-const RUNNER = "developer-sonnet-e";
+// The runner of every row: the server's own; `runs on` is `hosted` or `runner:<label>` (MOD-test-schedule), and the complete run of a candidate is queued on the runner each row
+// names, a level whose row names none refused with NoRunner (MOD-release-evidence's startReleaseCandidate).
+const RUNNER = "hosted";
+const LEVELS = ["unit", "component", "system", "paid", "release", "user"];
+const ON_RUNNER = Object.fromEntries(LEVELS.map((level) => [level, RUNNER]));
 const IMPLEMENTER = "developer-sonnet-b";
 
 function scheduleText(runsOn) {
-  const rows = ["unit", "component", "system", "paid", "release", "user"]
+  const rows = LEVELS
     .map((level) => `| ${level} | ✓ | ✓ | ✓ | ✓ | ✓ | ${runsOn[level] ?? ""} |`);
   return ["---", "nightly: 02:00", "---", "## Levels", "", "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |",
     "|---|---|---|---|---|---|---|", ...rows, ""].join("\n");
@@ -195,10 +199,10 @@ function lastReleaseReportText(commit) {
 }
 
 // A combined host: the schedule and job workflow a schedule needs (startReleaseCandidate), SPEC.md and the given test
-// files (releaseReport), a CHANGELOG.md (acceptAndRelease), and the given tags. `runsOn` defaults to a runner distinct
+// files (releaseReport), a CHANGELOG.md (acceptAndRelease), and the given tags. `runsOn` defaults to the server's runners for every row, a runner distinct
 // from any recorded implementer, so the main flow needs no 2a detour. The product's test-results branch is added
 // separately, once the default commit (the candidate's own, since starting one only tags the current head) is known.
-function releaseHost({ runsOn = { release: RUNNER, user: RUNNER }, jobs = {}, testFiles = { "tests/sample.test.mjs": TEST_FILE },
+function releaseHost({ runsOn = ON_RUNNER, jobs = {}, testFiles = { "tests/sample.test.mjs": TEST_FILE },
   extraFiles = {}, tags = {} } = {}) {
   const branchFiles = {
     [WORKFLOW_PATH]: "name: Agent M jobs\n",
@@ -286,21 +290,22 @@ test("release — 1a: the year that changed restarts the version at YYYY.1.0", a
 
 // TST-473093 · level: unit · module: MOD-test-pages
 // guards: UC-013; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
-// given: the schedule's "release" row names the only participant that ever implemented anything in this product
+// given: the schedule's "release" row names no runner, every other row the server's runners; the only participant that ever implemented anything in this product is recorded by a job of the kind implement
 // input: Start release candidate
-// expect: the panel says only the implementer could run the release tests, naming 2a, and asks to assign a second participant or to run the release tests as a person; no candidate is shown
+// expect: the panel says that no runner runs the level release, naming 2a, and asks to assign a second participant or to run the release tests as a person; no candidate is shown. The reading taken: the
+// complete run is a job without a participant on the runner each row names (MOD-release-evidence), so 2a — no one but the implementer could run the release tests — shows as the row that names no runner
 test("release — 2a: only the implementing participant can run the release tests", async () => {
   const host = releaseHost({
-    runsOn: { release: IMPLEMENTER, user: RUNNER },
+    runsOn: { ...ON_RUNNER, release: "" },
     jobs: { "JOB-20261001-0900-aaaa": { kind: "implement", participant: IMPLEMENTER, worksOn: ["ITM-200"] } },
   });
   const context = contextOf(host);
   const target = await renderPage(context);
   type(byClass(target, "person")[0], "akmaier");
-  await click(byClass(target, "start")[0], () => /Only the implementer/.test(target.textContent) && /2a/.test(target.textContent),
-    "the panel naming 2a: only the implementer could run the release tests");
-  assert.match(target.textContent, /Only the implementer/);
-  assert.match(target.textContent, /2a/);
+  await click(byClass(target, "start")[0], () => /No runner runs the level "release"/.test(target.textContent) && /2a/.test(target.textContent),
+    "the panel naming 2a: no runner runs the release tests");
+  assert.match(target.textContent, /No runner runs the level "release"/);
+  assert.match(target.textContent, /Assign a second participant to the schedule's row, or run the release tests yourself \(UC-013 2a\)/);
   assert.equal(byClass(target, "report").length, 0, "no candidate was started");
 });
 

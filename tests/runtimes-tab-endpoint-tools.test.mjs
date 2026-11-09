@@ -5,7 +5,7 @@
 // Run: node --test tests/runtimes-tab-endpoint-tools.test.mjs
 //
 // Module: MOD-runtimes
-// Guards: ONE DEFINITION, THREE DRIVERS; A PARTICIPANT DECLARES ITS CAPABILITIES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// Guards: ONE DEFINITION, THREE DRIVERS; A CONNECTION DECLARES ITS CAPABILITIES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // Level: component
 //
 // The readings, each from the sentence that gives it.
@@ -169,7 +169,7 @@ test("runOnTab — an Anthropic endpoint the tab calls directly is offered the k
 // ---------------------------------------------------------------- who is given none
 
 // TST-496003 · level: component · module: MOD-runtimes
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; ONE DEFINITION, THREE DRIVERS
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; ONE DEFINITION, THREE DRIVERS
 // given: the job of TST-496001 with an endpoint that answers the draft at once; known positive first — the drafter declaring use tools; then the same endpoint declared with draft text and read the repository only
 // input: runOnTab of each
 // expect: the declaring drafter's request carries a tools key naming list-files and read-file (the known positive); the other's single request carries no tools key, the endpoint is asked once, and its draft { answer: "plain" } is the result, stopped because passed
@@ -186,7 +186,7 @@ test("runOnTab — an endpoint that does not declare use tools is offered none, 
 });
 
 // TST-496004 · level: component · module: MOD-runtimes
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; ONE DEFINITION, THREE DRIVERS
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; ONE DEFINITION, THREE DRIVERS
 // given: the job of TST-496001 with a reviewing kind and a reviewer on endpoint ep2, also called directly and declaring use tools; ep1 makes the call read-file("docs/a.md") and then answers the draft { answer: "read it" }; ep2 answers a review without findings
 // input: runOnTab with ep1 the drafter's and ep2 the reviewer's endpoint
 // expect: three requests in order — ep1 twice (https://ep1.example.test/v1/chat/completions), then ep2 once (https://ep2.example.test/v1/chat/completions); the drafter's first request carries a tools key naming list-files and read-file (the known positive); the reviewer's request carries no tools key; the result is the draft { answer: "read it" }, stopped because passed
@@ -201,7 +201,7 @@ test("runOnTab — the reviewer's endpoint is offered no tools, though it declar
 });
 
 // TST-496005 · level: component · module: MOD-runtimes
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; A RUNTIME IS INTERCHANGEABLE
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; A RUNTIME IS INTERCHANGEABLE
 // given: the job of TST-496001 with a CLI agent claude on the Bridge lab-pc as drafter, declaring draft text, read the repository, use tools and run code and tests; the Bridge answers the draft { answer: "from the Bridge" }; the connections hold ep1 as well
 // input: runOnTab of the prepared job, with no record
 // expect: the Bridge receives POST /v1/ask with the token of lab-pc and a body whose keys are exactly agent and input, the agent "claude" and the input the prompt "Answer." followed by the form of the answer, the envelope as a JSON schema — no tool is named in it —, then polls GET /v1/ask/ask-1; no request goes to ep1 or any other origin than the Bridge's http://127.0.0.1:4712; the result is the draft { answer: "from the Bridge" }, stopped because passed

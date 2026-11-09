@@ -48,8 +48,9 @@ function git(cwd, ...args) {
   return r.stdout.trim();
 }
 const script = (bin, name, body) => writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
-const ROW = (name, route) => `| ${name} | CLI agent | example-model | 200000 | — | draft text, read the repository | this machine | ${route} |`;
-const PARTICIPANTS = `# Participants of this instance\n\n**REGISTER**\n\nThe participants of the test instance.\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n${[ROW("drafter", "bridge lab-pc agent opencode"), ROW("claude-drafter", "bridge lab-pc agent claude")].join("\n")}\n`;
+const PARTICIPANTS = `# Participants of this instance\n\n**REGISTER**\n\nThe participants of the test instance.\n\n| Name | Type | Model |\n|---|---|---|\n| drafter | agent | example-model |\n| claude-drafter | agent | example-model |\n`;
+// The connection each agent's jobs run on: the route its records name (MOD-job-ledger).
+const ROUTES = { "drafter": "bridge lab-pc agent opencode", "claude-drafter": "bridge lab-pc agent claude" };
 function push(seed, files, message) {
   spawnSync(REAL_GIT, ["fetch", "-q", "origin"], { cwd: seed });
   spawnSync(REAL_GIT, ["reset", "-q", "--hard", "origin/main"], { cwd: seed });
@@ -62,7 +63,8 @@ function repository(root, name, files) {
   git(root, "init", "-q", "--bare", "-b", "main", origin); git(root, "clone", "-q", origin, seed); push(seed, files, "first");
   return { origin, seed };
 }
-const JOB = (id, participant) => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route: "bridge lab-pc", run: null, retries: null,
+const JOB = (id, participant) => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route: ROUTES[participant], run: null, retries: null,
+  declares: { context: 200000, capabilities: ["draft text", "read the repository"] },
   startedBy: "alice", start: new Date("2026-10-11T09:00:00Z"), agentM: { version: "2026.10.0", commit: null }, inputs: [], limit: 3,
   destinations: [{ participant, place: "this machine", parts: ["the gate"] }], params: {} });
 

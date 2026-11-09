@@ -34,6 +34,7 @@ import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, schemaForm } from "../site-frame/index.mjs";
 import { credentialsFor } from "./products.mjs";
 import { heads } from "./routes.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 const PATH = "docs/resources.md";
 const PARTICIPANTS = "docs/participants.md";
@@ -287,18 +288,19 @@ export const route = {
         const instanceInfo = await context.instance.host.repositoryInfo();
         const instanceSnapshot = place.ofInstance ? opened.snapshot : await context.instance.host.readSnapshot(instanceInfo.defaultBranch);
         const register = await instanceSnapshot.read(PARTICIPANTS);
-        const participants = register === null ? [] : participantsOf(readRegister(participantSchema(), PARTICIPANTS, register).document);
+        const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
+        const participants = register === null ? [] : participantsOf(readRegister(participantSchema(), PARTICIPANTS, register).document, connections);
         const jobWorkflow = WORKFLOWS.some((path) => opened.snapshot.paths.includes(path));
         const need = [{ resource: resource.name, route: `runner:${label}` }];
         let drafter = null, refusal = null;
-        for (const candidate of participants.filter((each) => each.type === "CI agent")) {
-          const offers = routesFor(candidate, participants, { visibility: opened.visibility, jobWorkflow }, need);
+        for (const candidate of participants.filter((each) => each.route)) {
+          const offers = routesFor(candidate, { visibility: opened.visibility, jobWorkflow }, need);
           const taken = offers.find((offer) => offer.route.kind === "ci" && offer.route.runner === label);
           if (taken?.available) { drafter = { participant: candidate, route: taken.route }; break; }
           refusal ??= taken?.reason ?? null;
         }
         if (drafter === null) {
-          out.replaceChildren(el("p", "resource-no-runner", `No CI agent of the instance reaches the runner ${label}${refusal ? `: ${refusal}` : ""}. Nothing can check ${resource.name} until one does.`));
+          out.replaceChildren(el("p", "resource-no-runner", `No participant on a connection of this browser reaches the runner ${label}${refusal ? `: ${refusal}` : ""}. Nothing can check ${resource.name} until one does.`));
           return;
         }
         const credentials = place.address ? credentialsFor(context.store, parseAddress(place.address)) : context.store && credentialsFor(context.store, parseAddress(`https://github.com/${context.instance.repository}`));
@@ -313,8 +315,11 @@ export const route = {
           instance: { snapshot: instanceSnapshot, host: context.instance.host, checkout: null }, connect: async () => null, participants,
           places: { sources: {}, mailbox: null, contents: [] }, gates: [], person, now, agentM, jobId: id };
         const prepared = await prepareJob("check-resource", jobContext, { drafter: drafter.participant, reviewers: [] });
-        const start = { id, kind: "check-resource", worksOn: ["UC-040"], participant: drafter.participant.name, model: drafter.participant.model ?? null, route: `ci runner:${label}`,
-          run: null, retries: null, startedBy: person, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "in parameters",
+        // The record's route is the connection's, `ci runner:<label> agent <agent> secret <NAME>` for a coding agent on CI, with what the connection declares for the model (MOD-job-ledger, `route`, `declares`).
+        const connection = String(drafter.participant.route ?? "").trim();
+        const start = { id, kind: "check-resource", worksOn: ["UC-040"], participant: drafter.participant.name, model: drafter.participant.model ?? null,
+          route: /^ci\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `ci runner:${label}`,
+          declares: { context: drafter.participant.context ?? null, capabilities: drafter.participant.capabilities ?? [] }, run: null, retries: null, startedBy: person, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "in parameters",
           conversation: null, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })), params };
         const panel = runPanel(prepared, {
           async onRun() {
@@ -354,12 +359,13 @@ export const route = {
 
     // ------------------------------------------------------------ the entries, by kind
     // An endpoint or an agent that also works on the product is a participant too, and a separate entry (UC-040 2a): *Add as participant* opens the participants route with the
-    // participant type that kind stands for and the resource's address, and writes nothing.
-    const PARTICIPANT_TYPE = { endpoint: "model endpoint", agent: "CLI agent" };
+    // type agent and the model the resource serves — its pin, the identifier of the served model (MOD-resource-list, Data: Pin) —, and writes nothing.
+    const SERVING = new Set(["endpoint", "agent"]);
+    const servedModel = (resource) => resource.pin ?? "";
     function participantButton(resource) {
-      if (!PARTICIPANT_TYPE[resource.kind]) return [];
+      if (!SERVING.has(resource.kind)) return [];
       const button = el("button", "resource-add-participant btn", "Add as participant");
-      button.addEventListener("click", () => context.go("participants", { type: PARTICIPANT_TYPE[resource.kind], address: resource.address }));
+      button.addEventListener("click", () => context.go("participants", { type: "agent", model: servedModel(resource) }));
       return [" ", button];
     }
     function entryOf(resource, row) {

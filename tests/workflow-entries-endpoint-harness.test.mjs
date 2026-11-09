@@ -50,8 +50,8 @@ const SEVEN = ["read", "write", "edit", "bash", "grep", "glob", "webfetch"];
 const AGENTS_MD = "# Agent M rules, fixture agents-2026\n";
 
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |");
 
 // A register entry of the instance whose content may go only to `this machine`, held in the product's docs/sources/SRC-secret/.
 const RESTRICTED = text("---", "id: SRC-secret", "title: SRC-secret title", "kind: document", "authority: informational", "licence: restricted - internal",

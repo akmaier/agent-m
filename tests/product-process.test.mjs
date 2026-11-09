@@ -166,7 +166,7 @@ const MODEL = [
   "",
 ].join("\n");
 
-// The instance's register of participants: alice, a person; dev-a and dev-b, two CLI agents.
+// The instance's register of participants: alice, a person; dev-a and dev-b, two agents.
 const PARTICIPANTS = readDocument(participantSchema(), "docs/participants.md", [
   "# Participants of this instance",
   "",
@@ -174,13 +174,11 @@ const PARTICIPANTS = readDocument(participantSchema(), "docs/participants.md", [
   "",
   "The people and agents who work on the products of the fixture instance, one row per participant.",
   "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| alice | person | — | — | — | draft text, read the repository, write to the repository | — | account github.com/alice |",
-  "| dev-a | CLI agent | example-model | 200000 | — | draft text, read the repository, write to the repository, run code and "
-    + "tests | this machine | bridge lab-pc agent claude |",
-  "| dev-b | CLI agent | other-model | 200000 | — | draft text, read the repository, write to the repository, run code and "
-    + "tests | this machine | bridge lab-pc agent codex |",
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| alice | person | — |",
+  "| dev-a | agent | example-model |",
+  "| dev-b | agent | other-model |",
   "",
 ].join("\n"));
 

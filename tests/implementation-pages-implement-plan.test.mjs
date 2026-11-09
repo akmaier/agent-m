@@ -10,7 +10,8 @@
 // Level: unit
 //
 // The product is the V-model fixture of tests/implementation-pages-plan.test.mjs (copied in part), held in memory behind a host of this file's own; the instance holds the register with one developer, dev-a, whom the
-// product's role assignment gives the role Developer. `fetch` is a spy that refuses: no request leaves the fixtures. Readings the texts leave open, which the tests state (the pull request names them):
+// product's role assignment gives the role Developer. dev-a's connection is the coding agent claude of the
+// Bridge lab-pc, which this browser keeps. `fetch` answers that Bridge and is a spy that refuses every other request: no request leaves the fixtures. Readings the texts leave open, which the tests state (the pull request names them):
 //   - Each step is a <tr data-step data-state data-phase>; its phase is the one the plan's order gives it; <input data-select-step> ticks it, disabled for a step that cannot start, whose reasons are the <li> of
 //     <ul data-reasons>; <p data-selected> says how many steps are selected.
 //   - The current phase is the phase of the first step, in the plan's order, that is not done; the ready, startable steps of that phase are ticked.
@@ -24,12 +25,20 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { agent, bridgeAnswer, bridgeSetting, storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
 const { endedJob, REJECTED } = await import("./implementation-pages-ended-job.mjs");
 
+// The network: the fixture Bridge lab-pc answers testBridge (tests/browser-connections-fixture.mjs); every other request is refused and kept in `fetched`.
 const fetched = [];
-globalThis.fetch = async (address) => { fetched.push(String(address)); throw new Error(`the test's network refuses ${address}`); };
+const bridgeAnswers = bridgeAnswer([agent("claude", [["model-a"]])]);
+globalThis.fetch = async (address, init = {}) => {
+  const answer = await bridgeAnswers(new URL(String(address)), init);
+  if (answer) return answer;
+  fetched.push(String(address));
+  throw new Error(`the test's network refuses ${address}`);
+};
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 
 const matches = (element, selector) => {
@@ -85,7 +94,9 @@ function productFiles({ model = "v-model", plan = true, declared = true, later =
 
 const ROOT = new URL("../", import.meta.url);
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n`;
+// This browser's connection of dev-a's model: the coding agent claude of the Bridge lab-pc, at "this machine", with every capability an implementing job needs.
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
 
 function snapshotOf(files, web, commits) {
   return { repository: { server: "github", path: "acme/product", web }, ref: "main", commit: "c".repeat(40), paths: Object.keys(files), blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
@@ -101,7 +112,7 @@ async function render(files, { greenToMerge = null } = {}) {
     async readFileAt(path, at) { const held = await shot.read(path); return new Map(at.map((commit) => [commit, held])); },
     async listPullRequests() { return []; }, async containsCommit() { return false; }, async commitFiles(change) { commits.push(change); throw new Error("a render writes nothing"); } });
   const product = snapshotOf(files, ADDRESS), instance = snapshotOf({ "SPEC.md": "# Instance\n", "docs/participants.md": REGISTER }, "https://github.com/acme/agent-m");
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: hostOf(instance) }, product: { address: ADDRESS, kind: "github", host: hostOf(product), tokenStored: true }, store: {}, go() {} };
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: hostOf(instance) }, product: { address: ADDRESS, kind: "github", host: hostOf(product), tokenStored: true }, store: storeWith(SETTINGS), go() {} };
   const target = document.createElement("div");
   document.body.append(target);
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };

@@ -45,7 +45,6 @@ import { until } from "./prompt-bar.d/until.mjs";
 const { view } = await import("../src/test-pages/index.mjs");
 const { ciConfiguration, scheduleSchema } = await import("../src/test-schedule/index.mjs");
 const { readDocument } = await import("../src/documents/index.mjs");
-const { participantSchema } = await import("../src/participant-list/index.mjs");
 const { resourceSchema } = await import("../src/resource-list/index.mjs");
 
 const route = () => view.routes.find((candidate) => candidate.name === "schedule");
@@ -80,12 +79,10 @@ const REGISTER = `# Participants of this instance
 
 The participants of the test instance.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| lab-runner | CI agent | example-model | 200000 | — | draft text, run code and tests | this machine | ci runner:lab secret LAB_KEY |
-| writer | CLI agent | example-model | 200000 | — | draft text, read the repository | this machine | bridge lab-pc agent claude |
+| Name | Type | Model |
+|---|---|---|
+| alice | person | — |
 `;
-const participants = readDocument(participantSchema(), "docs/participants.md", REGISTER);
 const RESOURCES = `# Resources of this product\n\n**REGISTER**\n\nThe resources.\n\n| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |\n|---|---|---|---|---|---|---|---|---|---|\n| oracle | endpoint | https://api.example.org/v1 | example-model | — | — | runner:cpu | the vendor | yes | ci:ORACLE_KEY |\n`;
 const resources = readDocument(resourceSchema(), "docs/resources.md", RESOURCES);
 
@@ -440,7 +437,7 @@ test("schedule — a nightly run that never ran is named only where the schedule
 // expect: the drift lists the foreign workflow and not the generated file
 test("schedule — a foreign workflow is listed beside a generated file that agrees", async () => {
   const schedule = readDocument(scheduleSchema, "docs/tests/schedule.md", SAVED);
-  const { files } = ciConfiguration(schedule, { server: "github", instance: INSTANCE.path, instanceCommit: INSTANCE_COMMIT }, resources, participants);
+  const { files } = ciConfiguration(schedule, { server: "github", instance: INSTANCE.path, instanceCommit: INSTANCE_COMMIT }, resources);
   const { target } = await page("github", { "docs/tests/schedule.md": SAVED, "docs/resources.md": RESOURCES, ...files,
     ".github/workflows/ci.yml": "on:\n  push:\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n" });
   const listed = byTag(byClass(target, "drift")[0], "li").map((item) => item.getAttribute("data-path"));
@@ -464,18 +461,18 @@ test("schedule — drift and last runs are shown only where the product holds a 
 
 // TST-759011 · level: unit · module: MOD-test-pages
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
-// given: a saved schedule whose row system runs on no participant; the table offers lab-runner, which can run tests on the runner lab
-// input: lab-runner chosen for the row system, then Save
-// expect: the committed schedule file's row system runs on lab-runner
+// given: a saved schedule whose row system leaves runs on empty (hosted)
+// input: runner:lab, a self-hosted runner by its label, written into the runner field of the row system, then Save
+// expect: the committed schedule file's row system runs on runner:lab
 test("schedule — the runner chosen in the table is written by Save", async () => {
   const shown = await page("github", { "docs/tests/schedule.md": SAVED });
-  const choice = byTag(descendants(shown.target, (node) => node.localName === "tr" && node.getAttribute("data-row") === "system")[0], "select")[0];
-  choice.value = "lab-runner";
+  const choice = byTag(descendants(shown.target, (node) => node.localName === "tr" && node.getAttribute("data-row") === "system")[0], "input").find((node) => (node.className ?? "").split(" ").includes("runner"));
+  choice.value = "runner:lab";
   choice.dispatchEvent(new Event("change"));
   click(saveOf(shown.target));
   await until(() => writes(shown.host, "commitFiles").length, "the commit made");
   const text = writes(shown.host, "commitFiles")[0][1].files.find((file) => file.path === "docs/tests/schedule.md").text;
-  assert.match(text, /\| system \|[^\n]*\| lab-runner \|/);
+  assert.match(text, /\| system \|[^\n]*\| runner:lab \|/);
 });
 
 // TST-1223006 · level: unit · module: MOD-test-pages

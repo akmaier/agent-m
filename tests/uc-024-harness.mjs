@@ -33,10 +33,15 @@ import { startRecord } from "../src/job-ledger/index.mjs";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { ADDRESS, GATES, HEAD, PARTICIPANTS, PRODUCT_REPO, V_MODEL, SCRUM_MODEL, architecture, decision, declaration, found, instanceFiles, lines, modulePath, plain, planFiles, planned, pr, stepId, stepPath, stepText, textOf,
   walk, waitFor, ORDER_PATH } from "./uc-045-harness.mjs";
-import { open as openScrum, product as scrumProduct, sprintPath, sprintText } from "./uc-032-harness.mjs";
+import { open as openScrum, product as scrumProduct, sprintPath, sprintText, storeOf, LAB_PC } from "./uc-032-harness.mjs";
+import { BRIDGE, CODING, bridgeAnswer } from "./browser-connections-fixture.mjs";
 
 export { ADDRESS, GATES, HEAD, PARTICIPANTS, PRODUCT_REPO, REPO, TOKEN, V_MODEL, SCRUM_MODEL, architecture, declaration, found, lines, modulePath, plain, planFiles, planned, pr, stepId, stepPath, stepText, textOf, walk,
-  waitFor, ORDER_PATH, openScrum };
+  waitFor, ORDER_PATH, openScrum, storeOf };
+
+/** The connection dev-a's jobs run on — the coding agent claude of the Bridge lab-pc, which offers model-c (tests/uc-032-harness.mjs' LAB_PC) — as a job's record names it and what it declares (MOD-job-ledger). */
+export const DEV_A_ROUTE = "bridge lab-pc agent claude";
+export const DEV_A_DECLARES = { context: 200000, capabilities: CODING };
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(join(ROOT, path), "utf8");
@@ -69,7 +74,7 @@ export const testFileOf = (module, id = "TST-001") => lines(`// Module: ${module
 
 /** A job's start record: { path, text } of the job `id` of `kind` working on `worksOn`, by `participant`. */
 export function jobRecord({ id = "JOB-20261101-0900-a1b2", kind = "implement", worksOn = ["ITM-101"], participant = "dev-a", params = { steps: worksOn, merges: "person" } } = {}) {
-  return startRecord({ id, kind, worksOn, participant, model: "model-c", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-11-01T09:00:00Z"),
+  return startRecord({ id, kind, worksOn, participant, model: "model-c", route: DEV_A_ROUTE, declares: DEV_A_DECLARES, run: null, retries: null, startedBy: "alice", start: new Date("2026-11-01T09:00:00Z"),
     agentM: { version: "unreleased", commit: HEAD }, inputs: [], limit: 5, destinations: [{ participant, place: "this machine", parts: [] }], params });
 }
 
@@ -91,18 +96,20 @@ const githubPull = (p) => ({ number: p.number, title: p.title, head: { ref: p.br
   merge_commit_sha: p.mergeCommit, created_at: p.opened, updated_at: p.updated, closed_at: p.closed, draft: p.draft === true, html_url: p.url, body: p.body });
 
 /**
- * openImplement(params, { files, instance, pullRequests, green, denyWrites, store }) -> { target, srv, inst, log, merges, press, script, done, html } — the route `implement` drawn for the product `files` (alice/thesis-tool)
- * and the instance `instance`, each behind tests/app-harness.mjs' fake of GitHub. `pullRequests` are the product's (pr() of tests/uc-045-harness.mjs, or jobPull() of this file, whose commits and checks are served);
+ * openImplement(params, { files, instance, pullRequests, green, denyWrites, store, agents }) -> { target, srv, inst, log, merges, handed, press, script, done, html } — the route `implement` drawn for the product `files` (alice/thesis-tool)
+ * and the instance `instance`, each behind tests/app-harness.mjs' fake of GitHub; `store` is this browser's settings, tests/uc-032-harness.mjs' SETTINGS unless given, whose Bridge answers through
+ * tests/browser-connections-fixture.mjs, listing `agents` (LAB_PC of tests/uc-032-harness.mjs unless given) with their declarations, every hand-over kept in `handed` — or, where `bridge` is given, through that request handler ((url, init) -> Promise<Response>), which then answers every request to
+ * 127.0.0.1, the loopback address of a Bridge on this machine. `pullRequests` are the product's (pr() of tests/uc-045-harness.mjs, or jobPull() of this file, whose commits and checks are served);
  * `green` the answer of greenToMerge's GraphQL field — true (a rule requires a check), false (none does) or undefined (the fake's own answer); `denyWrites` refuses every write of a commit with 403, as GitHub refuses a
  * token that may not write. `log` holds each request that writes, `merges` each merge asked for. `press(element)` is a person's click awaited, `script(element)` a script's; `done()` ends the page.
  */
-export async function openImplement(params = {}, { files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false, store = {}, name = "implement" } = {}) {
+export async function openImplement(params = {}, { files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false, store = storeOf(), name = "implement", bridge = null, agents = LAB_PC } = {}) {
   const { view } = await import("../src/implementation-pages/index.mjs");
   for (const [at, strategies] of view.strategies.entries()) {
     try { registerStrategies(`tests/uc-024-harness.mjs#${at}`, strategies); } catch { /* registered already */ }
   }
   const route = view.routes.find((candidate) => candidate.name === name);
-  const { srv, inst, log, merges, outside, host, instanceHost, restore } = await servers({ files, instance: instanceGiven, pullRequests, green, denyWrites });
+  const { srv, inst, log, merges, outside, handed, host, instanceHost, restore } = await servers({ files, instance: instanceGiven, pullRequests, green, denyWrites, bridge, agents });
   const handlers = [];
   const Element = globalThis.window.Element, add = Element.prototype.addEventListener;
   Element.prototype.addEventListener = function (type, listener, ...rest) { if (type === "click") handlers.push([this, listener]); return add.call(this, type, listener, ...rest); };
@@ -119,14 +126,14 @@ export async function openImplement(params = {}, { files, instance: instanceGive
     await listener(event);
     await settle();
   };
-  return { target, srv, inst, log, merges, outside, done, html: () => target.innerHTML, text: () => plain(target.innerHTML), press: (element) => call(element, { isTrusted: true }), script: (element) => call(element, { isTrusted: false }) };
+  return { target, srv, inst, log, merges, outside, handed, done, html: () => target.innerHTML, text: () => plain(target.innerHTML), press: (element) => call(element, { isTrusted: true }), script: (element) => call(element, { isTrusted: false }) };
 }
 
 /**
- * servers({ files, instance, pullRequests, green, denyWrites }) -> { srv, inst, log, merges, outside, host, instanceHost, restore } — the product's and the instance's fakes of GitHub as openImplement describes them, the global
- * `fetch` routed to them until `restore()`, and the real MOD-repository-hosts hosts of both, connected with the person's token.
+ * servers({ files, instance, pullRequests, green, denyWrites, agents }) -> { srv, inst, log, merges, outside, handed, host, instanceHost, restore } — the product's and the instance's fakes of GitHub as openImplement describes them, and
+ * the fixture Bridge of tests/browser-connections-fixture.mjs listing `agents` — LAB_PC of tests/uc-032-harness.mjs, claude and codex, unless given —, every hand-over kept in `handed`; the global `fetch` routed to them until `restore()`, and the real MOD-repository-hosts hosts of both, connected with the person's token.
  */
-export async function servers({ files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false } = {}) {
+export async function servers({ files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false, bridge: answerOf = null, agents = LAB_PC } = {}) {
   const merges = [];
   const api = `/repos/${PRODUCT_REPO}`;
   const pulls = (url, init) => {
@@ -176,9 +183,11 @@ export async function servers({ files, instance: instanceGiven = instance(), pul
     return false;
   };
   const real = globalThis.fetch;
-  const log = [], outside = [];
+  const log = [], outside = [], handed = [];
+  const bridge = answerOf ?? bridgeAnswer(agents, handed);
   globalThis.fetch = (input, init = {}) => {
     const url = new URL(String(input?.url ?? input));
+    if (url.origin === BRIDGE || (answerOf && url.hostname === "127.0.0.1")) return bridge(url, init);
     if (url.origin !== "https://api.github.com" && url.origin !== "https://raw.githubusercontent.com") { outside.push(url.href); return Promise.reject(new TypeError(`the test's network refuses ${url.href}`)); }
     const mine = ofProduct(url, init);
     if ((init.method ?? "GET") !== "GET" && url.pathname !== "/graphql") log.push({ repository: mine ? PRODUCT_REPO : REPO, method: init.method, path: url.pathname, authorization: init.headers?.Authorization ?? init.headers?.authorization ?? null });
@@ -186,7 +195,7 @@ export async function servers({ files, instance: instanceGiven = instance(), pul
   };
   const host = connect(parseAddress(ADDRESS), { token: TOKEN });
   const instanceHost = connect(parseAddress(`https://github.com/${REPO}`), { token: TOKEN });
-  return { srv, inst, log, merges, outside, host, instanceHost, restore: () => { globalThis.fetch = real; } };
+  return { srv, inst, log, merges, outside, handed, host, instanceHost, restore: () => { globalThis.fetch = real; } };
 }
 
 /** The steps of the page: [{ id, state, phase, selectable, ticked, reasons }]. */
@@ -249,7 +258,7 @@ export async function jobCheck({ commits = [{ sha: FIRST, files: ["tests/store.t
     const passedOn = `docs/process.md@${await blobSha(declared)}`;
     const record = (gate, n) => lines("---", `gate: ${gate}`, "job:", "decider: bob", "role: Reviewer", "decision: passed", "on:", `  - ${passedOn}`, "date: 2026-10-30 10:00 UTC", "---", `# ${gate}`, "", "## Reason", "", "Checked.");
     const gateFiles = { "docs/gates/20261030-1000-requirements-design-aaaa.md": record("Requirements → Design"), "docs/gates/20261030-1001-design-implementation-bbbb.md": record("Design → Implementation"), ...gates };
-    const job = startRecord({ id: CHECK_JOB, kind, worksOn: ["ITM-101"], participant: "dev-a", model: "model-c", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-11-01T09:00:00Z"),
+    const job = startRecord({ id: CHECK_JOB, kind, worksOn: ["ITM-101"], participant: "dev-a", model: "model-c", route: DEV_A_ROUTE, declares: DEV_A_DECLARES, run: null, retries: null, startedBy: "alice", start: new Date("2026-11-01T09:00:00Z"),
       agentM: { version: "unreleased", commit: instanceCommit }, inputs: [], limit: 2, destinations: [{ participant: "dev-a", place: "this machine", parts: [] }], params: { steps: ["ITM-101"] } });
     const base = { "README.md": "# Thesis tool\n", "docs/process.md": declared, ...architecture(), ...planFiles({ which: [101] }), [job.path]: job.text, "src/store/index.mjs": "export const read = () => 1;\n",
       "tests/store.test.mjs": STORE_TEST, ...gateFiles, ...files };

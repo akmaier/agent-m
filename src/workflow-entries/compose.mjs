@@ -14,7 +14,8 @@
 // AGENT_M_TOKEN, its value; AGENT_M_KEY_NAMES, the names of the secrets that hold the agents' keys, separated by blanks, each of which the
 // workflow gives the entry as a variable of that name — on the agent's machine only the one at the place AGENT_M_KEY names —; AGENT_M_PART, the machine
 // (`agent` or `write`), and AGENT_M_RESULT_DIR, the folder of the result between them; AGENT_M_MODEL_USER, on the agent's machine, the OS user as which a model's
-// run works where the machine allows it (model-user.mjs); GITHUB_OUTPUT, the file of a step's outputs. The instance is checked out into `instance/` of GITHUB_WORKSPACE, from which
+// run works where the machine allows it (model-user.mjs); AGENT_M_CI_AGENTS, the coding agents on CI the job workflow declares, a JSON list of { name, agent, runner,
+// secret, place, capabilities, models } (MOD-runtimes' jobWorkflowFiles); GITHUB_OUTPUT, the file of a step's outputs. The instance is checked out into `instance/` of GITHUB_WORKSPACE, from which
 // the entry runs.
 
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
@@ -42,7 +43,7 @@ const path = globalThis.process?.getBuiltinModule?.("node:path");
  * repository: string, branch: string | null, agentM: { commit: string | null }, token: string | null, now: Date, job: { runner: string | null,
  * productDir: string | null, instanceDir: string | null, actor: string | null, runUrl: string | null, tokenName: string, personToken: string | null,
  * keys: Record<string, string | null>, summaryFile: string | null, part: "agent" | "write" | null, resultDir: string | null, agentKey: string | null, modelUser: string | null,
- * keyHolder: string | null, outputFile: string | null }, tests?: { expected: string | null, runner: string | null, pullRequest: number | null } } — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
+ * keyHolder: string | null, outputFile: string | null, ciAgents: { name, agent, runner, secret, place, capabilities, models }[] }, tests?: { expected: string | null, runner: string | null, pullRequest: number | null } } — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
  * the runner, the checkouts, the run's address, the name and value of the person's token and each key secret's value by its name, and the file GITHUB_STEP_SUMMARY names
  * for the run's summary, where it is set. `token` is the workflow's own token, by its name GITHUB_TOKEN, never by value in a file; `branch` the branch the workflow runs for.
  * `service` is `gitlab` where GITLAB_CI is `true`, else `github`; a GitLab job's variables are read as gitlabEnvironment states. `tests`, for the entries
@@ -89,7 +90,7 @@ function githubEnvironment(entry, env, now) {
       instanceDir: env.GITHUB_WORKSPACE ? path.join(env.GITHUB_WORKSPACE, "instance") : null, actor: env.GITHUB_ACTOR || null,
       runUrl: env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}` : null,
       tokenName: env.AGENT_M_TOKEN_NAME || "AGENT_M_TOKEN", personToken: env.AGENT_M_TOKEN || null,
-      keys: keysOf(env),
+      keys: keysOf(env), ciAgents: ciAgentsOf(env),
       summaryFile: env.GITHUB_STEP_SUMMARY || null,
       ...partOf(env), outputFile: env.GITHUB_OUTPUT || null,
     },
@@ -121,7 +122,7 @@ function gitlabEnvironment(entry, env, now) {
       runner: env.AGENT_M_RUNNER || null, productDir: env.AGENT_M_PRODUCT_DIR || null,
       instanceDir: env.CI_PROJECT_DIR ? path.join(env.CI_PROJECT_DIR, "..", "instance") : null, actor: env.GITLAB_USER_LOGIN || null, runUrl: env.CI_PIPELINE_URL || null,
       tokenName: env.AGENT_M_TOKEN_NAME || "AGENT_M_TOKEN", personToken: env.AGENT_M_TOKEN || null,
-      keys: keysOf(env),
+      keys: keysOf(env), ciAgents: ciAgentsOf(env),
       summaryFile: null, ...partOf(env), outputFile: env.AGENT_M_OUTPUT || null,
     },
   };
@@ -154,6 +155,13 @@ function partOf(env) {
  */
 export function keyAvailable(job, name) {
   return Boolean(Object.hasOwn(job.keys, name) && job.keys[name]) || Boolean(job.keyHolder && name === job.agentKey);
+}
+
+// The coding agents on CI the job workflow declares (AGENT_M_CI_AGENTS): a JSON list; none where it is unset or not such a list.
+function ciAgentsOf(env) {
+  let read = null;
+  try { read = JSON.parse(env.AGENT_M_CI_AGENTS ?? "[]"); } catch { read = null; }
+  return Array.isArray(read) ? read.filter((each) => each && typeof each === "object" && typeof each.agent === "string" && typeof each.secret === "string") : [];
 }
 
 // Each key secret's value by its name: AGENT_M_KEY_NAMES lists the names, separated by blanks, and the workflow gives each as a variable of that name.

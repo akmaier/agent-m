@@ -21,6 +21,7 @@ import { backlogProduct, instance, openImplement } from "./uc-024-harness.mjs";
 import { MODELS, itemPath, itemText, sprintPath, sprintText, lines } from "./uc-032-harness.mjs";
 import { INSTANCE, PRODUCT, browser, draw, headOf, network, timers, withEnd } from "./main-page-home-harness.mjs";
 import { writeSetting } from "../src/browser-store/index.mjs";
+import { BRIDGE, CODING, agent, bridgeAnswer } from "./browser-connections-fixture.mjs";
 import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
 import { view } from "../src/main-page/index.mjs";
 
@@ -58,19 +59,23 @@ const MODULE = (id) => lines("---", `id: ${id}`, `title: The module ${id}`, `fol
 const ITEM = (id, modules) => lines("---", `id: ${id}`, "title: The work", "level: module", "realises:", "  - FIRST RULE", "modules:", ...modules.map((module) => `  - ${module}`), "builds_on: []", "tests:", "  - unit", "origin:", "  - the fixture", "---",
   `# ${id} The work`, "", "## Outcome", "", "The work.", "", "## Acceptance", "", "- a unit test.");
 
-/** The job `JOB-20261016-1000-9a01` (kind implement, participant dev-a, the item ITM-003, the route ci hosted) taken and waiting at the gate `Building → Checking`, decided by the role Owner. */
+/** The connection of each builder of `jobPage`: the coding agents claude and codex of the browser's Bridge lab-pc-4, offering model-c and model-d on this machine. */
+const ON = { "dev-a": { agent: "claude", model: "model-c" }, "dev-b": { agent: "codex", model: "model-d" } };
+/**
+ * The job `JOB-20261016-1000-9a01` (kind implement, participant dev-a, the item ITM-003, on its connection the route bridge lab-pc-4 agent claude) taken and waiting at the gate `Building → Checking`, decided by the
+ * role Owner.
+ */
 export function waitingJob({ participant = "dev-a", item = "ITM-003", gate = GATE, decider = "Owner" } = {}) {
-  const { path, text } = startRecord({ id: ID, kind: "implement", worksOn: [item], participant, model: "model-x", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-16T10:00:00Z"),
+  const { path, text } = startRecord({ id: ID, kind: "implement", worksOn: [item], participant, model: ON[participant]?.model ?? "model-x", route: `bridge lab-pc-4 agent ${ON[participant]?.agent ?? "claude"}`,
+    declares: { context: 200000, capabilities: CODING }, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-16T10:00:00Z"),
     agentM: { version: "2026.1.0", commit: "abc1234" }, inputs: [`docs/backlog/${item}-work.md@${BLOB}`], limit: 5, task: "in parameters", conversation: null, destinations: [], params: { items: [item], merges: "agent" } });
   const taken = appendToRecord(text, { part: "taken", at: new Date("2026-10-16T10:00:00Z"), by: "https://github.com/alice/product/actions/runs/1" });
   return { path, text: appendToRecord(taken, { part: "gate reached", at: new Date("2026-10-16T10:30:00Z"), gate, decider }) };
 }
 
-const CAN = "read the repository, write to the repository, run code and tests, use tools";
-/** The participants of the instance of `jobPage`: the people alice and bob and the builders dev-a and dev-b, on CI, at this machine. */
-export const PEOPLE = lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|", "| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |", "| bob | person | — | — | — | read the repository, write to the repository | — | account github.com/bob |",
-  `| dev-a | model endpoint | model-c | 200000 | — | ${CAN} | this machine | ci hosted secret DEV_KEY |`, `| dev-b | model endpoint | model-d | 200000 | — | ${CAN} | this machine | ci hosted secret DEV_KEY |`);
+/** The participants of the instance of `jobPage`: the people alice and bob and the builders dev-a and dev-b, agents of model-c and model-d, which the coding agents of the browser's Bridge lab-pc-4 offer. */
+export const PEOPLE = lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", "| Name | Type | Model |", "|---|---|---|", "| alice | person | — |", "| bob | person | — |",
+  "| dev-a | agent | model-c |", "| dev-b | agent | model-d |");
 
 /** The files of alice/product: the Scrum product of two teams, team1's running sprint holding ITM-003 (whose job waits at the gate), team2's holding ITM-011; the job records given; `files` laid over them. */
 export function jobProduct({ jobs = [waitingJob()], files = {} } = {}) {
@@ -91,7 +96,8 @@ export function jobProduct({ jobs = [waitingJob()], files = {} } = {}) {
 
 /**
  * jobPage(person, { files }) -> { net, seen, draw(), restore() } — the route `job` of MOD-main-page for the job GATE_JOB of alice/product, the person being the name the product's stored token carries. `seen` keeps the writes of one commit the fake answers:
- * { trees, commits, moves }. `net` is tests/main-page-home-harness.mjs' fake of GitHub; `draw()` draws the page and returns its element.
+ * { trees, commits, moves }. The browser keeps the Bridge lab-pc-4 of tests/main-page-home-harness.mjs' browser(), whose coding agents claude and codex are the builders' connections (ON), and testBridge's two
+ * requests to it are answered here, listing both ready with the declarations the Bridge keeps for them. `net` is tests/main-page-home-harness.mjs' fake of GitHub; `draw()` draws the page and returns its element.
  */
 const GLOBALS = ["window", "document", "location", "localStorage", "sessionStorage"];
 export function jobPage(person, { files = jobProduct(), participants = null, model = MODELS.scrum } = {}) {
@@ -113,8 +119,10 @@ export function jobPage(person, { files = jobProduct(), participants = null, mod
       if (method === "PATCH") { seen.moves += 1; return json({}); }
     }
     if (url.host === "api.github.com" && method === "POST" && url.pathname === `/repos/${PRODUCT}/git/trees`) { seen.trees.push(JSON.parse(init.body)); return json({ sha: "tree-2" }); }
+    if (url.host === "127.0.0.1:4711" && method === "GET" && ["/v1/pair", "/v1/agents"].includes(url.pathname)) return bridge(new URL(url.pathname, BRIDGE), init);
     return inner(input, init);
   };
+  const bridge = bridgeAnswer(Object.values(ON).map((each) => agent(each.agent, [[each.model]])));
   const context = browser();
   writeSetting(context.store, `github-token:${PRODUCT}`, { value: "github_pat_HOME827PRODUCT0123456789abcdefg", name: person, expires: "2027-01-01" });
   const route = view.routes.find((candidate) => candidate.name === "job");

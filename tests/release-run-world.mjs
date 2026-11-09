@@ -30,8 +30,9 @@ const TODAY = "2026-11-02";
 
 // ---------------------------------------------------------------- the product's files
 
+// The schedule: every row on the server's runners, as the complete run of a candidate is queued on the runner each row names (MOD-release-evidence; `runs on` is `hosted` or `runner:<label>`).
 const scheduleText = () => {
-  const rows = ["unit", "component", "system", "paid", "release", "user"].map((level) => `| ${level} | ✓ | ✓ | ✓ | ✓ | ✓ | ${level === "release" || level === "user" ? "tester-b" : ""} |`);
+  const rows = ["unit", "component", "system", "paid", "release", "user"].map((level) => `| ${level} | ✓ | ✓ | ✓ | ✓ | ✓ | hosted |`);
   return ["---", "nightly: 02:00", "---", "## Levels", "", "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |",
     "|---|---|---|---|---|---|---|", ...rows, ""].join("\n");
 };

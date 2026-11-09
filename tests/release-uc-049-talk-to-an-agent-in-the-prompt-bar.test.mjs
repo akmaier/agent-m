@@ -62,8 +62,9 @@ const COVERED_BY_RELEASE = {
   "NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY": [PAGES, "tests/test_mail_privacy.py", "tests/prompt-bar-record.test.mjs"],
   "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE": [PAGES, "tests/test_mail_privacy.py"],
   "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY": [GRAPH, RELEASE, "tests/prompt-bar-hand-over.test.mjs", "tests/test_job_record.py"],
-  "A PARTICIPANT DECLARES ITS CAPABILITIES": [GRAPH, "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
-  "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA": [GRAPH, "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
+  "A CONNECTION NAMES THE MODELS IT OFFERS": [GRAPH, "tests/prompt-bar-endpoints.test.mjs"],
+  "A CONNECTION DECLARES ITS CAPABILITIES": [GRAPH, "tests/prompt-bar-endpoints.test.mjs", "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
+  "A CONNECTION DECLARES WHERE IT PROCESSES DATA": [GRAPH, "tests/prompt-bar-endpoints.test.mjs", "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": [GRAPH, "tests/review-core.test.mjs", "tests/job-runner-tools.test.mjs"],
   "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED": [PAGES, "tests/test_mail_privacy.py"],
   "A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL": [PAGES, "tests/test_mail_privacy.py"],
@@ -72,6 +73,7 @@ const COVERED_BY_RELEASE = {
   "NO SERVER": [GRAPH, "tests/test_no_backend.py"],
   "ONE DEFINITION, THREE DRIVERS": [GRAPH, "tests/runtimes-tab-endpoint-tools.test.mjs", "tests/test_single_definition.py"],
   "A GENERATED ARTIFACT IS A PROPOSAL": [GRAPH, "tests/review-core.test.mjs"],
+  "A REGROUPING IS COMMITTED DIRECTLY": [GRAPH, "tests/test_groups.py", "tests/prompt-bar-hand-over.test.mjs"],
   "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK": [GRAPH, "tests/review-core.test.mjs", "tests/prompt-bar-hand-over.test.mjs"],
   "A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET": [GRAPH, RELEASE, "tests/test_runtime_levels.py"],
   "A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET": [GRAPH, RELEASE, "tests/test_runtime_levels.py"],
@@ -96,7 +98,7 @@ const REVIEW_ONLY = ["CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH
 test("TST-513201: UC-049 release coverage names every automatic requirement, and the system tests walk every flow", () => {
   const realised = ucRealises();
   const checks = specChecks();
-  assert.equal(realised.length, 32, "known positive: the use case realises thirty-two requirements");
+  assert.equal(realised.length, 34, "known positive: the use case realises thirty-four requirements");
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
   const reviewOnly = realised.filter((name) => /^no automatic check; at review/.test(checks.get(name) ?? ""));
   const automatic = realised.filter((name) => !reviewOnly.includes(name));
@@ -196,17 +198,17 @@ test("TST-513204: with recording on each message is found in the record of the r
 });
 
 // TST-513205 · level: release · module: MOD-prompt-bar · MOD-site-frame
-// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A CONNECTION DECLARES WHERE IT PROCESSES DATA
 // given: this browser declares the endpoints drafter ("this machine") and tooler ("Anthropic, USA"), and nothing-declared, an endpoint that declares no processing place
 // input: the bar read before any message; tooler chosen and a message sent, with the endpoint holding its answer back
-// expect: the selector names every endpoint it offers with its place, and does not offer nothing-declared, which lacks a place (UC-049 1b); while the request is on its way the bar already names the destination — "Sent to: tooler — Anthropic, USA" — and the request is made to nobody else
+// expect: the selector names every endpoint it offers with its model and its place, and does not offer nothing-declared, which lacks a place (UC-049 1b); while the request is on its way the bar already names the destination — "Sent to: tooler — Anthropic, USA" — and the request is made to nobody else
 test("TST-513205: the bar names every participant with its place and the destination before the request is answered", async () => {
   const none = { settings: { "endpoint:nothing-declared": endpointOf("nothing-declared", "") } };
   const s = await scenario({ ...register(DRAFTER, TOOLER, none), answers: [{ answer: "x" }] });
   let release;
   const w = watch(s, { script: [answer("Done.")], hold: new Promise((resolve) => { release = resolve; }) });
   const text = barText(s);
-  for (const named of ["drafter — this machine", "tooler — Anthropic, USA"]) assert.ok(text.includes(named), `${named} in ${text}`);
+  for (const named of ["drafter · drafter-model — this machine", "tooler · tooler-model — Anthropic, USA"]) assert.ok(text.includes(named), `${named} in ${text}`);
   assert.ok(!text.includes("nothing-declared"), "an endpoint without a place is not offered");
   assert.equal(readSetting(s.store, "endpoint:nothing-declared").place, "", "known positive: it is configured in this browser, and lacks its place");
   await sendNow(s, "Where does this go?", { participant: "tooler" });
@@ -348,16 +350,18 @@ test("TST-513210: the message carries the chapters of the book for the kind of w
 });
 
 // TST-513211 · level: release · module: MOD-prompt-bar · MOD-participant-list
-// guards: UC-049; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
-// given: this browser declares the endpoint drafter (draft text), the endpoint handy that names a CI secret, and the CLI session release-bridge:observer (read the repository only), which the Bridge lists ready
+// guards: UC-049; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
+// given: this browser declares the endpoint drafter (draft text), the endpoint handy that names a CI secret, and the CLI session release-bridge:observer (read the repository only), which the Bridge lists ready with the declaration it keeps
 // input: the page opened and a hand-over proposed
 // expect: only the participant that declares the capability the kind needs is chosen among — observer, which cannot draft text, is not offered —; each is named with the place it declares; the bar carries a folded explanation, and the hand-over, once proposed, carries one beside its decision
 test("TST-513211: participants are offered by their declared capabilities and places, and each step explains itself", async () => {
   const s = await scenario({ ...register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
-  assert.deepEqual(readSetting(s.store, "session:release-bridge:observer").capabilities, ["read the repository"], "known positive: the observer session is declared, and reads the repository only");
+  const listed = await (await fetch("http://127.0.0.1:9418/v1/agents", { method: "GET" })).json();
+  assert.deepEqual(listed.agents.find((agent) => agent.name === "observer" && agent.ready)?.capabilities, ["read the repository"],
+    "known positive: the Bridge lists the observer session ready, its declaration reading the repository only");
   const w = watch(s, { script: [answer("Handing on.", { handOver: [{ kind: "converse", works_on: [LOAN], task: "Run the tests", after: [] }] })] });
   const text = barText(s);
-  assert.ok(text.includes("drafter — this machine") && text.includes("handy — GitHub Actions in the USA"));
+  assert.ok(text.includes("drafter · drafter-model — this machine") && text.includes("handy · handy-model — GitHub Actions in the USA"));
   assert.ok(!text.includes("observer"), "observer cannot draft text and is not offered");
   const explained = all(barOf(s), "details").filter((node) => node.textContent.length > 120);
   assert.ok(explained.length >= 1, "the bar has a folded explanation with words");

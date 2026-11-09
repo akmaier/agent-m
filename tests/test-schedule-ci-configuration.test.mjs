@@ -1,5 +1,5 @@
 // The CI configuration generated from a schedule (ITM-744) — MOD-test-schedule's ciConfiguration(schedule, target,
-// resources, participants), as the accepted text of docs/architecture/MOD-test-schedule.md states it under Data and
+// resources), as the accepted text of docs/architecture/MOD-test-schedule.md states it under Data and
 // Interfaces: a GitHub Actions workflow or a GitLab CI file with one job per ticked row and occasion, nothing for a push
 // that changes only job records, the nightly run, the release candidate on a tag, the manual start, the job agent-m done,
 // the step that hands the JUnit XML report on, and the secrets by name. ITM-1214 adds what MOD-test-schedule's Data states under
@@ -19,7 +19,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { scheduleSchema, defaultSchedule, occasionsOf, secretsNeeded, ciConfiguration } from "../src/test-schedule/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
-import { participantSchema } from "../src/participant-list/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
 
 const ROWS = ["unit", "component", "system", "paid", "release", "user"];
@@ -42,18 +41,8 @@ function scheduleWith(changed = {}, front = "nightly: 03:30") {
 // A changed schedule: unit only on pull requests, system only nightly, component on a self-hosted runner.
 const CHANGED = scheduleWith({
   unit: "| unit | | ✓ | | ✓ | ✓ | |", system: "| system | | | ✓ | ✓ | ✓ | |",
-  component: "| component | ✓ | ✓ | ✓ | ✓ | ✓ | lab-runner |" });
+  component: "| component | ✓ | ✓ | ✓ | ✓ | ✓ | runner:lab |" });
 
-const participants = readDocument(participantSchema(), "docs/participants.md", `# Participants of this instance
-
-**REGISTER**
-
-The participants of the test instance.
-
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| lab-runner | CI agent | example-model | 200000 | — | draft text, run code and tests | this machine | ci runner:lab secret LAB_KEY |
-`);
 const RESOURCE_HEAD = "| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |\n|---|---|---|---|---|---|---|---|---|---|";
 const resourcesOf = (...rows) => readDocument(resourceSchema(), "docs/resources.md",
   `# Resources of this product\n\n**REGISTER**\n\nThe resources.\n\n${RESOURCE_HEAD}\n${rows.join("\n")}\n`);
@@ -61,7 +50,7 @@ const ORACLE = "| oracle | endpoint | https://api.example.org/v1 | example-model
 const LEAKY = "| leaky | endpoint | https://leaky.example.org | example-model | — | — | runner:cpu | the vendor | yes | sk-live-abc123def456 |";
 const resources = resourcesOf(ORACLE, LEAKY);
 
-const generate = (schedule, target) => ciConfiguration(schedule, target, resources, participants);
+const generate = (schedule, target) => ciConfiguration(schedule, target, resources);
 const textOf = (result) => Object.values(result.files).join("\n");
 
 // The jobs of a generated file by name: on GitHub the keys under `jobs:` (two spaces), on GitLab the top-level keys.
@@ -108,7 +97,7 @@ function fnmatch(glob, file) {
 // TST-744001 · level: unit · module: MOD-test-schedule
 // guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027
 // given: the book's default schedule and a changed fixture schedule (unit only on a pull request and at the release candidate and on demand, system only nightly and later, component on the self-hosted runner lab)
-// input: ciConfiguration(schedule, target, resources, participants) for each schedule on GitHub and on GitLab
+// input: ciConfiguration(schedule, target, resources) for each schedule on GitHub and on GitLab
 // expect: GitHub: one file, .github/workflows/agent-m-tests.yml, no include entry, no pipeline schedule; GitLab: one file, .gitlab/agent-m-tests.yml, the include entry { file: ".gitlab-ci.yml", entry: "- local: .gitlab/agent-m-tests.yml" }; in each file exactly the jobs named <row>-<occasion> that occasionsOf ticks, plus agent-m-records and agent-m-done, and no agent-m-setup (neither schedule names a cache)
 for (const [server, target] of [["github", GITHUB], ["gitlab", GITLAB]]) {
   test(`ciConfiguration — ${server}: the file, and one job per ticked row and occasion`, () => {
@@ -339,7 +328,7 @@ test("ciConfiguration — the secrets by name, never a value", () => {
 
 // TST-744014 · level: unit · module: MOD-test-schedule
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; GITLAB PRODUCTS ARE SUPPORTED; UC-027
-// given: the changed fixture schedule, whose row component runs on lab-runner (runner label lab) and whose other rows run hosted
+// given: the changed fixture schedule, whose row component runs on runner:lab (runner label lab) and whose other rows run hosted
 // input: the jobs of the row component and of the row unit, on GitHub and on GitLab
 // expect: GitHub: runs-on [self-hosted, lab] for component and ubuntu-latest for unit; GitLab: tags [lab] for component and no tags for unit
 test("ciConfiguration — a row on a self-hosted runner runs on it", () => {

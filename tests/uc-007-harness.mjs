@@ -124,10 +124,10 @@ const ROOT = new URL("../", import.meta.url);
 export const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 export const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
-export const ENDPOINT_ROW = "| drafter-a | model endpoint | example-model | 200000 | — | draft text | this machine | endpoint ep1 |";
-export const SMALL_ROW = "| drafter-small | model endpoint | small-model | 2000 | — | draft text | this machine | endpoint ep2 |";
-export const CI_ROW = "| ci-agent | CI agent | model-x | 200000 | — | draft text | GitHub Actions in the USA | ci hosted secret CI_KEY |";
-export const READER_ROW = "| reader | person | — | — | — | read the repository | — | the GitHub account `reader` |";
+export const ENDPOINT_ROW = "| drafter-a | agent | example-model |";
+export const SMALL_ROW = "| drafter-small | agent | small-model |";
+export const CI_ROW = "| ci-agent | agent | model-x |";
+export const READER_ROW = "| reader | person | — |";
 export const INSTANCE_COMMIT = "abc123def4567890abc123def4567890abc123de";
 export function fakeInstance(register) {
   const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" }, ref: "main", commit: INSTANCE_COMMIT, paths: [],
@@ -186,8 +186,11 @@ export async function show(fake, params = { id: "draft" }, { register = DEFAULT_
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const kept = store ?? openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(kept, "github-token:alice/thesis-tool", TOKEN);
-  writeSetting(kept, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model", throughBridge: false, key: KEY });
-  writeSetting(kept, "endpoint:ep2", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "small-model", throughBridge: false, key: KEY });
+  // The connections that offer the register's models (MOD-browser-store, endpoint:<name>): ep1 drafter-a's at "this machine", ep2 drafter-small's with a context of 2000
+  // tokens, both at the address of ep1; ep6 ci-agent's at GitHub Actions in the USA, its key the CI secret CI_KEY, so that its jobs are offered on CI too.
+  writeSetting(kept, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model", key: KEY, place: "this machine", context: 200000 });
+  writeSetting(kept, "endpoint:ep2", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "small-model", key: KEY, place: "this machine", context: 2000 });
+  writeSetting(kept, "endpoint:ep6", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-x", key: KEY, place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" });
   const target = document.createElement("div");
   document.body.append(target);
   const context = { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance(register).host }, store: kept, go() {}, product: { address: ON_GITHUB.web, kind: "github", host: fake.host } };

@@ -321,3 +321,24 @@ test("takeJob — on a moved head, taken on the new head, or reported as taken b
     mock.timers.reset();
   }
 });
+
+// TST-20261109301 · level: unit · module: MOD-job-ledger
+// guards: A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-041
+// given: the record of a queued job on `trunk`, as for a job of the route `any`, queued for its participant's model alone
+// input: takeJob(host, path, "lab-pc", head, { connection: "bridge lab-pc agent claude", declares: { context: 200000, capabilities: ["draft text", "write to the repository"] } })
+// expect: { taken: true, commit }; the record read back is taken by lab-pc on the connection "bridge lab-pc agent claude", with what that connection declares; known positive: without `on` the Taken names no connection
+test("takeJob — a job of the route any is taken with the connection it runs on and what that connection declares", async () => {
+  mock.timers.enable({ apis: ["Date"], now: NOW });
+  try {
+    const fake = fakeHost({ files: { [PATH]: QUEUED } });
+    const on = { connection: "bridge lab-pc agent claude", declares: { context: 200000, capabilities: ["draft text", "write to the repository"] } };
+    assert.deepEqual(await takeJob(fake.host, PATH, "lab-pc", fake.head(), on), { taken: true, commit: fake.head() });
+    const record = await recordOf(fake.textAt("trunk", PATH));
+    assert.deepEqual(record.taken, { at: new Date("2026-10-12T08:30:00Z"), by: "lab-pc", ...on });
+    const plain = fakeHost({ files: { [PATH]: QUEUED } });
+    await takeJob(plain.host, PATH, "lab-pc", plain.head());
+    assert.deepEqual((await recordOf(plain.textAt("trunk", PATH))).taken, { at: new Date("2026-10-12T08:30:00Z"), by: "lab-pc" }, "known positive");
+  } finally {
+    mock.timers.reset();
+  }
+});

@@ -34,7 +34,7 @@ import { formatFinding } from "../src/text-tools/index.mjs";
 const { queueJob } = runtimes;
 const REPOSITORY = { server: "github", origin: "https://github.com", path: "alice/product", web: "https://github.com/alice/product" };
 const TAB = { kind: "tab" };
-const DRAFTER = { name: "drafter-a", type: "model endpoint", model: "example-model", context: 200000, price: null,
+const DRAFTER = { name: "drafter-a", type: "model endpoint", model: "example-model", context: 200000,
   capabilities: ["draft text"], place: "this machine", route: "endpoint ep1" };
 const REVIEWER = { ...DRAFTER, name: "reviewer-b", model: "other-model", route: "endpoint ep2" };
 const ENDPOINT = (name) => ({ name, kind: "openai-compatible", baseUrl: `https://${name}.example.test/v1`, model: "m", key: null });
@@ -455,7 +455,7 @@ function bridgeAnswers(usages, drafts = [{ text: "first" }, { text: "second" }])
     return json({ state: "done", text: JSON.stringify({ draft, answers: [] }), usage: queue.length > 1 ? queue.shift() : queue[0], error: null });
   };
 }
-const agentJob = (price, checked) => ({ ...jobOf("person", [], { checked }), drafter: { ...DRAFTER, type: "CLI agent", route: "bridge lab-pc agent claude", price } });
+const agentJob = (checked) => ({ ...jobOf("person", [], { checked }), drafter: { ...DRAFTER, type: "CLI agent", route: "bridge lab-pc agent claude" } });
 const withBridge = { ...CONNECTIONS, bridges: { "lab-pc": LAB_PC } };
 const runAgent = async (job) => {
   const fake = await queued();
@@ -467,16 +467,14 @@ const EUR = (amount) => ({ amount, currency: "EUR" });
 
 // TST-1148001 · level: unit · module: MOD-runtimes
 // guards: NO COST IS GUESSED
-// given: a job run on the tab with an agent on a Bridge that reports 10 input and 5 output tokens and the cost 0.42 EUR in one exchange; once with no price declared, once with the price `3 / 15 USD per million tokens`
+// given: a job run on the tab with an agent on a Bridge that reports 10 input and 5 output tokens and the cost 0.42 EUR in one exchange
 // input: runOnTab
-// expect: the end's usage carries the cost 0.42 EUR, and the end's cost is known, 0.42 EUR, basis "reported" - the declared price changes nothing
-test("runOnTab - a cost the exchange reports reaches the end of the record, whatever the declared price", async () => {
-  for (const price of [null, { input: 3, output: 15, currency: "USD" }]) {
-    bridgeAnswers([usageOf(10, 5, EUR(0.42))]);
-    const end = await runAgent(agentJob(price, false));
-    assert.deepEqual(end.usage.cost, EUR(0.42));
-    assert.deepEqual(end.cost, { known: true, amount: 0.42, currency: "EUR", basis: "reported" });
-  }
+// expect: the end's usage carries the cost 0.42 EUR, and the end's cost is known, 0.42 EUR, basis "reported"
+test("runOnTab - a cost the exchange reports reaches the end of the record", async () => {
+  bridgeAnswers([usageOf(10, 5, EUR(0.42))]);
+  const end = await runAgent(agentJob(false));
+  assert.deepEqual(end.usage.cost, EUR(0.42));
+  assert.deepEqual(end.cost, { known: true, amount: 0.42, currency: "EUR", basis: "reported" });
 });
 
 // TST-1148002 · level: unit · module: MOD-runtimes
@@ -486,7 +484,7 @@ test("runOnTab - a cost the exchange reports reaches the end of the record, what
 // expect: the end's usage is the sum of the exchanges: 20 and 10 tokens and 0.84 EUR, as the tokens are summed; the end's cost is 0.84 EUR, "reported"
 test("runOnTab - the costs of a job's exchanges are summed as their tokens are", async () => {
   bridgeAnswers([usageOf(10, 5, EUR(0.42))]);
-  const end = await runAgent(agentJob(null, true));
+  const end = await runAgent(agentJob(true));
   assert.deepEqual([end.usage.inputTokens, end.usage.outputTokens], [20, 10]);
   assert.deepEqual(end.usage.cost, EUR(0.84));
   assert.deepEqual(end.cost, { known: true, amount: 0.84, currency: "EUR", basis: "reported" });
@@ -494,40 +492,38 @@ test("runOnTab - the costs of a job's exchanges are summed as their tokens are",
 
 // TST-1148003 · level: unit · module: MOD-runtimes
 // guards: NO COST IS GUESSED
-// given: exchanges that report tokens and no cost, with the price `3 / 15 USD per million tokens`; known positive: the same job with the cost reported (TST-1148001)
+// given: exchanges that report tokens and no cost; known positive: the same job with the cost reported (TST-1148001)
 // input: runOnTab
-// expect: the end's usage has cost null, and the end's cost is the tokens at the declared price, never a reported cost
+// expect: the end's usage has cost null, and the end's cost is unknown, with the usage kept — no cost is guessed
 test("runOnTab - exchanges that report no cost leave the cost of the usage null", async () => {
   bridgeAnswers([usageOf(10, 5, null)]);
-  const end = await runAgent(agentJob({ input: 3, output: 15, currency: "USD" }, false));
+  const end = await runAgent(agentJob(false));
   assert.equal(end.usage.cost, null);
-  assert.equal(end.cost.basis, "usage at the declared price");
+  assert.equal(end.cost.known, false);
+  assert.deepEqual(end.cost.usage.inputTokens, 10);
 });
 
 // TST-1148004 · level: unit · module: MOD-runtimes
 // guards: NO COST IS GUESSED
-// given: two rounds, the first exchange reporting 0.42 EUR and the second 0.50 USD; no price declared
+// given: two rounds, the first exchange reporting 0.42 EUR and the second 0.50 USD
 // input: runOnTab
 // expect: no amount is made of two currencies: the end's usage has cost null and the end's cost is unknown, with the usage kept
 test("runOnTab - costs in two currencies are not added: the cost stays unknown", async () => {
   bridgeAnswers([usageOf(10, 5, EUR(0.42)), usageOf(10, 5, { amount: 0.5, currency: "USD" })]);
-  const end = await runAgent(agentJob(null, true));
+  const end = await runAgent(agentJob(true));
   assert.equal(end.usage.cost, null);
   assert.equal(end.cost.known, false);
 });
 
 // TST-1148005 · level: unit · module: MOD-runtimes
 // guards: NO COST IS GUESSED
-// given: two rounds, the first exchange reporting 10 and 5 tokens and 0.42 EUR, the second reporting 10 and 5 tokens and no cost; once with no price declared, once with the price `3 / 15 USD per million tokens`
+// given: two rounds, the first exchange reporting 10 and 5 tokens and 0.42 EUR, the second reporting 10 and 5 tokens and no cost
 // input: runOnTab
-// expect: the cost counts only where every exchange that reports usage also reports a cost: the end's usage has cost null; the end's cost is unknown with the usage kept where no price is declared, and the tokens at the declared price (basis "usage at the declared price", never "reported") where one is
+// expect: the cost counts only where every exchange that reports usage also reports a cost: the end's usage has cost null; the end's cost is unknown with the usage kept
 test("runOnTab - a cost only some exchanges report is not the cost of the job", async () => {
-  for (const [price, known] of [[null, false], [{ input: 3, output: 15, currency: "USD" }, true]]) {
-    bridgeAnswers([usageOf(10, 5, EUR(0.42)), usageOf(10, 5, null)]);
-    const end = await runAgent(agentJob(price, true));
-    assert.equal(end.usage.cost, null);
-    assert.equal(end.cost.known, known);
-    if (known) assert.equal(end.cost.basis, "usage at the declared price");
-    else assert.deepEqual(end.cost.usage.inputTokens, 20);
-  }
+  bridgeAnswers([usageOf(10, 5, EUR(0.42)), usageOf(10, 5, null)]);
+  const end = await runAgent(agentJob(true));
+  assert.equal(end.usage.cost, null);
+  assert.equal(end.cost.known, false);
+  assert.deepEqual(end.cost.usage.inputTokens, 20);
 });

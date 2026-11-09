@@ -81,10 +81,9 @@ const settingsRoute = () => view.routes.find((candidate) => candidate.name === "
 const INSTANCE_COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const text = (...lines) => `${lines.join("\n")}\n`;
 const PARTICIPANTS = text("# Participants of this instance", "", "**REGISTER**", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | hosted runner | ci hosted secret HOSTED_KEY |",
-  "| gpu-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | lab GPU runner | ci runner:gpu secret GPU_KEY |");
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| dev-a | agent | gpt-5 |");
 const instanceHost = {
   async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
   async readSnapshot() {
@@ -125,6 +124,9 @@ async function jobWorkflowLine(chosen, tokenKey) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   const browserStore = openStore("fixture/instance");
   writeSetting(browserStore, tokenKey, { value: "token_fixture" });
+  // Two endpoints of this browser that name their CI secrets: the keys the job workflow reads (MOD-runtimes, actionsSetup).
+  writeSetting(browserStore, "endpoint:hosted", { kind: "openai-compatible", url: "https://hosted.example.test/v1", model: "gpt-5", key: "sk-FIXTURE-HOSTED", secret: "HOSTED_KEY" });
+  writeSetting(browserStore, "endpoint:lab-gpu", { kind: "openai-compatible", url: "https://gpu.example.test/v1", model: "gpt-5", key: "sk-FIXTURE-GPU", secret: "GPU_KEY" });
   const target = document.createElement("div");
   await settingsRoute().render(target, { instance: { repository: "fixture/instance", host: instanceHost }, product: chosen, store: browserStore, go() {} }, {});
   click(byClass(target, "settings-tab")[1]);
@@ -137,9 +139,9 @@ const OWN_GITLAB_CI = 'stages:\n  - build\n\ninclude:\n  - local: ".gitlab/agent
 
 // TST-1202201 · level: unit · module: MOD-runtimes
 // guards: UC-010; ONE CLICK PER DECISION; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
-// given: ci.mjs loaded as a browser loads it, without a disk; the instance fixture/instance at INSTANCE_COMMIT, whose participants register has the CI participants hosted-ci (key HOSTED_KEY) and gpu-ci (runner gpu, key GPU_KEY); a writable GitHub product with no job workflow, and a writable GitLab product whose own .gitlab-ci.yml has stages, an include list and a job
+// given: ci.mjs loaded as a browser loads it, without a disk; the instance fixture/instance at INSTANCE_COMMIT; this browser's endpoints hosted (secret HOSTED_KEY) and lab-gpu (secret GPU_KEY); a writable GitHub product with no job workflow, and a writable GitLab product whose own .gitlab-ci.yml has stages, an include list and a job
 // input: for each product, the person opens Repositories on the Settings page, reads the job workflow line, and clicks its button once — Set up GitHub Actions on GitHub, Install on GitLab (MOD-settings-pages)
-// expect: ci.mjs read workflow/github.yml and workflow/gitlab.yml from its own address with fetch as it loaded; the line says not installed and offers its button, labelled Set up GitHub Actions on GitHub and Install on GitLab; the click is one product commit on main whose files are, path for path and byte for byte, those ci.mjs?node — loaded with the disk — gives for the same server, instance, secrets AGENT_M_TOKEN, HOSTED_KEY and GPU_KEY, the runner gpu and, on GitLab, the product's own .gitlab-ci.yml
+// expect: ci.mjs read workflow/github.yml and workflow/gitlab.yml from its own address with fetch as it loaded; the line says not installed and offers its button, labelled Set up GitHub Actions on GitHub and Install on GitLab; the click is one product commit on main whose files are, path for path and byte for byte, those ci.mjs?node — loaded with the disk — gives for the same server, instance, secrets AGENT_M_TOKEN, HOSTED_KEY and GPU_KEY, no runner of its own (the server's) and, on GitLab, the product's own .gitlab-ci.yml
 test("TST-1202201: in a browser, the Settings page's button commits the job workflow files Node gives, on GitHub and on GitLab", async () => {
   for (const address of TEMPLATE_FILES) assert.ok(fetched.includes(address), `ci.mjs read ${address} from its own address, as a browser does`);
   const cases = [
@@ -147,7 +149,7 @@ test("TST-1202201: in a browser, the Settings page's button commits the job work
     ["gitlab", "https://gitlab.example.test/fixture/product", "gitlab-token:gitlab.example.test/fixture/product", { ".gitlab-ci.yml": OWN_GITLAB_CI }, OWN_GITLAB_CI, "Install"],
   ];
   for (const [server, address, tokenKey, initial, gitlabCi, label] of cases) {
-    const expected = inNode.jobWorkflowFiles(server, INSTANCE, SECRETS, ["gpu"], gitlabCi);
+    const expected = inNode.jobWorkflowFiles(server, INSTANCE, SECRETS, [], gitlabCi);
     const writes = [];
     const line = await jobWorkflowLine(product(address, writes, initial), tokenKey);
     assert.ok(line, `${server}: failure node: the product settings section shows Agent M's job workflow line`);

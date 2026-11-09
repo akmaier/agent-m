@@ -20,31 +20,33 @@ import { differs, eligible } from "../src/participant-list/index.mjs";
 
 const DRAFTING = ["draft text"];
 
-// Participants of the type Participant, as the module file states it.
-const ALICE = { name: "alice", type: "person", model: null, context: null, price: null, capabilities: DRAFTING, place: null,
-  route: "account github.com/alice" };
-const DRAFTER = { name: "drafter-a", type: "CLI agent", model: "example-model", context: 200000, price: null,
+// Participants of the type Participant, as the module file states it: agents on the connections that offer their models,
+// a person, and an agent whose model no connection given offers.
+const ALICE = { name: "alice", type: "person", model: null, context: null, capabilities: [], place: null, route: null };
+const DRAFTER = { name: "drafter-a", type: "CLI agent", model: "example-model", context: 200000,
   capabilities: DRAFTING, place: "this machine", route: "bridge lab-pc agent claude" };
-const SAME_MODEL = { name: "drafter-b", type: "CLI agent", model: "example-model", context: 200000, price: null,
+const DRAFTER_ELSEWHERE = { name: "drafter-a", type: "model endpoint", model: "example-model", context: 128000,
+  capabilities: DRAFTING, place: "NHR@FAU, Erlangen", route: "endpoint hub" };
+const SAME_MODEL = { name: "drafter-b", type: "CLI agent", model: "example-model", context: 200000,
   capabilities: DRAFTING, place: "this machine", route: "bridge lab-pc agent codex" };
-const OTHER_MODEL = { name: "reviewer-c", type: "model endpoint", model: "other-model", context: 32000, price: null,
+const OTHER_MODEL = { name: "reviewer-c", type: "model endpoint", model: "other-model", context: 32000,
   capabilities: DRAFTING, place: "NHR@FAU, Erlangen", route: "endpoint nhr" };
-const NO_CONTEXT = { name: "ci-drafter", type: "CI agent", model: "third-model", context: null, price: null,
-  capabilities: DRAFTING, place: "GitHub's hosted runners, in the USA", route: "ci hosted secret AGENT_KEY" };
+const NO_CONTEXT = { name: "ci-drafter", type: "agent", model: "third-model", context: null, capabilities: [],
+  place: null, route: null };
 
 // ---------------------------------------------------------------- eligible: the size of the job
 
 // TST-472416 · level: unit · module: MOD-participant-list
 // guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
-// given: a need for `draft text` of 50000 tokens; drafter-a, whose context holds 200000 tokens; reviewer-c, whose context holds 32000; ci-drafter, which declares no context
+// given: a need for `draft text` of 50000 tokens; drafter-a, on a connection whose context of its model holds 200000 tokens; reviewer-c, on one whose holds 32000; ci-drafter, an agent whose model no connection given offers, so that no context is declared for it
 // input: eligible([drafter-a, reviewer-c, ci-drafter], that need)
-// expect: offered drafter-a alone; reviewer-c left out naming its 32000 tokens and the job's 50000; ci-drafter left out naming that it declares no context size and the job's 50000 — every participant in exactly one list
-test("eligible — leaves out a participant whose context is smaller than the job, or that declares none, naming both sizes", () => {
+// expect: offered drafter-a alone; reviewer-c left out naming its 32000 tokens and the job's 50000; ci-drafter left out naming that no connection offers its model third-model — every participant in exactly one list
+test("eligible — leaves out a participant whose context is smaller than the job, naming both sizes, and one no connection offers", () => {
   assert.deepEqual(eligible([DRAFTER, OTHER_MODEL, NO_CONTEXT], { capabilities: DRAFTING, size: 50000 }), {
     eligible: [DRAFTER],
     leftOut: [
       { participant: OTHER_MODEL, reasons: ["its context holds 32000 tokens, fewer than the 50000 of the job"] },
-      { participant: NO_CONTEXT, reasons: ["declares no context size, so the 50000 tokens of the job may not fit"] },
+      { participant: NO_CONTEXT, reasons: ["no connection offers its model third-model"] },
     ],
   });
 });
@@ -66,14 +68,15 @@ test("eligible — a context exactly as large as the job holds it; one token mor
 // guards: NO REVIEWER IS THE DRAFTER; NO CHECKER IS THE REWRITER
 // given: a need for `draft text` that must differ from drafter-a; four participants — drafter-a itself; drafter-b, another participant with drafter-a's model; reviewer-c, another participant with another model; alice, a person, who names no model
 // input: eligible([drafter-a, drafter-b, reviewer-c, alice], that need)
-// expect: offered reviewer-c alone; left out drafter-a, naming that it is drafter-a; drafter-b, naming drafter-a's model; alice, naming that she names no model, so she cannot be shown to differ
+// expect: offered reviewer-c alone; left out drafter-a, naming that it is drafter-a; drafter-b, naming drafter-a's model; alice, a person on no connection, naming the capability she lacks and that she names no model, so she cannot be shown to differ
 test("eligible — leaves out a participant that is, or uses the model of, one it must differ from", () => {
   assert.deepEqual(eligible([DRAFTER, SAME_MODEL, OTHER_MODEL, ALICE], { capabilities: DRAFTING, notLike: [DRAFTER] }), {
     eligible: [OTHER_MODEL],
     leftOut: [
       { participant: DRAFTER, reasons: ["is drafter-a, from which it must differ"] },
       { participant: SAME_MODEL, reasons: ["uses the model example-model of drafter-a, from which it must differ"] },
-      { participant: ALICE, reasons: ["names no model, so it cannot be shown to differ from drafter-a"] },
+      { participant: ALICE, reasons: ["lacks the capability \"draft text\"",
+        "names no model, so it cannot be shown to differ from drafter-a"] },
     ],
   });
 });
@@ -104,4 +107,18 @@ test("differs — true only for two different participants that name two differe
   assert.equal(differs(DRAFTER, SAME_MODEL), false);
   assert.equal(differs(ALICE, OTHER_MODEL), false);
   assert.equal(differs(OTHER_MODEL, ALICE), false);
+});
+
+// TST-20261109121 · level: unit · module: MOD-participant-list
+// guards: NO REVIEWER IS THE DRAFTER
+// given: drafter-a on two connections that offer its model — a Bridge's coding agent and a model endpoint —, and reviewer-c
+// input: differs for drafter-a on the one and on the other, both ways round; and eligible([drafter-a on the endpoint, reviewer-c], a need for `draft text` that must differ from drafter-a on the Bridge)
+// expect: false both ways: one agent on two connections does not differ from itself; eligible offers reviewer-c alone and leaves drafter-a on the endpoint out, naming that it is drafter-a
+test("differs — one agent on two connections does not differ from itself", () => {
+  assert.equal(differs(DRAFTER, DRAFTER_ELSEWHERE), false);
+  assert.equal(differs(DRAFTER_ELSEWHERE, DRAFTER), false);
+  assert.deepEqual(eligible([DRAFTER_ELSEWHERE, OTHER_MODEL], { capabilities: DRAFTING, notLike: [DRAFTER] }), {
+    eligible: [OTHER_MODEL],
+    leftOut: [{ participant: DRAFTER_ELSEWHERE, reasons: ["is drafter-a, from which it must differ"] }],
+  });
 });

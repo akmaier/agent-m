@@ -10,7 +10,8 @@
 // Level: unit
 //
 // The product is the two-team fixture of tests/implementation-pages-backlog.test.mjs, held in memory behind a host of this file's own that keeps the commits it is given; the instance is a second host
-// holding AGENTS.md, the participants' register and the process model. The participant local-llm drafts text at "this machine" through the endpoint ep1, which this file answers in place of `fetch`;
+// holding AGENTS.md, the participants' register and the process model. The agent local-llm drafts text at "this machine" through the endpoint ep1, the one connection this browser keeps, which offers its
+// model model-a and which this file answers in place of `fetch`; the agent checker's model model-c no connection offers;
 // nothing reaches the network. The strategies of the view are registered, as the frame registers them. Readings the texts leave open, which the tests state (the pull request names them):
 //   - *Propose items for uncovered requirements* stands in the part "Accepted, and realised by no item yet" while that part names anything, *+ Item* below the backlog's table; each is a `button` of
 //     type `button` with the class `btn`. A click by a script draws nothing; the person's click reads the instance's register and draws the participants that can draft text with the run panel.
@@ -25,6 +26,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "backlog");
@@ -87,9 +89,9 @@ function productFiles() {
   return files;
 }
 const REGISTER = lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| local-llm | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |",
-  "| checker | model endpoint | model-c | 200000 | — | read the repository | this machine | endpoint ep1 |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| local-llm | agent | model-a |",
+  "| checker | agent | model-c |");
 const instanceFiles = () => ({ "SPEC.md": "# Instance\n", "AGENTS.md": "# AGENTS.md of the instance\n", "docs/participants.md": REGISTER, "docs/process-models/fixture.md": MODEL });
 
 // A host of this file's own, answering the part of MOD-repository-hosts' interface the route uses: it keeps every request in `calls` and every commit in `commits`, whose files it then holds.
@@ -113,7 +115,8 @@ function hostOf(files, calls, commits) {
     },
   };
 }
-const STORE = { prefix: "", storage: { getItem: (key) => (key === "endpoint:ep1" ? JSON.stringify({ url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1" }) : null) } };
+// This browser's settings: the endpoint ep1, which offers model-a at "this machine" (MOD-browser-store, Data).
+const STORE = storeWith({ "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1", place: "this machine", context: 200000 } });
 
 // The answer of the endpoint ep1: the drafted items, as the kind propose-items answers (src/job-catalogue/kinds/propose-items/answer.schema.json).
 const entry = (title, over = {}) => ({ title, outcome: `What ${title} delivers.`, realises: ["RULE TWO"], modules: ["MOD-store"], buildsOn: [], acceptance: ["Unit tests of it."], class: "new", ...over });
@@ -197,7 +200,7 @@ test("the backlog page offers Propose items where something is not realised and 
 
 // TST-782002 · level: unit · module: MOD-implementation-pages
 // guards: UC-032; THE PAGE NAMES WHERE IT SENDS; A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; A GENERATED ARTIFACT IS A PROPOSAL
-// given: the fixture; the instance's participants local-llm (draft text, at "this machine", endpoint ep1) and checker (no draft text); ep1 answers five drafts: a sound one, one that realises nothing, one that names the module MOD-unknown, one that builds on ITM-099, which does not exist, and one titled "The work of item 1", as ITM-001 is
+// given: the fixture; the instance's participants local-llm (on the endpoint ep1, which drafts text at "this machine") and checker (whose model no connection offers); ep1 answers five drafts: a sound one, one that realises nothing, one that names the module MOD-unknown, one that builds on ITM-099, which does not exist, and one titled "The work of item 1", as ITM-001 is
 // input: the person's click on Propose items; the person's Run; the draft that realises nothing given RULE TWO; then the two other faulty drafts discarded
 // expect: the participants offered are local-llm alone; the run panel names local-llm, its model and "this machine", and sends the requirements and the existing items; before Run nothing is asked of ep1; after it ep1 is asked and five drafts are shown with their findings — none for the sound one, an error that it realises nothing, one that it names no module the architecture describes, one that ITM-099 does not exist, a warning that it restates ITM-001 — and Add to backlog is disabled; once the first is given RULE TWO its error is gone and Add stays disabled; once the other two are discarded, Add to backlog is enabled; nothing is written but the job's record
 test("Propose items runs the job from its run panel, and its drafts wait with their findings until the person keeps only drafts without an error", async () => {

@@ -23,7 +23,7 @@ import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { runStrategies } from "../src/run-planner/index.mjs";
 import { resourceStrategies } from "../src/resource-list/index.mjs";
-import { LOCAL, buttonsOf, byClass, flush, mailOf, one, restoreWorld, textOf, trusted, waitFor, walk, world, routeNamed, pages, ERIKA, SECRET } from "./maintenance-pages-world.mjs";
+import { FIXER, FIXER_SESSIONS, LOCAL, buttonsOf, byClass, flush, mailOf, one, restoreWorld, textOf, trusted, waitFor, walk, world, routeNamed, pages, ERIKA, SECRET } from "./maintenance-pages-world.mjs";
 
 // The strategies the page's own view hands the frame, and those of the recipes `implementation-inputs` and `resource-pins` the kind fix-bug names, which the world does not register.
 for (const [at, strategies] of [...(pages.view?.strategies ?? []), runStrategies, resourceStrategies].entries()) {
@@ -37,16 +37,26 @@ const lines = (...rows) => `${rows.join("\n")}\n`;
 
 // ---------------------------------------------------------------- the participants
 
-/** A CI agent that declares every capability the kind fix-bug needs. */
-export const CI_AGENT = "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |";
-/** The same CI agent, declared without *run code and tests*. */
-export const CI_NO_RUN = "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |";
-/** Another CI agent that declares *run code and tests* but not *write to the repository*. */
-export const CI_NO_WRITE = "| ci-runner | CI agent | fixture-llm | 100000 | — | draft text, read the repository, run code and tests | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |";
-/** A person of the register who declares draft text. */
-export const PERSON = "| alice | person | — | — | — | draft text, read the repository, write to the repository | — | account github.com/alice |";
-/** A model endpoint that declares reading only. */
-export const READER = "| checker | model endpoint | model-c | 200000 | — | read the repository | this machine | endpoint ep1 |";
+// The register names each agent's model; this browser's connections declare how it is reached (MOD-participant-list): local-llm (model-a) on the endpoint ep1, and the agents below on the CLI sessions of
+// the Bridge lab-pc-4 that SESSIONS declares — claude offers fixture-llm with every capability the kind fix-bug needs, codex offers runner-llm with *run code and tests* but not *write to the repository*, and
+// opencode offers reader-llm with *read the repository* only.
+
+/** The agent dev-cli, whose model the session claude offers with every capability the kind fix-bug needs. */
+export { FIXER };
+/** The agent dev-runner, whose model the session codex offers with *run code and tests* but not *write to the repository*. */
+export const RUNNER = "| dev-runner | agent | runner-llm |";
+/** A person of the register. */
+export const PERSON = "| alice | person | — |";
+/** The agent checker, whose model the session opencode offers with reading only. */
+export const READER = "| checker | agent | reader-llm |";
+/** The CLI sessions of the Bridge lab-pc-4, as the Bridge page declares them in this browser. */
+export const SESSIONS = {
+  ...FIXER_SESSIONS,
+  codex: { place: "this machine", capabilities: ["draft text", "read the repository", "run code and tests"], models: [{ model: "runner-llm", context: 100000 }] },
+  opencode: { place: "this machine", capabilities: ["read the repository"], models: [{ model: "reader-llm", context: 100000 }] },
+};
+/** The same sessions, the session claude declared without *run code and tests*. */
+export const NO_RUN_SESSIONS = { ...SESSIONS, claude: { ...FIXER_SESSIONS.claude, capabilities: FIXER_SESSIONS.claude.capabilities.filter((each) => each !== "run code and tests") } };
 
 // ---------------------------------------------------------------- the product's and the instance's files
 
@@ -77,8 +87,8 @@ export const isAnalysis = (request) => JSON.stringify(request.body).includes("Pr
  * The world with the product chosen. `analysis` is the participant's answer to an analysis (a draft { class, reasoning, wrong? }), `change` its answer to a change (a draft { sections, proposals, groups, why }: the new text of what it changes, UC-019 step 6); `pulls(branch)` the pull request of the branch
  * of a fix job, named after the job's identifier, as MOD-repository-hosts' PullRequest or null, and `facts(number)` its facts. Every other key is the world's (tests/maintenance-pages-world.mjs).
  */
-export function start({ analysis = null, change = { candidates: [] }, pulls = null, facts = null, product = {}, instance = {}, rows = [LOCAL, CI_AGENT], ...over } = {}) {
-  const w = world({ mails: [], rows, answer: (request) => ({ draft: isAnalysis(request) ? analysis : change, answers: [] }), product: { ...PRODUCT_FILES, ...product }, instance: { ...INSTANCE_FILES, ...instance }, ...over });
+export function start({ analysis = null, change = { candidates: [] }, pulls = null, facts = null, product = {}, instance = {}, rows = [LOCAL, FIXER], sessions = SESSIONS, ...over } = {}) {
+  const w = world({ mails: [], rows, sessions, answer: (request) => ({ draft: isAnalysis(request) ? analysis : change, answers: [] }), product: { ...PRODUCT_FILES, ...product }, instance: { ...INSTANCE_FILES, ...instance }, ...over });
   const real = connect(parseAddress(PRODUCT_URL), { token: PRODUCT_TOKEN });
   const host = { ...real, readSnapshot: async (ref) => withStoredGraph(await real.readSnapshot(ref)), readHistory: async () => [] };
   if (pulls) host.listPullRequests = async ({ branch } = {}) => [pulls(branch)].filter(Boolean);
@@ -148,7 +158,7 @@ export async function saved(detail) {
 }
 
 /** Step 5: the fix handed to `name`, the requirement `requirement` named, Run pressed by the person, and the queued line waited for. */
-export async function queued(detail, name = "ci-bot", requirement = "FIRST RULE") {
+export async function queued(detail, name = "dev-cli", requirement = "FIRST RULE") {
   await waitFor(() => fixOf(detail) !== undefined);
   one(fixOf(detail), "fix-requirement").value = requirement;
   const panel = await choose(fixOf(detail), "fix-participant", "fix-person", name);

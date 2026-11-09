@@ -33,7 +33,9 @@ import { specStrategies } from "../spec-changes/index.mjs";
 import { scheduleStrategies } from "../test-schedule/index.mjs";
 import { workStrategies } from "../work-plans/index.mjs";
 import { readParticipants } from "./offer.mjs";
-import { connectionsOf, defaultSnapshot, personOf, placesOf } from "./send.mjs";
+import { connectionsOf, declaresOf, defaultSnapshot, personOf, placesOf, recordRoute } from "./send.mjs";
+
+export { recordRoute };
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 
@@ -45,9 +47,6 @@ const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.y
 export const handOverStrategies = [approvalStrategies, specStrategies, editStrategies, sourceStrategies, reuseStrategies, resourceStrategies, workStrategies, runStrategies,
   scheduleStrategies, resultStrategies, issueStrategies, routeStrategies];
 
-/** recordRoute(route: Route) -> string — the route as a job's record writes it: `ci hosted`, `ci runner:<label>`, `bridge <name>`. */
-export const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
-
 /** worksOnOf(handOver: { works_on }) -> string[] — what the hand-over works on, as a list. */
 export const worksOnOf = (handOver) => [handOver.works_on].flat().filter(Boolean).map(String);
 
@@ -55,23 +54,23 @@ export const worksOnOf = (handOver) => [handOver.works_on].flat().filter(Boolean
 const JOB_RECORD = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 
 /**
- * assess({ handOver, participant, instance, page, instanceSnapshot? }) -> Promise<{ route: Route | null, routeText: string, needsWorkflow: boolean, snapshot: Snapshot, head: string,
- * instanceSnapshot, participants }> — the route routesFor gives the hand-over { kind, works_on, task } of `participant`, now, with `routeText` the route as the record writes
- * it, or why none is offered; no start rule of the product's process is asked, and none of its facts is read. `page` is { address, host } of the repository the conversation is held on; `snapshot` is its default branch as it was read, `head` that snapshot's commit.
+ * assess({ handOver, participant, instance, page, instanceSnapshot?, connections? }) -> Promise<{ route: Route | null, routeText: string, needsWorkflow: boolean, snapshot: Snapshot,
+ * head: string, instanceSnapshot, participants }> — the route routesFor gives the hand-over { kind, works_on, task } of `participant`, now, with `routeText` the route as the record writes
+ * it, or why none is offered; `participants` the instance's participants on `connections`, this browser's connections the bar offers — the participant's alone where none are given; no start rule of the product's process is asked, and none of its facts is read. `page` is { address, host } of the repository the conversation is held on; `snapshot` is its default branch as it was read, `head` that snapshot's commit.
  * `instanceSnapshot` is the instance's default branch where the caller read it already; else it is read here. Reads through the hosts and writes nothing; throws what the hosts throw.
  */
-export async function assess({ handOver, participant, instance, page, instanceSnapshot: given = null }) {
+export async function assess({ handOver, participant, instance, page, instanceSnapshot: given = null, connections = [participant] }) {
   const instanceSnapshot = given ?? await defaultSnapshot(instance.host);
-  const participants = await readParticipants(instanceSnapshot);
+  const participants = await readParticipants(instanceSnapshot, connections);
   const { defaultBranch, visibility } = await page.host.repositoryInfo();
   const snapshot = await page.host.readSnapshot(defaultBranch);
   // Whether the job workflow stands is read of its folders at that commit: a snapshot a page holds may be of the page's folders only.
   const workflows = await page.host.readSnapshot(snapshot.commit ?? defaultBranch, { folders: [".github/workflows", ".gitlab"] });
   const jobWorkflow = WORKFLOWS.some((path) => workflows.paths.includes(path));
-  const offers = routesFor(participant, participants, { visibility, jobWorkflow }, []);
+  const offers = routesFor(participant, { visibility, jobWorkflow }, []);
   const taken = offers.find((each) => each.route.kind !== "tab" && each.available) ?? null;
   const refused = offers.find((each) => each.route.kind !== "tab") ?? null;
-  const routeText = taken ? recordRoute(taken.route) : refused ? refused.reason
+  const routeText = taken ? recordRoute(taken.route, participant) : refused ? refused.reason
     : offers.length > 0 ? "this participant's route is this tab, which a hand-over does not take" : "this participant has no route a job takes";
   // UC-049 4c: what is missing is the job workflow, when the product has none and the CI route is therefore unavailable.
   const needsWorkflow = taken === null && !jobWorkflow && offers.some((each) => each.route.kind === "ci" && !each.available);
@@ -141,11 +140,11 @@ export async function queue({ handOver, participant, assessment, store, instance
     places: { ...(await placesOf(instanceSnapshot, page.address)), mailbox: null }, gates: [], person, agentM, jobId: id };
   const prepared = await prepareJob(handOver.kind, tabContext({ kind: null, params: { ...params, instruction: handOver.task }, ...inputs }), { drafter: participant, reviewers: [] });
   // A piece that works on nothing yet — something new, whose place its task names — is a job that works on the repository the page is held on, by its web address.
-  const start = { id, kind: handOver.kind, worksOn: worksOn.length ? worksOn : [snapshot.repository.web], participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null, retries: null, startedBy: person,
+  const start = { id, kind: handOver.kind, worksOn: worksOn.length ? worksOn : [snapshot.repository.web], participant: participant.name, model: participant.model ?? null, route: recordRoute(route, participant), run: null, retries: null, startedBy: person,
     start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "with the hand-over", conversation: conversation ?? null,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })), params,
-    // A job that is an endpoint's own, which the instance does not list: its record declares the endpoint's context and capabilities (MOD-job-ledger's `declares`).
-    ...(participants.some((each) => each.name === participant.name) ? {} : { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } }) };
+    // The record declares what the connection the participant runs on declares for its model (MOD-job-ledger's `declares`).
+    ...declaresOf(participant) };
   const { endpoints, bridges } = connectionsOf(participant, store);
   const endpoint = endpoints[/^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1]]?.config ?? null;
   const target = { endpoint: route.kind === "ci" && endpoint ? { kind: endpoint.kind, baseUrl: endpoint.baseUrl, model: endpoint.model } : null,
@@ -163,8 +162,9 @@ export async function queue({ handOver, participant, assessment, store, instance
  * job workflow is what is missing (UC-049 4c). With `test`, the settings page's test job of the endpoint, the workflow is started with the input `test` beside the others (MOD-runtimes'
  * handOverJob). Throws what queue throws.
  */
-export async function spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation = null, source, entry, instanceSnapshot = null, test = false }) {
-  const assessment = await assess({ handOver: { kind, works_on: [], task }, participant, instance, page, instanceSnapshot });
+export async function spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation = null, source, entry, instanceSnapshot = null, test = false,
+  connections = [participant] }) {
+  const assessment = await assess({ handOver: { kind, works_on: [], task }, participant, instance, page, instanceSnapshot, connections });
   if (assessment.route === null || assessment.route.kind !== "ci") {
     return { refused: assessment.route === null ? assessment.routeText : "the endpoint's route is not GitHub Actions", needsWorkflow: assessment.needsWorkflow };
   }

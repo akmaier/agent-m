@@ -162,14 +162,20 @@ const ROOT = new URL("../", import.meta.url);
 export const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 export const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
-export const row = (name, model, place, route, context = 300000) => `| ${name} | model endpoint | ${model} | ${context} | — | draft text | ${place} | ${route} |`;
-export const DRAFTER_ROW = row("drafter-a", "model-a", "this machine", "endpoint ep1");
-export const REVIEWER_ROW = row("reviewer-b", "model-b", "this machine", "endpoint ep2");
-export const TWIN_ROW = row("twin-a", "model-a", "this machine", "endpoint ep3");
-export const FAR_ROW = row("far-c", "model-c", "a server in Singapore", "endpoint ep4");
-export const SMALL_ROW = row("small-d", "model-d", "this machine", "endpoint ep5", 50000);
-export const CI_ROW = "| ci-agent | CI agent | model-x | 300000 | — | draft text | GitHub Actions in the USA | ci hosted secret CI_KEY |";
-export const READER_ROW = "| reader | person | — | — | — | read the repository | — | the GitHub account `reader` |";
+export const row = (name, model) => `| ${name} | agent | ${model} |`;
+export const DRAFTER_ROW = row("drafter-a", "model-a");
+export const REVIEWER_ROW = row("reviewer-b", "model-b");
+export const TWIN_ROW = row("twin-a", "model-a");
+export const FAR_ROW = row("far-c", "model-c");
+export const SMALL_ROW = row("small-d", "model-d");
+export const CI_ROW = row("ci-agent", "model-x");
+export const READER_ROW = "| reader | person | — |";
+// The connections this browser keeps (MOD-browser-store, endpoint:<name>), one per model of the register: ep1 offers model-a — drafter-a's and twin-a's —, ep2 model-b, ep4
+// model-c in Singapore, ep5 model-d with a context of 50000 tokens, and ep6 model-x at GitHub Actions in the USA, its key the CI secret CI_KEY, so that its jobs are offered on CI too.
+export const ENDPOINTS = {
+  ep1: { model: "model-a", place: "this machine" }, ep2: { model: "model-b", place: "this machine" }, ep4: { model: "model-c", place: "a server in Singapore" },
+  ep5: { model: "model-d", place: "this machine", context: 50000 }, ep6: { model: "model-x", place: "GitHub Actions in the USA", secret: "CI_KEY" },
+};
 export const SECRET_LINK = text("# Requirement sources of the library", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| SRC-secret | 1 | ${"ab".repeat(32)} | |`);
 export const SECRET_ENTRY = text("---", "id: SRC-secret", "title: Secret rules", "kind: document", "authority: normative", "licence: restricted — internal use only", "places:", "  - this machine", "---",
   "# SRC-secret Secret rules", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| 1 | 2026-10-01 | v1 | here | 1 file |");
@@ -249,7 +255,7 @@ export async function show(fake, params = { id: "draft" }, { register = REGISTER
   assert.ok(routes[at], `the route ${at}: ${pages.error?.message}`);
   const kept = store ?? openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(kept, "github-token:alice/library", TOKEN);
-  for (const name of ["ep1", "ep2", "ep3", "ep4", "ep5"]) writeSetting(kept, `endpoint:${name}`, { url: `https://${name}.example.test/v1`, kind: "openai-compatible", model: "m", throughBridge: false, key: KEY });
+  for (const [name, declared] of Object.entries(ENDPOINTS)) writeSetting(kept, `endpoint:${name}`, { url: `https://${name}.example.test/v1`, kind: "openai-compatible", key: KEY, context: 300000, ...declared });
   const target = document.createElement("div");
   document.body.append(target);
   const context = { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance(register, entries).host }, store: kept, go() {}, product: { address: ON_GITHUB.web, kind: "github", host: fake.host } };

@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
+import { agent, bridgeSetting, storeWith as connectionStore, withBridge } from "./browser-connections-fixture.mjs";
 
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { startRecord } = await import("../src/job-ledger/index.mjs");
@@ -68,7 +69,11 @@ const sha1 = (body) => createHash("sha1").update(body).digest("hex");
 const lines = (...rows) => `${rows.join("\n")}\n`;
 const ROOT = new URL("../", import.meta.url);
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n`;
+// This browser's connections, the store a page is drawn with unless a test names its own: the Bridge lab-pc, whose coding agent claude offers model-a on this machine with every capability an
+// implementing job needs (tests/browser-connections-fixture.mjs answers the Bridge's requests).
+const CONNECTIONS = () => connectionStore({ "bridge:lab-pc": bridgeSetting() });
+withBridge([agent("claude", [["model-a"]])]);
 const FIXTURE_MODEL = readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8");
 const SHIPPED = ["waterfall", "v-model", "reuse-oriented", "scrum", "kanban"];
 const SHIPPED_FILES = Object.fromEntries(SHIPPED.map((name) => [`src/model-catalogue/models/${name}.md`, readFileSync(new URL(`../src/model-catalogue/models/${name}.md`, import.meta.url), "utf8")]));
@@ -90,7 +95,7 @@ function hostOf(files, { pullRequests = [], pulls = [] } = {}) {
     webLinks() { return { actions: "https://github.com/acme/product/actions", branchProtection: "https://github.com/acme/product/settings/branches" }; },
   };
 }
-async function draw(t, name, { instance = { "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": FIXTURE_MODEL }, product = {}, params = {}, store = {}, options } = {}) {
+async function draw(t, name, { instance = { "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": FIXTURE_MODEL }, product = {}, params = {}, store = CONNECTIONS(), options } = {}) {
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
   t.after(() => { delete globalThis.mermaid; });
   const context = { page: "review", instance: { repository: "acme/agent-m", host: hostOf(instance, options) }, product: { address: "https://github.com/acme/product", kind: "github", host: hostOf(product, options), tokenStored: true },

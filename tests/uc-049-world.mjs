@@ -2,8 +2,8 @@
 // its own, and it holds no expected result. The page is MOD-site-frame's real `startPage` on the review page with the prompt bar, as tests/uc-019-prompt-bar-harness.mjs opens it (the product akmaier/lending-tool and the instance
 // akmaier/agent-m served in memory, the global `fetch` answering only the fixtures); this file adds what UC-049 needs beyond that harness:
 //   - what this browser declares for the bar to offer (`declared`): the endpoints and CLI sessions a test names (a model endpoint, a model endpoint that can use tools, a CLI session of the Bridge, an endpoint called
-//     through the Bridge that names a CI secret), each as the settings that declare it (UC-049 1); the bar reads no participant list, so a test that names one puts it in the instance's list with `registerOf` and the rows
-//     LISTED_SUBAGENT and LISTED_CI_AGENT and shows that the bar does not offer it;
+//     through the Bridge that names a CI secret), each as the settings that declare it (UC-049 1); the bar reads no participant list, so a test that names one puts it in the instance's list with `registerOf` and the row
+//     LISTED_AGENT and shows that the bar does not offer it;
 //   - `watch(s)`: a layer over the page's `fetch` that keeps every request with its headers and body, answers the model endpoint from a script of replies (a text answer, or the tool calls of a model that can use
 //     tools), can hold an answer back until the test lets it go (a message that is still running), and answers a handed-over job's workflow dispatch and runs;
 //   - the person's actions the bar offers that the harness has not: Stop, Hand over, the conversation's text.
@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { click, until } from "./review-pages-draft-world.mjs";
-import { barOf, all, one, readOriginal, rest, trustedClick } from "./uc-019-prompt-bar-harness.mjs";
+import { OBSERVER, barOf, all, one, readOriginal, rest, trustedClick } from "./uc-019-prompt-bar-harness.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { loadHandOverStrategies } from "../src/prompt-bar/index.mjs";
 
@@ -29,21 +29,21 @@ const HEADER = PARTICIPANTS.slice(0, PARTICIPANTS.findIndex((line) => line.start
 
 /** The register of the instance with the rows given. */
 export const registerOf = (...rows) => `${HEADER}\n${rows.join("\n")}\n`;
-const ROW = (name, type, capabilities, place, route, context = 200000) => `| ${name} | ${type} | ${name}-model | ${context} | - | ${capabilities} | ${place} | ${route} |`;
-export const LISTED_SUBAGENT = ROW("sub-cli", "CLI agent", "draft text", "this machine", "through agent-cli");
-export const LISTED_CI_AGENT = ROW("ci-agent", "CI agent", "draft text, read the repository, write to the repository, run code and tests", "GitHub Actions in the USA", "ci hosted secret CI_KEY");
+/** listed-agent: an agent of the instance's list whose model, drafter-model, the endpoint drafter offers (MOD-participant-list: `| Name | Type | Model |`). */
+export const LISTED_AGENT = "| listed-agent | agent | drafter-model |";
 
-// What this browser declares (UC-049 1): an endpoint is the setting `endpoint:<name>`, a CLI session the setting `session:<bridge>:<agent>` of an agent the Bridge lists ready. The model of each is `<name>-model`.
+// What is offered (UC-049 1): an endpoint is this browser's setting `endpoint:<name>`, a CLI session an agent the Bridge lists ready with the declaration it keeps for it (MOD-bridge-http,
+// GET /v1/agents). The model of each is `<name>-model`.
 export const endpointOf = (name, place, context = 200000, extra = {}) => ({ kind: "openai-compatible", url: "https://fixture-endpoint.example.test/v1", model: `${name}-model`, key: "sk-fixture-KEY", place, context, ...extra });
 export const DRAFTER = { settings: { "endpoint:drafter": endpointOf("drafter", "this machine") } };
 export const TOOLER = { settings: { "endpoint:tooler": endpointOf("tooler", "Anthropic, USA"), "last-test:endpoint:tooler": { at: "2026-10-19T12:00:00Z", outcome: "ok", tools: true } } };
-/** The CLI session release-bridge:claude, offered by the paired Bridge release-bridge, at "this machine", with every capability a coding agent declares. */
-export const AGENT = { agents: ["claude"], settings: { "session:release-bridge:claude": { place: "this machine", context: 200000, model: "agent-cli-model",
-  capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"] } } };
+/** The CLI session release-bridge:claude, offered by the paired Bridge release-bridge, which keeps its declaration: at "this machine", with every capability a coding agent declares. */
+export const AGENT = { agents: [{ name: "claude", place: "this machine",
+  capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], models: [{ model: "agent-cli-model", context: 200000 }] }] };
 /** handy: an endpoint at "GitHub Actions in the USA" called through the Bridge release-bridge and naming the CI secret CI_KEY, so that a hand-over it proposes is spawned as its own job. */
 export const HANDY = { settings: { "endpoint:handy": endpointOf("handy", "GitHub Actions in the USA", 200000, { secret: "CI_KEY", bridge: "release-bridge" }) } };
-/** declared(...declarations) -> the scenario options that make this browser declare exactly those endpoints and sessions (and the Bridge's agents they need). */
-export const declared = (...declarations) => ({ drafting: false, agents: ["observer", ...declarations.flatMap((each) => each.agents ?? [])],
+/** declared(...declarations) -> the scenario options that make this browser declare exactly those endpoints, and the Bridge list exactly those sessions with their declarations beside observer. */
+export const declared = (...declarations) => ({ drafting: false, agents: [OBSERVER, ...declarations.flatMap((each) => each.agents ?? [])],
   settings: Object.assign({}, ...declarations.map((each) => each.settings ?? {})) });
 
 export const RUN_URL = "https://github.com/akmaier/lending-tool/actions/runs/7";
@@ -129,13 +129,20 @@ export function watch(s, { script = [answer("Understood.")], hold = null } = {})
 // ---------------------------------------------------------------- what a person does in the bar, and what the bar shows
 
 export const instructionOf = (s) => one(barOf(s), "textarea", "instruction");
+/**
+ * choose(s, name) — the person chooses the connection `name` in the bar's selector, which keeps each as `<name> · <model>` (MOD-prompt-bar); nothing where the bar offers one alone.
+ */
+export function choose(s, name) {
+  const selector = all(barOf(s), "select", "participant")[0];
+  if (!selector) return;
+  const option = all(selector, "option").find((node) => node.value === name || node.value.startsWith(`${name} · `));
+  assert.ok(option, `the bar offers ${name}: ${selector.textContent}`);
+  selector.value = option.value;
+}
 /** The person writes `text` and presses Send without waiting for the answer. */
 export async function sendNow(s, text, { participant = null } = {}) {
   const bar = barOf(s);
-  if (participant !== null) {
-    const selector = all(bar, "select", "participant")[0];
-    if (selector) selector.value = participant;
-  }
+  if (participant !== null) choose(s, participant);
   instructionOf(s).value = text;
   one(bar, "button", "send").dispatchEvent(trustedClick());
   await rest(s);

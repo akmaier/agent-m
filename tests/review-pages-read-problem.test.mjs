@@ -27,7 +27,7 @@
 import { emptyStorage } from "./review-pages-harness.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ENTRY_ID, LOAN, PRODUCT, byClass, click, contextOf, draw, failure, fakeInstance, fakeProduct, fetched, keepDraft, pages, resultOf, until, writeSetting }
+import { ENTRY_ID, LOAN, PRODUCT, byClass, click, contextOf, draw, failure, fakeInstance, fakeProduct, fetched, keepDraft, pages, resultOf, until }
   from "./review-pages-draft-world.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 
@@ -205,7 +205,6 @@ test("jobs.mjs panelOf — a run panel that cannot be prepared is named by readP
   const fake = fakeProduct();
   const armed = { on: false };
   const base = contextOf(fake, { token: true });
-  writeSetting(base.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
   const requests = [];
   const host = { ...fake.host, async readSnapshot(ref) {
     requests.push(`readSnapshot ${ref}`);

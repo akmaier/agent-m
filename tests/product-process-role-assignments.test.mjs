@@ -112,20 +112,29 @@ const modelText = (sprints) => [
   "",
 ].join("\n");
 
-// The instance's register: alice and bob, people; dev-a and dev-b, CLI agents that may hold every role but Product Owner.
+// The instance's register: alice and bob, people; dev-a and dev-b, agents that may hold every role but Product Owner.
 const PARTICIPANTS = readDocument(participantSchema(), "docs/participants.md", [
   "# Participants of this instance",
   "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-  "|---|---|---|---|---|---|---|---|",
-  "| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |",
-  "| bob | person | — | — | — | read the repository, write to the repository | — | account github.com/bob |",
-  "| dev-a | CLI agent | example-model | 200000 | — | read the repository, write to the repository, run code and tests | "
-    + "this machine | bridge lab-pc agent claude |",
-  "| dev-b | CLI agent | other-model | 200000 | — | read the repository, write to the repository, run code and tests | "
-    + "this machine | bridge lab-pc agent codex |",
+  "| Name | Type | Model |",
+  "|---|---|---|",
+  "| alice | person | — |",
+  "| bob | person | — |",
+  "| dev-a | agent | example-model |",
+  "| dev-b | agent | other-model |",
   "",
 ].join("\n"));
+
+// This browser's connections, as MOD-prompt-bar's sessionsOffered gives them: a Bridge's two coding agents, one offering
+// each agent's model, with every capability a role of team-scrum needs.
+const CONNECTIONS = [
+  { name: "lab-pc:claude", type: "CLI agent", model: "example-model", context: 200000,
+    capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "this machine",
+    route: "bridge lab-pc agent claude" },
+  { name: "lab-pc:codex", type: "CLI agent", model: "other-model", context: 200000,
+    capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "this machine",
+    route: "bridge lab-pc agent codex" },
+];
 
 // The instance's SPEC: no process requirement.
 const INSTANCE_SPEC = "# Fixture instance — Specification\n\n## 1. Process\n\nNo process requirement.\n";
@@ -206,7 +215,7 @@ const TEAM2 = [
 const assignmentOf = (text, name = "team1") => readDocument(roleAssignmentSchema, `docs/role-assignments/${name}.md`, text);
 const brief = (found) => found.map((f) => [f.artifact, f.line, f.kind, f.rule]);
 // The findings of team1's text alone, against the workflow of a model with sprints.
-const team1Findings = async (text) => roleAssignmentFindings([assignmentOf(text)], await workflowWith("yes"), PARTICIPANTS, []);
+const team1Findings = async (text) => roleAssignmentFindings([assignmentOf(text)], await workflowWith("yes"), PARTICIPANTS, CONNECTIONS, []);
 
 // ---------------------------------------------------------------- roleAssignmentSchema
 
@@ -236,11 +245,11 @@ test("roleAssignmentSchema — a role assignment is its roles table: each role w
 // TST-472432 · level: unit · module: MOD-product-process
 // guards: UC-048; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
 // given: the fixture product's two role assignments, team1 and team2, dev-b holding roles in both; its model works in sprints
-// input: roleAssignmentFindings([team1, team2], the workflow, the register, [])
+// input: roleAssignmentFindings([team1, team2], the workflow, the register, the connections, [])
 // expect: no finding — one role assignment for each team, and a participant in two of them is no finding
 test("roleAssignmentFindings — one role assignment per team, a participant serving two teams, has no finding", async () => {
   const found = roleAssignmentFindings([assignmentOf(TEAM1), assignmentOf(TEAM2, "team2")], await workflowWith("yes"),
-    PARTICIPANTS, []);
+    PARTICIPANTS, CONNECTIONS, []);
   assert.deepEqual(brief(found), []);
 });
 
@@ -251,8 +260,8 @@ test("roleAssignmentFindings — one role assignment per team, a participant ser
 // expect: no finding for team1 alone; for the two, one error on line 1 of each, naming A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM, its text naming both files
 test("roleAssignmentFindings — more than one role assignment where the model works without sprints is an error", async () => {
   const workflow = await workflowWith("no");
-  assert.deepEqual(brief(roleAssignmentFindings([assignmentOf(TEAM1)], workflow, PARTICIPANTS, [])), []);
-  const found = roleAssignmentFindings([assignmentOf(TEAM1), assignmentOf(TEAM2, "team2")], workflow, PARTICIPANTS, []);
+  assert.deepEqual(brief(roleAssignmentFindings([assignmentOf(TEAM1)], workflow, PARTICIPANTS, CONNECTIONS, [])), []);
+  const found = roleAssignmentFindings([assignmentOf(TEAM1), assignmentOf(TEAM2, "team2")], workflow, PARTICIPANTS, CONNECTIONS, []);
   assert.deepEqual(brief(found), [
     ["docs/role-assignments/team1.md", 1, "error", ONE_OR_PER_TEAM],
     ["docs/role-assignments/team2.md", 1, "error", ONE_OR_PER_TEAM],
@@ -304,7 +313,7 @@ test("roleAssignmentFindings — a name the instance's list does not hold is an 
 
 // TST-472437 · level: unit · module: MOD-product-process
 // guards: UC-048; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
-// given: team1 with its Product Owner, whom team-scrum fills by a person, (a) held by dev-a, a CLI agent; (b) without a row
+// given: team1 with its Product Owner, whom team-scrum fills by a person, (a) held by dev-a, an agent; (b) without a row
 // input: roleAssignmentFindings of each, alone
 // expect: (a) one error on the row of Product Owner (line 7); (b) one error on the heading ## Roles (line 3); each naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS, its text naming the role
 test("roleAssignmentFindings — a role that needs a person and has none is an error", async () => {

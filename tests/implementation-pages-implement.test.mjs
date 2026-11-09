@@ -9,7 +9,9 @@
 // Level: unit
 //
 // The product is the Scrum-with-limit fixture of tests/implementation-pages-backlog.test.mjs (one team here), held in memory behind a host of this file's own that answers MOD-repository-hosts' interface and keeps every
-// commit; the instance holds the register of participants with two builders able to write and run tests, dev-a — whom team1's assignment gives the role Builders — and dev-b, whom it does not; whose route is the hosted CI. The strategies the kind `implement` names are stand-ins registered with the job runner: the recipes
+// commit; the instance holds the register of participants with two agents, dev-a — whom team1's assignment gives the role Builders — and dev-b, whom it does not; this browser's settings keep the Bridge lab-pc,
+// whose coding agents claude and codex, on this machine, offer their models model-a and model-b with every capability an implementing job needs (tests/browser-connections-fixture.mjs answers the Bridge's requests),
+// so that both can write and run tests, on the route of that Bridge. The strategies the kind `implement` names are stand-ins registered with the job runner: the recipes
 // give one part each, the writer and the precondition give nothing; the real ones are other modules'. Nothing reaches the network. Readings the texts leave open, which the tests state (the pull request names them):
 //   - Each item is a <tr data-item data-state data-startable>; its reasons are the <li> of <ul data-reasons>; for a startable item <select data-participant-of> lists the holders that can write and run tests, <p data-holders>
 //     says where each processes data and its routes, <select data-merges-of> is who merges (`agent` or `person`), and <div data-sent> says what is sent where; <input data-start-item> ticks a startable item; <button data-start-jobs>
@@ -18,12 +20,13 @@
 //   - A start record is docs/jobs/JOB-<stamp>-<4 hex>.md; who merges is `merges` in its `## Parameters`; a click a script makes starts nothing.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import test, { afterEach } from "node:test";
+import test, { after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -88,11 +91,16 @@ const pr = ({ number, item, merged = null }) => ({ number, title: `${item}: the 
   state: merged ? "merged" : "open", draft: false, url: `${ADDRESS}/pull/${number}`, opened: "2026-09-15T12:00:00Z", merged, closed: merged });
 const OPEN_PRS = [pr({ number: 1, item: "ITM-001" }), pr({ number: 2, item: "ITM-003" })];
 
-// The register of the instance: the head of this repository's own docs/participants.md and the one builder.
+// The register of the instance: the head of this repository's own docs/participants.md and the two agents.
 const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const HEAD = onDisk("docs/participants.md").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n| dev-b | model endpoint | model-b | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n`;
+
+// This browser's connections: the Bridge lab-pc, whose coding agents claude and codex offer model-a and model-b on this machine; the Bridge answers here, and every hand-over is kept.
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridge = withBridge([agent("claude", [["model-a"]]), agent("codex", [["model-b"]])]);
+after(() => bridge.restore());
 
 // A host of this file's own: the part of MOD-repository-hosts' interface the route uses, keeping every commit it is asked for.
 function hostOf(files, pullRequests, commits) {
@@ -118,7 +126,7 @@ async function render(files, { pullRequests = [], params = {} } = {}) {
   const commits = [];
   const host = hostOf(files, pullRequests, commits);
   const instanceHost = hostOf({ "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": files["docs/process-models/fixture.md"] }, [], []);
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} };
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: storeWith(SETTINGS), go() {} };
   const target = document.createElement("div");
   document.body.append(target);
   await route.render(target, context, params);
@@ -175,7 +183,7 @@ test("above the work-in-progress limit an item is not started, and with no start
 // guards: UC-034; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS
 // given: the product of TST-789001
 // input: the route's render
-// expect: ITM-005 offers dev-a, the holder of the implementing role Builders in team1's assignment, and says where it processes data (this machine) and its route (ci hosted); who merges, the attempt limit and the target branch (main) are shown, with the gate Building → Checking and its decider Owner; what is sent where names dev-a and the part chapters 9, 11, 12 and 13
+// expect: ITM-005 offers dev-a, the holder of the implementing role Builders in team1's assignment, and says where it processes data (this machine) and its route (its connection's, bridge lab-pc agent claude); who merges, the attempt limit and the target branch (main) are shown, with the gate Building → Checking and its decider Owner; what is sent where names dev-a and the part chapters 9, 11, 12 and 13
 test("a startable item offers the holders of the implementing role with where they process data, what is sent where, the gates and who merges", async () => {
   const { target } = await render(productFiles());
   const options = found(row(target, "ITM-005"), `[data-participant-of="ITM-005"]`)[0];
@@ -184,7 +192,7 @@ test("a startable item offers the holders of the implementing role with where th
   assert.doesNotMatch(text(options), /alice|dev-b/, "a participant that does not hold the implementing role in the item's assignment is not offered");
   const holders = text(found(row(target, "ITM-005"), "[data-holders]")[0]);
   assert.match(holders, /this machine/);
-  assert.match(holders, /ci hosted/);
+  assert.match(holders, /routes: bridge lab-pc agent claude\b/);
   assert.ok(found(row(target, "ITM-005"), `[data-merges-of="ITM-005"]`)[0], "who merges is chosen");
   const shown = text(row(target, "ITM-005"));
   assert.match(shown, /Attempt limit: \d+/);

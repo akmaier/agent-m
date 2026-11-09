@@ -123,7 +123,7 @@ const claudeResult = (answer, usage = { input_tokens: 13, output_tokens: 5 }) =>
   JSON.stringify({ type: "result", subtype: "success", is_error: false, result: answer, usage, total_cost_usd: 0.01 }) + "\n";
 
 async function contextTasks(t, extra, verify) {
-  for (const [name, prefix] of [["claude", ["-p", "--output-format", "json"]], ["codex", ["exec", "-"]], ["opencode", ["run", "--format", "json", "--standalone"]]]) {
+  for (const [name, prefix] of [["claude", ["-p", "--output-format", "json", "--model", "fixture-model"]], ["codex", ["exec", "-", "--model", "fixture-model"]], ["opencode", ["run", "--format", "json", "--standalone", "--model", "fixture-model"]]]) {
     await t.test(name, async () => {
       const folder = realpathSync(fixture()), record = join(folder, "tasks.jsonl");
       try {
@@ -228,7 +228,7 @@ test("TST-321001: agent driver streams answers with reported or null usage", asy
 
     assert.deepEqual(result, { text: "final answer", usage: { inputTokens: 21, outputTokens: 8, minutes: null, cost: null } });
     assert.deepEqual(JSON.parse(readFileSync(record, "utf8")), {
-      argv: ["-p", "--output-format", "json"],
+      argv: ["-p", "--output-format", "json", "--model", "fixture-model"],
       stdin: INPUT.prompt,
       cwd: folder,
     });
@@ -269,12 +269,12 @@ test("TST-321002: local and CI invocations keep credentials out of command argum
       withPath(folder, () => driver({ ...CLAUDE, loggedIn: false }, folder, "ANTHROPIC_API_KEY").send({ ...INPUT, workdir: folder })));
 
     assert.deepEqual(JSON.parse(readFileSync(localRecord, "utf8")), {
-      argv: ["-p", "--output-format", "json"],
+      argv: ["-p", "--output-format", "json", "--model", "fixture-model"],
       stdin: INPUT.prompt,
       key: null,
     });
     assert.deepEqual(JSON.parse(readFileSync(ciRecord, "utf8")), {
-      argv: ["-p", "--output-format", "json"],
+      argv: ["-p", "--output-format", "json", "--model", "fixture-model"],
       stdin: INPUT.prompt,
       key: "ci-secret-fixture",
     });

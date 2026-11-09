@@ -17,6 +17,7 @@ import { gzipSync } from "node:zlib";
 
 import "./site-frame-dom.mjs";
 import { REPO, TOKEN, repoServer } from "./app-harness.mjs";
+import { storeWith } from "./browser-connections-fixture.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import * as measures from "../src/progress-measures/index.mjs";
 import { parseSpec } from "../src/spec-document/index.mjs";
@@ -104,7 +105,7 @@ const { view } = await import("../src/implementation-pages/index.mjs");
 // The page of route `name` with `params`: the target it is drawn into, the product's files and host, press(element) — the person's click on an element, awaited —, and `went`, each
 // route and params the route asked the frame to go to (ViewContext's go), in order.
 // Every click listener the route adds, now or when it draws itself again, is kept by its element.
-export async function render(name, params = {}, { files = productFiles(), pullRequests = PULL_REQUESTS } = {}) {
+export async function render(name, params = {}, { files = productFiles(), pullRequests = PULL_REQUESTS, store = null } = {}) {
   const route = view.routes.find((candidate) => candidate.name === name);
   const host = hostOf(files, { pullRequests });
   const instance = hostOf({ "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": files["docs/process-models/fixture.md"] }, { pullRequests: [] });
@@ -115,7 +116,7 @@ export async function render(name, params = {}, { files = productFiles(), pullRe
   const target = globalThis.document.createElement("div");
   globalThis.document.body.append(target);
   const went = [];
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {},
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: store ?? storeWith({}),
     go(to, params = {}) { went.push([to, params]); } };
   await route.render(target, context, params);
   const press = async (element) => {
@@ -163,7 +164,7 @@ export async function storedViewBytes(page, files, commit = COMMIT, pullRequests
   return new Uint8Array(gzipSync(JSON.stringify({ ...view, commit })));
 }
 
-export async function renderOverGitHub(name, params = {}, { files = productFiles({ "docs/process.md": DECLARATION_AT_HEAD }), overview = {}, pullRequests = PULL_REQUESTS, server = [] } = {}) {
+export async function renderOverGitHub(name, params = {}, { files = productFiles({ "docs/process.md": DECLARATION_AT_HEAD }), overview = {}, pullRequests = PULL_REQUESTS, server = [], store = null } = {}) {
   const route = view.routes.find((candidate) => candidate.name === name);
   const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
   const cache = (url) => {
@@ -183,7 +184,7 @@ export async function renderOverGitHub(name, params = {}, { files = productFiles
   const target = globalThis.document.createElement("div");
   globalThis.document.body.append(target);
   const went = [];
-  const context = { page: "review", instance: { repository: REPO, host }, product: { address: GITHUB_ADDRESS, kind: "github", host, tokenStored: true, ref: "main" }, store: {},
+  const context = { page: "review", instance: { repository: REPO, host }, product: { address: GITHUB_ADDRESS, kind: "github", host, tokenStored: true, ref: "main" }, store: store ?? storeWith({}),
     go(to, params = {}) { went.push([to, params]); } };
   const done = () => { Element.prototype.addEventListener = add; delete globalThis.mermaid; globalThis.fetch = real; };
   try { await route.render(target, context, params); } catch (failure) { done(); throw failure; }

@@ -28,8 +28,9 @@
 //     GITHUB_SHA, GITHUB_RUN_ID, GITHUB_ACTOR, GITHUB_EVENT_NAME, GITHUB_EVENT_PATH. The instance's checkout is `instance/` of the workspace.
 //   - This CI service's route is `ci hosted` for the runner `hosted` and `ci runner:<label>` for a label, as MOD-job-ledger writes a record's
 //     route. A queued job is one MOD-job-ledger's jobState calls so; jobs are taken oldest first. `Taken` names the run's address.
-//   - A CI participant's route is `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>` (MOD-participant-list, Data): its key is the
-//     value of the variable NAME. A job whose participant's key is missing ends the whole entry, before any job is taken.
+//   - A job's record names the connection its participant runs on after this CI service's route: `ci hosted endpoint <name> secret <NAME>` or
+//     `ci runner:<label> endpoint <name> secret <NAME>` (MOD-job-ledger, route), with what the connection declares (`declares`): its key is the
+//     value of the variable NAME. A job whose key is missing ends the whole entry, before any job is taken.
 //   - A job's endpoint is given by its record: the parameter `endpoint` — `{ name, kind, baseUrl, model }` — whose key is the participant's
 //     secret; a parameter `agent` names a supported coding agent instead. The module file says where CI gets an endpoint's settings; the
 //     record's parameters are the only place a job carries.
@@ -70,12 +71,15 @@ const REASON = "every artifact meets the condition";
 const WRITER_THROWS = "a reason on which the fixture's writer throws";
 
 const PARTICIPANTS = text("# Participants of this instance", "",
-  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
+  "| Name | Type | Model |", "|---|---|---|",
+  "| ci-bot | agent | fixture-llm |");
+// The connection ci-bot's jobs run on, after the CI route: the endpoint whose key is the CI secret FIXTURE_KEY (MOD-job-ledger, route), and what it declares.
+const CONNECTION = "endpoint ci-bot secret FIXTURE_KEY";
+const DECLARES = { context: 100000, capabilities: ["read the repository", "write to the repository"] };
 
 // The job's record names the commit of Agent M that runs — the instance's checkout is at it —, so the records are made once the instance exists.
-const jobStart = (id, { agentM, route = "ci hosted", params = { endpoint: ENDPOINT } } = {}) => ({ id, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot",
-  model: "fixture-llm", route, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-08T08:00:00Z"), agentM, inputs: [], limit: 2,
+const jobStart = (id, { agentM, route = `ci hosted ${CONNECTION}`, params = { endpoint: ENDPOINT } } = {}) => ({ id, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot",
+  model: "fixture-llm", route, declares: DECLARES, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-08T08:00:00Z"), agentM, inputs: [], limit: 2,
   destinations: [{ participant: "ci-bot", place: "GitHub's hosted runners", parts: ["gate-inputs"] }], params });
 const JOB = "JOB-20261008-0800-a1b2", OTHER_RUNNER_JOB = "JOB-20261008-0801-c3d4", TAKEN_JOB = "JOB-20261008-0802-e5f6";
 const recordFile = (start) => { const { path, text: body } = startRecord(start); return [path, body]; };
@@ -175,7 +179,7 @@ const run = (w, extra) => { assert.ok(runEntry, `runEntry: ${entries.error?.mess
 // expect: outcome `done`, the summary naming the job; on the origin's main in order: the commit that takes the job, the writer's commit — the gate's record, open —, and the commit that ends it; the record names the run's address as the route that took it, ends `done` with the writer's commit as its result, the usage the endpoint reported and the run's address as its log; the other job is not taken; the one taken already is left as it is; everything committed on main, no other branch; the endpoint asked once, at its address, with the key in its authorisation header
 test("onRecordsChanged — a queued job of this route is taken and run: its writer's commit and its end appended", async () => {
   const requests = fakeEndpoint();
-  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM })), recordFile(jobStart(OTHER_RUNNER_JOB, { agentM, route: "ci runner:lab" })),
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM })), recordFile(jobStart(OTHER_RUNNER_JOB, { agentM, route: `ci runner:lab ${CONNECTION}` })),
     takenFile(jobStart(TAKEN_JOB, { agentM }))] }, async (w) => {
     const taken = fileAt(w, `docs/jobs/${TAKEN_JOB}.md`);
     const status = await run(w);
@@ -223,7 +227,7 @@ test("onRecordsChanged — a writer that throws ends the job failed, with the us
 // expect: the job of the route `ci runner:lab` is taken and run; the job of `ci hosted` is left as it is
 test("onRecordsChanged — a self-hosted runner takes the jobs of its own label", async () => {
   fakeEndpoint();
-  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM })), recordFile(jobStart(OTHER_RUNNER_JOB, { agentM, route: "ci runner:lab" }))] }, async (w) => {
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM })), recordFile(jobStart(OTHER_RUNNER_JOB, { agentM, route: `ci runner:lab ${CONNECTION}` }))] }, async (w) => {
     const hosted = fileAt(w, `docs/jobs/${JOB}.md`);
     const status = await run(w, { AGENT_M_RUNNER: "lab" });
     assert.equal(status.outcome, "done");
@@ -300,16 +304,17 @@ test("onRecordsChanged — a result equal to the current files ends done with no
 
 // TST-473206 · level: unit · module: MOD-workflow-entries
 // guards: UC-010; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A CI AGENT'S DRAFT ENTERS AS OPEN
-// given: a product with another queued job and no record of the one started, and a start from the server's own page with the inputs job, kind, participant, works_on and the parameters
+// given: a product with another queued job and no record of the one started, and a start from the server's own page with the inputs job, kind, participant, works_on and the parameters, and its connection: the input endpoint — its kind, address, model and context — and the input secret FIXTURE_KEY
 // input: onDispatch, the event's payload read from the file GITHUB_EVENT_PATH names
-// expect: outcome `done`; the start record committed at docs/jobs/<job>.md — route `ci hosted`, started by the actor, the inputs' parameters —, then taken and run as a queued job is: the writer's commit and the End; the other queued job is left as it is
+// expect: outcome `done`; the start record committed at docs/jobs/<job>.md — route `ci hosted endpoint ci-bot secret FIXTURE_KEY`, declaring the endpoint's context, started by the actor, the inputs' parameters —, then taken and run as a queued job is: the writer's commit and the End; the other queued job is left as it is
 test("onDispatch — a dispatched job is started and run", async () => {
   fakeEndpoint();
   const id = "JOB-20261008-0900-d1e2";
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
     const payload = join(w.root, "event.json");
     const queued = fileAt(w, `docs/jobs/${JOB}.md`);
-    writeFileSync(payload, JSON.stringify({ inputs: { job: id, kind: "decide-gate", participant: "ci-bot", works_on: "A LOAN HAS A DUE DATE", parameters: JSON.stringify({ endpoint: ENDPOINT }) } }));
+    writeFileSync(payload, JSON.stringify({ inputs: { job: id, kind: "decide-gate", participant: "ci-bot", works_on: "A LOAN HAS A DUE DATE", parameters: JSON.stringify({ endpoint: ENDPOINT }),
+      endpoint: JSON.stringify({ kind: ENDPOINT.kind, baseUrl: ENDPOINT.baseUrl, model: ENDPOINT.model, context: 200000 }), secret: "FIXTURE_KEY" } }));
     assert.ok(runEntry, `runEntry: ${entries.error?.message}`);
     const status = await runEntry("onDispatch", environment(w, { GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_EVENT_PATH: payload }), { now: NOW });
     assert.equal(status.outcome, "done");
@@ -317,7 +322,8 @@ test("onDispatch — a dispatched job is started and run", async () => {
     assert.ok(log[0].startsWith(`end ${id}`) && log[1] === "gate fixture decided" && log[2].startsWith(`take ${id}`) && log[3].includes(id), log.join(" | "));
     const record = fileAt(w, `docs/jobs/${id}.md`);
     assert.match(record, /kind: decide-gate/);
-    assert.match(record, /route: ci hosted/);
+    assert.match(record, /route: ci hosted endpoint ci-bot secret FIXTURE_KEY/);
+    assert.match(record, /declares: \{"context":200000,/);
     assert.match(record, /started_by: alice/);
     assert.match(record, /baseUrl/);
     assert.match(record, /## End[^]*state: done/);
@@ -470,17 +476,14 @@ test("chooseAgentKey and the agent's machine — the machine of the job's own ke
 
 // ---------------------------------------------------------------- a model endpoint's route names its secret
 
-// The participant of a model endpoint whose route names the CI secret of its key, for work handed to CI (MOD-participant-list, Route): `endpoint ci-bot secret FIXTURE_KEY`.
-const ENDPOINT_PARTICIPANTS = PARTICIPANTS.replace("| CI agent |", "| model endpoint |").replace("ci hosted secret FIXTURE_KEY", "endpoint ci-bot secret FIXTURE_KEY");
-
 // TST-1381005 · level: unit · module: MOD-workflow-entries
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: a product with a queued job of the route `ci hosted` whose record names the endpoint, an instance whose register lists ci-bot as a model endpoint with the route `endpoint ci-bot secret FIXTURE_KEY`, and the job workflow's environment with the person's token and FIXTURE_KEY
+// given: a product with a queued job whose record names the endpoint and the route `ci hosted endpoint ci-bot secret FIXTURE_KEY`, an instance whose register lists ci-bot as an agent of the model fixture-llm, and the job workflow's environment with the person's token and FIXTURE_KEY
 // input: onRecordsChanged
 // expect: outcome `done`; the job's record ends `done`; the endpoint is asked once with FIXTURE_KEY in its authorisation header
 test("onRecordsChanged — a queued job of a model endpoint reads the key its route `endpoint <name> secret <NAME>` names", async () => {
   const requests = fakeEndpoint();
-  await withWorkspace({ participants: ENDPOINT_PARTICIPANTS, records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
     const status = await run(w);
     assert.equal(status.outcome, "done", status.summary);
     assert.match(fileAt(w, `docs/jobs/${JOB}.md`), /## End[^]*state: done/);
@@ -496,7 +499,7 @@ test("onRecordsChanged — a queued job of a model endpoint reads the key its ro
 // expect: without the key outcome `not run`, the summary naming FIXTURE_KEY, the origin's main as it was, the job not taken, the endpoint not asked; with the key the job is run
 test("onRecordsChanged — the key of a model endpoint's route is missing: not run, naming it, with nothing written", async () => {
   const requests = fakeEndpoint();
-  await withWorkspace({ participants: ENDPOINT_PARTICIPANTS, records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
     const status = await run(w, { FIXTURE_KEY: undefined });
     assert.equal(status.outcome, "not run", status.summary);
     assert.match(status.summary, /FIXTURE_KEY/);
@@ -514,7 +517,7 @@ test("onRecordsChanged — the key of a model endpoint's route is missing: not r
 // expect: the output is `agent=2`; given OTHER_KEY the job is left queued and the endpoint not asked (`nothing to do`); given FIXTURE_KEY it is run and the endpoint is asked with FIXTURE_KEY
 test("chooseAgentKey and the agent's machine — the machine of a model endpoint's route key runs its job, another leaves it queued", async () => {
   const requests = fakeEndpoint();
-  await withWorkspace({ participants: ENDPOINT_PARTICIPANTS, records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
     const output = join(w.root, "output.txt");
     writeFileSync(output, "");
     const chosen = await entry("chooseAgentKey", environment(w, { AGENT_M_TOKEN: undefined, FIXTURE_KEY: undefined, AGENT_M_KEY_NAMES: "OTHER_KEY FIXTURE_KEY", GITHUB_OUTPUT: output }));
@@ -532,20 +535,18 @@ test("chooseAgentKey and the agent's machine — the machine of a model endpoint
 
 // TST-1381008 · level: unit · module: MOD-workflow-entries
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: a product with a queued job whose participant ci-bot is a model endpoint with the route `endpoint ci-bot secret FIXTURE_KEY` (and, as the known positive, the same job with ci-bot a CI agent with the route `ci hosted secret FIXTURE_KEY`), and a file that reads the keys OTHER_KEY and FIXTURE_KEY
+// given: a product with a queued job whose record's route is `ci hosted endpoint ci-bot secret FIXTURE_KEY`, and a file that reads the keys OTHER_KEY and FIXTURE_KEY
 // input: chooseAgentKey on a run started from the server's own page whose inputs name only the job (no endpoint, no secret), its output file read
-// expect: the output is `agent=2` for the model endpoint and for the CI agent alike
+// expect: the output is `agent=2`
 test("chooseAgentKey — a dispatched job of a model endpoint receives the key its route names", async () => {
   fakeEndpoint();
-  for (const [participants, route] of [[ENDPOINT_PARTICIPANTS, "model endpoint"], [PARTICIPANTS, "CI agent (known positive)"]]) {
-    await withWorkspace({ participants, records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
-      const output = join(w.root, "output.txt"), payload = join(w.root, "event.json");
-      writeFileSync(output, "");
-      writeFileSync(payload, JSON.stringify({ inputs: { job: JOB } }));
-      const chosen = await entry("chooseAgentKey", environment(w, { AGENT_M_TOKEN: undefined, FIXTURE_KEY: undefined, AGENT_M_KEY_NAMES: "OTHER_KEY FIXTURE_KEY", GITHUB_OUTPUT: output,
-        GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_EVENT_PATH: payload }));
-      assert.equal(chosen.outcome, "done", `${route}: ${chosen.summary}`);
-      assert.equal(readFileSync(output, "utf8"), "agent=2\n", route);
-    });
-  }
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+    const output = join(w.root, "output.txt"), payload = join(w.root, "event.json");
+    writeFileSync(output, "");
+    writeFileSync(payload, JSON.stringify({ inputs: { job: JOB } }));
+    const chosen = await entry("chooseAgentKey", environment(w, { AGENT_M_TOKEN: undefined, FIXTURE_KEY: undefined, AGENT_M_KEY_NAMES: "OTHER_KEY FIXTURE_KEY", GITHUB_OUTPUT: output,
+      GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_EVENT_PATH: payload }));
+    assert.equal(chosen.outcome, "done", chosen.summary);
+    assert.equal(readFileSync(output, "utf8"), "agent=2\n");
+  });
 });

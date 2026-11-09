@@ -23,10 +23,32 @@ const QUIT = "the Bridge was quit";
 const WITH_HAND_OVER = "with the hand-over";
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
-// The Bridge and agent a participant's route names: `bridge <bridge> agent <agent>`, or null for any other route.
+// The Bridge and agent a route names — a job record's or a connection's: `bridge <bridge> agent <agent>`, or null for any other route.
 function bridgeRoute(route) {
   const named = /^bridge\s+(\S+)\s+agent\s+(\S+)/.exec(String(route ?? "").trim());
   return named ? { bridge: named[1], agent: named[2] } : null;
+}
+
+// The participant a job's record names, on the connection its route gives (MOD-job-ledger): its name and model, its context and capabilities from `declares`, its
+// place from `## Destinations`, the type *CLI agent* and the record's route; null for a record whose route names no Bridge's agent.
+function participantOfRecord(record) {
+  if (!bridgeRoute(record.route) || !record.participant) return null;
+  return { name: record.participant, type: "CLI agent", model: record.model ?? null, context: record.declares?.context ?? null,
+    capabilities: Array.isArray(record.declares?.capabilities) ? record.declares.capabilities : [], place: record.destinations?.[0]?.place || null,
+    route: String(record.route).trim() };
+}
+
+// The route of a job queued for its participant's model alone, which an agent whose declaration offers that model takes (MOD-job-ledger, `route`).
+const ANY = "any";
+
+// The connection one of this Bridge's agents is for `model`, as its declaration in the Bridge's settings gives it — MOD-participant-list's Connection, named
+// `<bridge>:<agent>`, the type *CLI agent*, the model's context, the declared capabilities and place, the route `bridge <bridge> agent <agent>` —, or null where
+// the declaration offers no such model with its context.
+function connectionOf(bridgeName, agent, model) {
+  const offered = (Array.isArray(agent.models) ? agent.models : []).find((each) => each?.model === model && Number.isInteger(each.context));
+  if (!offered || !model) return null;
+  return { name: `${bridgeName}:${agent.name}`, type: "CLI agent", model, context: offered.context, capabilities: Array.isArray(agent.capabilities) ? agent.capabilities : [],
+    place: typeof agent.place === "string" && agent.place ? agent.place : null, route: `bridge ${bridgeName} agent ${agent.name}` };
 }
 
 // One record, read from a snapshot, as the ledger reads records.
@@ -108,15 +130,22 @@ function createWatcher(config) {
   const skip = (product, reason) => onSkipped?.({ product, reason });
   const serially = (work) => (chain = chain.then(work, work));
 
-  // The participants of the instance as the commit a record names holds them, read through this agent's clone of the instance.
-  async function participantsAt(agent, commit, cache) {
+  // The participants of the instance as the commit a record names holds them, read through this agent's clone of the instance, joined with the connections given — the one
+  // a job's record names (MOD-participant-list's participantsOf) —, whose participant follows them where the register does not hold it.
+  async function participantsAt(agent, commit, cache, connections = []) {
+    const listed = participantsOf(await registerAt(agent, commit, cache), connections);
+    return [...listed, ...connections.filter((each) => !listed.some((one) => one.name === each.name))];
+  }
+
+  // The register of the instance at a commit, read once per commit.
+  async function registerAt(agent, commit, cache) {
     if (!cache.has(commit)) {
       cache.set(commit, (async () => {
         const folder = await instanceClone(instance, agent.folder);
         const host = await hostOf(instance, folder);
         const text = await (await host.readSnapshot(commit)).read(PARTICIPANTS);
         if (text === null) throw new Error(`the instance holds no ${PARTICIPANTS} at ${commit}`);
-        return participantsOf(readRegister(participantSchema(), PARTICIPANTS, text).document);
+        return readRegister(participantSchema(), PARTICIPANTS, text).document;
       })());
     }
     return cache.get(commit);
@@ -135,17 +164,21 @@ function createWatcher(config) {
     }
     const found = [];
     for (const record of queued) {
-      const participants = await participantsAt(agent, record.agentM.commit, cache);
-      const participant = participants.find((each) => each.name === record.participant);
-      const route = bridgeRoute(participant?.route);
-      if (route && route.bridge === bridgeName) found.push({ record, participant, agent: route.agent, host, commit });
+      const route = bridgeRoute(record.route);
+      if (route && route.bridge === bridgeName) found.push({ record, participant: participantOfRecord(record), agent: route.agent, host, commit });
+      // A job of the route `any` whose model this agent's declaration offers: taken by it, its Taken naming the connection and what it declares for the model.
+      const connection = record.route === ANY ? connectionOf(bridgeName, agent, record.model) : null;
+      if (connection) {
+        found.push({ record, agent: agent.name, host, commit, on: { connection: connection.route, declares: { context: connection.context, capabilities: connection.capabilities } },
+          participant: { ...connection, name: record.participant, place: connection.place ?? (record.destinations?.[0]?.place || null) } });
+      }
     }
     return { found, folder, host, commit };
   }
 
-  // The closes of the sprints a product assigned to `agent`: a sprint that MOD-work-plans' sprintsToClose names, at today's date, whose closer is a participant whose route names this Bridge and this agent, gets
-  // its close — a job of the kind close-sprint working on the items of its selection, its parameter `sprint` the sprint's name — queued for this route, once: none is queued for a sprint of which the product holds
-  // a close record in any state. The queued close is then taken and run like any queued job of this Bridge. Throws what reading the product or the instance throws, so that the product is skipped with the reason.
+  // The closes of the sprints a product assigned to an agent whose model `agent` offers: a sprint that MOD-work-plans' sprintsToClose names, at today's date, whose closer is an agent of the instance's list whose
+  // model this agent's declaration offers, gets its close — a job of the kind close-sprint working on the items of its selection, its parameter `sprint` the sprint's name — queued for that model on the route `any`,
+  // once: none is queued for a sprint of which the product holds a close record in any state. The queued close is then taken like any job of the route `any`. Throws what reading the product or the instance throws, so that the product is skipped with the reason.
   async function queueCloses(agent, product, cache) {
     const folders = foldersOf(agent.folder);
     const productFolder = folders.product(product);
@@ -172,12 +205,12 @@ function createWatcher(config) {
       const taken = new Set((await host.readSnapshot(head.commit)).paths.map((path) => /^docs\/jobs\/(JOB-[^/]+)\.md$/.exec(path)?.[1]).filter(Boolean));
       for (const sprint of due) {
         const closer = participants.find((each) => each.name === sprint.closer);
-        const route = bridgeRoute(closer?.route);
-        if (!route || route.bridge !== bridgeName || route.agent !== agent.name || started.has(sprint.sprint)) continue;
+        if (!closer || closer.type === "person" || !connectionOf(bridgeName, agent, closer.model) || started.has(sprint.sprint)) continue;
+        started.add(sprint.sprint);
         const id = newJobId(now, taken);
         taken.add(id);
         const selected = facts.sprints.find((record) => record.path === `docs/backlog/sprints/${sprint.sprint}.md`)?.fields?.selection;
-        const queued = await queueJob(host, { id, kind: "close-sprint", worksOn: [].concat(selected ?? []), participant: closer.name, model: closer.model ?? null, route: `bridge ${bridgeName} agent ${agent.name}`,
+        const queued = await queueJob(host, { id, kind: "close-sprint", worksOn: [].concat(selected ?? []), participant: closer.name, model: closer.model ?? null, route: ANY,
           run: null, retries: null, startedBy: bridgeName, start: now, agentM: { version: "unreleased", commit: instanceCommit }, inputs: [], limit, destinations: [{ participant: closer.name, place: closer.place ?? "", parts: [] }],
           params: { sprint: sprint.sprint } }, { kind: "bridge", bridge: bridgeName }, head.commit);
         head = { ...head, commit: queued.commit };
@@ -186,7 +219,7 @@ function createWatcher(config) {
   }
 
   // One job: taken on the head that was read, run in the agent's working folder, its working clone removed, ended in its record.
-  async function run(agent, product, { record, participant, host, commit }, folder) {
+  async function run(agent, product, { record, participant, host, commit, on }, folder) {
     const folders = foldersOf(agent.folder);
     const controller = new AbortController();
     const mine = { controller, done: null };
@@ -200,7 +233,7 @@ function createWatcher(config) {
       // minute would write the same commit, which a push accepts twice, and both would run the job.
       const taken = await exclusively(`take ${product}`, async () => {
         await cloneOrFetch(product, folder);
-        return takeJob(host, record.path, bridgeName, (await defaultHead(folder)).commit);
+        return takeJob(host, record.path, bridgeName, (await defaultHead(folder)).commit, on);
       });
       if (!taken.taken) return;
       listed = { id: record.id, product, kind: record.kind, agent: agent.name, state: "running", started: new Date().toISOString(), usage: null };
@@ -218,7 +251,7 @@ function createWatcher(config) {
           product: { address: product, snapshot: head, host },
           instance: { snapshot: await instanceHost.readSnapshot(record.agentM.commit), host: instanceHost, checkout: instanceFolder },
           connect: async (address) => hostOf(address, await cloneOrFetch(address, foldersOf(agent.folder).product(address))),
-          participants: await participantsAt(agent, record.agentM.commit, new Map()), places: { sources: {}, mailbox: null }, gates: [],
+          participants: await participantsAt(agent, record.agentM.commit, new Map(), participant ? [participant] : []), places: { sources: {}, mailbox: null }, gates: [],
           person: record.startedBy, now: new Date(), agentM: record.agentM, jobId: record.id,
         };
         await workingClone(product, working);
@@ -264,7 +297,7 @@ function createWatcher(config) {
     const cancelled = quit || failed?.name === "Cancelled";
     const usage = result ? totalUsage(result.usage) : null;
     const written = result?.written;
-    const part = { part: "end", at: new Date(), draft: tasks.has(record.id) ? null : written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage, participant), log: null };
+    const part = { part: "end", at: new Date(), draft: tasks.has(record.id) ? null : written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage), log: null };
     const unusable = result ? failedBecause(result) : null;
     if (failed || unusable) {
       Object.assign(part, { state: cancelled ? "cancelled" : "failed", results: [],
@@ -339,8 +372,7 @@ function createWatcher(config) {
         return recordAt(snapshot, path);
       });
       if (!record) throw failure("invalid-request", `${path} is not a job record at ${commit}.`);
-      const participant = (await participantsAt(any, record.agentM.commit, new Map())).find((each) => each.name === record.participant);
-      const route = bridgeRoute(participant?.route);
+      const route = bridgeRoute(record.route);
       const agent = route && route.bridge === bridgeName ? config.agents.find((each) => each.name === route.agent) : null;
       if (!agent || !agent.folder) throw failure("invalid-request", `This Bridge does not offer the agent of ${record.participant} with a working folder.`);
       if (record.task === WITH_HAND_OVER) {

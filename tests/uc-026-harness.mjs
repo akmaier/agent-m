@@ -1,10 +1,13 @@
 // The harness of the system and release tests of UC-026 (Generate a multi-level test battery): the product alice/thesis-tool and the instance are git repositories on disk, as tests/uc-010-harness.mjs lays them
 // out — a bare origin each, the dashboard's clone of the product, and the checkouts of the job workflow's runs. The dashboard's side is the real route `generate` of MOD-test-pages, drawn into the fixture DOM over
 // the dashboard's clone, with the real MOD-runtimes `queueJob` on the route `ci hosted`; the job's side is the real entries of MOD-workflow-entries, run in-process as `node src/workflow-entries/main.mjs
-// <entry>` runs them, over the real MOD-job-runner, MOD-job-catalogue and MOD-result-records (the recipe test-selection, the check test-proposals). The participant is a fake model endpoint behind the global
-// `fetch`: it answers the proposal of the kind propose-tests, and, for the kind write-tests, does the work of a coding agent on the runner — it pushes the branch with the tests and their counter-proofs to the
-// product's origin — before it reports the branch. Nothing reaches the network. The in-memory host `memoryProduct` serves the cases that call a module's interface directly. It holds no test and no expected
-// result: what it builds are inputs, and every test states its own expected values.
+// <entry>` runs them, over the real MOD-job-runner, MOD-job-catalogue and MOD-result-records (the recipe test-selection, the check test-proposals). The participant is a coding agent on CI (MOD-browser-store,
+// `ci-agent:<name>`): MOD-workflow-entries starts the supported agent claude its route names (MOD-agent-processes' agentDriver), which here is a fake executable first on the PATH — as are codex and opencode,
+// so that no real agent of this computer is started — that hands its prompt to this process through a server on the loopback address and prints what `participant(script)` answers, in the form claude
+// prints it. The script answers the proposal of the kind propose-tests, and, for the kind write-tests, does the agent's work on the runner — it pushes the branch with the tests and their counter-proofs to the
+// product's origin — before it reports the branch. A job whose record names a model endpoint (a route `… endpoint <name> …`) is answered by the same script behind the global `fetch`. Nothing reaches the
+// network beyond this computer's loopback address. The in-memory host `memoryProduct` serves the cases that call a module's interface directly. It holds no test and no expected result: what it builds are
+// inputs, and every test states its own expected values.
 // Imported by tests/system-uc-026-generate-a-multi-level-test-battery.test.mjs and tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs.
 //
 // Module: MOD-test-pages
@@ -16,12 +19,15 @@
 // Authored by developer-sonnet-j (ITM-771), who built none of the behaviour UC-026 walks: the participants who built it are named in the header of tests/system-uc-026-generate-a-multi-level-test-battery.test.mjs.
 // The product alice/thesis-tool has the SPEC rules A LOAN HAS A DUE DATE (guarded by an existing unit test and an existing release test) and A LOAN CAN BE EXTENDED ONCE (guarded by none), the use cases UC-001
 // (accepted by an approval record, guarded by an existing system test) and UC-002 (not accepted, guarded by none), the modules MOD-loans (exercised by an existing unit and an existing component test) and
-// MOD-members (exercised by none), the test file tests/loan.test.mjs with TST-310 to TST-314, and the job workflow. The instance's register holds the CI agents test-bot, other-bot and small-bot (the capabilities
-// of the test-writing role; the last holds a context of 100 tokens) and the model endpoint drafter-ep (it declares only `draft text`).
+// MOD-members (exercised by none), the test file tests/loan.test.mjs with TST-310 to TST-314, and the job workflow. The instance's register holds the agents test-bot, other-bot and small-bot, whose models
+// the coding agents on CI fixture and fixture-small offer, claude on GitHub's hosted runners, its key the CI secret FIXTURE_KEY (the last's model with a context of 100 tokens), and the agent drafter-ep on an
+// endpoint on this machine (CONNECTIONS).
 
 import "./review-pages-harness.mjs";
-import { writeFileSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { writeFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { delimiter, join } from "node:path";
 import { createHash } from "node:crypto";
 import { ACCEPTED, ENDPOINT, INSTANCE_REPO, KEY, PRODUCT_TOKEN, PRODUCT_URL, RULE, UC1, UC1_TEXT, UC2, UC2_TEXT, click, entry, environment, find, git, installFast, text, until, withClass, world } from "./uc-010-harness.mjs";
 import { startRecord } from "../src/job-ledger/index.mjs";
@@ -33,7 +39,6 @@ const { openStore, writeSetting } = await import("../src/browser-store/index.mjs
 export const OTHER_RULE = "A LOAN CAN BE EXTENDED ONCE";
 export const LOAN_TESTS = "tests/loan.test.mjs";
 const ENDPOINT_ORIGIN = new URL(ENDPOINT.baseUrl).origin;
-const CAN = "read the repository, write to the repository, run code and tests";
 
 // ---------------------------------------------------------------- the product
 
@@ -60,16 +65,27 @@ export const productFiles = (files = {}) => ({ ...ACCEPTED, "SPEC.md": SPEC, [UC
 
 // ---------------------------------------------------------------- the instance
 
-const row = (name, type, model, context, place, route, capabilities = CAN) => `| ${name} | ${type} | ${model} | ${context} | — | ${capabilities} | ${place} | ${route} |`;
-/** The instance's register of participants; `rows` are further rows. */
-export const register = (...rows) => text("# Participants of this instance", "", "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
-  row("test-bot", "CI agent", "fixture-llm", 200000, "GitHub's hosted runners", "ci hosted secret FIXTURE_KEY"), row("other-bot", "CI agent", "fixture-llm", 200000, "GitHub's hosted runners", "ci hosted secret FIXTURE_KEY"),
-  row("small-bot", "CI agent", "fixture-llm", 100, "GitHub's hosted runners", "ci hosted secret FIXTURE_KEY"),
-  row("drafter-ep", "model endpoint", "fixture-llm", 200000, "this machine", "endpoint ep1", "draft text"), ...rows);
+const row = (name, model) => `| ${name} | agent | ${model} |`;
+/** The instance's register of participants (MOD-participant-list: Name, Type, Model); `rows` are further rows. test-bot and other-bot work with fixture-llm, small-bot with
+ * fixture-llm-small, drafter-ep with drafter-llm; the connections that offer those models are the browser's (CONNECTIONS). */
+export const register = (...rows) => text("# Participants of this instance", "", "| Name | Type | Model |", "|---|---|---|",
+  row("test-bot", "fixture-llm"), row("other-bot", "fixture-llm"), row("small-bot", "fixture-llm-small"), row("drafter-ep", "drafter-llm"), ...rows);
+/** The capabilities a coding agent on CI of this harness declares: those of the test-writing role, and the tools. */
+export const CODING = ["read the repository", "write to the repository", "run code and tests", "use tools"];
+/** The connections this browser keeps (MOD-browser-store), by their keys, one per model of the register: the coding agent on CI `fixture` — claude on GitHub's hosted runners, its key the
+ * CI secret FIXTURE_KEY — offers fixture-llm, so that its jobs are offered on CI; `fixture-small` the same agent offering fixture-llm-small with a context of 100 tokens; the model endpoint `ep1` drafter-llm on
+ * this machine. */
+export const CONNECTIONS = {
+  "ci-agent:fixture": { agent: "claude", runner: "hosted", secret: "FIXTURE_KEY", place: "GitHub's hosted runners", capabilities: CODING, models: [{ model: ENDPOINT.model, context: 200000 }] },
+  "ci-agent:fixture-small": { agent: "claude", runner: "hosted", secret: "FIXTURE_KEY", place: "GitHub's hosted runners", capabilities: CODING, models: [{ model: "fixture-llm-small", context: 100 }] },
+  "endpoint:ep1": { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: "drafter-llm", key: KEY, place: "this machine", context: 200000 },
+};
+/** The route of a job of test-bot or other-bot on the coding agent on CI `fixture` (MOD-prompt-bar's ciAgentsOffered), as a job's record names it. */
+export const CI_ROUTE = "ci hosted agent claude secret FIXTURE_KEY";
 
 /** The record of a job of kind `implement` that `participant` ran, working on `worksOn`, ended done: a record the page reads for the implementer of what a selection checks. */
 export const implemented = (participant, worksOn, id = "JOB-20261010-0900-ab01") => {
-  const { path, text: body } = startRecord({ id, kind: "implement", worksOn, participant, model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-10T09:00:00Z"),
+  const { path, text: body } = startRecord({ id, kind: "implement", worksOn, participant, model: "fixture-llm", route: CI_ROUTE, declares: { context: 200000, capabilities: CODING }, run: null, retries: null, startedBy: "alice", start: new Date("2026-10-10T09:00:00Z"),
     agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [], params: {} });
   return { [path]: body };
 };
@@ -84,12 +100,12 @@ export function battery({ product = {}, instance = {} } = {}, run) {
 
 // ---------------------------------------------------------------- the dashboard's page
 
-/** The context the route generate is drawn with: the instance's repository, the browser's store with the person's token and the endpoints of the CI agents, and the product chosen. `go` records a link. */
-export function pageContext(w, { go = () => {}, extra = [] } = {}) {
+/** The context the route generate is drawn with: the instance's repository, the browser's store with the person's token and the connections of CONNECTIONS (and `extra`, further settings by their keys), and the product chosen. `go` records a link. */
+export function pageContext(w, { go = () => {}, extra = {} } = {}) {
   globalThis.location = { hostname: "akmaier.github.io", pathname: "/agent-m/", origin: "https://akmaier.github.io", href: "https://akmaier.github.io/agent-m/" };
   const store = openStore(INSTANCE_REPO);
   writeSetting(store, "github-token:alice/thesis-tool", PRODUCT_TOKEN);
-  for (const name of ["test-bot", "other-bot", "small-bot", ...extra]) writeSetting(store, `endpoint:${name}`, { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: ENDPOINT.model });
+  for (const [key, setting] of Object.entries({ ...CONNECTIONS, ...extra })) writeSetting(store, key, setting);
   const real = w.dashboardHost();
   const host = { ...real, readSnapshot: async (ref) => withStoredGraph(await real.readSnapshot(ref)) };
   return { page: "main", instance: { repository: INSTANCE_REPO, host: w.instanceHost() }, store, go, product: { address: PRODUCT_URL, kind: "github", host } };
@@ -165,16 +181,50 @@ export async function ciRun(w) {
   } finally { checkout = null; }
 }
 
+// The coding agent on the runner. The fake executables claude, codex and opencode stand first on this process's PATH, which MOD-agent-processes' installedAgents and agentDriver search; claude answers
+// `--version` and `auth status` as an installed agent that is logged in, and for a task posts its prompt (its standard input) to the relay below and prints the answer as claude's one event `result`, with
+// the usage it reports; codex and opencode fail every command, so that no real agent of this computer is asked anything.
+let answering = null;
+const relay = createServer((request, response) => {
+  let body = "";
+  request.on("data", (chunk) => { body += chunk; });
+  request.on("end", async () => {
+    const sent = JSON.parse(body);
+    const content = answering ? await answering({ address: "agent claude", headers: {}, sent: sent.prompt }) : JSON.stringify({ draft: null, answers: [] });
+    response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ content }));
+  });
+});
+await new Promise((resolve) => relay.listen(0, "127.0.0.1", resolve));
+relay.unref();
+const AGENTS_BIN = mkdtempSync(join(tmpdir(), "agent-m-uc-026-agents-"));
+writeFileSync(join(AGENTS_BIN, "claude"), [`#!${process.execPath}`,
+  "const args = process.argv.slice(2);",
+  "if (args[0] === \"--version\") { console.log(\"2.0.0 (Claude Code)\"); process.exit(0); }",
+  "if (args[0] === \"auth\") process.exit(0);",
+  "let prompt = \"\";",
+  "process.stdin.on(\"data\", (chunk) => { prompt += chunk; });",
+  `process.stdin.on("end", async () => { const reply = await (await fetch("http://127.0.0.1:${relay.address().port}/", { method: "POST", body: JSON.stringify({ prompt }) })).json();`,
+  "  process.stdout.write(JSON.stringify({ type: \"result\", result: reply.content, usage: { input_tokens: 120, output_tokens: 30 } }) + \"\\n\"); });", ""].join("\n"), { mode: 0o755 });
+for (const name of ["codex", "opencode"]) writeFileSync(join(AGENTS_BIN, name), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+process.env.PATH = `${AGENTS_BIN}${delimiter}${process.env.PATH}`;
+
 /**
- * participant(script) — the fake model endpoint behind the global `fetch`. `script(request, n, { folder })` is called for the n-th request to the endpoint, with { address, headers, sent } (`sent` the text of
- * every message) and the folder of the checkout the run works in (during ciRun), and answers the draft of its answer (an object) or the raw text of the answer (a string). The requests to the server's API,
- * which the writer asks for the repository's history, are answered with an empty list; any other request is refused. -> the list of the requests to the endpoint; `elsewhere` and `outside` hold the others.
+ * participant(script) — the participant: the coding agent claude on the runner, and the fake model endpoint behind the global `fetch`. `script(request, n, { folder })` is called for the n-th prompt the
+ * agent is started with or the n-th request to the endpoint, with { address, headers, sent } (`sent` the agent's prompt, or the text of every message to the endpoint) and the folder of the checkout the
+ * run works in (during ciRun), and answers the draft of its answer (an object) or the raw text of the answer (a string). The requests to the server's API, which the writer asks for the repository's history,
+ * are answered with an empty list; any other request is refused. -> the list of the prompts and requests to the participant; `elsewhere` and `outside` hold the others.
  */
 export function participant(script) {
   const requests = [];
   requests.elsewhere = [];
   requests.outside = [];
   requests.pulls = [];
+  const answer = async (request) => {
+    requests.push(request);
+    const drafted = await script(request, requests.length, { folder: checkout?.productDir ?? null });
+    return typeof drafted === "string" ? drafted : JSON.stringify({ draft: drafted, answers: [] });
+  };
+  answering = answer;
   globalThis.fetch = async (address, init = {}) => {
     const origin = new URL(String(address)).origin;
     if (origin === "https://api.github.com") {
@@ -194,10 +244,7 @@ export function participant(script) {
       return Promise.reject(new TypeError(`the test's network refuses ${address}`));
     }
     const body = JSON.parse(init.body);
-    const request = { address: String(address), headers: init.headers ?? {}, sent: body.messages.map((message) => (typeof message.content === "string" ? message.content : JSON.stringify(message.content))).join("\n") };
-    requests.push(request);
-    const answer = await script(request, requests.length, { folder: checkout?.productDir ?? null });
-    const content = typeof answer === "string" ? answer : JSON.stringify({ draft: answer, answers: [] });
+    const content = await answer({ address: String(address), headers: init.headers ?? {}, sent: body.messages.map((message) => (typeof message.content === "string" ? message.content : JSON.stringify(message.content))).join("\n") });
     return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: 120, completion_tokens: 30 } }), { status: 200 });
   };
   return requests;
@@ -260,9 +307,8 @@ export const onDisk = (path) => readFileSync(new URL(`../${path}`, import.meta.u
 
 // ---------------------------------------------------------------- the job run in memory
 
-/** The participant the jobs of `proposeRun` are given: a CI agent with the three capabilities of the test-writing role. */
-export const WRITER = { name: "test-bot", type: "CI agent", model: "fixture-llm", context: 200000, price: null, capabilities: ["read the repository", "write to the repository", "run code and tests"],
-  place: "GitHub's hosted runners", route: "ci hosted secret FIXTURE_KEY" };
+/** The participant the jobs of `proposeRun` are given: an agent on the coding agent on CI fixture, its key a CI secret, as the job's record declares it, with the capabilities of the test-writing role. */
+export const WRITER = { name: "test-bot", type: "CI agent", model: "fixture-llm", context: 200000, capabilities: CODING, place: "GitHub's hosted runners", route: CI_ROUTE };
 
 // The instance's files from the disk: AGENTS.md, the register of the book and its chapters.
 const BOOK = "docs/sources/SRC-vibe-coding/2026-10-05/";

@@ -1,11 +1,10 @@
 // MOD-settings-pages' Bridge configuration route (UC-044).  Pairing is the only operation here that contacts a
 // Bridge; the jump-host record is browser configuration and its Save button deliberately makes no request.
 
-import { allocatePort, bridgeAt, pair, proxyConfiguration, settingsOf, testBridge, tunnelCommands } from "../bridge-client/index.mjs";
+import { allocatePort, bridgeAt, declareAgent, pair, proxyConfiguration, settingsOf, testBridge, tunnelCommands } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { endpointLacks } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { CAPABILITIES, PRESETS } from "./participants.mjs";
 import { heads } from "./routes.mjs";
 
 function el(name, className, ...children) {
@@ -102,59 +101,81 @@ function testFailureText(error) {
   return `The Bridge could not be tested: ${error?.message ?? error}.`;
 }
 
-// The CLI session a Bridge offers for one agent (UC-049 1b): the place where it processes data, its context in tokens, its model and its capabilities, kept as `session:<bridge>:<agent>` in the shape of an endpoint's declaration.
-// What is kept prefills the form; where nothing is kept the capabilities are the preset of a CLI agent (UC-017), and a session lacking a place, a context or a model is named as not offered in the prompt bar.
-function sessionForm(store, bridge, agent) {
-  const key = `session:${bridge}:${agent.name}`;
-  const kept = readSetting(store, key);
+// The six capabilities a connection declares (A CONNECTION DECLARES ITS CAPABILITIES), every one preset for a CLI session (UC-044 step 5).
+export const CAPABILITIES = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"];
+
+// Whether a Bridge this browser keeps is on this computer: reached directly at a loopback address.
+const onThisComputer = (entry) => typeof entry?.address === "string" && /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/.test(entry.address);
+
+// The CLI session a Bridge offers for one agent (UC-044 step 5, UC-049 1b): the place where it processes data — *this machine* preset for a Bridge on
+// this computer —, its capabilities — every one preset —, and each model it can run with that model's context in tokens, kept
+// by the Bridge, which *Save session* sends it to (MOD-bridge-client's declareAgent): { place, capabilities, models: [{ model, context }] }. What the
+// Bridge's list gives prefills the form, and what the session lacks for the prompt bar is named (endpointLacks); a declaration that lacks something is not sent.
+function sessionForm(entry, agent, reached) {
+  const bridge = entry.name;
+  const kept = agent.place || (agent.models ?? []).length ? agent : null;
   const place = el("input", "bridge-session-place");
-  const contextSize = el("input", "bridge-session-context");
-  const model = el("input", "bridge-session-model");
+  place.placeholder = "Provider and country, or this machine";
+  place.value = kept?.place ?? (onThisComputer(entry) ? "this machine" : "");
   const capabilities = CAPABILITIES.map((capability) => {
     const box = el("input", "bridge-session-capability");
     box.type = "checkbox";
     box.value = capability;
-    box.checked = (Array.isArray(kept?.capabilities) ? kept.capabilities : PRESETS["CLI agent"]).includes(capability);
+    box.checked = Array.isArray(kept?.capabilities) ? kept.capabilities.includes(capability) : true;
     return box;
   });
+  const modelsBox = el("div", "bridge-session-models");
+  const modelRow = (value = {}) => {
+    const model = el("input", "bridge-session-model");
+    const contextSize = el("input", "bridge-session-context");
+    model.placeholder = "Model name";
+    contextSize.placeholder = "Context in tokens";
+    contextSize.inputMode = "numeric";
+    model.value = value.model ?? "";
+    contextSize.value = value.context ? String(value.context) : "";
+    for (const input of [place, model, contextSize]) { input.autocomplete = "off"; input.spellcheck = false; }
+    const row = el("p", "bridge-session-model-row", el("label", null, "Model ", model), " ", el("label", null, "Context (tokens) ", contextSize), " ");
+    const remove = el("button", "bridge-session-remove-model btn small", "Remove");
+    remove.type = "button";
+    remove.addEventListener("click", () => row.remove());
+    row.append(remove);
+    return row;
+  };
+  modelsBox.append(...(Array.isArray(kept?.models) && kept.models.length ? kept.models : [{}]).map(modelRow));
+  const addModel = el("button", "bridge-session-add-model btn small", "+ Add model");
+  addModel.type = "button";
+  addModel.addEventListener("click", () => modelsBox.append(modelRow()));
   const lacks = el("div", "bridge-session-lacks-slot");
   const save = el("button", "bridge-session-save btn primary", "Save session");
   const result = el("p", "bridge-session-result");
-  place.placeholder = "Provider and country, or this machine";
-  contextSize.placeholder = "Context in tokens";
-  contextSize.inputMode = "numeric";
-  model.placeholder = "Model name";
-  place.value = kept?.place ?? "";
-  contextSize.value = kept?.context ? String(kept.context) : "";
-  model.value = kept?.model ?? "";
-  for (const input of [place, contextSize, model]) { input.autocomplete = "off"; input.spellcheck = false; }
   const nameWhatLacks = (setting) => {
-    const missing = endpointLacks(setting);
+    const missing = endpointLacks(setting ?? { models: [] });
     lacks.replaceChildren(...(missing.length
       ? [el("p", "notice bridge-session-lacks", `The prompt bar does not offer ${agent.name}: it lacks ${missing.join(" and ")}. Enter ${missing.length === 1 ? "it" : "them"} below and save.`)] : []));
   };
   nameWhatLacks(kept);
-  save.addEventListener("click", () => {
-    const value = {};
-    if (place.value.trim()) value.place = place.value.trim();
-    const tokens = Number(contextSize.value.trim());
-    if (Number.isInteger(tokens) && tokens > 0) value.context = tokens;
-    if (model.value.trim()) value.model = model.value.trim();
-    value.capabilities = capabilities.filter((box) => box.checked).map((box) => box.value);
-    try {
-      writeSetting(store, key, value);
-      result.textContent = `The session ${agent.name} of ${bridge} is kept in this browser.`;
-    } catch (error) {
-      result.textContent = `The session could not be kept: ${error?.message ?? error}.`;
+  save.addEventListener("click", async () => {
+    const value = { place: place.value.trim(), capabilities: capabilities.filter((box) => box.checked).map((box) => box.value), models: [] };
+    for (const row of modelsBox.querySelectorAll(".bridge-session-model-row")) {
+      const model = row.querySelector(".bridge-session-model").value.trim();
+      const tokens = Number(row.querySelector(".bridge-session-context").value.trim());
+      if (model) value.models.push({ model, ...(Number.isInteger(tokens) && tokens > 0 ? { context: tokens } : {}) });
     }
+    if (!value.place) delete value.place;
     nameWhatLacks(value);
+    if (endpointLacks(value).length > 0) { result.textContent = "The session is not sent to the Bridge: it lacks what is named above."; return; }
+    try {
+      await declareAgent(reached, agent.name, value);
+      result.textContent = `The session ${agent.name} is kept by the Bridge ${bridge}.`;
+    } catch (error) {
+      result.textContent = `The session could not be kept by the Bridge: ${error?.message ?? error}.`;
+    }
   });
   return el("section", "bridge-session panel",
     el("h4", null, "CLI session: ", el("span", "bridge-session-agent", agent.name)), lacks,
     el("p", null, el("label", null, "Processing place ", place)),
-    el("p", null, el("label", null, "Context (tokens) ", contextSize)),
-    el("p", null, el("label", null, "Model ", model)),
     el("p", null, "Capabilities ", ...capabilities.flatMap((box) => [el("label", null, box, ` ${box.value}`), " "])),
+    modelsBox, el("p", null, addModel),
     el("p", null, save), result);
 }
 
@@ -167,9 +188,10 @@ function keptBridge(store, entry) {
     try {
       const settings = settingsOf(entry, readSetting(store, "jump-host"));
       result.textContent = `Testing ${entry.name} at ${settings.address}…`;
-      const ready = (await testBridge(bridgeAt(settings))).agents.filter((agent) => agent.ready);
+      const reached = bridgeAt(settings);
+      const ready = (await testBridge(reached)).agents.filter((agent) => agent.ready);
       result.textContent = ready.length ? `✓ ${entry.name} offers ${ready.map((agent) => agent.name).join(", ")}.` : `✓ ${entry.name} answers and offers no CLI session that is ready.`;
-      sessions.replaceChildren(...ready.map((agent) => sessionForm(store, entry.name, agent)));
+      sessions.replaceChildren(...ready.map((agent) => sessionForm(entry, agent, reached)));
     } catch (error) {
       result.textContent = `✗ ${testFailureText(error)}`;
       sessions.replaceChildren();

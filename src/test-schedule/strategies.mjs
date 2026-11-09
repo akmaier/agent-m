@@ -5,19 +5,17 @@
 
 import { readDocument } from "../documents/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
-import { participantSchema } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { defaultSchedule, scheduleSchema } from "./index.mjs";
 import { filesOf, proposeSchedule } from "./propose.mjs";
 
 const SCHEDULE = "docs/tests/schedule.md";
 const RESOURCES = "docs/resources.md";
-const PARTICIPANTS = "docs/participants.md";
 
 /**
  * The writer ci-configuration(result, context) -> WriteOutcome — proposes the product's schedule, or the book's default where the
  * product has none, through proposeSchedule, with the job's provenance lines on its commit. The product is read at its snapshot; the
- * participants at the instance's; the instance is the repository the job runs from, on the same server as the product, at Agent M's
+ * instance is the repository the job runs from, on the same server as the product, at Agent M's
  * commit. Commits nothing, and returns an outcome without a commit, when every file already stands on the head byte for byte
  * (UC-010 4a). Throws what proposeSchedule throws.
  */
@@ -30,7 +28,6 @@ async function ciConfiguration(result, context) {
   const proposal = {
     server, instance: server === "github" ? instanceAddress.path : instanceAddress.web, instanceCommit: context.agentM.commit,
     resources: readDocument(resourceSchema(), RESOURCES, (await snapshot.read(RESOURCES)) ?? ""),
-    participants: readDocument(participantSchema(), PARTICIPANTS, (await context.instance.snapshot.read(PARTICIPANTS)) ?? ""),
     head: snapshot.commit,
     trailers: provenanceLines({ agentM: context.agentM, jobId: context.jobId, kind: context.kind.name,
       participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds.length }),

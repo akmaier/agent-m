@@ -1,6 +1,8 @@
-// MOD-bridge-jobs' startWatching starts an agent's sprint close (ITM-1033), as the accepted text of docs/architecture/MOD-bridge-jobs.md states it (blob e7a5d58c4abbe6ef7319abd6bcc01e1ee256746f, :127-130):
-// "a sprint whose close the product assigned to one of this Bridge's agents is closed by that agent, once, when MOD-work-plans' `sprintsToClose` names it — its time box ended, or, without one, every selected item
-// done or ended by the Product Owner. A product that cannot be read is skipped with its reason, and read again at the next interval."; UC-041, `A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`.
+// MOD-bridge-jobs' startWatching starts an agent's sprint close (ITM-1033), as the accepted text of docs/architecture/MOD-bridge-jobs.md states it (blob dfcd41ca63d176d38f6c7db3c5387ac559478d5d, :152-159):
+// "queued jobs of the route `any` whose `model` an agent's declaration offers are taken by that agent, `## Taken` naming its connection's route and what its declaration declares for the model, and run on it
+// alike; […] a sprint whose close the product assigned to an agent whose model one of this Bridge's agents offers is queued for that model, on the route `any`, once — no close of the sprint queued or running —,
+// when MOD-work-plans' `sprintsToClose` names it — its time box ended, or, without one, every selected item done or ended by the Product Owner —, and taken as above. A product that cannot be read is skipped
+// with its reason, and read again at the next interval."; UC-041, `A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`.
 // Run: node --test tests/bridge-jobs-sprint-close.test.mjs
 //
 // Module: MOD-bridge-jobs
@@ -10,10 +12,11 @@
 // Deterministic, no network, no real agent: the world is that of tests/bridge-jobs-watch.test.mjs (the instance and the products are bare repositories in a temporary folder that git reaches through its own
 // `url.<path>.insteadOf`; the agent is a fixture executable named opencode that is the whole PATH of a test), with the kind close-sprint, whose recipe, check and writer this test registers as fixtures (below).
 // The readings, named in the pull request:
-//   - A sprint whose close the product assigned to one of this Bridge's agents is one whose record's `closer` is a participant whose route reads `bridge <this Bridge> agent <an agent this Bridge offers with a folder>`.
+//   - A sprint whose close the product assigned to an agent whose model one of this Bridge's agents offers is one whose record's `closer` is an agent of the register whose model the declaration of an agent
+//     this Bridge offers with a folder names among its `models`.
 //   - It is closed "once": the Bridge queues the close of a sprint when the product holds no record of a `close-sprint` job for that sprint, in any state; a close that failed is not queued again by the Bridge.
-//   - The close is a job of the kind close-sprint, working on the items of the sprint's selection, its parameter `sprint` the sprint's name `<team>/<nn>`, queued by the Bridge for its own route and taken and run
-//     by the same watch round (a commit only on the head read), as any queued job of the Bridge is.
+//   - The close is a job of the kind close-sprint, working on the items of the sprint's selection, its parameter `sprint` the sprint's name `<team>/<nn>`, queued by the Bridge for the closer's model on the route
+//     `any` and taken and run by the agent that offers the model (a commit only on the head read), its `## Taken` naming that agent's connection `bridge <this Bridge> agent <agent>`.
 // Each test states its input and its expected result before it runs (given / input / expect); where a test expects a sprint to be left alone, a sprint of this Bridge is first shown to be closed. The counter-proofs are
 // recorded in the pull request.
 
@@ -62,19 +65,24 @@ function git(cwd, ...args) {
   return r.stdout.trim();
 }
 const script = (bin, name, body) => writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
-const ROW = (name, type, route) => `| ${name} | ${type} | example-model | 200000 | — | draft text, read the repository, write to the repository | this machine | ${route} |`;
+// The register names each agent with its model (MOD-participant-list); how an agent is reached is its job record's route, the connection it runs on. Only drafter's model, example-model, is one
+// this Bridge's agent declares (DECLARED); the others are models no agent of this Bridge offers.
+const MODELS = { "drafter": "example-model", "other-drafter": "other-pc-model", "codex-drafter": "codex-model", "claude-drafter": "claude-model", "ci-drafter": "ci-model" };
 const PARTICIPANTS = `# Participants of this instance
 
 **REGISTER**
 
 The participants of the test instance.
 
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-${[ROW("drafter", "CLI agent", "bridge lab-pc agent opencode"), ROW("other-drafter", "CLI agent", "bridge other-pc agent opencode"),
-  ROW("codex-drafter", "CLI agent", "bridge lab-pc agent codex"), ROW("claude-drafter", "CLI agent", "bridge lab-pc agent claude"),
-  ROW("ci-drafter", "CI agent", "ci hosted secret CI_KEY")].join("\n")}
+| Name | Type | Model |
+|---|---|---|
+${Object.entries(MODELS).map(([name, model]) => `| ${name} | agent | ${model} |`).join("\n")}
 `;
+// The declaration of the Bridge's agent opencode (MOD-desktop-shell keeps it; startWatching receives it): its place, capabilities and the one model it offers with its context.
+const DECLARED = { place: "this machine", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], models: [{ model: "example-model", context: 200000 }] };
+// The connection each agent's jobs run on: the route its records name (MOD-job-ledger).
+const ROUTES = { "drafter": "bridge lab-pc agent opencode", "other-drafter": "bridge other-pc agent opencode", "codex-drafter": "bridge lab-pc agent codex",
+  "claude-drafter": "bridge lab-pc agent claude", "ci-drafter": "ci hosted endpoint ci secret CI_KEY" };
 
 // A bare repository whose main holds the files given, and a seed clone of it that writes. -> { origin, seed }
 function repository(root, name, files) {
@@ -97,7 +105,8 @@ function push(seed, files, message) {
   return git(seed, "rev-parse", "HEAD");
 }
 
-const JOB = (id, participant, route = "bridge lab-pc") => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route, run: null, retries: null,
+const JOB = (id, participant, route = ROUTES[participant]) => ({ id, kind: "decide-gate", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: MODELS[participant], route, run: null, retries: null,
+  declares: { context: 200000, capabilities: ["draft text", "read the repository", "write to the repository"] },
   startedBy: "alice", start: new Date("2026-10-11T09:00:00Z"), agentM: { version: "2026.10.0", commit: null }, inputs: [], limit: 3,
   destinations: [{ participant, place: "this machine", parts: ["the gate"] }], params: {} });
 const ID = (n) => `JOB-20261011-090${n}-aaa${n}`;
@@ -173,23 +182,25 @@ const closeRecords = (w) => closesIn(w).map((path) => ({ path, text: w.originTex
 
 // TST-1033001 · level: unit · module: MOD-bridge-jobs
 // guards: A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF; CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
-// given: a served product whose sprint team1/01 ended on 2026-10-12 and whose closer is `drafter`, a participant whose route names this Bridge and opencode, which it offers with a working folder
+// given: a served product whose sprint team1/01 ended on 2026-10-12 and whose closer is `drafter`, an agent of example-model, the model the declaration of opencode, which this Bridge offers with a working folder, names
 // input: startWatching with an interval of 100 ms; wait for the job to end; three more intervals
-// expect: one record of a job of the kind close-sprint, for `drafter`, on the route `bridge lab-pc agent opencode`, working on ITM-0001 with the parameter sprint team1/01, queued by the Bridge, taken by `lab-pc` and ended `done`; the writer's file shows the sprint it closed and the agent's working folder; the agent was started once, and no second close is queued
+// expect: one record of a job of the kind close-sprint, for `drafter` and its model example-model, on the route `any`, working on ITM-0001 with the parameter sprint team1/01, queued by the Bridge, taken by `lab-pc` on the connection `bridge lab-pc agent opencode` with what its declaration declares for the model, and ended `done`; the writer's file shows the sprint it closed and the agent's working folder; the agent was started once, and no second close is queued
 // Planted fault: not looking at the records of the sprint's closes queues a close at every interval; not running sprintsToClose runs none.
-test("a sprint whose time box ended and whose closer is an agent of this Bridge is closed by that agent, once", async () => {
+test("a sprint whose time box ended and whose closer is an agent of a model this Bridge's agent offers is closed by that agent, once", async () => {
   await world(async (w) => {
     const folder = w.folder("agent-work");
-    watch(w, [{ name: "opencode", folder }]);
+    watch(w, [{ name: "opencode", folder, ...DECLARED }]);
     const [record] = await w.until(() => { const found = closeRecords(w); return found.length && /^## End$/m.test(found[0].text) ? found : null; }, "the close to end");
     await quiet(); // several intervals after the close ended: the sprint is due still (the fixture writer closes nothing), so a second close would be queued by now
 
     const records = closeRecords(w);
     assert.equal(records.length, 1, "one close, however many intervals pass");
-    for (const line of ["kind: close-sprint", "participant: drafter", "route: bridge lab-pc agent opencode", "started_by: lab-pc", "  - ITM-0001"]) assert.ok(record.text.includes(line), `the record holds "${line}"`);
+    for (const line of ["kind: close-sprint", "participant: drafter", "model: example-model", "route: any", "started_by: lab-pc", "  - ITM-0001"]) assert.ok(record.text.includes(line), `the record holds "${line}"`);
     assert.match(record.text, /"sprint":\s*"team1\/01"/);
     assert.equal((record.text.match(/^## Taken$/gm) ?? []).length, 1);
     assert.match(record.text, /^by: lab-pc$/m);
+    assert.match(record.text, /^connection: bridge lab-pc agent opencode$/m);
+    assert.match(record.text, /^declares: \{"context":200000,"capabilities":\["draft text","read the repository","write to the repository","run code and tests","use tools"\]\}$/m);
     assert.match(record.text, /^state: done$/m);
     const id = /(JOB-[^/]+)\.md$/.exec(record.path)[1];
     assert.equal(w.originText(PRODUCT_A, `docs/closes/${id}.md`), `sprint: team1/01\nworking folder: ${join(folder, "jobs", id)}\n`);
@@ -199,12 +210,13 @@ test("a sprint whose time box ended and whose closer is an agent of this Bridge 
 
 // TST-1033002 · level: unit · module: MOD-bridge-jobs
 // guards: A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF; CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
-// given: sprints that ended on 2026-10-12 and are closed by other-drafter (a Bridge named other-pc), ci-drafter (a CI route), codex-drafter (this Bridge, an agent it does not offer) and by a closer that is no participant; a sprint closed by drafter whose time box ends in 2099; a sprint closed by drafter that ended and holds its `## Review`; and, to show the watcher reads, team1/07, ended, closed by drafter
+// given: sprints that ended on 2026-10-12 and are closed by other-drafter, ci-drafter and codex-drafter, agents of models no declaration of this Bridge's agents names, and by a closer that is no participant; a sprint closed by drafter whose time box ends in 2099; a sprint closed by drafter that ended and holds its `## Review`; and, to show the watcher reads, team1/07, ended, closed by drafter
 // input: startWatching; wait for team1/07's close to end, then three more intervals
-// expect: only team1/07 is closed: one close record, for team1/07; the sprints of other closers, the one not ended and the one closed already have none; the agent was started once Planted fault: not testing the closer's route, or not testing the sprint's end, queues a close for one of the others.
+// expect: only team1/07 is closed: one close record, for team1/07; the sprints of other closers, the one not ended and the one closed already have none; the agent was started once
+// Planted fault: not testing that the Bridge's declarations offer the closer's model, or not testing the sprint's end, queues a close for one of the others.
 test("a sprint closed by another participant, not yet ended or closed already is left alone", async () => {
   await world(async (w) => {
-    watch(w, [{ name: "opencode", folder: w.folder("agent-work") }]);
+    watch(w, [{ name: "opencode", folder: w.folder("agent-work"), ...DECLARED }]);
     await w.until(() => { const found = closeRecords(w); return found.length && /^## End$/m.test(found[0].text) ? found : null; }, "the close of team1/07 to end");
     await quiet(); // several intervals after the close ended: the sprint is due still (the fixture writer closes nothing), so a second close would be queued by now
 
@@ -226,7 +238,7 @@ test("a sprint closed by another participant, not yet ended or closed already is
 test("a close already queued for the sprint is run, and the Bridge queues no second one", async () => {
   await world(async (w) => {
     const queued = w.queue(PRODUCT_A, { ...JOB(ID(1), "drafter"), kind: "close-sprint", worksOn: ["ITM-0001"], params: { sprint: "team1/01" }, route: "bridge lab-pc agent opencode" });
-    watch(w, [{ name: "opencode", folder: w.folder("agent-work") }]);
+    watch(w, [{ name: "opencode", folder: w.folder("agent-work"), ...DECLARED }]);
     await w.ended(queued);
     await quiet(); // several intervals after the close ended: the sprint is due still (the fixture writer closes nothing), so a second close would be queued by now
 

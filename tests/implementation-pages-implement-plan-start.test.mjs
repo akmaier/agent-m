@@ -5,13 +5,14 @@
 // Run: node --test tests/implementation-pages-implement-plan-start.test.mjs
 //
 // Module: MOD-implementation-pages
-// Guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A GATE NAMES WHO DECIDES IT
+// Guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; A GATE NAMES WHO DECIDES IT
 // Guards: WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
 // Guards: A REFACTORING JOB BEGINS WITHOUT A FAILING TEST
 // Level: unit
 //
 // The product is the V-model fixture of ITM-732 (the steps ITM-012 and ITM-010 of the phase Testing ready and ticked); the role assignment gives dev-a and dev-c the roles Developer and Tester; dev-b is registered and holds
-// none; dev-c lacks run code and tests. The kind `implement` and `refactor` are stood in for: their recipes give one part each. The host keeps every commit. `fetch` is a spy that refuses. Readings the texts leave
+// none; dev-c lacks run code and tests. Each is an agent of the register whose connection is a coding agent of the Bridge lab-pc, which this browser keeps (dev-a's and dev-b's at "this machine", dev-c's at "a server
+// in Singapore"). The kind `implement` and `refactor` are stood in for: their recipes give one part each. The host keeps every commit. `fetch` answers the fixture Bridge and refuses every other request. Readings the texts leave
 // open, which the tests state (the pull request names them):
 //   - For each ticked step the page shows <div data-job-of="<step>"> with <select data-participant-of> (the holders of the implementing role with both capabilities), <p data-places-of> (where each processes data),
 //     <input data-limit-of> (the attempt limit), <select data-merges-of> (`agent` or `person`), <input type="checkbox" data-refactor-of> (3a), <p data-branch-of> (the target branch), <p data-gates-of> (the gates from the step's phase on,
@@ -27,6 +28,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
+import { agent, BRIDGE, bridgeAnswer, bridgeSetting, storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { openStore } = await import("../src/browser-store/index.mjs");
@@ -35,8 +37,20 @@ Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
   key: (at) => [...kept.keys()][at] ?? null, get length() { return kept.size; } } });
 const route = view.routes.find((candidate) => candidate.name === "implement");
 
+// The network: the fixture Bridge lab-pc answers testBridge and the hand-over of a job (tests/browser-connections-fixture.mjs) — or, while `handOver.fails`, does not answer the hand-over —; every other request is refused
+// and kept in `fetched`.
 const fetched = [];
-globalThis.fetch = async (address) => { fetched.push(String(address)); throw new Error(`the test's network refuses ${address}`); };
+const handOver = { fails: false };
+const bridgeAnswers = bridgeAnswer([agent("claude", [["model-a"]]), agent("codex", [["model-b"]]), agent("opencode", [["model-c"]], { place: "a server in Singapore", capabilities: ["read the repository", "write to the repository"] })]);
+globalThis.fetch = async (address, init = {}) => {
+  const url = new URL(String(address));
+  if (handOver.fails && url.origin === BRIDGE && url.pathname === "/v1/jobs") throw new TypeError("fetch failed");
+  const answer = await bridgeAnswers(url, init);
+  if (answer) return answer;
+  fetched.push(String(address));
+  throw new Error(`the test's network refuses ${address}`);
+};
+test.afterEach(() => { handOver.fails = false; });
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 
 const matches = (element, selector) => {
@@ -92,9 +106,10 @@ function productFiles({ model = "v-model", plan = true, declared = true, later =
 
 const ROOT = new URL("../", import.meta.url);
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |
-| dev-b | model endpoint | model-b | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |
-| dev-c | model endpoint | model-c | 200000 | — | read the repository, write to the repository | a server in Singapore | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n| dev-c | agent | model-c |\n`;
+// This browser's connections: the Bridge lab-pc, whose coding agents offer model-a (claude) and model-b (codex) at "this machine" with every capability an implementing job needs, and model-c (opencode) at
+// "a server in Singapore", which reads and writes the repository but does not run code and tests.
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
 
 // The strategies the kinds name: stand-ins, as tests/implementation-pages-implement.test.mjs has them.
 const part = (name) => ({ name, text: name, size: 0, sources: [], required: true });
@@ -123,7 +138,7 @@ function hostOf(files, commits, failure = null) {
     },
   };
 }
-async function render(files, { register = REGISTER, failure = null, store = {} } = {}) {
+async function render(files, { register = REGISTER, failure = null, store = storeWith(SETTINGS) } = {}) {
   const commits = [];
   const instance = hostOf({ "SPEC.md": "# Instance\n", "docs/participants.md": register }, [], null);
   const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: hostOf(files, commits, failure), tokenStored: true }, store, go() {} };
@@ -145,7 +160,7 @@ const settle = async () => { for (let turn = 0; turn < 60; turn += 1) await new 
 const startRecords = (commits) => commits.flatMap((commit) => commit.files).filter((file) => /^docs\/jobs\/JOB-/.test(file.path));
 
 // TST-733001 · level: unit · module: MOD-implementation-pages
-// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA
 // given: the V-model fixture, ITM-012 and ITM-010 ticked; dev-a holds Developer and Tester with every capability, dev-c holds both but lacks run code and tests, dev-b has every capability and holds no role
 // input: the route implement's render
 // expect: for ITM-012 only dev-a is offered, with where it processes data (this machine); neither dev-c nor dev-b is offered; nothing is committed
@@ -223,16 +238,19 @@ test("a step no participant can implement says so and links to the participants"
 
 // TST-733005 · level: unit · module: MOD-implementation-pages
 // guards: UC-024; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
-// given: dev-a is reached through a Bridge named lab-pc that is not connected
+// given: dev-a is reached through the Bridge lab-pc, which answered when the page was drawn and does not answer the hand-over of a job
 // input: a click of a person on Start jobs
-// expect: the result names the Bridge lab-pc as the reason, and no start record is committed
+// expect: the result names the reason, that the Bridge gave no answer, and says of each step that its start record stays queued (UC-034 4a), not that it is queued on the route as a started job is
 test("a Bridge that does not answer is named and nothing is started", async () => {
-  const register = REGISTER.replace("ci hosted secret DEV_KEY |\n| dev-b", "bridge lab-pc agent claude |\n| dev-b");
-  const { target, commits } = await render(productFiles(), { register, store: openStore("acme/agent-m") });
+  const { target, commits } = await render(productFiles());
+  handOver.fails = true;
   found(target, "[data-start-jobs]")[0].dispatchEvent(trusted());
   await settle();
-  assert.match(text(found(target, "[data-start-result]")[0]), /lab-pc/);
-  assert.equal(startRecords(commits).length, 0);
+  const said = text(found(target, "[data-start-result]")[0]);
+  assert.match(said, /The Bridge gave no answer/);
+  assert.doesNotMatch(said, /is queued on the route/);
+  assert.match(said, /ITM-012[^]*stays queued[^]*ITM-010[^]*stays queued/);
+  assert.equal(startRecords(commits).length, 2, "each start record is committed before the hand-over, and stays queued");
 });
 
 // TST-733006 · level: unit · module: MOD-implementation-pages

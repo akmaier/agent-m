@@ -49,7 +49,12 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
     ["POST", "/v1/jobs/{id}/cancel"], ["POST", "/v1/ask"], ["GET", "/v1/ask/{ask}"],
   ]);
   const route = (method, path) => selected.find((candidate) => candidate.method === method && candidate.path === path);
-  assert.deepEqual(route("GET", "/v1/agents").answer, { agents: [{ name: "string", version: "string", ready: "boolean", loggedIn: "boolean" }], missing: [{ name: "string" }] });
+  assert.deepEqual(route("GET", "/v1/agents").answer, { agents: [{ name: "string", version: "string", ready: "boolean", loggedIn: "boolean", place: ["string", "null"], capabilities: ["string"],
+    models: [{ model: "string", context: ["number", "null"] }] }], missing: [{ name: "string" }] });
+  // An agent's declaration, which the Bridge keeps (MOD-bridge-http, PUT /v1/agents/{agent}).
+  const declare = bridgeApi.routes.find((candidate) => candidate.method === "PUT" && candidate.path === "/v1/agents/{agent}");
+  assert.deepEqual(declare.request, { place: "string", capabilities: ["string"], models: [{ model: "string", context: "number" }] });
+  assert.deepEqual(declare.answer, { declared: "boolean" });
   assert.deepEqual(route("POST", "/v1/jobs"), { method: "POST", path: "/v1/jobs", request: { product: "string", record: "string", commit: "string", task: "string?" }, answer: { accepted: "string" } });
   assert.deepEqual(route("GET", "/v1/jobs").answer, { jobs: [{ id: "string", product: "string", kind: "string", agent: "string", state: "string", started: "string", usage: "object" }] });
   assert.deepEqual(route("GET", "/v1/jobs/{id}/log"), { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", ended: "boolean" } });
