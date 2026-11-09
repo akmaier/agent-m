@@ -59,7 +59,7 @@ function between(log, what) {
 }
 
 /** EVERY — the time between two polls of a followed job, in milliseconds. */
-export const EVERY = 15000;
+export const EVERY = 60000;
 
 const said = (failure) => `${failure?.name ?? "Error"}: ${failure?.message ?? failure}`;
 
