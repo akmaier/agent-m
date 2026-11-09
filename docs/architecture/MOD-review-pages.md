@@ -180,7 +180,7 @@ ReviewKind = {
   `approvalStrategies`, `editStrategies`, `sourceStrategies`, `reuseStrategies`. Its routes, for each kind `<k>`, the key
   of its descriptor, are also the addresses by which other pages and the browser's notifications lead to a kind's list
   and to a file (MOD-main-page, MOD-notifications):
-  - `<k>` — first, only while a file of the kind is open or changed since acceptance, those files, each with its status
+  - `<k>` — first *Accept ticked*, above the tables; then, only while a file of the kind is open or changed since acceptance, those files, each with its status
     and a tick, and no such part where none is; then every file of the kind with its status — open, accepted, changed
     since acceptance —; and a link to `<k>/history`. A
     SPEC entry's tick names the blob of its proposal and of its places file, from the tree, and the blob of the section
