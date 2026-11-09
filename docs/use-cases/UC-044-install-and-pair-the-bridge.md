@@ -83,10 +83,12 @@ double-clicking it, and copying one token. Nobody types a command.
    dashboard's settings page, under the shared-origin notice, and presses **Pair** — one click. The dashboard
    stores the Bridge under the name it reports — by default its computer's name —, with its address and token
    (UC-042), and tests it; the bridge's window shows *paired with `<owner>.github.io`*.
-5. Each agent the Bridge offers becomes a connection of this browser once the person declares, on the settings page,
-   where it processes data — *this computer* preset —, its capabilities — every one preset — and each model it can run,
-   with that model's context in tokens. Its models are then among those an agent of the instance's list may be given (UC-017), and it is
-   offered in the prompt bar (UC-049).
+5. Each agent the Bridge offers becomes a connection once the person declares, in the Bridge's window or on the settings
+   page, where it processes data — *this computer* preset —, its capabilities — every one preset — and each model it can
+   run, with that model's context in tokens. The Bridge keeps the declaration, and its list of agents gives it to the
+   dashboard. Its models are then among those an agent of the instance's list may be given (UC-017), it is offered in the
+   prompt bar (UC-049), and the Bridge runs the jobs of its agents with it, a sprint's close by an agent among them
+   (UC-041).
 
 ```mermaid
 sequenceDiagram
@@ -119,7 +121,7 @@ sequenceDiagram
 - **4d. A Bridge on another computer.** The person installs the Bridge there too (steps 1–3) and pairs it from this
   browser through an SSH forward to that computer's loopback (UC-011, 1a) or through the jump host (6a). This browser
   keeps it as one more Bridge under its name; the agents it offers become connections once their place, capabilities and
-  models with their context are declared in this browser, as in step 5.
+  models with their context are declared, as in step 5.
 - **4c. The browser cannot reach the bridge on this computer** — Safari blocks a call from an HTTPS page to
   `http://127.0.0.1`; Chrome, Edge and Firefox allow it after one local-network prompt, which the dashboard
   explains before it appears. The dashboard names the reason and offers the route over HTTPS through the
@@ -153,8 +155,8 @@ sequenceDiagram
 
 - The bridge runs as an app on this computer, paired with the person's dashboard; nothing was typed in a
   terminal.
-- The agents it offers are connections of this browser once declared — their models available to the agents of the
-  instance's list, and offered in the prompt bar —, each working in its own folder with its own login; no key passed
+- The agents it offers are connections once declared, the Bridge keeping each declaration — their models available to
+  the agents of the instance's list, and offered in the prompt bar —, each working in its own folder with its own login; no key passed
   through Agent M.
 - If configured, its tunnel to the jump host is open and ends on the jump host's loopback; its private SSH key
   never left this computer.

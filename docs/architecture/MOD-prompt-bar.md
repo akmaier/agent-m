@@ -85,6 +85,7 @@ provides:
   - endpointLacks
   - endpointsOffered
   - sessionsOffered
+  - ciAgentsOffered
   - spawnEndpointJob
   - followJob
   - namedProduct
@@ -315,10 +316,10 @@ and sends nothing while the job does not
   older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's
   line `not run — <SECRET> is missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued
   and untaken, and one `ciRunLog` call when a failed run turns up.
-- `endpointLacks(setting: object) -> string[]` — what an endpoint's configuration, or a CLI session's declaration, lacks
-  for the bar to offer it (UC-049 1b): the place where it processes data, a model, a model's context in tokens; empty when
-  it lacks nothing. `endpointsOffered` and `sessionsOffered` offer only one that lacks nothing; the settings page names the
-  rest where the connection is configured.
+- `endpointLacks(setting: object) -> string[]` — what an endpoint's configuration, or the declaration of a coding agent
+  of a Bridge or on CI, lacks for it to be offered (UC-049 1b): the place where it processes data, a model, a model's
+  context in tokens; empty when it lacks nothing. `endpointsOffered`, `sessionsOffered` and `ciAgentsOffered` offer only
+  one that lacks nothing; the settings page names the rest where the connection is configured.
 - `endpointsOffered(store: Store) -> Connection[]` — this browser's model endpoints (`endpoint:<name>`, in the store's
   order) that lack nothing, one `Connection` each: the type *model endpoint*, its model and context, its place, the
   capabilities *draft text* and *read the repository*, and *use tools* where its last test found that the model calls
@@ -329,11 +330,16 @@ and sends nothing while the job does not
   (MOD-participant-list's `participantsOf`).
 - `sessionsOffered(store: Store) -> Promise<Connection[]>` — the CLI sessions this browser's Bridges offer: for each Bridge
   the store keeps under `bridge:<name>`, in the store's order, each agent MOD-bridge-client's `testBridge` lists ready
-  whose `session:<bridge>:<agent>` lacks nothing, one `Connection` for each model its `models` names, in their order: named
-  `<bridge>:<agent>`, the type *CLI agent*, that model with its context, the place and capabilities the
-  declaration gives, and the route `bridge <bridge> agent <agent>`. A Bridge that cannot be tested offers none. The same
-  callers as `endpointsOffered`. Crosses the network: `testBridge`'s two requests per Bridge kept; fails with nothing,
-  since a Bridge that does not answer offers none.
+  whose declaration, as the Bridge keeps it and its list gives it, lacks nothing, one `Connection` for each model its
+  `models` names, in their order: named `<bridge>:<agent>`, the type *CLI agent*, that model with its context, the place
+  and capabilities the declaration gives, and the route `bridge <bridge> agent <agent>`. A Bridge that cannot be tested
+  offers none. The same callers as `endpointsOffered`. Crosses the network: `testBridge`'s two requests per Bridge kept;
+  fails with nothing, since a Bridge that does not answer offers none.
+- `ciAgentsOffered(store: Store) -> Connection[]` — this browser's coding agents on CI (`ci-agent:<name>`, in the store's
+  order) that lack nothing, one `Connection` for each model their `models` name, in their order: named `<name>`, the type
+  *CI agent*, that model with its context, the place and capabilities the setting declares, and the route
+  `ci hosted agent <agent> secret <NAME>`, or `ci runner:<label> agent <agent> secret <NAME>` for a self-hosted runner.
+  The prompt bar does not offer them. The callers of `endpointsOffered` but the bar.
 - `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, entry?,
   instanceSnapshot?, test? }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
   endpoint's own, on GitHub Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the

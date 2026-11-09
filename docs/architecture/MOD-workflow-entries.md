@@ -204,12 +204,13 @@ so; a model's command there reaches what that user can.
   payload; the folder of the checkout and the repository's address; the instance repository and the commit of Agent M
   that runs (named in every commit a job makes, `AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT`); and, by the names the
   dashboard showed when the secrets were set up and never by value in a file: in a product, the person's Agent M token
-  (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`) and each CI participant's key
+  (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`) and each connection's key
   (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`) — on the agent's machine no token and the one key whose
   place among the key names the machine is given, on the writing machine the token and every key —, the machine, `agent`
   or `write`, the folder of the result between them, on the agent's machine the model's user (`AGENT_M_MODEL_USER`) and,
   on that user's side, the key holder's address (`AGENT_M_KEY_HOLDER`), and the file of a step's outputs — GitHub's `GITHUB_OUTPUT`, on
-  GitLab the dotenv file `AGENT_M_OUTPUT` names; a GitLab pipeline started from the page or the API (`web`, `api`) is read
+  GitLab the dotenv file `AGENT_M_OUTPUT` names; the coding agents on CI the job workflow declares (`AGENT_M_CI_AGENTS`,
+  MOD-runtimes' `jobWorkflowFiles`), each with its agent, runner, key's secret, place, capabilities and models; a GitLab pipeline started from the page or the API (`web`, `api`) is read
   as a start as GitHub's `workflow_dispatch` is; in the instance, the workflow's own token for the instance
   repository and the signing secrets of a release; for `onMainChanged` in a product, the workflow's own token on GitHub
   and the person's token on GitLab, and no key; for `runTests`, the variables of MOD-test-schedule's *The variables of
@@ -219,7 +220,9 @@ so; a model's command there reaches what that user can.
   (UC-010).
 - `onRecordsChanged(env: CiEnvironment) -> Promise<EntryStatus>` — on a push to `docs/jobs/` or `docs/gates/` of a
   product: takes each queued job whose route is this CI service, except one whose task travels with its hand-over, which
-  `onDispatch` takes, and runs it from its record alone — its kind, the
+  `onDispatch` takes, and each of the route `any` whose `model` a coding agent on CI of the job workflow offers, on that
+  agent's runner, `## Taken` naming its connection and what it declares for the model (MOD-job-ledger's `takeJob`), and
+  runs it from its record alone — its kind, the
   parameters of its `## Parameters` and its pinned inputs —, with the driver of its participant, a coding-agent process or
   a model endpoint, the participant's key from its secret — a coding agent whose key a key holder can hold, as the model's
   user, through the holder (*The model's user*) —, appending its records. No person attends a job in CI: its
@@ -270,11 +273,14 @@ so; a model's command there reaches what that user can.
   waiting job.
 - `onSchedule(env: CiEnvironment) -> Promise<EntryStatus>` — on the product's schedule: the events in time. Each sprint
   that MOD-work-plans' `sprintsToClose` names — its time box ended, or, without one, every selected item done or the
-  Product Owner's `## Ended` — whose closer is an agent gets its close, a job of kind `close-sprint`, queued for that
-  agent's route, unless a close of it is already queued or running (`A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`).
+  Product Owner's `## Ended` — whose closer is an agent gets its close, a job of kind `close-sprint` queued for the
+  agent's model on the route `any` (MOD-job-ledger), unless a close of it is already queued or running (`A SPRINT CLOSED
+  BY AN AGENT STARTS BY ITSELF`); a coding agent on CI that offers that model takes it, as `onRecordsChanged` takes the
+  jobs of the route `any`, or a Bridge does (MOD-bridge-jobs).
 - `onDispatch(env: CiEnvironment) -> Promise<EntryStatus>` — on a run started from the CI service's own page with the
-  inputs the dashboard named (UC-024): writes the job's start record, those inputs its parameters, and runs it as
-  `onRecordsChanged` runs a job. On a run a hand-over started (UC-049 4a), whose input `job` names a queued record whose
+  inputs the dashboard named (UC-024): writes the job's start record, those inputs its parameters, its connection the one
+  the inputs `endpoint` — its address, model and context — and `secret` name, its route `ci hosted endpoint <participant>
+  secret <NAME>` and its `declares` the endpoint's context and capabilities, and runs it as `onRecordsChanged` runs a job. On a run a hand-over started (UC-049 4a), whose input `job` names a queued record whose
   task travels with the hand-over: takes that job and runs it with the input `task` as its instruction — a job whose kind
   takes no instruction ends `failed` before its participant is called, its reason the `what` of MOD-job-runner's
   `taskRefusal`, since the task would reach no prompt —; for a model
@@ -299,7 +305,8 @@ so; a model's command there reaches what that user can.
   (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`) —; a record is run with the
   `Participant` of MOD-participant-list's shape built from it alone — its name and model from `participant` and `model`,
   its place from `## Destinations`, its context and capabilities from `declares`, its route from `route`, the
-  type *model endpoint*, and, for a kind that works in the checkout, also *use tools* and the capabilities its kind's
+  type its route gives — *model endpoint* for `… endpoint <name>`, *CI agent* for `… agent <agent>`, the coding agent then
+  started with the record's `model` and its key —, and, for a kind that works in the checkout, also *use tools* and the capabilities its kind's
   tools need —, nothing of it read from the instance's list; it writes the task to no file, and a branch whose commit
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
   merged — on the agent's machine, where the branch is not on the server yet, `writeResult` refuses it; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
@@ -314,8 +321,9 @@ so; a model's command there reaches what that user can.
   holds no secret: which agent's job of the route runs, given on GitHub as the step's output `agent`, on GitLab as the line
   `AGENT_M_AGENT=<n>` of the job's dotenv report — the place, from
   1, of the key the run's job reads among the key names, 0 for none. The key is the one the input `secret` names for a
-  hand-over to a model endpoint, for any other start the one the route of the job's record names, and on a push the
-  one of the oldest queued job of the route; a name the file does not read is none, and the agent's machine then ends
+  hand-over to a model endpoint, for any other start the one the route of the job's record names — for a job of the
+  route `any`, the one of the coding agent on CI that offers its model —, and on a push the one of the oldest queued job of
+  the route; a name the file does not read is none, and the agent's machine then ends
   `not run`, naming it. Writes nothing.
 - `leaveResult(env: CiEnvironment) -> Promise<EntryStatus>` — on the agent's machine, after its entry, whether that
   ended well or not: the result packed for the writing machine — the default branch and the base, each branch that is new

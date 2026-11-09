@@ -43,6 +43,7 @@ uses:
   - MOD-bridge-client.pair
   - MOD-bridge-client.testBridge
   - MOD-bridge-client.probe
+  - MOD-bridge-client.declareAgent
   - MOD-bridge-client.allocatePort
   - MOD-bridge-client.tunnelCommands
   - MOD-bridge-client.proxyConfiguration
@@ -105,6 +106,7 @@ uses:
   - MOD-prompt-bar.endpointLacks
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.sessionsOffered
+  - MOD-prompt-bar.ciAgentsOffered
   - MOD-prompt-bar.spawnEndpointJob
   - MOD-prompt-bar.followJob
 provides:
@@ -150,7 +152,7 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   - `settings` — three sections — this browser, the instance, each product —, one line per setting with its state:
     works, with the date of the last successful test; expires on, from fourteen days before a token's recorded expiry;
     refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*; each Bridge is a
-    line of its own, under its name, and its *Clear* names first the endpoints, CLI sessions, mailbox and resources that
+    line of its own, under its name, and its *Clear* names first the endpoints, mailbox and resources that
     name it (UC-042, 2a). The line
     *Notifications* of this browser's section (UC-047) shows the state `notificationState` gives: *off*, or switched on
     without this browser's permission yet, with *Switch on*, whose click asks the browser's permission; *on*, with how
@@ -227,10 +229,14 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     the tool, *can use tools* or *text only*, its `toolMessage` folded (UC-003 step 5, 5a), recorded as its last test with
     `tools` from that test, false where the run left none. An endpoint that names a CI secret and no Bridge runs through GitHub
     Actions: it is not called from the page, and its *Test* is that test job; a folded explanation that the prompt bar
-    appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*.
+    appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*. Beside the endpoints,
+    the coding agents on CI (UC-010): the agent among those MOD-agent-processes supports, its runner — the server's own,
+    or a self-hosted runner's label —, the name of the CI secret of its key, the place where it processes data, its
+    capabilities, preset to every capability, and each model it can run with its context, kept under `ci-agent:<name>`;
+    one lacking a place, a model or a model's context named as not offered; *Clear*.
   - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the
     parameters `type` and `model` where the route is opened with them: name, *person* or *agent*, and for an agent its
-    model, selected from the models this browser's connections offer (`endpointsOffered`, `sessionsOffered`), each named
+    model, selected from the models this browser's connections offer (`endpointsOffered`, `sessionsOffered`, `ciAgentsOffered`), each named
     with the connections that offer it and their processing places, and the model a row names already, kept selectable
     and marked where no connection here offers it (UC-017 step 3, 3a); with no connection here, links to `endpoints` and
     `bridge`; a change to a participant that products use, with those products and roles named.
@@ -260,7 +266,7 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     before the password field, and an app password explained; the Bridge the connection goes through, chosen
     among this browser's Bridges, and, for one reached through the jump host, the notice that the jump host can read the
     password and the mails, before saving; the folders; the processing places the mail may go to, offered from the places this browser's
-    connections declare (`endpointsOffered`, `sessionsOffered`), a place outside the EU stated as not compliant before
+    connections declare (`endpointsOffered`, `sessionsOffered`, `ciAgentsOffered`), a place outside the EU stated as not compliant before
     saving; *Store and test*; *Disconnect*. Each test of the mailbox — *Store and test*
     here, *Test* on its line of `settings` — is stored as its last test, `last-test:mailbox`, with the `sending` its
     `test()` gives (UC-037 7d).
@@ -276,8 +282,9 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     it; *Test* of a Bridge at its address — for one reached through the jump host its HTTPS address —, a certificate the
     browser does not trust named as a possible cause; for each CLI session a Bridge offers (MOD-bridge-client's
     `testBridge`), the place where it processes data, preset to *this machine* for a Bridge on this computer, its
-    capabilities, preset to every capability, and each model it can run, with its context in tokens (UC-044 step 5), kept under
-    `session:<bridge>:<agent>`, and one lacking a place, a model or a model's context named as not offered (UC-049 1b).
+    capabilities, preset to every capability, and each model it can run, with its context in tokens (UC-044 step 5), as the
+    Bridge keeps them, saved to the Bridge with MOD-bridge-client's `declareAgent`, and one lacking a place, a model or a
+    model's context named as not offered (UC-049 1b).
   - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
     with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key
     `github-token`, the product for its own key, and for *Change* the repository its setting's key names. A refusal of
@@ -320,7 +327,8 @@ reaches.
 - MOD-identifiers.pagesAddress — the instance's dashboard address: the page *Open your dashboard* opens in
   `get-your-own` (UC-014 step 4), and the return address of a mailbox's app registration.
 - MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt, MOD-bridge-client.pair, MOD-bridge-client.testBridge,
-  MOD-bridge-client.probe — each Bridge's address, pairing, tests, the agents a Bridge offers, a resource's check;
+  MOD-bridge-client.probe, MOD-bridge-client.declareAgent — each Bridge's address, pairing, tests, the agents a Bridge
+  offers and their declarations, a resource's check;
   MOD-bridge-client.allocatePort, MOD-bridge-client.tunnelCommands, MOD-bridge-client.proxyConfiguration — the Bridges
   reached through the jump host, and the jump host.
 - MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an endpoint's test and why a browser may not
@@ -358,7 +366,8 @@ reaches.
   MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
   MOD-prompt-bar.spawnEndpointJob, MOD-prompt-bar.followJob — the test job of an endpoint that runs through GitHub Actions.
 - MOD-prompt-bar.endpointLacks — what an endpoint or a CLI session lacks for the prompt bar to offer it, named on its line and on its own page (UC-049 1b).
-- MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered — this browser's connections: the models a participant
+- MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered, MOD-prompt-bar.ciAgentsOffered — this browser's
+  connections: the models a participant
   may be given, and the places a mailbox may allow.
 - MOD-repository-hosts.setCiSecret — an endpoint's key stored as a GitHub Actions secret, on the person's click.
 - MOD-repository-hosts.ciVariableScopes — a GitLab product's CI/CD variables by name and scope, checked against the scopes

@@ -70,8 +70,8 @@ Its start: the front matter, the destinations and the parameters.
 | `kind` | the kind's name from MOD-job-catalogue, or `run` |
 | `works_on` | the identifiers it works on — requirements, use cases, decisions, modules, items, sources —, an issue's address or a commit |
 | `participant`, `model` | the participant's name and model, `—` for a kind without one |
-| `declares` | for a job of an agent — of the instance's list, or a connection a hand-over of the prompt bar names (`THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE`) —, what the connection it runs on declares for its model (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`): the model's `context` in tokens, and the connection's `capabilities`; its model is `model`, its place stands in `## Destinations`, so that no route reads them back from the list or a browser; absent for a kind without a participant |
-| `route` | where it runs, `tab`, `ci hosted` or `ci runner:<label>`, followed for a model endpoint's job by that connection's route, `endpoint <name>`, with ` secret <NAME>` where it names the CI secret of its key; or, for a coding agent a Bridge offers, its connection's route `bridge <name> agent <agent>` (MOD-participant-list's `Connection`) |
+| `declares` | for a job of an agent — of the instance's list, or a connection a hand-over of the prompt bar names (`THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE`) —, what the connection it runs on declares for its model (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`): the model's `context` in tokens, and the connection's `capabilities`; its model is `model`, its place stands in `## Destinations`, so that no route reads them back from the list or a browser; absent for a kind without a participant, and for a job of the route `any`, whose `## Taken` names it |
+| `route` | where it runs, `tab`, `ci hosted` or `ci runner:<label>`, followed for a model endpoint's job by that connection's route, `endpoint <name>`, with ` secret <NAME>` where it names the CI secret of its key; or, for a coding agent a Bridge offers, its connection's route `bridge <name> agent <agent>`, and for a coding agent on CI `ci hosted agent <agent> secret <NAME>` or `ci runner:<label> agent <agent> secret <NAME>` (MOD-participant-list's `Connection`); or `any`, for a job queued for its participant's model alone — a sprint's close by an agent —, which a Bridge or CI takes where one of its coding agents offers the record's `model`, its `## Taken` naming that connection's route |
 | `run` | the run it belongs to, if any |
 | `retries` | the job it retries, if any |
 | `started_by` | the account whose click started it, or the run or the job that started it — a conversation's job that planned it (UC-049 4f) |
@@ -91,7 +91,7 @@ happen, each with `at:` and its own lines:
 
 | Section | Lines |
 |---|---|
-| `## Taken` | `by:` the route that took it — a CI run's address, a Bridge's name, or `tab <browser>` for a tab, `<browser>` the identifier of the browser or tab that took it (MOD-runtimes, Data) |
+| `## Taken` | `by:` the route that took it — a CI run's address, a Bridge's name, or `tab <browser>` for a tab, `<browser>` the identifier of the browser or tab that took it (MOD-runtimes, Data); for a job of the route `any`, also `connection:` the route of the connection it runs on, and `declares:` what that connection declares for the record's `model` |
 | `## Gate reached` | `gate:` its name, `decider:` the role, agent or check that decides it — or `question:` for a question to the author |
 | `## Resumed` | `gate record:` the record whose decision resumed it |
 | `## Job started` | in the record of a run, or of a conversation's job that planned pieces (UC-049 4f): `job:` the identifier of a job it started, `kind:`, `works on:` — one part per job, committed together with that job's start record |
@@ -151,7 +151,8 @@ by: tab <identifier>
   declares: { context: number, capabilities: string[] }
   | null, destinations: { participant: string, place: string,
   parts: string[] }[], params: Record<string, unknown> }`.
-- `RecordPart` — `{ part: "taken", at: Date, by: string } | { part: "gate reached", at: Date, gate: string, decider:
+- `RecordPart` — `{ part: "taken", at: Date, by: string, connection?: string, declares?: { context: number, capabilities:
+  string[] } } | { part: "gate reached", at: Date, gate: string, decider:
   string } | { part: "question", at: Date, question: string } | { part: "resumed", at: Date, gateRecord: string } | {
   part: "job started", at: Date, job: string, kind: string, worksOn: string[] } | { part: "limits raised", at: Date, by:
   string, limits: { jobsAtOnce: number, cost: number | null, rounds: number } } | {
@@ -176,8 +177,10 @@ by: tab <identifier>
 - `appendToRecord(text: string, part: RecordPart) -> string` — the record with the part appended after its last section;
   the bytes before stay as they are. Throws `RecordEnded` when the record already has its end, and `NotWaiting` for a
   resumption of a job that has not reached a gate.
-- `takeJob(host: Host, path: string, by: string, head: string) -> Promise<{ taken: true, commit: string } | { taken:
-  false, by: string | null }>` — reads the record at `head`, appends `Taken` and commits it only on that head; when the
+- `takeJob(host: Host, path: string, by: string, head: string, on?: { connection: string, declares: { context: number,
+  capabilities: string[] } }) -> Promise<{ taken: true, commit: string } | { taken: false, by: string | null }>` — reads
+  the record at `head`, appends `Taken` — with `on`, for a job of the route `any`, the connection it runs on — and
+  commits it only on that head; when the
   branch moved, it reads the record again and either takes it on the new head or reports who took it. Crosses the
   network through the host, and fails as the host fails: a refused token, a used-up rate limit, an unreachable server.
 - `jobState(record: JobRecord, live: LiveState | null) -> JobState` — from the record's last part; for a job that has not

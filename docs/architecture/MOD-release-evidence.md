@@ -104,9 +104,10 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   run on it — every test at every level, model-dependent tests their fixed number of times, user-level tests as a
   checklist for the people assigned to them — as a job of kind `run-tests` through MOD-runtimes, whose parameters name
   the candidate — its version and tag — and keep the changelog entry the person chose, so that the candidate carries it
-  to its report. Considers: release tests are run by a participant other than the one that implemented what they test;
-  if only the implementer can run them, it says so (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). Crosses the
-  network. Errors: `TagExists`, `NoRunner` (no participant can run a level, named), `TokenRefused`, `PermissionMissing`,
+  to its report. Considers: the complete run is a job without a participant, on the runner each row of the schedule
+  names — `hosted` or `runner:<label>` (MOD-test-schedule) —, so that no implementer runs the release tests (`RELEASE
+  TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). Crosses the network. Errors: `TagExists`, `NoRunner` (a level whose row
+  names no runner, named), `TokenRefused`, `PermissionMissing`,
   `RateLimited`, `Unreachable`.
 - `releaseReport(at: Snapshot, results: Snapshot, candidate: { version: string, tag: string, commit: string, changelog:
   string }) -> { text: string, complete: boolean, failing: string[], worse: string[] }` — the release test report of a

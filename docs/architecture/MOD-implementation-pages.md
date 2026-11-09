@@ -91,6 +91,7 @@ uses:
   - MOD-runtimes.routeStrategies
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.sessionsOffered
+  - MOD-prompt-bar.ciAgentsOffered
 provides:
   - view
 ---
@@ -281,7 +282,7 @@ product's `docs/sources.md`.
   `board` read before anything else.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
   participants a role or a job may have, on this browser's connections; MOD-prompt-bar.endpointsOffered,
-  MOD-prompt-bar.sessionsOffered — those connections.
+  MOD-prompt-bar.sessionsOffered, MOD-prompt-bar.ciAgentsOffered — those connections.
 - MOD-source-register.sourceSchemas, restrictedPlaces — the product's links to its sources and the linked entries of the
   instance's register, which `roleAssignmentFindings` judges the holders' places against; and the places each restricted
   source permits, against which the route `implement` judges the participants it offers: a participant whose place a

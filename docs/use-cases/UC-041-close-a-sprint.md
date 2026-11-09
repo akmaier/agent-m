@@ -41,7 +41,8 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
 
 - **Closer** — the participant the Product Owner assigned the close to when the sprint started (UC-032): the Product
   Owner themselves by default, another person, or an agent from the instance's participants (UC-017). An agent closes
-  by itself when the sprint ends; a person does the same steps in a session of their own.
+  by itself when the sprint ends, its close queued for its model and taken by a Bridge whose agent (UC-044), or a coding
+  agent on CI (UC-010), offers that model; a person does the same steps in a session of their own.
 - **Product Owner** — assigns the close and, if the sprint has a branch of its own, decides whether its increment is
   merged into the default branch.
 - **Scrum team** — the Developers (people and agents) and the Scrum Master, who keeps both events

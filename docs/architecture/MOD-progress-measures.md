@@ -201,8 +201,8 @@ The six stages of the main page, each a share between 0 and 1:
   - `instance` is the instance as the caller reads it, for its participants, process models and `SPEC.md`: on a page
     its default branch; in CI the checkout of the instance at the commit of Agent M that runs (MOD-workflow-entries).
   - `connections` are those `participantsOf` joins with the instance's participants for `participants`: on a page this
-    browser's (MOD-prompt-bar's `endpointsOffered`, `sessionsOffered`), in CI and on a Bridge the one the record of the
-    job that asks names (MOD-job-ledger); none where none are given, an agent then standing without a route.
+    browser's (MOD-prompt-bar's `endpointsOffered`, `sessionsOffered`, `ciAgentsOffered`), in CI and on a Bridge the one
+    the record of the job that asks names (MOD-job-ledger), or those the Bridge's settings or the job workflow declare; none where none are given, an agent then standing without a route.
   - `instanceAt` reads the instance at any commit, for the commit a declaration names. That is another commit than the
     one a CI job checks out, and the two are not related.
     - On a page, `instanceAt` reads through the frame's host of the instance.

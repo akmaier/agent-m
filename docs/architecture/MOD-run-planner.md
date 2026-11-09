@@ -73,7 +73,8 @@ held by a limit has no end: it waits until a person raises the limit or stops it
   Array<{ job: string, kind: string, worksOn: string }>, state: "running" | "waiting at a gate" | "held by a limit" |
   "finished" | "stopped" }`; `limits` are those in force.
 - `Action` — `{ do: "start" | "resume" | "hold" | "finish" | "refuse", kind: string | null, worksOn: string | null,
-  route: string | null, participant: string | null, job: string | null, reason: string | null }`.
+  route: string | null, participant: string | null, job: string | null, reason: string | null }`; `route` as the job's
+  record writes it, the connection's (MOD-job-ledger, `route`).
 - `runOf(record: JobRecord, jobs: JobRow[]) -> Run` — a run from its record and the rows of its jobs, with the limits of
   its newest `## Limits raised` part, or of its parameters. Errors: `NotARun` for a record of another kind.
 - `nextActions(run: Run, facts: Facts) -> Action[]` — what to do now, from the run and the facts of its product, whose

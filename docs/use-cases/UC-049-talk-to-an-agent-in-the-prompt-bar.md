@@ -63,9 +63,9 @@ enters the repository the way every proposal does.
 ## Precondition
 
 - At least one endpoint is configured in this browser (UC-003), or a Bridge paired with this browser offers at least one
-  CLI session (UC-044). Each declares, in this browser's configuration, the place where it processes data, its
-  capabilities and the models it offers, each with its context in tokens — an endpoint one, a CLI session each it can
-  run. No participant list (UC-017) is configured or read for the bar.
+  CLI session (UC-044). Each declares the place where it processes data, its capabilities and the models it offers,
+  each with its context in tokens — an endpoint one, in this browser's configuration, a CLI session each it can run, in
+  its Bridge. No participant list (UC-017) is configured or read for the bar.
 - To save what comes back, a token that can write to the product repository is stored in this browser (otherwise UC-018
   4a, 4b apply at saving).
 

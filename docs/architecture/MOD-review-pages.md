@@ -98,6 +98,7 @@ uses:
   - MOD-prompt-bar.ConversationDraft
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.sessionsOffered
+  - MOD-prompt-bar.ciAgentsOffered
 provides:
   - view
 ---
@@ -378,8 +379,8 @@ and `docs/participants.md` of the instance, whose agents it joins with this brow
   MOD-job-runner.provenanceLines — the trailers of a draft of the conversation the person saves.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar; MOD-prompt-bar.latestDraft,
   MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows; MOD-prompt-bar.dropDraft — the
-  draft dropped once it is saved or discarded; MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered — this
-  browser's connections, which `participantsOf` joins with the instance's participants.
+  draft dropped once it is saved or discarded; MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered,
+  MOD-prompt-bar.ciAgentsOffered — this browser's connections, which `participantsOf` joins with the instance's participants.
 - MOD-job-ledger.newJobId — the identifier of a job started here; MOD-job-ledger.listJobs — the jobs a page lists;
   MOD-job-ledger.recordsNewestFirst — the record of the job that drafted a file, with its rounds, read newest first and
   no further than that record.

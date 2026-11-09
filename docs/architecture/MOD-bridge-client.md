@@ -18,6 +18,7 @@ provides:
   - bridgeAt
   - pair
   - testBridge
+  - declareAgent
   - handOver
   - ask
   - bridgeJobs
@@ -115,12 +116,16 @@ uses; the key itself stays on its computer.
   page proposes `http://127.0.0.1` with `bridgeApi`'s default port as the address. Crosses the network; fails with
   `NoAnswer`, `TokenRefused`, `JumpHostLoginRefused`, `Timeout`.
 - `testBridge(bridge: Bridge) -> Promise<{ bridge: { name: string, version: string | null, platform: string },
-  origin: string, agents: { name: string, version: string, ready: boolean, loggedIn: boolean }[],
+  origin: string, agents: { name: string, version: string, ready: boolean, loggedIn: boolean, place: string | null,
+  capabilities: string[], models: { model: string, context: number | null }[] }[],
   missing: { name: string }[] }>` — a
   harmless test in two requests: `GET /v1/pair`, whose answer names the Bridge and the `origin` it is paired with — the
   instance's Pages origin it answers —, and `GET /v1/agents`, the coding agents it offers, each ready or not and logged
   in or not, and the supported agents missing on its computer (UC-044, UC-017). Crosses the network; fails with
   every `BridgeError` but `AskFailed`.
+- `declareAgent(bridge: Bridge, agent: string, declaration: { place: string, capabilities: string[], models: { model:
+  string, context: number }[] }) -> Promise<void>` — `PUT /v1/agents/{agent}`: the declaration of an agent the Bridge
+  offers, which the Bridge keeps (UC-044 step 5). Crosses the network; fails with every `BridgeError` but `AskFailed`.
 - `handOver(bridge: Bridge, job: { product: string, record: string, commit: string, task?: string }) -> Promise<{
   accepted: string }>` — `POST /v1/jobs`: hands over a job whose start record is committed — the product's address, the
   path of its start record, and the commit that holds it. The Bridge runs the job from that record, so nothing else

@@ -204,7 +204,7 @@ sequenceDiagram
 - **5b. A source whose content the job would include forbids the participant's processing place.** That content is left
   out and the panel says so; if the job cannot be done without it, Agent M offers only participants in permitted places.
 - **7a. The bridge or the runner does not answer.** Agent M names the reason — bridge not running, token wrong, runner
-  offline — and nothing is started.
+  offline —, and the job stays *queued*; the author may cancel or reassign it (UC-036).
 - **7b. The dashboard's token may not start workflows.** Agent M opens the workflow's *Run workflow* page on GitHub with
   the job's inputs named, and the author starts it there.
 - **3a. The author starts a refactoring job** — structure changes, behaviour does not. The author ticks *refactoring*;

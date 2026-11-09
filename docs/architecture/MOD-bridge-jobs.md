@@ -99,7 +99,7 @@ moved against the base to the origin under its name, never forced, and points th
 it, so that the job's writer reads it there; the branch checked out in the clone is pushed and not pointed. A push the
 origin refuses fails the job, naming the branch and what git said. The Bridge runs git in the working clone and the
 outbox only before the agent starts; afterwards it only fetches the outbox's objects from its own clone, which runs no
-command the outbox's configuration names: a hook or a command written there would run with the person's rights. Which agents it offers with their working folders, which products it serves, and the
+command the outbox's configuration names: a hook or a command written there would run with the person's rights. Which agents it offers with their working folders and declarations, which products it serves, and the
 Bridge's name — the name the route of its jobs' records carries, `bridge <name> agent <agent>` (MOD-job-ledger) —, come from the Bridge's
 settings (MOD-desktop-shell).
 
@@ -109,8 +109,9 @@ settings (MOD-desktop-shell).
   `BridgeHandlers`, for the agents the Bridge offers (`{ name, folder }`) and their enclosures (`enclosures: (folder:
   string) -> AgentEnclosure`):
   - `GET /v1/agents` — the coding agents it offers, with their versions and whether they are ready and logged in — both
-    asked in the agent's enclosure, and not ready where the enclosure does not work —, and the supported agents missing
-    on this computer (`THE BRIDGE FINDS THE INSTALLED AGENTS`).
+    asked in the agent's enclosure, and not ready where the enclosure does not work —, each with its declaration as the
+    Bridge's settings keep it — place, capabilities, models with their context —, and the supported agents missing on
+    this computer (`THE BRIDGE FINDS THE INSTALLED AGENTS`).
   - `POST /v1/jobs` — a job the page handed over: its start record is already committed by the person's click; the
     Bridge takes it and runs it as a queued job, from its record; the hand-over only spares it the wait for its next
     reading. A job whose record says that its task travels with the hand-over is run with the request's `task` as its
@@ -139,20 +140,23 @@ settings (MOD-desktop-shell).
     `sinfo`, or a command that fails, is `upstream-failed` naming the command and its message. An invalid endpoint-test body
     is `invalid-request`; a provider or local-endpoint failure is the returned diagnosis; `upstream-failed` names another
     probe-handler failure.
-- `startWatching(config: { bridgeName: string, agents: { name: string, folder: string }[], products: { address: string
-  }[], every: number, enclosures: (folder: string) -> AgentEnclosure }) -> void` — with the agents the Bridge offers,
+- `startWatching(config: { bridgeName: string, agents: { name: string, folder: string, place: string, capabilities:
+  string[], models: { model: string, context: number }[] }[], products: { address: string }[], every: number,
+  enclosures: (folder: string) -> AgentEnclosure }) -> void` — with the agents the Bridge offers and their declarations,
   their working folders and their enclosures, starts reading every
   served product through Access's local clone with the computer's own git login, at the
   given interval and after every hand-over: queued jobs whose record's route names this Bridge and an agent it
   offers, `bridge <name> agent <agent>`, are taken — a commit
   only on the head that was read, so that no other route takes them too — and run, the agent started with the record's
   `model`, its participant the one its record names on the connection its route, `model`, `declares` and `##
-  Destinations` give (MOD-job-ledger), a run that MOD-job-runner's
+  Destinations` give (MOD-job-ledger); queued jobs of the route `any` whose `model` an agent's declaration offers are
+  taken by that agent, `## Taken` naming its connection's route and what its declaration declares for the model, and run
+  on it alike; a run that MOD-job-runner's
   `failedBecause` fails ending its job `failed` with that reason; jobs of this Bridge waiting at a gate
   whose record now exists are resumed (`A JOB STOPS AT EVERY GATE`); a sprint whose close
-  the product assigned to one of this Bridge's agents is closed by that agent, once,
-  when MOD-work-plans' `sprintsToClose` names it — its time box ended, or, without one, every selected item done or
-  ended by the Product Owner. A product that cannot be read is skipped with its reason, and read again at the next interval.
+  the product assigned to an agent whose model one of this Bridge's agents offers is queued for that model, on the route
+  `any`, once — no close of the sprint queued or running —, when MOD-work-plans' `sprintsToClose` names it — its time box
+  ended, or, without one, every selected item done or ended by the Product Owner —, and taken as above. A product that cannot be read is skipped with its reason, and read again at the next interval.
 - `stopWatching(reason: "pause" | "quit") -> Promise<void>` — stops taking jobs; on *quit* every job still running is
   stopped and its record ends as cancelled, naming that the Bridge was quit.
 - `testAccess(config: { instance: string, products: string[] }) -> Promise<{ repository: string, reachable: boolean,
@@ -209,7 +213,7 @@ clones. Nothing else.
   test of that login.
 - `MOD-documents.readDocument`, `MOD-documents.readRegister`, `MOD-participant-list.participantSchema`,
   `MOD-participant-list.participantsOf`, `MOD-product-process.declarationSchema` — the instance's participants, joined
-  with the one connection a job's record gives, and the product's declaration.
+  with the one connection a job's record gives, or with this Bridge's agents for the closers of sprints, and the product's declaration.
 - `MOD-agent-processes.installedAgents`, `agentDriver`, `testAgent` — the agents of this computer and their driver.
 - `MOD-endpoint-calls.EndpointConfig`, `testEndpoint`, `listModels`, `endpointDriver` — an endpoint's test, its models'
   listing and the requests of a job of the page to a model endpoint.
