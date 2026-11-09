@@ -14,6 +14,7 @@ import { instanceOfPagesAddress, pagesAddress } from "../identifiers/index.mjs";
 import { mailId } from "../mail-records/index.mjs";
 import { sha256 } from "../text-tools/index.mjs";
 import PostalMime from "./vendor/postal-mime/postal-mime.js";
+import { htmlToText } from "./vendor/postal-mime/text-format.js";
 
 import { failure } from "./errors.mjs";
 import { SIGN_IN_SERVICE } from "./index.mjs";
@@ -152,7 +153,8 @@ async function graphRead(token, path, as = "json") {
 
 const person = ({ name, address }) => ({ name: name || null, address });
 
-// A MOD-mail-routes Mail, parsed with postal-mime from the raw form Graph returns; its identifier is the MAIL- identifier of MOD-mail-records.
+// A MOD-mail-routes Mail, parsed with postal-mime from the raw form Graph returns; its identifier is the MAIL- identifier of MOD-mail-records; a mail with an HTML part only
+// gives that part's text.
 async function parseMail(bytes, folder) {
   const parsed = await PostalMime.parse(bytes);
   const messageId = parsed.messageId ?? null;
@@ -167,7 +169,7 @@ async function parseMail(bytes, folder) {
     cc: (parsed.cc ?? []).map(person),
     subject: parsed.subject ?? "",
     date: parsed.date ?? "",
-    text: parsed.text ?? "",
+    text: parsed.text ?? (parsed.html ? htmlToText(parsed.html).trim() : ""),
     attachments: (parsed.attachments ?? []).map((part) => ({
       name: part.filename ?? "", type: part.mimeType, size: part.content.byteLength,
       text: part.mimeType.startsWith("text/") ? new TextDecoder().decode(part.content) : null,

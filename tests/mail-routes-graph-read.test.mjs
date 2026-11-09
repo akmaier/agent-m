@@ -42,10 +42,10 @@ const CONNECTION = { address: "reports@example.org", route: "graph", folders: ["
 
 const identifier = (messageId) => `MAIL-${createHash("sha256").update(messageId.replace(/^<|>$/g, "")).digest("hex").slice(0, 16)}`;
 
-function raw({ messageId, from, to, subject, date, text, inReplyTo = null, references = null }) {
+function raw({ messageId, from, to, subject, date, text, inReplyTo = null, references = null, type = "text/plain" }) {
   return [`Message-ID: ${messageId}`, `From: ${from}`, `To: ${to}`, `Subject: ${subject}`, `Date: ${date}`,
     ...(inReplyTo ? [`In-Reply-To: ${inReplyTo}`] : []), ...(references ? [`References: ${references}`] : []),
-    "MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "", text, ""].join("\r\n");
+    "MIME-Version: 1.0", `Content-Type: ${type}; charset=utf-8`, "", text, ""].join("\r\n");
 }
 
 // The fixture mails of the fake mailbox, each with the id Graph gives it and the folder it lies in.
@@ -55,7 +55,7 @@ const MAILS = {
   "AAMk-in-2=": { folder: "inbox", messageId: "<in-2@example.org>", raw: raw({ messageId: "<in-2@example.org>", from: "Bo <bo@example.net>",
     to: "reports@example.org", subject: "Typo", date: "Tue, 13 Oct 2026 10:00:00 +0000", text: "A typo in the heading." }) },
   "AAMk-rep-1=": { folder: "REPORTS-ID", messageId: "<rep-1@example.org>", raw: raw({ messageId: "<rep-1@example.org>", from: "Cy <cy@example.net>",
-    to: "reports@example.org", subject: "Report seven", date: "Wed, 07 Oct 2026 11:00:00 +0000", text: "Seventh report." }) },
+    to: "reports@example.org", subject: "Report seven", date: "Wed, 07 Oct 2026 11:00:00 +0000", text: "<html><body><p>Seventh report.</p></body></html>", type: "text/html" }) },
   "AAMk-dr-1=": { folder: "drafts", messageId: "<dr-1@example.org>", raw: raw({ messageId: "<dr-1@example.org>", from: "reports@example.org",
     to: "Ada Reporter <ada@example.net>", subject: "Re: Broken link", date: "Mon, 05 Oct 2026 12:00:00 +0000", text: "Thank you, fixed.",
     inReplyTo: "<in-1@example.org>", references: "<in-1@example.org>" }) },
@@ -165,9 +165,9 @@ test("drafts and sent — on the Microsoft route: the Drafts with their DraftRef
 
 // TST-478303 · level: unit · module: MOD-mail-routes
 // guards: UC-038; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
-// given: the fake Graph with mails in INBOX (two) and Reports (one); the identifier of <rep-1@example.org> and an identifier of no mail
+// given: the fake Graph with mails in INBOX (two) and Reports (one, with an HTML part only); the identifier of <rep-1@example.org> and an identifier of no mail
 // input: mailbox(connection with folders INBOX and Reports, null).find(identifier of <rep-1@example.org>); .find("MAIL-0000000000000000")
-// expect: the first is the Mail <rep-1@example.org> from the second named folder, folder "Reports", and only the raw form of that one mail was fetched; the second is null, not an error and no guess, and no raw form was fetched
+// expect: the first is the Mail <rep-1@example.org> from the second named folder, folder "Reports", its text "Seventh report." from its HTML part, and only the raw form of that one mail was fetched; the second is null, not an error and no guess, and no raw form was fetched
 test("find — on the Microsoft route: a mail in a second named folder by the hash of its Message-ID, and null for none", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   signedIn();
@@ -175,6 +175,7 @@ test("find — on the Microsoft route: a mail in a second named folder by the ha
   const found = await mailbox(CONNECTION, null).find(identifier("<rep-1@example.org>"));
   assert.equal(found.messageId, "<rep-1@example.org>");
   assert.equal(found.id, identifier("<rep-1@example.org>"));
+  assert.match(found.text, /^Seventh report\.\s*$/, "a mail with an HTML part only gives its text without the markup");
   assert.equal(found.folder, "Reports");
   assert.equal(rawFetched(requests).length, 1, "only the matching mail was fetched in full");
   requests = fakeGraph();

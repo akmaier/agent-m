@@ -10,6 +10,7 @@ import { sha256 } from "../text-tools/index.mjs";
 const requireBridgePackage = createRequire(new URL("../bridge-build/package.json", import.meta.url));
 const { ImapFlow } = requireBridgePackage("imapflow");
 const PostalMime = requireBridgePackage("postal-mime").default;
+const { htmlToText } = requireBridgePackage(new URL("../bridge-build/node_modules/postal-mime/dist/cjs/text-format.js", import.meta.url).pathname);
 
 export const STARTTLS = "starttls";
 export const TLS = "tls";
@@ -126,7 +127,7 @@ export function testImap(connection, Flow) {
 
 const person = ({ name, address }) => ({ name: name || null, address });
 
-// A MOD-mail-routes Mail, parsed from the mail's bytes; its identifier is the MAIL- identifier of MOD-mail-records.
+// A MOD-mail-routes Mail, parsed from the mail's bytes; its identifier is the MAIL- identifier of MOD-mail-records; a mail with an HTML part only gives that part's text.
 async function parseMail(source, folder) {
   const parsed = await PostalMime.parse(source);
   const messageId = parsed.messageId ?? null;
@@ -141,7 +142,7 @@ async function parseMail(source, folder) {
     cc: (parsed.cc ?? []).map(person),
     subject: parsed.subject ?? "",
     date: parsed.date ?? "",
-    text: parsed.text ?? "",
+    text: parsed.text ?? (parsed.html ? htmlToText(parsed.html).trim() : ""),
     attachments: (parsed.attachments ?? []).map((part) => ({
       name: part.filename ?? "", type: part.mimeType, size: part.content.byteLength,
       text: part.mimeType.startsWith("text/") ? new TextDecoder().decode(part.content) : null,

@@ -970,7 +970,7 @@ async function route() {
       const mailRoute = maintenancePages.routes.find((r) => r.name === "mail");
       await loadRoute(mailRoute);
       await mailRoute.render(main(), {
-        page: "review", instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        page: "review", instance: reviewContext().instance, product: null, store: openStore(T.instance),
         go(route, params = {}) {
           if (route === "add-product") location.hash = "#add";
           else location.hash = params.id ? `#${route}/${encodeURIComponent(params.id)}` : `#${route}`;
@@ -980,7 +980,7 @@ async function route() {
       const repliesRoute = maintenancePages.routes.find((r) => r.name === "replies");
       await loadRoute(repliesRoute);
       await repliesRoute.render(main(), {
-        page: "review", instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        page: "review", instance: reviewContext().instance, product: null, store: openStore(T.instance),
         go(route, params = {}) {
           if (route === "add-product") location.hash = "#add";
           else location.hash = fragmentOf(route, params);
