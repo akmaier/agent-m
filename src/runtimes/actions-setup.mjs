@@ -4,17 +4,12 @@
 //
 // Module: MOD-runtimes
 //
-// Private to MOD-runtimes; index.mjs exports actionsSetup. It reads MOD-documents, MOD-participant-list and MOD-browser-store through their index.mjs, and the hosts it is handed.
+// Private to MOD-runtimes; index.mjs exports actionsSetup. It reads MOD-browser-store through its index.mjs, and the hosts it is handed.
 
-import { readRegister } from "../documents/index.mjs";
-import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { listSettings, readSetting } from "../browser-store/index.mjs";
 import { WORKFLOW_PATH, jobWorkflowFiles, pinnedInstance } from "./ci.mjs";
 
 const TOKEN_SECRET = "AGENT_M_TOKEN";
-const PARTICIPANTS = "docs/participants.md";
-// A participant's CI route, `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>`: its runner's label, null for the server's runners, and the secret of its key.
-const CI_ROUTE = /^ci\s+(hosted|runner:(\S+))\s+secret\s+(\S+)$/;
 const PLAIN_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 // The endpoint settings of `store` that name a CI secret: [{ secret, key }], key null where this browser keeps none.
@@ -36,9 +31,8 @@ function valueOf(store, tokenKey, name) {
 
 /**
  * actionsSetup({ product: { address, host, tokenKey }, instance: { host }, store }) -> Promise<{ missing: { workflow, secrets }, outdated, pins: { instance, product }, unknown, named:
- * { token, keys }, setUp }> (MOD-runtimes, Interfaces). It reads the instance's default branch — its repository, commit and participants — and the product's; `named` is what the job workflow reads:
- * AGENT_M_TOKEN and, without a name twice, the CI secret of each participant's `ci … secret <NAME>` route and the `secret` each endpoint setting of `store` names; the runners are
- * the labels of those routes. `missing.workflow` is true where a file jobWorkflowFiles gives is absent, `outdated` names each that stands with another text. `pins.instance` is the
+ * { token, keys }, setUp }> (MOD-runtimes, Interfaces). It reads the instance's default branch — its repository and commit — and the product's; `named` is what the job workflow reads:
+ * AGENT_M_TOKEN and, without a name twice, the `secret` each endpoint setting of `store` names; the runners are the server's own. `missing.workflow` is true where a file jobWorkflowFiles gives is absent, `outdated` names each that stands with another text. `pins.instance` is the
  * instance commit jobWorkflowFiles is given, `pins.product` the instance commit the product's job workflow file pins, null where that file is absent or names none. On GitHub
  * `missing.secrets` names each secret `named` that ciSecretNames does not list, the token first, and `unknown` those for which this browser keeps no value; on GitLab both are empty.
  * `setUp`, called only on a person's click, commits every absent or outdated file in one commit on the default branch on the head that was read, as the person's commit, then stores
@@ -48,11 +42,8 @@ function valueOf(store, tokenKey, name) {
 export async function actionsSetup({ product, instance, store }) {
   const { defaultBranch: instanceBranch } = await instance.host.repositoryInfo();
   const instanceSnapshot = await instance.host.readSnapshot(instanceBranch);
-  const register = await instanceSnapshot.read(PARTICIPANTS);
-  const participants = register ? participantsOf(readRegister(participantSchema(), PARTICIPANTS, register).document) : [];
-  const routes = participants.map((participant) => CI_ROUTE.exec(String(participant.route ?? "").trim())).filter(Boolean);
-  const keys = [...new Set([...routes.map((route) => route[3]), ...endpointSecrets(store).map((endpoint) => endpoint.secret)])];
-  const runners = [...new Set(routes.map((route) => route[2]).filter(Boolean))];
+  const keys = [...new Set(endpointSecrets(store).map((endpoint) => endpoint.secret))];
+  const runners = [];
   const named = { token: TOKEN_SECRET, keys };
 
   const { defaultBranch } = await product.host.repositoryInfo();

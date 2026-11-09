@@ -50,7 +50,14 @@ const DONE_CHECK = "agent-m done";
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
 const h = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const explain = (html) => `<details class="explain"><summary>What is this?</summary><div>${html}</div></details>`;
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 // Why a ready item or step returned (UC-034 7a, UC-024 10a): the reason its state carries — a rejected gate's End, as MOD-work-plans' itemStates passes it on —, drawn beside its state. A state with no reason, or not ready, draws none.
 const returnedBy = (state) => (state?.state === "ready" && text(state.reason) ? `<p class="small" data-returned>${h(state.reason)}</p>` : "");
@@ -115,7 +122,7 @@ async function startJob(m, { definition, worksOn, participant, params, limit = n
     const id = newJobId(new Date(), m.taken);
     m.taken.add(id);
     job.id = id;
-    const record = { id, kind: definition.name, worksOn, participant: participant.name, model: participant.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: personOf(m.context), start: new Date(),
+    const record = { id, kind: definition.name, worksOn, participant: participant.name, model: participant.model, route: recordRoute(offer.route, participant), ...(participant.route ? { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: personOf(m.context), start: new Date(),
       agentM: agentMOf(m.instanceSnapshot), inputs: prepared.parts.map((part) => part.name), limit: limit ?? prepared.limit,
       destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
     const defaultBranch = (await m.context.product.host.repositoryInfo()).defaultBranch;
@@ -473,7 +480,7 @@ async function draw(target, context, params) {
         const { prepared } = await sentFor(prepareFor(row.id, merges(row.id)), participant);
         id = newJobId(now(), taken);
         taken.add(id);
-        const record = { id, kind: "implement", worksOn: [row.id], participant: participant.name, model: participant.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: personOf(context), start: now(),
+        const record = { id, kind: "implement", worksOn: [row.id], participant: participant.name, model: participant.model, route: recordRoute(offer.route, participant), ...(participant.route ? { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: personOf(context), start: now(),
           agentM: { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" }, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
           destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: { items: [row.id], merges: merges(row.id) } };
         const defaultBranch = (await product.host.repositoryInfo()).defaultBranch;

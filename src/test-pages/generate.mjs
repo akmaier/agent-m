@@ -45,6 +45,7 @@ import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { testsHead, readsAt, column, listTable, button, LEVEL_TOPIC } from "./look.mjs";
 import { heads } from "./routes.mjs";
+import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -108,7 +109,8 @@ async function loadParticipants(context, definition) {
   const { defaultBranch } = await instance.repositoryInfo();
   const snapshot = await instance.readSnapshot(defaultBranch);
   const register = await snapshot.read(REGISTER);
-  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register), connections);
   return { participants, instanceSnapshot: snapshot, writers: eligible(participants, { capabilities: definition.needs }).eligible };
 }
 
@@ -125,7 +127,14 @@ async function implementersOf(product, host, selected) {
     .map((row) => row.record.participant));
 }
 
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 async function render(target, context, params = {}) {
   if (!context.product) {
@@ -249,7 +258,7 @@ async function render(target, context, params = {}) {
         queued = true;
         try {
           if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
-          const record = { id, kind: "propose-tests", worksOn: names.map((each) => each.id), participant: writer.name, model: writer.model, route: recordRoute(offer.route), run: null,
+          const record = { id, kind: "propose-tests", worksOn: names.map((each) => each.id), participant: writer.name, model: writer.model, route: recordRoute(offer.route, writer), ...(writer.route ? { declares: { context: writer.context ?? null, capabilities: writer.capabilities ?? [] } } : {}), run: null,
             retries: null, startedBy: person.value.trim(), start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
             destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: taParams };
           await queueJob(host, record, offer.route, product.snapshot.commit);
@@ -384,7 +393,7 @@ async function render(target, context, params = {}) {
         places: { sources: {}, mailbox: null }, gates: [], person, now, agentM, jobId: id }, { drafter: writer, reviewers: [] });
       if (prepared.blocking.length) throw Object.assign(new Error(prepared.blocking.map((found) => `${found.what} — ${found.fix}`).join("; ")), { name: "Blocked" });
       if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
-      const written = { id, kind: "write-tests", worksOn: record.worksOn, participant: writer.name, model: writer.model, route: recordRoute(offer.route), run: null, retries: null,
+      const written = { id, kind: "write-tests", worksOn: record.worksOn, participant: writer.name, model: writer.model, route: recordRoute(offer.route, writer), ...(writer.route ? { declares: { context: writer.context ?? null, capabilities: writer.capabilities ?? [] } } : {}), run: null, retries: null,
         startedBy: person, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
         destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
       await queueJob(host, written, offer.route, snapshot.commit);

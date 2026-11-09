@@ -41,6 +41,16 @@ import { declarationSchema } from "../product-process/index.mjs";
 import { declaredModelOf, modelFirst } from "./plan.mjs";
 import { asOfLine, chartBlock, drawCharts, mergedAtOf, remainingOverTime, startWorkLink, workFacts } from "./progress.mjs";
 import { heads } from "./routes.mjs";
+import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 const DECLARATION = "docs/process.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
@@ -478,7 +488,7 @@ export async function attendedJob(place, context, { kind, choice, read: readHead
     stage.replaceChildren(runPanel(prepared, { onRun: async () => {
       drafts.replaceChildren(el("p", "muted", drafting));
       try {
-        const record = { id, kind, worksOn, participant: chosen.name, model: chosen.model, route: "tab", run: null, retries: null, startedBy: person, start: now, agentM,
+        const record = { id, kind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute({ kind: "tab" }, chosen), ...(chosen.route ? { declares: { context: chosen.context ?? null, capabilities: chosen.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: person, start: now, agentM,
           inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: {} };
         const { path } = await queueJob(product.host, record, { kind: "tab" }, head.commit);
         const outcome = await runOnTab(prepared, jobContext, connectionsOf([chosen], context.store), { host: product.host, record: { ...record, path } });
@@ -660,12 +670,17 @@ export const route = {
 
 const REGISTER = "docs/participants.md";
 
-/** participantsIn(context, snapshot?) -> the participants of the instance's register, read from its default branch, or from `snapshot` of it where the caller has read one. */
+/**
+ * participantsIn(context, snapshot?) -> the participants of the instance's register, read from its default branch, or from `snapshot` of it where the caller has
+ * read one, joined with this browser's connections (MOD-prompt-bar's endpointsOffered and sessionsOffered): each agent once on each connection that offers its model.
+ */
 export async function participantsIn(context, given = null) {
   const { instance } = context;
   const snapshot = given ?? await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
   const register = await snapshot.read(REGISTER);
-  return register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  if (register === null) return [];
+  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+  return participantsOf(readDocument(participantSchema(), REGISTER, register), connections);
 }
 
 // The role assignment of an item: its team's — the team whose newest running sprint selects it —, else the product's first.

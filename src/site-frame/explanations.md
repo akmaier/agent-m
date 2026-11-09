@@ -409,6 +409,15 @@ workflow runs the same correction loop, then commits the draft to the default br
 requirements as an entry of its section's change queue, leaving the SPEC itself untouched. You review it afterwards on the dashboard,
 a use case in the review of use cases and a queue entry beside the current SPEC section. Nothing counts before you accept it.
 
+## participant-person-or-agent
+
+The participants are the team that works on the instance's products. A person is a colleague, named by their account on GitHub
+or on the GitLab server; only a person takes the decisions that need one. An agent works with a language model, and the list
+names that model and nothing else. Where an agent's job runs, what it can do, how much its context holds and where the data given
+to it is processed belong to the connection that offers its model: a model endpoint, or a coding agent a Bridge offers, both
+configured in this browser. A job of the agent runs on one of those connections, so this list holds no key, no place and no
+capability.
+
 ## participant-person
 
 A person is a colleague, reached through their GitHub or GitLab account and through the dashboard. They can do everything, and

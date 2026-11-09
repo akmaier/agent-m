@@ -1,5 +1,7 @@
-// The rules of eligible and differs (MOD-participant-list, Interfaces: eligible, differs): which participants may do a job or
-// hold a role, and for each one left out every reason, in words a person can act on; and whether two participants differ.
+// The join of participantsOf, and the rules of eligible and differs (MOD-participant-list, Parts: eligibility.mjs; Interfaces:
+// participantsOf, eligible, differs): the register's people and agents on the connections that offer the agents' models; which
+// participants may do a job or hold a role, and for each one left out every reason, in words a person can act on; and whether two
+// participants differ.
 //
 // Module: MOD-participant-list
 //
@@ -67,12 +69,38 @@ function sameReason(participant, other) {
 
 /**
  * differs(a: Participant, b: Participant) -> boolean — true when the two are different participants and name different
- * models; false when either names no model. A reviewer must differ from the drafter, and each of three checkers from the
- * rewriter and from each other. Of one agent on two connections, neither differs from the other.
+ * models; false when either names no model. A reviewer must differ from the drafter. Of one agent on two connections, neither
+ * differs from the other.
  * @param {Participant} a
  * @param {Participant} b
  * @returns {boolean}
  */
 export function differs(a, b) {
   return a.name !== b.name && a.model !== null && b.model !== null && a.model !== b.model;
+}
+
+/**
+ * participantsOf(register: Document, connections: Connection[]) -> Participant[] — the participants of a register read with
+ * participantSchema, in its order: a person once; an agent once for each connection among `connections` whose `model` is
+ * the agent's, in their order, and once without a route where none is. Pure. It judges no row: a row's errors are those
+ * documentFindings names with participantSchema.
+ * @param {Document} register
+ * @param {Connection[]} [connections]
+ * @returns {Participant[]}
+ */
+export function participantsOf(register, connections = []) {
+  return register.sections.flatMap((section) => section.rows ?? []).flatMap(({ cells }) => {
+    const name = cells.Name ?? null;
+    if (cells.Type === "person") return [onNoConnection(name, "person", null)];
+    const model = cells.Model ?? null;
+    const offering = connections.filter((connection) => connection.model === model);
+    if (!offering.length) return [onNoConnection(name, "agent", model)];
+    return offering.map(({ type, context, capabilities, place, route }) =>
+      ({ name, type, model, context, capabilities, place, route }));
+  });
+}
+
+// A person, or an agent whose model no connection given offers: no context, no capabilities, no place and no route.
+function onNoConnection(name, type, model) {
+  return { name, type, model, context: null, capabilities: [], place: null, route: null };
 }

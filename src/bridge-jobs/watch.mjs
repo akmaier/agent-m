@@ -23,10 +23,19 @@ const QUIT = "the Bridge was quit";
 const WITH_HAND_OVER = "with the hand-over";
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
-// The Bridge and agent a participant's route names: `bridge <bridge> agent <agent>`, or null for any other route.
+// The Bridge and agent a route names — a job record's or a connection's: `bridge <bridge> agent <agent>`, or null for any other route.
 function bridgeRoute(route) {
   const named = /^bridge\s+(\S+)\s+agent\s+(\S+)/.exec(String(route ?? "").trim());
   return named ? { bridge: named[1], agent: named[2] } : null;
+}
+
+// The participant a job's record names, on the connection its route gives (MOD-job-ledger): its name and model, its context and capabilities from `declares`, its
+// place from `## Destinations`, the type *CLI agent* and the record's route; null for a record whose route names no Bridge's agent.
+function participantOfRecord(record) {
+  if (!bridgeRoute(record.route) || !record.participant) return null;
+  return { name: record.participant, type: "CLI agent", model: record.model ?? null, context: record.declares?.context ?? null,
+    capabilities: Array.isArray(record.declares?.capabilities) ? record.declares.capabilities : [], place: record.destinations?.[0]?.place || null,
+    route: String(record.route).trim() };
 }
 
 // One record, read from a snapshot, as the ledger reads records.
@@ -108,15 +117,22 @@ function createWatcher(config) {
   const skip = (product, reason) => onSkipped?.({ product, reason });
   const serially = (work) => (chain = chain.then(work, work));
 
-  // The participants of the instance as the commit a record names holds them, read through this agent's clone of the instance.
-  async function participantsAt(agent, commit, cache) {
+  // The participants of the instance as the commit a record names holds them, read through this agent's clone of the instance, joined with the connections given — the one
+  // a job's record names (MOD-participant-list's participantsOf) —, whose participant follows them where the register does not hold it.
+  async function participantsAt(agent, commit, cache, connections = []) {
+    const listed = participantsOf(await registerAt(agent, commit, cache), connections);
+    return [...listed, ...connections.filter((each) => !listed.some((one) => one.name === each.name))];
+  }
+
+  // The register of the instance at a commit, read once per commit.
+  async function registerAt(agent, commit, cache) {
     if (!cache.has(commit)) {
       cache.set(commit, (async () => {
         const folder = await cloneOrFetch(instance, foldersOf(agent.folder).instance);
         const host = await hostOf(instance, folder);
         const text = await (await host.readSnapshot(commit)).read(PARTICIPANTS);
         if (text === null) throw new Error(`the instance holds no ${PARTICIPANTS} at ${commit}`);
-        return participantsOf(readRegister(participantSchema(), PARTICIPANTS, text).document);
+        return readRegister(participantSchema(), PARTICIPANTS, text).document;
       })());
     }
     return cache.get(commit);
@@ -135,10 +151,8 @@ function createWatcher(config) {
     }
     const found = [];
     for (const record of queued) {
-      const participants = await participantsAt(agent, record.agentM.commit, cache);
-      const participant = participants.find((each) => each.name === record.participant);
-      const route = bridgeRoute(participant?.route);
-      if (route && route.bridge === bridgeName) found.push({ record, participant, agent: route.agent, host, commit });
+      const route = bridgeRoute(record.route);
+      if (route && route.bridge === bridgeName) found.push({ record, participant: participantOfRecord(record), agent: route.agent, host, commit });
     }
     return { found, folder, host, commit };
   }
@@ -218,7 +232,7 @@ function createWatcher(config) {
           product: { address: product, snapshot: head, host },
           instance: { snapshot: await instanceHost.readSnapshot(record.agentM.commit), host: instanceHost, checkout: instanceFolder },
           connect: async (address) => hostOf(address, await cloneOrFetch(address, foldersOf(agent.folder).product(address))),
-          participants: await participantsAt(agent, record.agentM.commit, new Map()), places: { sources: {}, mailbox: null }, gates: [],
+          participants: await participantsAt(agent, record.agentM.commit, new Map(), participant ? [participant] : []), places: { sources: {}, mailbox: null }, gates: [],
           person: record.startedBy, now: new Date(), agentM: record.agentM, jobId: record.id,
         };
         await workingClone(product, working);
@@ -339,8 +353,7 @@ function createWatcher(config) {
         return recordAt(snapshot, path);
       });
       if (!record) throw failure("invalid-request", `${path} is not a job record at ${commit}.`);
-      const participant = (await participantsAt(any, record.agentM.commit, new Map())).find((each) => each.name === record.participant);
-      const route = bridgeRoute(participant?.route);
+      const route = bridgeRoute(record.route);
       const agent = route && route.bridge === bridgeName ? config.agents.find((each) => each.name === route.agent) : null;
       if (!agent || !agent.folder) throw failure("invalid-request", `This Bridge does not offer the agent of ${record.participant} with a working folder.`);
       if (record.task === WITH_HAND_OVER) {

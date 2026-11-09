@@ -29,13 +29,22 @@ import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { askReporter, noReply, repliesDue, sendReply, storeReplies } from "../mail-handling/index.mjs";
 import { issueLabels, noteText, notesOf } from "../mail-records/index.mjs";
-import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
+import { participantSchema, eligible } from "../participant-list/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { confirmDecision, runPanel } from "../site-frame/index.mjs";
 import { peopleIn } from "../personal-data/index.mjs";
 import { connectionsOf, mailboxOf, mailSubject, offeredWith, productsOf } from "./mail.mjs";
 import { heads } from "./routes.mjs";
+
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 const REGISTER = "docs/participants.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
@@ -235,7 +244,7 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
     const info = await instanceHost.repositoryInfo();
     const instanceSnapshot = await instanceHost.readSnapshot(info.defaultBranch);
     const register = await instanceSnapshot.read(REGISTER);
-    const participants = await offeredWith(register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document), context.store);
+    const participants = await offeredWith(register == null ? null : readRegister(participantSchema(), REGISTER, register).document, context.store);
     const allowed = (connection.places ?? []).map((each) => each.place);
     const admitted = eligible(participants, { capabilities: definition.needs, places: [{ from: "the mailbox", allowed }] }).eligible;
     const host = products.get(due.product)?.host;
@@ -275,7 +284,7 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
         const result = el("div", "reply-run-result");
         const panel = runPanel(prepared, { onRun: async () => {
           try {
-            const record = { id, kind: "draft-replies", worksOn: [issueAddress(due)], participant: chosen.name, model: chosen.model, route: "tab", run: null, retries: null, startedBy: name, start: now, agentM,
+            const record = { id, kind: "draft-replies", worksOn: [issueAddress(due)], participant: chosen.name, model: chosen.model, route: recordRoute({ kind: "tab" }, chosen), ...(chosen.route ? { declares: { context: chosen.context ?? null, capabilities: chosen.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: name, start: now, agentM,
               inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })),
               params: { issue: due.issue, product: due.product } };
             const { path } = await queueJob(host, record, { kind: "tab" }, head.commit);

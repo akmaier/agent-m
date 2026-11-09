@@ -34,6 +34,7 @@ import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, schemaForm } from "../site-frame/index.mjs";
 import { credentialsFor } from "./products.mjs";
 import { heads } from "./routes.mjs";
+import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 const PATH = "docs/resources.md";
 const PARTICIPANTS = "docs/participants.md";
@@ -287,18 +288,19 @@ export const route = {
         const instanceInfo = await context.instance.host.repositoryInfo();
         const instanceSnapshot = place.ofInstance ? opened.snapshot : await context.instance.host.readSnapshot(instanceInfo.defaultBranch);
         const register = await instanceSnapshot.read(PARTICIPANTS);
-        const participants = register === null ? [] : participantsOf(readRegister(participantSchema(), PARTICIPANTS, register).document);
+        const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+        const participants = register === null ? [] : participantsOf(readRegister(participantSchema(), PARTICIPANTS, register).document, connections);
         const jobWorkflow = WORKFLOWS.some((path) => opened.snapshot.paths.includes(path));
         const need = [{ resource: resource.name, route: `runner:${label}` }];
         let drafter = null, refusal = null;
-        for (const candidate of participants.filter((each) => each.type === "CI agent")) {
+        for (const candidate of participants.filter((each) => each.route)) {
           const offers = routesFor(candidate, { visibility: opened.visibility, jobWorkflow }, need);
           const taken = offers.find((offer) => offer.route.kind === "ci" && offer.route.runner === label);
           if (taken?.available) { drafter = { participant: candidate, route: taken.route }; break; }
           refusal ??= taken?.reason ?? null;
         }
         if (drafter === null) {
-          out.replaceChildren(el("p", "resource-no-runner", `No CI agent of the instance reaches the runner ${label}${refusal ? `: ${refusal}` : ""}. Nothing can check ${resource.name} until one does.`));
+          out.replaceChildren(el("p", "resource-no-runner", `No participant on a connection of this browser reaches the runner ${label}${refusal ? `: ${refusal}` : ""}. Nothing can check ${resource.name} until one does.`));
           return;
         }
         const credentials = place.address ? credentialsFor(context.store, parseAddress(place.address)) : context.store && credentialsFor(context.store, parseAddress(`https://github.com/${context.instance.repository}`));
@@ -354,12 +356,13 @@ export const route = {
 
     // ------------------------------------------------------------ the entries, by kind
     // An endpoint or an agent that also works on the product is a participant too, and a separate entry (UC-040 2a): *Add as participant* opens the participants route with the
-    // participant type that kind stands for and the resource's address, and writes nothing.
-    const PARTICIPANT_TYPE = { endpoint: "model endpoint", agent: "CLI agent" };
+    // type agent and the model the resource serves — the model of the endpoint this browser keeps at its address —, and writes nothing.
+    const SERVING = new Set(["endpoint", "agent"]);
+    const servedModel = (resource) => endpointsOffered(context.store).find((each) => readSetting(context.store, `endpoint:${each.name}`)?.url === resource.address)?.model ?? "";
     function participantButton(resource) {
-      if (!PARTICIPANT_TYPE[resource.kind]) return [];
+      if (!SERVING.has(resource.kind)) return [];
       const button = el("button", "resource-add-participant btn", "Add as participant");
-      button.addEventListener("click", () => context.go("participants", { type: PARTICIPANT_TYPE[resource.kind], address: resource.address }));
+      button.addEventListener("click", () => context.go("participants", { type: "agent", model: servedModel(resource) }));
       return [" ", button];
     }
     function entryOf(resource, row) {

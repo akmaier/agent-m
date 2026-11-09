@@ -230,15 +230,9 @@ function bridgeTestFailure(error) {
   return error?.message ?? String(error);
 }
 
-// The agents on the Bridge `name` that the instance's participants name: the rows of docs/participants.md whose route is `bridge <name> agent <agent>`.
-async function participantsOnBridge(host, name) {
-  const { defaultBranch } = await host.repositoryInfo();
-  const text = await (await host.readSnapshot(defaultBranch)).read("docs/participants.md");
-  if (text === null || text === undefined) return [];
-  return readRegister(participantSchema(), "docs/participants.md", text).rows
-    .map(({ cells }) => ({ name: cells.Name, route: /^bridge (\S+) agent (\S+)$/.exec(String(cells.Route ?? "").trim()) }))
-    .filter(({ route }) => route && route[1] === name).map((row) => `${row.name} (${row.route[2]})`);
-}
+// The CLI sessions this browser declares for the Bridge `name`: its `session:<name>:<agent>` settings, by their agents.
+const sessionsOnBridge = (store, name) => listSettings(store).map((setting) => setting.key)
+  .filter((key) => key.startsWith(`session:${name}:`)).map((key) => key.slice(`session:${name}:`.length));
 
 // The resources of the list docs/resources.md of a repository whose route is exactly `bridge <name>`, by their names (MOD-resource-list, Data: Route); a repository that holds no list has none.
 async function resourcesOnBridge(host, name) {
@@ -251,15 +245,12 @@ async function resourcesOnBridge(host, name) {
     .filter(({ cells }) => /^bridge (\S+)$/.exec(String(cells.Route ?? "").trim())?.[1] === name).map(({ cells }) => cells.Name);
 }
 
-// What clearing the Bridge `name` stops working in this browser, said before it is cleared (UC-042, 2a): the endpoints, the participants, the resources of the instance and of the chosen
-// product, and the mailbox that name it. Participants and resources that cannot be read are said to be unread, never left out as if there were none.
+// What clearing the Bridge `name` stops working in this browser, said before it is cleared (UC-042, 2a): the endpoints, the CLI sessions, the resources of the instance and of the chosen
+// product, and the mailbox that name it. Resources that cannot be read are said to be unread, never left out as if there were none.
 async function clearingConsequence(context, name) {
   const endpoints = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
     .filter((setting) => readSetting(context.store, setting.key)?.bridge === name).map((setting) => endpointName(setting.key));
-  let participants = [], unread = null;
-  if (context.instance?.host) {
-    try { participants = await participantsOnBridge(context.instance.host, name); } catch (error) { unread = error?.message ?? String(error); }
-  }
+  const sessions = sessionsOnBridge(context.store, name);
   const lists = [];
   for (const [label, host] of [["instance", context.instance?.host], ["product", context.product?.host]]) {
     if (!host) continue;
@@ -269,8 +260,7 @@ async function clearingConsequence(context, name) {
   const plural = (list, one, many) => (list.length === 1 ? one : many);
   const sentences = [
     ...(endpoints.length ? [`${plural(endpoints, "The endpoint", "The endpoints")} ${endpoints.join(", ")} ${plural(endpoints, "names", "name")} it.`] : []),
-    ...(participants.length ? [`${plural(participants, "The participant", "The participants")} ${participants.join(", ")} ${plural(participants, "names", "name")} it.`] : []),
-    ...(unread ? [`The participants could not be read (${unread}), so those that name it are not listed.`] : []),
+    ...(sessions.length ? [`${plural(sessions, "The CLI session", "The CLI sessions")} ${sessions.join(", ")} ${plural(sessions, "is", "are")} declared on it.`] : []),
     ...lists.flatMap(({ label, names, unread: why }) => [
       ...(names.length ? [`${plural(names, "The resource", "The resources")} ${names.join(", ")} of the ${label} ${plural(names, "names", "name")} it.`] : []),
       ...(why ? [`The ${label}'s resources could not be read (${why}), so those that name it are not listed.`] : []),

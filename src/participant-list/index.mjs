@@ -3,7 +3,7 @@
 // instance's register docs/participants.md; participantsOf, which joins the register, as its callers read it, with the
 // connections that offer its agents' models; eligible, which judges whether a connection offers an agent's model, the
 // capabilities a role or a job needs, the processing places a restricted source or the mailbox allows, the size of the job
-// a participant's context must hold and the participants it must differ from; and differs (eligibility.mjs).
+// a participant's context must hold and the participants it must differ from; and differs (eligibility.mjs, which also joins participantsOf).
 //
 // Module: MOD-participant-list
 //
@@ -19,7 +19,7 @@
 // Schema and Document, in the types below, are MOD-documents' types of those names.
 import { loadSchema } from "../documents/index.mjs";
 
-export { differs, eligible } from "./eligibility.mjs";
+export { differs, eligible, participantsOf } from "./eligibility.mjs";
 
 /**
  * One of the six things a connection declares it can do (A CONNECTION DECLARES ITS CAPABILITIES).
@@ -83,30 +83,4 @@ async function ownFile(url) {
  */
 export function participantSchema() {
   return SCHEMA;
-}
-
-/**
- * participantsOf(register: Document, connections: Connection[]) -> Participant[] — the participants of a register read with
- * participantSchema, in its order: a person once; an agent once for each connection among `connections` whose `model` is
- * the agent's, in their order, and once without a route where none is. Pure. It judges no row: a row's errors are those
- * documentFindings names with participantSchema.
- * @param {Document} register
- * @param {Connection[]} [connections]
- * @returns {Participant[]}
- */
-export function participantsOf(register, connections = []) {
-  return register.sections.flatMap((section) => section.rows ?? []).flatMap(({ cells }) => {
-    const name = cells.Name ?? null;
-    if (cells.Type === "person") return [onNoConnection(name, "person", null)];
-    const model = cells.Model ?? null;
-    const offering = connections.filter((connection) => connection.model === model);
-    if (!offering.length) return [onNoConnection(name, "agent", model)];
-    return offering.map(({ type, context, capabilities, place, route }) =>
-      ({ name, type, model, context, capabilities, place, route }));
-  });
-}
-
-// A person, or an agent whose model no connection given offers: no context, no capabilities, no place and no route.
-function onNoConnection(name, type, model) {
-  return { name, type, model, context: null, capabilities: [], place: null, route: null };
 }

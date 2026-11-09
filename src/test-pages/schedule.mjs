@@ -1,10 +1,10 @@
 // The route `schedule` — the schedule page (UC-027), as docs/architecture/MOD-test-pages.md states it. ITM-758 builds the part before Save: the table of
 // levels by occasion with each row's number of tests, the book's default marked as such until one is saved, a folded "What is this?" per row and column
 // naming the book's chapter, the cells that refuse with their reason, the form of the schedule's schema (the nightly time, the command, the levels) whose
-// findings are those of scheduleFindings, the runner per row among the participants with "run code and tests", and the secrets needed by name with the
+// findings are those of scheduleFindings, the runner per row — hosted, or runner:<label> —, and the secrets needed by name with the
 // server's secrets page — never a field for a value.
 //
-// ITM-850 adds UC-027 3b: for each row whose runner is a participant with the route `ci runner:<label>`, the server's runner page (webLinks().runners, which shows the command
+// ITM-850 adds UC-027 3b: for each row whose runner is `runner:<label>`, the server's runner page (webLinks().runners, which shows the command
 // to run on the machine), the label, a folded explanation, and the default branch's runs in the state queued whose ciRunLabels hold the row's label (ITM-1081). The page reads no runner's state.
 //
 // ITM-759 adds Save and what follows it (UC-027 steps 5 to 7, 1a, 1b, 3a, 6a, 7a): Save writes the runner chosen per row into the schedule and opens one pull
@@ -37,7 +37,6 @@ import { scheduleSchema, defaultSchedule, scheduleFindings, secretsNeeded, confi
 import { readDocument, documentFindings } from "../documents/index.mjs";
 import { testsHead, readsAt, button, LEVEL_TOPIC, OCCASION_TOPIC } from "./look.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { scheduleView, storedView } from "../progress-measures/index.mjs";
@@ -46,7 +45,6 @@ import { heads } from "./routes.mjs";
 const TITLE = heads.schedule.title;
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const RESOURCES_PATH = "docs/resources.md";
-const PARTICIPANTS_PATH = "docs/participants.md";
 const ROWS = ["unit", "component", "system", "paid", "release", "user"];
 const COLUMNS = ["every commit", "pull request", "nightly", "release candidate", "on demand"];
 const RELEASE_RULE = "A RELEASE RUNS EVERY TEST AT EVERY LEVEL";
@@ -115,13 +113,13 @@ async function testCounts(snapshot) {
   return { counts: scheduleView(testFacts(snapshot, declared)).counts, asOf: null };
 }
 
-// A row's runner field, named for a screen reader by its row and its column (THE SITE SERVES A SCREEN READER).
-function runnerChoice(row, offered, current) {
-  const choice = el("select", "runner", ...["hosted", ...offered].map((name) => {
-    const option = el("option", null, name);
-    option.setAttribute("value", name);
-    return option;
-  }));
+// A row's runner field — `hosted`, or `runner:<label>`, a self-hosted runner by its label —, named for a screen reader by its row and its column (THE
+// SITE SERVES A SCREEN READER).
+function runnerChoice(row, current) {
+  const choice = el("input", "runner");
+  choice.placeholder = "hosted or runner:<label>";
+  choice.autocomplete = "off";
+  choice.spellcheck = false;
   choice.value = current;
   choice.setAttribute("aria-label", `${row} runs on`);
   return choice;
@@ -155,7 +153,7 @@ function tickBox(row, column, ticked, mark, changed) {
 
 // The table, the frame's table (class list) with no style of its own, and the form's own input for the section ## Levels; `choices` receives, per
 // row, its runner field and the runner it was shown with, which Save compares, and `ticks`, per row, the box of each occasion.
-function levelsTable(schedule, counts, offered, { choices, ticks, changed }) {
+function levelsTable(schedule, counts, { choices, ticks, changed }) {
   const cells = (row) => levelsOf(schedule).find((candidate) => candidate.cells.Row === row)?.cells ?? {};
   const head = el("tr", null, el("th", null, "Level"), el("th", null, "tests"),
     ...COLUMNS.map((column) => {
@@ -164,7 +162,7 @@ function levelsTable(schedule, counts, offered, { choices, ticks, changed }) {
       return th;
     }), el("th", null, "runs on"));
   const body = ROWS.map((row) => {
-    const select = runnerChoice(row, offered, cells(row)["runs on"] || "hosted");
+    const select = runnerChoice(row, cells(row)["runs on"] || "hosted");
     select.addEventListener("change", changed);
     choices.set(row, { select, shown: select.value });
     ticks.set(row, new Map());
@@ -200,7 +198,7 @@ function withTable(schedule, { choices, ticks }) {
 // The form of the schedule's schema: one labelled row per key of its front matter, each with its explanation, the table of levels as the input of its
 // section ## Levels, the findings of the schema and of scheduleFindings while the person edits, and one Save, offered only while no error remains. It
 // writes nothing itself: `onSave` does.
-function scheduleForm(schedule, table, state, { participants, findings, onSave }) {
+function scheduleForm(schedule, table, state, { findings, onSave }) {
   const inputs = new Map();
   // A key the schema holds as a list is a field of one item per line, as schedule.schema.md describes `cache`: one path per line.
   const isList = (key) => scheduleSchema.frontMatter[key].type === "list";
@@ -233,7 +231,7 @@ function scheduleForm(schedule, table, state, { participants, findings, onSave }
   };
   const check = () => {
     const now = documentNow();
-    const found = [...documentFindings(scheduleSchema, now), ...scheduleFindings(now, participants)];
+    const found = [...documentFindings(scheduleSchema, now), ...scheduleFindings(now)];
     findings.replaceChildren(...found.map((finding) => el("li", finding.kind, `${finding.what} — ${finding.fix} [${finding.rule}]`)));
     save.disabled = found.some((finding) => finding.kind === "error");
   };
@@ -242,13 +240,13 @@ function scheduleForm(schedule, table, state, { participants, findings, onSave }
   return { form: el("div", "schedule-form", table, ...fields, findings, el("p", null, save)), check };
 }
 
-// The label a CI agent's route `ci runner:<label> ...` names, or null.
-const runnerLabel = (route) => /^ci runner:(\S+)/.exec(route ?? "")?.[1] ?? null;
+// The label a row's `runs on` names, `runner:<label>`, or null.
+const runnerLabel = (runsOn) => /^runner:(\S+)$/.exec(runsOn ?? "")?.[1] ?? null;
 
-// The rows whose chosen runner is a self-hosted runner of the register, each with its label.
-function selfHostedRows(schedule, participants) {
+// The rows that run on a self-hosted runner, each with its label.
+function selfHostedRows(schedule) {
   return levelsOf(schedule).flatMap((row) => {
-    const label = runnerLabel(participantsOf(participants).find((each) => each.name === row.cells["runs on"])?.route);
+    const label = runnerLabel(row.cells["runs on"]);
     return label === null ? [] : [{ row: row.cells.Row, label }];
   });
 }
@@ -285,11 +283,11 @@ function secretsBlock(names, secretsPage) {
 
 // ---------------------------------------------------------------- the configuration against the schedule (UC-027 1a, 1b)
 
-function driftBlock(files, schedule, target, resources, participants) {
+function driftBlock(files, schedule, target, resources) {
   const block = el("section", "panel drift", el("h3", null, "The configuration against the schedule"));
   let found;
   try {
-    found = configurationDrift(files, schedule, target, resources, participants);
+    found = configurationDrift(files, schedule, target, resources);
   } catch (error) {
     block.append(el("p", "drift-unknown", `The configuration cannot be compared with the schedule: ${said(error)}`));
     return block;
@@ -439,24 +437,21 @@ async function render(target, context) {
   const instanceHost = context.instance.host;
   const [snapshot, instance] = await Promise.all([host.readSnapshot((await host.repositoryInfo()).defaultBranch),
     instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch)]);
-  const [saved, resourcesText, participantsText, { counts, asOf }] = await Promise.all([snapshot.read(SCHEDULE_PATH), snapshot.read(RESOURCES_PATH),
-    instance.read(PARTICIPANTS_PATH), testCounts(snapshot)]);
+  const [saved, resourcesText, { counts, asOf }] = await Promise.all([snapshot.read(SCHEDULE_PATH), snapshot.read(RESOURCES_PATH), testCounts(snapshot)]);
   const schedule = saved === null || saved === undefined ? defaultSchedule() : readDocument(scheduleSchema, SCHEDULE_PATH, saved);
-  const participants = readDocument(participantSchema(), PARTICIPANTS_PATH, participantsText);
   const resources = readDocument(resourceSchema(), RESOURCES_PATH, resourcesText ?? "");
   // The target of the generated configuration: the product's server, the instance as its snapshot names it — its path on GitHub, its address on GitLab,
   // where the pipeline clones it — and the commit of the instance's default branch.
   const targetOf = () => ({ server, instance: server === "github" ? instance.repository.path : instance.repository.web, instanceCommit: instance.commit });
-  const offered = eligible(participantsOf(participants), { capabilities: ["run code and tests"] }).eligible.map(({ name }) => name);
   const findings = el("ul", "schedule-findings");
   const proposal = el("div", "proposal-place");
   const state = { choices: new Map(), ticks: new Map(), changed: null };
-  const table = levelsTable(schedule, counts, offered, { ...state, changed: () => state.changed?.() });
+  const table = levelsTable(schedule, counts, { ...state, changed: () => state.changed?.() });
   const { form, check } = scheduleForm(schedule, table, state, {
-    participants, findings,
+    findings,
     onSave: async (chosen) => {
       try {
-        const { pullRequest } = await proposeSchedule(host, chosen, { ...targetOf(), resources, participants, head: snapshot.commit, trailers: [] });
+        const { pullRequest } = await proposeSchedule(host, chosen, { ...targetOf(), resources, head: snapshot.commit, trailers: [] });
         await drawProposal(proposal, host, pullRequest, chosen);
       } catch (error) {
         proposal.replaceChildren(el("p", "save-failed", `Nothing was saved: ${said(error)}`));
@@ -465,14 +460,14 @@ async function render(target, context) {
   });
   check();
   const secrets = resourcesText ? secretsNeeded(schedule, resources) : [];
-  const selfHosted = selfHostedRows(schedule, participants);
+  const selfHosted = selfHostedRows(schedule);
   const links = host.webLinks();
   const runners = selfHosted.length ? runnerBlocks(selfHosted, links.runners, await queuedRuns(host)) : [];
   const configuration = snapshot.paths.filter((path) => CONFIGURATION.test(path));
   const configured = [];
   if (configuration.length) {
     const files = Object.fromEntries(await Promise.all(configuration.map(async (path) => [path, (await snapshot.read(path)) ?? ""])));
-    configured.push(driftBlock(files, schedule, targetOf(), resources, participants));
+    configured.push(driftBlock(files, schedule, targetOf(), resources));
   }
   if (snapshot.paths.includes(GENERATED[server])) {
     let runs = null;

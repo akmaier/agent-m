@@ -8,7 +8,6 @@
 //
 // Module: MOD-test-schedule
 
-import { participantsOf } from "../participant-list/index.mjs";
 import { formatFinding } from "../text-tools/index.mjs";
 import { scheduleFindings } from "./rules.mjs";
 import { OCCASIONS, nightlyCron, nightlyRows, occasionsOf, rowsOf, secretsNeeded } from "./occasions.mjs";
@@ -77,21 +76,17 @@ function fill(template, values) {
   });
 }
 
-// Where a row runs: the runner label of the participant its `runs on` names, or null for the server's own runners.
-function runnerOf(cells, participants) {
-  const named = cells["runs on"];
-  if (!named || named === "hosted") return null;
-  return /runner:(\S+)/.exec(participantsOf(participants).find((p) => p.name === named)?.route ?? "")?.[1] ?? null;
-}
+// Where a row runs: the label of the self-hosted runner its `runs on` names, `runner:<label>`, or null for the server's own runners.
+const runnerOf = (cells) => /^runner:(\S+)$/.exec(String(cells["runs on"] ?? ""))?.[1] ?? null;
 
 /**
- * ciConfiguration(schedule, target, resources, participants) -> { files, include, pipelineSchedule } — the configuration
+ * ciConfiguration(schedule, target, resources) -> { files, include, pipelineSchedule } — the configuration
  * generated from the schedule: on GitHub `.github/workflows/agent-m-tests.yml`; on GitLab `.gitlab/agent-m-tests.yml`, the
  * entry the product's `.gitlab-ci.yml` must include it by, and the pipeline schedule of the nightly run. Throws
  * `InvalidSchedule` (with `findings`) for a schedule with an error finding.
  */
-export function ciConfiguration(schedule, target, resources, participants) {
-  const findings = scheduleFindings(schedule, participants).filter((f) => f.kind === "error");
+export function ciConfiguration(schedule, target, resources) {
+  const findings = scheduleFindings(schedule).filter((f) => f.kind === "error");
   if (findings.length) {
     throw Object.assign(new Error(`InvalidSchedule: ${findings.map(formatFinding).join("; ")}`),
       { name: "InvalidSchedule", findings });
@@ -101,7 +96,7 @@ export function ciConfiguration(schedule, target, resources, participants) {
   // One test job for each row and occasion the schedule ticks, in the order of the table and of the occasions.
   const tests = rowsOf(schedule).flatMap(({ cells }) => occasionsOf(cells.Row, schedule).map((occasion) => ({
     row: cells.Row, occasion, key: `${cells.Row}-${occasion.replaceAll(" ", "-")}`, shards: cells.shards ?? 1,
-    runner: runnerOf(cells, participants), secrets: cells.Row === "paid" ? secrets : [],
+    runner: runnerOf(cells), secrets: cells.Row === "paid" ? secrets : [],
   })));
   const parts = {
     tests, setup: fm.setup || "", cache: fm.cache ?? [], minutes: fm.minutes ?? null, command: quoted(fm.command || ""),
@@ -385,15 +380,15 @@ function foreignReading(triggerNames, schedule) {
 }
 
 /**
- * configurationDrift(files, schedule, target, resources, participants) -> Array<{ path, difference }> — where the committed
- * configuration differs from the one `ciConfiguration` generates from the same schedule, target, resources and participants: for
+ * configurationDrift(files, schedule, target, resources) -> Array<{ path, difference }> — where the committed
+ * configuration differs from the one `ciConfiguration` generates from the same schedule, target and resources: for
  * each generated file, each run of lines that differs (or the file, where it is missing), with the number of its first line and
  * the lines found and generated; on GitLab also the product's `.gitlab-ci.yml` where it lacks the include entry, with the triggers of its jobs and the rows they run; and, for each
  * GitHub workflow Agent M did not generate, its triggers and the rows they run. Empty where the configuration agrees. Throws
  * `InvalidSchedule`, as `ciConfiguration` does. Nothing of the committed files is used to generate the text they are compared with.
  */
-export function configurationDrift(files, schedule, target, resources, participants) {
-  const generated = ciConfiguration(schedule, target, resources, participants);
+export function configurationDrift(files, schedule, target, resources) {
+  const generated = ciConfiguration(schedule, target, resources);
   const found = [];
   for (const [path, text] of Object.entries(generated.files)) {
     if (files[path] === undefined) {

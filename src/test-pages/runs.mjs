@@ -33,6 +33,7 @@ import { resourceSchema } from "../resource-list/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { testsHead, readsAt, column, listTable } from "./look.mjs";
 import { heads } from "./routes.mjs";
+import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -197,7 +198,14 @@ function checklistOf(host, { declarations, levels, schedule, commit, again }) {
 // is in the page (liveState), and a job that has ended redraws the page, so that the new record shows and the reading stops; without a token, the reviewer is sent to the server's page of workflows (webLinks().actions)
 // with the commit and the levels named, since webLinks has no page of one workflow.
 
-const recordRoute = (route) => (route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 const checked = (box) => box.checked === true;
 
 function levelBoxes(levels, preset) {
@@ -238,7 +246,7 @@ async function prepareRun(state, chosen, levelsChosen, person) {
 async function queueRun(state, chosen, ready, person, out) {
   const { host, head } = state;
   const { prepared, offer, params, id, now, agentM } = ready;
-  const record = { id, kind: RUN_KIND, worksOn: [state.commit], participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: person,
+  const record = { id, kind: RUN_KIND, worksOn: [state.commit], participant: chosen.name, model: chosen.model, route: recordRoute(offer.route, chosen), ...(chosen.route ? { declares: { context: chosen.context ?? null, capabilities: chosen.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: person,
     start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
   await queueJob(host, record, offer.route, head.commit);
@@ -277,7 +285,8 @@ async function openRun(state, section) {
     const info = await context.instance.host.repositoryInfo();
     const register = await context.instance.host.readSnapshot(info.defaultBranch);
     const registerText = await register.read(PARTICIPANTS_PATH);
-    const participants = registerText == null ? [] : participantsOf(readDocument(participantSchema(), PARTICIPANTS_PATH, registerText));
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+    const participants = registerText == null ? [] : participantsOf(readDocument(participantSchema(), PARTICIPANTS_PATH, registerText), connections);
     const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
     const product = { visibility: (await host.repositoryInfo()).visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) };
     const admitted = eligible(participants, { capabilities: definition.needs }).eligible;

@@ -43,6 +43,15 @@ import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { runPanel } from "../site-frame/index.mjs";
 import { heads } from "./routes.mjs";
 
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
+
 const REGISTER = "docs/participants.md";
 const SETTINGS = "docs/settings.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
@@ -121,13 +130,13 @@ export function connectionsOf(participants, store) {
 
 export const failed = (failure) => `${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`;
 
-// The participants a page of mail offers: the instance's register, then the endpoints and CLI sessions the prompt bar offers from this browser, read with the
-// bar's own endpointsOffered and sessionsOffered (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE). One whose name the register holds
-// already is left out, and so is an endpoint that runs through GitHub Actions, since the pages of mail run their jobs in this tab. The page replies has the same need.
-export async function offeredWith(participants, store) {
-  const named = new Set(participants.map((each) => each.name));
-  const browser = [...endpointsOffered(store), ...await sessionsOffered(store)].filter((each) => !named.has(each.name) && !throughActions(each, store));
-  return [...participants, ...browser];
+// The participants a page of mail offers: the instance's register joined with the endpoints and CLI sessions the prompt bar offers from this browser, read with the
+// bar's own endpointsOffered and sessionsOffered (MOD-participant-list's participantsOf), then those connections themselves (THE PROMPT BAR'S ENDPOINTS AND CLI
+// SESSIONS ARE BOUND AS PARTICIPANTS ARE). An endpoint that runs through GitHub Actions is left out, since the pages of mail run their jobs in this tab. `register`
+// is the instance's docs/participants.md read with participantSchema, or null for an instance without it. The page replies has the same need.
+export async function offeredWith(register, store) {
+  const connections = [...endpointsOffered(store), ...await sessionsOffered(store)].filter((each) => !throughActions(each, store));
+  return [...(register === null ? [] : participantsOf(register, connections)), ...connections];
 }
 
 // What the page reads once per reading to offer participants: the instance's register with this browser's endpoints and CLI sessions, and the places the mailbox allows.
@@ -137,7 +146,7 @@ async function sessionOf(context, have, products) {
   const info = await instanceHost.repositoryInfo();
   const instanceSnapshot = await instanceHost.readSnapshot(info.defaultBranch);
   const register = await instanceSnapshot.read(REGISTER);
-  const participants = await offeredWith(register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document), context.store);
+  const participants = await offeredWith(register == null ? null : readRegister(participantSchema(), REGISTER, register).document, context.store);
   return { instanceHost, instanceSnapshot, participants, places: have.connection.places ?? [], allowed: (have.connection.places ?? []).map((each) => each.place), products, store: context.store, box: have.box };
 }
 
@@ -157,7 +166,7 @@ async function jobOf(session, kindName, params, choice, person) {
 // The job run in this tab on the person's click: its start record committed, the participants reached by their routes.
 async function runJobOf(session, job) {
   const { prepared, choice } = job;
-  const record = { id: job.id, kind: job.kind, worksOn: [...session.products.values()].map((each) => each.address), participant: choice.drafter.name, model: choice.drafter.model, route: "tab", run: null, retries: null, startedBy: job.person,
+  const record = { id: job.id, kind: job.kind, worksOn: [...session.products.values()].map((each) => each.address), participant: choice.drafter.name, model: choice.drafter.model, route: recordRoute({ kind: "tab" }, choice.drafter), ...(choice.drafter.route ? { declares: { context: choice.drafter.context ?? null, capabilities: choice.drafter.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: job.person,
     start: job.now, agentM: job.agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: {} };
   const { path } = await queueJob(job.host, record, { kind: "tab" }, job.head.commit);
   return runOnTab(prepared, job.jobContext, connectionsOf([choice.drafter, ...choice.reviewers], session.store), { host: job.host, record: { ...record, path } });

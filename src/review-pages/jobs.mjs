@@ -26,13 +26,21 @@ import { editedResult, flagged, passagesLine, placeLine, shownOnPanel, showCurre
 import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
+import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 
 // The route as a job's record writes it: `tab`, `ci hosted`, `ci runner:<label>`, `bridge <name>`.
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+// The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
+// agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
+const recordRoute = (route, participant = null) => {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+};
 
 // The endpoints of the participants as the tab's route calls them: the configuration the page stored for each, and whether it is reached through a Bridge.
 export function connectionsOf(participants, store) {
@@ -64,7 +72,9 @@ export async function loadStage(where, jobKind, instance = null) {
   const definition = await kindOf(jobKind);
   const instanceSnapshot = instance ?? (context.product ? await defaultSnapshot(context.instance.host) : snapshot);
   const register = await instanceSnapshot.read(REGISTER);
-  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  // The instance's participants on this browser's connections (MOD-prompt-bar's endpointsOffered and sessionsOffered).
+  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register), connections);
   const info = await host.repositoryInfo();
   const product = { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) };
   const needs = definition.resources === "none" ? [] : [];
@@ -193,7 +203,7 @@ export async function panelOf(run) {
 /** startRecord(run) -> the start record of the job a run of `preparedRun` prepared, on the route its offer names, for MOD-runtimes' queueJob. */
 export function startRecord(run) {
   const { token, prepared, id, now, agentM, offer, chosen, params, worksOn } = run;
-  return { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
+  return { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route, chosen), ...(chosen.route ? { declares: { context: chosen.context ?? null, capabilities: chosen.capabilities ?? [] } } : {}), run: null, retries: null,
     startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
 }

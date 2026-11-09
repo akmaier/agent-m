@@ -7,9 +7,9 @@
 // A role assignment is a Document as MOD-documents reads it with roleAssignmentSchema: its section `## Roles` with the rows
 // of its table, each a role and its participants. The schema names front matter and any other section; what it cannot say
 // — a role the product's process does not have, more participants than a role takes, a name the instance's list does not
-// hold, text besides the table — is found here. A holder's capabilities and place are judged through MOD-participant-list's
-// `eligible`, over the participants its `participantsOf` gives, as the declaration's holders were before the role
-// assignments held them.
+// hold, text besides the table — is found here. An agent holder's capabilities and places are those of the connections that
+// offer its model, judged through MOD-participant-list's `eligible`, over the participants its `participantsOf` joins with
+// the connections given.
 
 import { finding } from "../text-tools/index.mjs";
 import { participantsOf, eligible } from "../participant-list/index.mjs";
@@ -84,10 +84,11 @@ function strayLines(assignment) {
 export const holdsRole = (assignment, participant, role) => holdersOf(assignment, role).includes(participant);
 
 /**
- * roleAssignmentFindings(assignments: Document[], workflow: Workflow, participants: Document, sources: Document[]) ->
- * Finding[] — the findings of a product's role assignments, read together: for each assignment in the order given, its
- * findings in the order of their lines, each naming the assignment's path — it has no identifier — and the requirement it
- * applies. Each an error:
+ * roleAssignmentFindings(assignments: Document[], workflow: Workflow, participants: Document, connections: Connection[],
+ * sources: Document[]) -> Finding[] — the findings of a product's role assignments, read together, its holders the
+ * participants MOD-participant-list's `participantsOf` joins with `connections`, those of the browser that asks: for each
+ * assignment in the order given, its findings in the order of their lines, each naming the assignment's path — it has no
+ * identifier — and the requirement it applies. Each an error:
  * - more than one role assignment where the model works without sprints, on line 1 of each (A PRODUCT HAS ONE ROLE
  *   ASSIGNMENT, OR ONE PER TEAM);
  * - a role the workflow does not have, on its row; a line besides the roles table and the file's title, on that line (A
@@ -96,24 +97,27 @@ export const holdsRole = (assignment, participant, role) => holdersOf(assignment
  * - a name the instance's list does not hold, on its row (PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE);
  * - a role that needs a person, of which no holder is a person of the list, on its row, or on the heading ## Roles where no
  *   row names it, and a person of the list holding a role that an agent fills, on its row, naming the role and the person;
- *   a role that either may fill takes both (A PROCESS MODEL ORGANISES PEOPLE AND AGENTS);
- * - a holder that lacks a capability its role needs, on its row, naming the holder, the role and the capability, decided by
- *   MOD-participant-list's `eligible` called once per capability (A ROLE NAMES THE CAPABILITIES IT NEEDS).
- * A warning: a holder, of those that declare a processing place, at a place one of `sources` does not permit, on its row,
- * naming the holder, the role and the source, decided by `eligible` called once per source whose `permittedPlaces` is not
- * `"any"` (RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS). A holder with no declared place — every person — is
- * judged by its capabilities alone. The same participant in the role assignments of several teams is no finding (A
- * PARTICIPANT MAY SERVE SEVERAL TEAMS).
+ *   a role that either may fill takes both (A PROCESS MODEL ORGANISES PEOPLE AND AGENTS).
+ * Each a warning, since the assignment stays possible (UC-048 3b, 3c), on its row:
+ * - an agent holder for whose model no connection given has every capability its role needs, naming the holder, the role
+ *   and each capability its connections lack — every one lacks it, or, where each is had by one of them, one lacks it —
+ *   (A ROLE NAMES THE CAPABILITIES IT NEEDS);
+ * - a connection that offers a holder's model at a processing place one of `sources` does not permit, naming the holder, the
+ *   role, the connection by its route and the source, decided by `eligible` once per source whose `permittedPlaces` is not
+ *   `"any"` (RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS).
+ * A person runs on no connection and is judged by neither. The same participant in the role assignments of several teams is
+ * no finding (A PARTICIPANT MAY SERVE SEVERAL TEAMS).
  * @param {Document[]} assignments — the product's docs/role-assignments/*.md, as readDocument returns them with
  *   roleAssignmentSchema
  * @param {Workflow} workflow — the product's workflow, as workflowOf gives it
  * @param {Document} participants — the instance's docs/participants.md, as readDocument returns it with
  *   MOD-participant-list's participantSchema
+ * @param {Connection[]} connections — the connections MOD-prompt-bar's endpointsOffered and sessionsOffered give
  * @param {Document[]} sources — the register entries of the sources the product links
  * @returns {Finding[]}
  */
-export function roleAssignmentFindings(assignments, workflow, participants, sources) {
-  const listed = participantsOf(participants);
+export function roleAssignmentFindings(assignments, workflow, participants, connections, sources) {
+  const listed = participantsOf(participants, connections);
   const names = new Set(listed.map((p) => p.name).filter(Boolean));
   const persons = new Set(listed.filter((p) => p.type === "person").map((p) => p.name));
   const sprints = Boolean(workflow.model?.flow?.sprints);
@@ -168,22 +172,26 @@ export function roleAssignmentFindings(assignments, workflow, participants, sour
 
     for (const role of workflow.roles) {
       for (const row of rows.filter((candidate) => candidate.role === role.name)) {
-        const holders = listed.filter((p) => row.holders.includes(p.name));
-        for (const capability of role.capabilities) {
-          for (const { participant } of eligible(holders, { capabilities: [capability] }).leftOut) {
-            add(row.line, CAPABILITY, `the holder ${participant.name} of the role ${role.name} lacks the capability ${capability}`,
-              `give ${participant.name} the capability ${capability}, or assign ${role.name} a holder that has it`);
+        const holders = listed.filter((p) => row.holders.includes(p.name) && p.type !== "person");
+        for (const name of [...new Set(holders.map((p) => p.name))]) {
+          const on = holders.filter((p) => p.name === name);
+          if (eligible(on, { capabilities: role.capabilities }).eligible.length) continue;
+          const lacking = (every) => role.capabilities.filter((capability) => on[every ? "every" : "some"]((p) => !p.capabilities.includes(capability)));
+          const missing = lacking(true).length ? lacking(true) : lacking(false);
+          for (const capability of missing) {
+            warn(row.line, CAPABILITY, `no connection that offers the model of ${name}, holder of the role ${role.name}, has the capability ${capability}`,
+              `configure a connection of ${name}'s model with ${capability}, or assign ${role.name} a holder whose connection has it`);
           }
         }
-        const placed = holders.filter((p) => p.place);
+        const placed = holders.filter((p) => p.route);
         for (const source of sources) {
           const allowed = permittedPlaces(source);
           if (allowed === "any") continue;
           const from = source.id ?? source.path;
           for (const { participant } of eligible(placed, { capabilities: [], places: [{ from, allowed }] }).leftOut) {
-            warn(row.line, PERMITTED, `the holder ${participant.name} of the role ${role.name} processes data at `
+            warn(row.line, PERMITTED, `the connection ${participant.route} of the holder ${participant.name} of the role ${role.name} processes data at `
               + `${participant.place}, which the source ${from} does not permit`,
-              `move ${participant.name} to a place ${from} permits, or assign ${role.name} a different holder`);
+              `that source's content is never given to it: use a connection at a place ${from} permits, or assign ${role.name} a different holder`);
           }
         }
       }

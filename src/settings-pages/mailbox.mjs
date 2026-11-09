@@ -17,14 +17,12 @@
 //   - The connected mailbox is one block, mailboxLine, that this page shows above its form and the Settings page shows in the tab Endpoints & Agents: the same code in both.
 //     A connection with no record of a test (`last-test:mailbox`), as an import brings it, is shown as connected and untested. Disconnect asks once, with globalThis.confirm as
 //     the Settings page's other Clear controls do, and then clears the setting `mailbox` with the sign-in library's keys for it and the record of its test. Changed places are
-//     stored only after the notice of a place outside the EU not yet recorded for this connection has been read; the list is the participants' and the connection's own places.
+//     stored only after the notice of a place outside the EU not yet recorded for this connection has been read; the list is the places this browser's connections declare, and the connection's own.
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
-import { readRegister } from "../documents/index.mjs";
 import { mailbox, providerLinks, routeFor, signIn } from "../mail-routes/index.mjs";
 import { pagesAddress } from "../identifiers/index.mjs";
-import { participantSchema } from "../participant-list/index.mjs";
 import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { heads } from "./routes.mjs";
@@ -60,20 +58,10 @@ function bridgesOf(store) {
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// The processing places the participants declare, once each, in the order they stand: the instance's register, then the endpoints and CLI sessions the
-// prompt bar offers from this browser (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE), read with the bar's own endpointsOffered
-// and sessionsOffered. Without an instance host only this browser's. A register that cannot be read throws.
+// The processing places this browser's connections declare, once each, in the order they stand: the endpoints and CLI sessions the prompt bar offers
+// (A CONNECTION DECLARES WHERE IT PROCESSES DATA), read with the bar's own endpointsOffered and sessionsOffered.
 async function placesOf(context) {
-  const places = [];
-  const host = context.instance?.host;
-  if (host) {
-    const { defaultBranch } = await host.repositoryInfo();
-    const text = await (await host.readSnapshot(defaultBranch)).read("docs/participants.md");
-    if (text !== null && text !== undefined) {
-      places.push(...readRegister(participantSchema(), "docs/participants.md", text).rows.map(({ cells }) => String(cells["Processing place"] ?? "").trim()));
-    }
-  }
-  places.push(...[...endpointsOffered(context.store), ...await sessionsOffered(context.store)].map((participant) => participant.place));
+  const places = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)].map((connection) => connection.place);
   return [...new Set(places.filter((place) => place && place !== "—"))];
 }
 
@@ -198,7 +186,7 @@ export function mailboxLine(context, { changed = () => {} } = {}) {
     const ticked = new Set(stored.places.map((each) => each.place));
     const noted = new Set(stored.places.filter((each) => each.notCompliantNoted).map((each) => each.place));
     let offered = [];
-    try { offered = await placesOf(context); } catch (error) { panel.replaceChildren(el("p", null, `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`)); return; }
+    try { offered = await placesOf(context); } catch (error) { panel.replaceChildren(el("p", null, `The connections could not be read (${error?.message ?? error}), so no processing place can be offered.`)); return; }
     const places = [...offered, ...stored.places.map((each) => each.place).filter((place) => !offered.includes(place))];
     const boxes = places.map((place) => {
       const box = el("input", "mailbox-line-place");
