@@ -93,8 +93,7 @@ agents run on their own, and a person watches the whole and can step in.
    - its commits and pull request so far;
    - its CI runs;
    - its log, streamed while it runs, read from the runtime that holds it;
-   - its cost, as reported: for example *Actions: 14 min* or *endpoint: 182 k tokens · €0.41 at the
-     declared price*, or *unknown*.
+   - its cost, as reported: for example *Actions: 14 min*, or *endpoint: 182 k tokens · price unknown*.
 5. For a job **waiting at a gate**, the detail view shows the gate: what it checks, the artifacts to
    examine, and its decider. A CI check or an agent decides by itself and the view shows its progress;
    a person presses **Pass gate** or **Reject** (with a reason): one click, and Agent M commits the gate
@@ -143,7 +142,7 @@ sequenceDiagram
   bridge restarted. It is shown in the state *ended without record*; **Retry** is offered as for a failed job.
 - **4a. The runtime keeps no log for this job any more**, for example an expired Actions log. Agent M
   says so, and links the job's commits and pull request, which remain.
-- **4b. The runtime reports usage but the participant declares no price.** The cost shows the usage
+- **4b. The runtime reports usage but no cost.** The cost shows the usage
   (tokens, minutes) and *price unknown*. No money figure is computed (`NO COST IS GUESSED`).
 - **5a. The person at the gate does not hold its deciding role.** The gate requires a role they do not
   hold. **Pass gate** is disabled, and the role and its holders are named.

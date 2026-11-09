@@ -277,7 +277,7 @@ and sends nothing while the job does not
   `docs/jobs/`, against whose identifiers the job's identifier is new, without reading a record — and its visibility,
   for `routesFor`. It queues and starts each such job with
   MOD-runtimes' `handOverJob` — with a start whose `route` carries the route of the connection its participant runs on
-  and whose `declares` holds that connection's context, capabilities and price (MOD-job-ledger); for a job that is the
+  and whose `declares` holds that connection's context and capabilities (MOD-job-ledger); for a job that is the
   endpoint's own, whose `participant` and `model` name the endpoint and whose destinations name its place —, then follows each by its record and
   `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows,
   as each ends, its log's answer and every result its end record lists, a piece not run with why and what it requires
@@ -320,7 +320,7 @@ and sends nothing while the job does not
   it lacks nothing. `endpointsOffered` and `sessionsOffered` offer only one that lacks nothing; the settings page names the
   rest where the connection is configured.
 - `endpointsOffered(store: Store) -> Connection[]` — this browser's model endpoints (`endpoint:<name>`, in the store's
-  order) that lack nothing, one `Connection` each: the type *model endpoint*, its model, context and price, its place, the
+  order) that lack nothing, one `Connection` each: the type *model endpoint*, its model and context, its place, the
   capabilities *draft text* and *read the repository*, and *use tools* where its last test found that the model calls
   tools (`last-test:endpoint:<name>`) (`A CONNECTION DECLARES ITS CAPABILITIES`), and the route `endpoint <name>`, with
   ` secret <NAME>` where it names the CI secret of its key; none named through a Bridge this browser does not keep. The
@@ -330,7 +330,7 @@ and sends nothing while the job does not
 - `sessionsOffered(store: Store) -> Promise<Connection[]>` — the CLI sessions this browser's Bridges offer: for each Bridge
   the store keeps under `bridge:<name>`, in the store's order, each agent MOD-bridge-client's `testBridge` lists ready
   whose `session:<bridge>:<agent>` lacks nothing, one `Connection` for each model its `models` names, in their order: named
-  `<bridge>:<agent>`, the type *CLI agent*, that model with its context and price, the place and capabilities the
+  `<bridge>:<agent>`, the type *CLI agent*, that model with its context, the place and capabilities the
   declaration gives, and the route `bridge <bridge> agent <agent>`. A Bridge that cannot be tested offers none. The same
   callers as `endpointsOffered`. Crosses the network: `testBridge`'s two requests per Bridge kept; fails with nothing,
   since a Bridge that does not answer offers none.

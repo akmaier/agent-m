@@ -19,7 +19,6 @@ realises:
   - A CONNECTION NAMES THE MODELS IT OFFERS
   - A CONNECTION DECLARES ITS CAPABILITIES
   - A CONNECTION DECLARES WHERE IT PROCESSES DATA
-  - NO COST IS GUESSED
   - THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
   - THE BRIDGE OPENS ITS TUNNELS ITSELF
@@ -86,8 +85,7 @@ double-clicking it, and copying one token. Nobody types a command.
    (UC-042), and tests it; the bridge's window shows *paired with `<owner>.github.io`*.
 5. Each agent the Bridge offers becomes a connection of this browser once the person declares, on the settings page,
    where it processes data — *this computer* preset —, its capabilities — every one preset — and each model it can run,
-   with that model's context in tokens and, where the person wants costs in money, its price per million input and
-   output tokens. Its models are then among those an agent of the instance's list may be given (UC-017), and it is
+   with that model's context in tokens. Its models are then among those an agent of the instance's list may be given (UC-017), and it is
    offered in the prompt bar (UC-049).
 
 ```mermaid

@@ -81,9 +81,9 @@ it is one job per step the author picks; in a run (UC-043), the steps' jobs star
 ## Actors
 
 - **Author** — starts the jobs and chooses the participants.
-- **Coding participant** — an agent assigned to the role that implements (UC-048), whose job runs on a connection that
-  offers its model, started with that model: a coding agent of a Bridge — on this computer, or in a sandbox reached
-  through a tunnel (UC-011) —, or a model endpoint whose work runs in the product's CI (UC-010).
+- **Coding participant** — an agent assigned to the role that implements (UC-048): a coding agent of a Bridge — on this
+  computer, or in a sandbox reached through a tunnel (UC-011) —, or a model endpoint whose work runs in the product's CI
+  (UC-010).
 - **CI** — the product's GitHub Actions or GitLab CI, which runs the test suite on every push.
 - **Gate decider** — whoever a gate of the model names: a person or an agent holding its role, or an automated check
   (UC-031).

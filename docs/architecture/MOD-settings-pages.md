@@ -209,7 +209,7 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     layout's commit nor the address in the list, and the job workflow's line of `settings` and its *Set up GitHub
     Actions* finish the setup. For a GitLab product the click writes the layout and adds the address, nothing else.
   - `endpoints` — address, model and key of a model endpoint, the place where it processes data, the model's context in
-    tokens, its price per million input and output tokens where the person declares one, and the name of the CI secret
+    tokens, and the name of the CI secret
     that holds its key, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
     whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —; after a direct
@@ -276,8 +276,7 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     it; *Test* of a Bridge at its address — for one reached through the jump host its HTTPS address —, a certificate the
     browser does not trust named as a possible cause; for each CLI session a Bridge offers (MOD-bridge-client's
     `testBridge`), the place where it processes data, preset to *this machine* for a Bridge on this computer, its
-    capabilities, preset to every capability, and each model it can run, with its context in tokens and its price per
-    million input and output tokens where the person declares one (UC-044 step 5), kept under
+    capabilities, preset to every capability, and each model it can run, with its context in tokens (UC-044 step 5), kept under
     `session:<bridge>:<agent>`, and one lacking a place, a model or a model's context named as not offered (UC-049 1b).
   - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
     with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key

@@ -298,7 +298,7 @@ so; a model's command there reaches what that user can.
   command can read any file of the checkout, and the job's end notes `bash is not offered:` with that refusal
   (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`) —; a record is run with the
   `Participant` of MOD-participant-list's shape built from it alone — its name and model from `participant` and `model`,
-  its place from `## Destinations`, its context, capabilities and price from `declares`, its route from `route`, the
+  its place from `## Destinations`, its context and capabilities from `declares`, its route from `route`, the
   type *model endpoint*, and, for a kind that works in the checkout, also *use tools* and the capabilities its kind's
   tools need —, nothing of it read from the instance's list; it writes the task to no file, and a branch whose commit
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing

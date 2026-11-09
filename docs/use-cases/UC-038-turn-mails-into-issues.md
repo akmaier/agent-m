@@ -66,10 +66,10 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
   Microsoft 365, IMAP through the Bridge the connection names otherwise — Gmail included; the Bridge a chosen CLI
   agent runs on hands the mails to it.
 - **Mail server** — holds the mailbox.
-- **Participant** — an agent of the instance's list (UC-017), on a connection of this browser that offers its model — a
-  model endpoint or a Bridge's CLI agent (UC-003, UC-044) —, that proposes the issue.
-- **Checking participants** — three agents with three different models (UC-017), each on such a connection, that each
-  read the rewritten texts for any mention of a person.
+- **Participant** — an agent of the instance's list (UC-017) — a model endpoint or a Bridge's CLI agent (UC-003,
+  UC-044) — that proposes the issue.
+- **Checking participants** — three agents with three different models (UC-017) that each read the rewritten texts for
+  any mention of a person.
 - **Issue tracker** — the product's issues on GitHub or on its GitLab server.
 
 ## Precondition

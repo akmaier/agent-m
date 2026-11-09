@@ -41,13 +41,11 @@ browser: a model endpoint (UC-003) or a coding agent that a Bridge offers (UC-04
 
 1. The author opens **Participants** on the dashboard and chooses **+ Add participant**.
 2. The author picks *person* or *agent*. A folded **What is this?** explains both, and that an agent's place, capabilities,
-   context and price are those of the connection its job runs on, which this list does not hold.
+   and context are those of the connection its job runs on, which this list does not hold.
 3. The author names the participant — a person by their account — and, for an agent, selects its **model** among the
    models this browser's connections offer: the model of each endpoint (UC-003), and each model a Bridge's coding agent
    can run (UC-044), each shown with the connections that offer it and the place where each processes data. A person
-   names none. Agent M compares these models when it picks a reviewer or checkers that differ from the drafter or the
-   rewriter (UC-022, UC-038), and a job of the agent runs on a connection that offers its model, started with it (UC-011,
-   UC-034).
+   names none.
 4. The author presses **Save** — one click. Agent M commits the participant to `docs/participants.md` of the instance:
    name, type and, for an agent, model — no key, and nothing of a connection.
 
@@ -66,8 +64,7 @@ sequenceDiagram
 ## Alternative flows
 
 - **3a. No connection of this browser offers the model wanted.** Agent M links to the pages of endpoints (UC-003) and of
-  the Bridges (UC-044). A model a participant names already stays selectable while no connection here offers it, marked
-  so; its jobs are not sent from this browser until one does.
+  the Bridges (UC-044).
 - **4a. The author changes a participant that products use.** Agent M lists the products and roles that hold it; an
   assignment that the change makes invalid — an agent in a role that needs a person — is shown as invalid until
   reassigned. A job already running keeps its model.

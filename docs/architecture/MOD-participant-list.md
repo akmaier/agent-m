@@ -28,8 +28,8 @@ It belongs to Participants and jobs (ARC-046). It defines the register of the pe
 instance's products — the instance's `docs/participants.md` (`PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE`): each a
 name, a person or an agent, and an agent's model (`A PARTICIPANT IS A PERSON OR AN AGENT`, `A PARTICIPANT BASED ON A
 LANGUAGE MODEL NAMES ITS MODEL`). It joins each agent with the connections that offer its model — the model endpoints and
-the coding agents of Bridges that a browser's settings keep, each with its place, its capabilities and the context and
-price of each model it offers (`A CONNECTION NAMES THE MODELS IT OFFERS`, `A CONNECTION DECLARES ITS CAPABILITIES`,
+the coding agents of Bridges that a browser's settings keep, each with its place, its capabilities and the context of
+each model it offers (`A CONNECTION NAMES THE MODELS IT OFFERS`, `A CONNECTION DECLARES ITS CAPABILITIES`,
 `A CONNECTION DECLARES WHERE IT PROCESSES DATA`) —, so that a job runs on a connection that offers its participant's
 model (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`); and it decides which of them may do a given
 job: the capabilities the job or role needs (`A ROLE NAMES THE CAPABILITIES IT NEEDS`), the places its data may go
@@ -70,8 +70,8 @@ accepts a person's row without one. An example:
 
 ## Interfaces
 
-- `Connection` — `{ name: string, type: "model endpoint" | "CLI agent", model: string, context: number, price: { input:
-  number, output: number, currency: string } | null, capabilities: Capability[], place: string, route: string }`: one
+- `Connection` — `{ name: string, type: "model endpoint" | "CLI agent", model: string, context: number, capabilities:
+  Capability[], place: string, route: string }`: one
   model that one connection offers, as a browser's settings declare it — a model endpoint offers one, a coding agent of a
   Bridge one for each model it can run (MOD-browser-store, `endpoint:<name>` and `session:<bridge>:<agent>`). `name` is
   the connection's — `<endpoint>` or `<bridge>:<agent>` —; `route` how Agent M reaches it, `endpoint <name>`, with
@@ -79,10 +79,9 @@ accepts a person's row without one. An example:
   `endpointsOffered` and `sessionsOffered` read them; a connection the prompt bar offers is handed to the job runner as
   it is, as a participant (`THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE`).
 - `Participant` — `{ name: string, type: "person" | "agent" | "model endpoint" | "CLI agent", model: string | null, context: number
-  | null, price: { input: number, output: number, currency: string } | null, capabilities: Capability[], place: string |
-  null, route: string | null }`: who does a job and where it runs — a person of the register; an agent of the register on
+  | null, capabilities: Capability[], place: string | null, route: string | null }`: who does a job and where it runs — a person of the register; an agent of the register on
   one connection that offers its model, with the agent's `name` and `model` and the connection's `type`, `context`,
-  `price`, `capabilities`, `place` and `route`; or a connection the prompt bar offers, which has this shape already. A
+  `capabilities`, `place` and `route`; or a connection the prompt bar offers, which has this shape already. A
   person has no model, no context, no capabilities, no place and no route; an agent that no connection given offers its
   model keeps the type `agent`, with no context, no capabilities, no place and no route.
 - `Capability` — `"draft text" | "read the repository" | "write to the repository" | "run code and tests" | "use tools" |
