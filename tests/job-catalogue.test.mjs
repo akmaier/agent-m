@@ -59,7 +59,7 @@ const TABLE_TEXT = `
 | ~check-for-persons~ | UC-038 | draft text | | ~draft~ | | | | ~none~ · ~return-draft~ | findings |
 | ~draft-replies~ | UC-039 | draft text | | ~reply-inputs~ | | | | ~none~ · ~mail-drafts~ | one reply per mail |
 | ~check-resource~ | UC-040 | run code and tests | | ~instruction?~, ~resource-check~ | | | | ~none~ · ~return-draft~ | what answered |
-| ~converse~ | UC-049 | draft text | | ~page~, ~conversation~, ~instruction~, ~chapters-for-page?~ | ~document-schema~, ~graph-checks~ | | | ~person~ · ~proposed-edits~ | the answer, the edits the participant proposed, and the hand-over it proposes |
+| ~converse~ | UC-049 | draft text | | ~page~, ~conversation~, ~instruction~, ~chapters-for-page?~ | ~document-schema~, ~graph-checks~, ~plan-works-on~ | | | ~person~ · ~proposed-edits~ | the answer, the edits the participant proposed, and the hand-over it proposes |
 `;
 
 // The names a cell lists: the text of each ~…~ in it, or, without any, its comma-separated words; none for "—" or blank.

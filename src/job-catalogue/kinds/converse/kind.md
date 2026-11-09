@@ -15,6 +15,7 @@ recipes:
 checks:
   - document-schema
   - graph-checks
+  - plan-works-on
 person_decides:
 steps:
 gate_points:

@@ -268,6 +268,26 @@ export function startRecord(job) {
   return { path, text: writeDocument(jobSchema, document) };
 }
 
+// ---------------------------------------------------------------- worksOnProblem
+
+// A start every other field of which the record takes, so that what writeDocument refuses of it is its works_on.
+const PROBE = { id: "JOB-20260101-0000-0000", kind: "probe", worksOn: [], participant: null, model: null, route: "tab", run: null, retries: null, startedBy: "probe",
+  start: new Date(0), agentM: { version: "unreleased", commit: "probe" }, inputs: [], limit: 1, destinations: [], params: {} };
+
+/**
+ * worksOnProblem(worksOn: string[]) -> string | null — why a record would refuse `worksOn` as what its job works on: the reason writeDocument gives for the field
+ * `works_on` of job.schema.md, whose form the `works on:` of `## Job started` shares; null where the record takes it. Pure.
+ */
+export function worksOnProblem(worksOn) {
+  try {
+    startRecord({ ...PROBE, worksOn });
+    return null;
+  } catch (error) {
+    if (error.name === "DocumentError" && error.field === "works_on") return error.message;
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------- reading a record
 
 // The appended chunks of one heading, in the order they stand.
