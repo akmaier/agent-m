@@ -159,9 +159,10 @@ read as this browser's.
 | a start from the server's own page, with a job's identifier (UC-010, UC-024), or from a hand-over, with the identifier of the job it queued and the task (UC-049 4a) | `onDispatch` |
 
 Its start from a page or a hand-over takes the inputs `job`, the job's identifier, and, for a hand-over, `task`, the
-task in the participant's words, `endpoint`, the address and model of a model endpoint, and `secret`, the name of the CI
-secret of that endpoint's key; the task is given to the job and written to no file, and the run's answer is left in the
-run's own log and summary, never in the job's record. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
+task in the participant's words, `endpoint`, the address and model of a model endpoint, `secret`, the name of the CI
+secret of that endpoint's key, and `test`, set for the test job of that endpoint (UC-003, step 4); the task is given to
+the job and written to no file, and the run's answer, and an endpoint's test, are left in the run's own log and summary,
+never in the job's record. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
 an agent's key from the secret the participant's route names; the file names each secret it reads by its literal name,
 never by a name computed while it runs; the dashboard names them, stores on a person's click each one whose value this
 browser keeps (`actionsSetup`), opens the server's page for secrets for the rest, and never asks for a value. Each job checks out the instance repository at the commit the file names and runs an entry of
@@ -388,8 +389,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   `readSnapshot` and `ciSecretNames` fail, and `setUp` as `commitFiles` — `Moved` among them — and `setCiSecret` fail;
   what it wrote before a failure stays written.
 - `handOverJob(prepared: Prepared, route: Route, start: JobStart, host: Host, head: string, task: string, target: {
-  endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null }) -> Promise<{ path: string,
-  commit: string }>` — queues one piece of work a conversation of the prompt bar handed over, as the result of the
+  endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null, test?: true }) -> Promise<{
+  path: string, commit: string }>` — queues one piece of work a conversation of the prompt bar handed over, as the result of the
   person's *Send* (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`), or in the run of a conversation's job that runs on
   CI (MOD-workflow-entries): commits `start` as the person's commit on the head that was read —
   the record naming the participant, the page and the commit it read, the conversation record where the instance records
@@ -397,7 +398,7 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   `startedBy` names a job, in the same commit that job's `Job started` part, through MOD-job-ledger's `appendToRecord`,
   as `queueJob` appends a run's; then, on the CI route, starts
   the product's job workflow with `startWorkflow` and the inputs `job`, `task` and, for a model endpoint, `endpoint` and
-  `secret`, the CI secret its route names, or,
+  `secret`, the CI secret its route names, and `test` where `target.test` is set, or,
   on a Bridge, hands it over with `handOver` and the task. `prepared` is the job of the kind the participant named, with
   the task as its instruction, prepared by the caller with MOD-job-runner's `prepareJob`; a job it reports as blocking or
   not fitting is refused with its findings. A kind with the gate point `before-write` is refused, since such a job would

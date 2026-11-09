@@ -221,8 +221,10 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     else its name in capitals followed by `_API_KEY` — of the chosen product's repository, else the instance's, with
     MOD-repository-hosts' `setCiSecret`; the secret's name kept with the endpoint, and the key kept in this browser;
     and one test job of the endpoint spawned there with MOD-prompt-bar's `spawnEndpointJob` (the kind `converse`, a
-    one-line task) and followed with `followJob`, whose end and answer are the endpoint's test, recorded as its last
-    test. An endpoint that names a CI secret and no Bridge runs through GitHub
+    one-line task, `test`) and followed with `followJob`, whose end and answer say whether the endpoint works and whose
+    test — the one MOD-endpoint-calls' `testEndpoint` sent in the run (MOD-workflow-entries) — whether the model called
+    the tool, *can use tools* or *text only*, its `toolMessage` folded (UC-003 step 5, 5a), recorded as its last test with
+    `tools` from that test, false where the run left none. An endpoint that names a CI secret and no Bridge runs through GitHub
     Actions: it is not called from the page, and its *Test* is that test job; a folded explanation that the prompt bar
     appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*.
   - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the

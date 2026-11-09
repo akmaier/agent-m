@@ -22,6 +22,7 @@ uses:
   - MOD-endpoint-calls.endpointDriver
   - MOD-endpoint-calls.diagnoseEndpoint
   - MOD-endpoint-calls.holdKey
+  - MOD-endpoint-calls.testEndpoint
   - MOD-agent-processes.agentDriver
   - MOD-agent-processes.keyProvider
   - MOD-checkout-tools.checkoutStrategies
@@ -279,7 +280,12 @@ so; a model's command there reaches what that user can.
   `taskRefusal`, since the task would reach no prompt —; for a model
   endpoint, the endpoint the input `endpoint` names, with the key from the CI secret the input `secret` names, through
   Agent M's own job runner, MOD-endpoint-calls' `endpointDriver` calling the endpoint, with its tool loop where the
-  participant declares *use tools*, as in the tab, its input beginning with Agent M's `AGENTS.md` as text. A job of a
+  participant declares *use tools*, as in the tab, its input beginning with Agent M's `AGENTS.md` as text. With the
+  input `test`, the hand-over of an endpoint's test job (UC-003, step 4), the entry first sends MOD-endpoint-calls'
+  `testEndpoint` with the configuration it gives `endpointDriver`, and leaves what that returns — `{ works, model, tools,
+  toolMessage }` or `{ works: false, diagnosis }`, which holds no key — as one line of JSON in the log between the lines
+  `--- test of <id> ---` and `--- end of the test of <id> ---`, where the settings page reads it; the job then runs as
+  any other. A job of a
   kind that only reads and drafts text — whose `needs` hold *draft text* and nothing but *draft text* and *read the repository*, as `converse` and the change kinds of
   requirements, use cases and the architecture — works in no checkout. A job of any other kind — one that changes code or
   runs tests — works in the job's checkout of the product, `JobContext`'s `product.checkout`, with the tools of
@@ -429,7 +435,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   on the model's user's side given the key holder's address; `MOD-agent-processes.keyProvider` — the provider a key holder
   stands in for, where the machine's key is a coding agent's;
   `MOD-endpoint-calls.diagnoseEndpoint` — why a handed-over run could not reach its endpoint; `MOD-endpoint-calls.holdKey`
-  — the key holder beside the model's user.
+  — the key holder beside the model's user; `MOD-endpoint-calls.testEndpoint` — the test of an endpoint's test job, the
+  one the browser and a Bridge send (UC-003, step 4).
 - `MOD-checkout-tools.checkoutStrategies`, `MOD-checkout-tools.checkoutPrompt` — the tools and the system prompt of a
   model endpoint that works in the job's checkout, on the agent's machine.
 - `MOD-job-runner.JobContext`, `registerStrategies`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of
