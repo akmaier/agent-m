@@ -35,7 +35,8 @@ calling, each call carried out by the runner, until the endpoint answers without
 ch. 11); it sends the short test request of UC-003, which also tells whether the model calls a tool it is offered; and when a browser
 cannot call an endpoint, it names the reason and the routes that would work instead (`AN UNSUPPORTED ENDPOINT SAYS SO`).
 An endpoint the browser cannot call is called through the Bridge its configuration names, for UC-003's short test and
-for the requests of jobs: MOD-bridge-jobs runs `testEndpoint` and `endpointDriver` in Node on that Bridge. Wherever it
+for the requests of jobs: MOD-bridge-jobs runs `testEndpoint` and `endpointDriver` in Node on that Bridge; one that runs
+through GitHub Actions is tested in its test job there, where MOD-workflow-entries runs `testEndpoint`. Wherever it
 runs, the driver calls the endpoint directly; it neither selects nor reaches a Bridge, which MOD-runtimes does. It runs
 in a browser and in Node, and keeps nothing.
 

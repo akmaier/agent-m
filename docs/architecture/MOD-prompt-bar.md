@@ -325,10 +325,11 @@ and sends nothing while the job does not
   one that lacks nothing; the settings page names the rest where the endpoint is configured.
 - `endpointsOffered(store: Store) -> Participant[]` — this browser's endpoints the bar offers, as `startPromptBar` builds
   them; for the settings page's test job of an endpoint.
-- `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot?
-  }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
+- `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot?,
+  test? }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
   endpoint's own, on GitHub Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the
-  repository of `page`, with `task` travelling in the workflow's inputs and `source` the bar's, on the server's own runners. It reads none of
+  repository of `page`, with `task` travelling in the workflow's inputs and `source` the bar's, on the server's own runners;
+  with `test`, the settings page's test job of the endpoint, the input `test` beside it (MOD-runtimes' `handOverJob`). It reads none of
   the product's facts: of the product, its default branch — its head, its
   paths, its visibility —, and of the instance its participant list and the restricted sources' places, which the job's
   preparation takes; `instanceSnapshot` is the instance's default branch where the bar read it already, for the
@@ -343,8 +344,10 @@ and sends nothing while the job does not
   `products`, so a message never names it this way. Pure.
 - `followJob({ id, address, host, store, show }) -> { stop, cancel }` — a handed-over job followed every 15 seconds until
   its record has its end, `show` given its state, its run's address, its end and, for a run on CI, the answer the run
-  left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), read
-  from its run's log, read once with `listCiRuns` and `ciRunLog` when its end is read.
+  left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), and
+  the endpoint's test it left between `--- test of <id> ---` and `--- end of the test of <id> ---`, as the JSON that block
+  holds, `null` where the log holds none or its line is not JSON, both read from its run's log, read once with
+  `listCiRuns` and `ciRunLog` when its end is read.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
