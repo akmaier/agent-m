@@ -48,8 +48,8 @@ down cannot be checked, updated or handed over.
 | | **Resource** — declared here | **Requirement source** — UC-015 | **Participant** — UC-017 |
 |---|---|---|---|
 | relation to the product | the product or one of its jobs **uses** it | the product must **meet** its rules | it **develops** the product |
-| examples | a private repository of DLLs; `meta-llama/Llama-3.1-8B` on Hugging Face at a fixed revision; the SLURM cluster *Alex* at NHR@FAU; a vLLM endpoint on `gpu01` that the product queries | EU AI Act, IEC 62304 class B | a colleague, Claude Code on the author's machine, a CI agent |
-| fixed by | commit, revision, file hash, served model | edition, hash of the text | capabilities, processing place |
+| examples | a private repository of DLLs; `meta-llama/Llama-3.1-8B` on Hugging Face at a fixed revision; the SLURM cluster *Alex* at NHR@FAU; a vLLM endpoint on `gpu01` that the product queries | EU AI Act, IEC 62304 class B | a colleague, a developer agent working with `claude-opus-5-5` |
+| fixed by | commit, revision, file hash, served model | edition, hash of the text | name, and an agent's model |
 | file | product: `docs/resources.md` | product: `docs/sources.md` | instance: `docs/participants.md` |
 
 **The instance has resources of its own, too** — the cluster or runner on which it runs its agents, an
@@ -58,8 +58,8 @@ repository. The two lists are independent: an entry in one has no effect on the 
 product's list never inherits from the instance's, so the product still says on its own what it is
 built with and runs on.
 
-The same local LLM endpoint can be both: a resource the product queries at runtime, and — as a
-coding agent behind a Bridge — a participant that works on the product. It is then two entries,
+The same local LLM endpoint can be both: a resource the product queries at runtime, and the
+connection whose model a participant that works on the product works with. It is then two entries,
 each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
 
 | Kind | Example | Pinned by | Reached through |
@@ -155,7 +155,7 @@ sequenceDiagram
   changes.
 - **2a. The system also works on the product** — for example the local LLM endpoint is also used as
   a coding agent. The folded explanation says it is declared here as a resource and, separately, as
-  a participant in UC-017; a link opens UC-017 with type and address prefilled. The two entries
+  a participant in UC-017; a link opens UC-017 with the type *agent* and the served model prefilled. The two entries
   share no fields.
 - **2b. What the author wants to record is a rule, not a thing used** — a norm, a guideline. A link
   opens UC-015.

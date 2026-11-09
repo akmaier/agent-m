@@ -108,10 +108,10 @@ implementation (UC-024). Its files in the product repository:
 ## Actors
 
 - **Author** — starts the derivation, chooses the participants and the libraries, accepts the architecture.
-- **Deriving participant** — a model endpoint or agent from the instance's list (UC-017) that drafts the architecture
-  and corrects it.
-- **Reviewing participant** — another model endpoint or agent from the instance's list, using another model, that checks
-  the complete draft against the entire project.
+- **Deriving participant** — an agent from the instance's list (UC-017), on a connection of this browser that offers its
+  model, that drafts the architecture and corrects it.
+- **Reviewing participant** — another agent from the instance's list, using another model, on a connection that offers
+  that model, that checks the complete draft against the entire project.
 - **Package registry** — npm, PyPI, crates.io, Maven Central or the candidate's source repository; supplies the facts for
   the due diligence.
 - **Product repository** — holds the SPEC and the use cases, and receives the architecture.

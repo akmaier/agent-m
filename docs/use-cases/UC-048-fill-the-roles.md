@@ -13,8 +13,8 @@ realises:
   - A PARTICIPANT MAY SERVE SEVERAL TEAMS
   - PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
-  - A PARTICIPANT DECLARES ITS CAPABILITIES
-  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A CONNECTION DECLARES ITS CAPABILITIES
+  - A CONNECTION DECLARES WHERE IT PROCESSES DATA
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
@@ -51,10 +51,11 @@ teams, which work in parallel (UC-032).
    whether a person, an agent or either may fill it, which capabilities it needs, and whether one participant fills it or
    several may (UC-002, step 4).
 2. The author names the role assignment — in a model that works in sprints, the team, for example `team1`.
-3. The author assigns participants from the instance's list (UC-017) to each role: people, model endpoints, CI agents,
-   CLI agents or sandboxed agents — one to a role that one fills, as many as the work needs to a role that several may
-   fill. Agent M offers only participants that have every capability the role needs, and shows for each where it
-   processes data.
+3. The author assigns participants from the instance's list (UC-017) to each role: people and agents, as the role
+   allows — one to a role that one fills, as many as the work needs to a role that several may fill. Agent M shows for
+   each agent its model and the connections of this browser that offer it, each with its processing place and whether
+   it has every capability the role needs; a job of the role runs only on such a connection (`A ROLE NAMES THE
+   CAPABILITIES IT NEEDS`).
 4. The author presses **Save** — one click. Agent M commits `docs/role-assignments/<name>.md` to the product repository:
    for each role of the model, its participants by name, and nothing of the process. From now on, the product's jobs go to
    these holders of their roles, and its gates are decided by them (UC-034).
@@ -74,7 +75,7 @@ sequenceDiagram
     M-->>A: role assignments with their holders
     M-->>A: roles of the model, the capabilities they need, how many fill each
     A->>M: name, participants for each role
-    M-->>A: only participants with the capabilities, and where each processes data
+    M-->>A: each agent's model, its connections, their places and capabilities
     A->>M: Save
     M->>G: commit docs/role-assignments/<name>.md
 ```
@@ -87,11 +88,13 @@ sequenceDiagram
 - **2b. The model works without sprints, and the product has its role assignment.** **+ Team** is not offered; the author
   changes the one role assignment, adding or removing developers, testers or reviewers as the work needs (4a).
 - **3a. A role that needs a person has none.** *Save* stays disabled, and the role is named.
-- **3b. No participant has the capabilities a role needs** — for example only a model endpoint is configured, and
-  *Developers* must run tests. Agent M names the missing capability and links to UC-017 to add a participant that has
-  it.
-- **3c. An assigned participant processes data where a linked source does not permit it.** Agent M says which source and
-  which role; the assignment stays possible, and that source's content is never given to that participant.
+- **3b. No connection of this browser that offers an assigned agent's model has the capabilities its role needs** —
+  for example only a model endpoint offers it, and *Developers* must run tests. Agent M names the missing capability
+  and links to the pages of endpoints (UC-003) and Bridges (UC-044); the assignment stays possible, and no job of the
+  role is sent to a connection that lacks it.
+- **3c. A connection that offers an assigned agent's model processes data where a linked source does not permit it.**
+  Agent M says which source, which role and which connection; the assignment stays possible, and that source's content
+  is never given to that connection.
 - **3d. The author gives a role that one participant fills a second one.** Agent M says that the model lets one fill it,
   and saves nothing.
 - **4a. The author changes a role assignment.** They open it from the list of step 1, change who fills which role and

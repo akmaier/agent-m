@@ -60,7 +60,6 @@ uses:
   - MOD-artifact-edits.reviewLayoutCommit
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
-  - MOD-participant-list.reachedThrough
   - MOD-product-process.declarationSchema
   - MOD-product-process.productWorkflow
   - MOD-product-process.roleAssignmentSchema
@@ -105,6 +104,7 @@ uses:
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.endpointLacks
   - MOD-prompt-bar.endpointsOffered
+  - MOD-prompt-bar.sessionsOffered
   - MOD-prompt-bar.spawnEndpointJob
   - MOD-prompt-bar.followJob
 provides:
@@ -150,7 +150,7 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   - `settings` — three sections — this browser, the instance, each product —, one line per setting with its state:
     works, with the date of the last successful test; expires on, from fourteen days before a token's recorded expiry;
     refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*; each Bridge is a
-    line of its own, under its name, and its *Clear* names first the endpoints, participants, mailbox and resources that
+    line of its own, under its name, and its *Clear* names first the endpoints, CLI sessions, mailbox and resources that
     name it (UC-042, 2a). The line
     *Notifications* of this browser's section (UC-047) shows the state `notificationState` gives: *off*, or switched on
     without this browser's permission yet, with *Switch on*, whose click asks the browser's permission; *on*, with how
@@ -209,7 +209,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     layout's commit nor the address in the list, and the job workflow's line of `settings` and its *Set up GitHub
     Actions* finish the setup. For a GitLab product the click writes the layout and adds the address, nothing else.
   - `endpoints` — address, model and key of a model endpoint, the place where it processes data, the model's context in
-    tokens and the name of the CI secret that holds its key, and, for one the browser cannot call, the Bridge that
+    tokens, its price per million input and output tokens where the person declares one, and the name of the CI secret
+    that holds its key, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
     whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —; after a direct
     test that works, for an endpoint that declares no context, the context its endpoint states (MOD-endpoint-calls'
@@ -228,13 +229,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     Actions: it is not called from the page, and its *Test* is that test job; a folded explanation that the prompt bar
     appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*.
   - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the
-    parameters `type` and `address` where the route is opened with them: type, model, context and price, capabilities,
-    processing place, route; for a CLI or sandboxed agent, the Bridge it runs on, chosen among this browser's Bridges,
-    the agents that Bridge offers, and *Test* through it — or, for a subagent, the CLI agent that starts it, which it is
-    reached through (UC-017 step 3); for a model endpoint, *use tools* preset from its endpoint's last test, and the CI
-    secret of its key where its jobs may run on the server's runners; for a self-hosted runner, the explanation that it
-    serves private repositories only and is refused when a public product's job would run on it (`routesFor`); a change
-    to a participant that products use, with those products and roles named.
+    parameters `type` and `model` where the route is opened with them: name, *person* or *agent*, and for an agent its
+    model, selected from the models this browser's connections offer (`endpointsOffered`, `sessionsOffered`), each named
+    with the connections that offer it and their processing places, and the model a row names already, kept selectable
+    and marked where no connection here offers it (UC-017 step 3, 3a); with no connection here, links to `endpoints` and
+    `bridge`; a change to a participant that products use, with those products and roles named.
   - `library`, `library/<source>`, `sources` — the instance's register of sources and a source's versions; *+ Register
     source* by route — EU legal text, standard, documents, repository — with the files hashed in the browser and what
     becomes public stated before *Save*, which commits the entry and its content where its licence allows — the instance,
@@ -252,15 +251,17 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     facts of MOD-reuse-facts' `repositoryFacts`; for a key kept in this browser (secret `browser`), its field, stored as
     `resource-key:<name>`; a newer state upstream with *Move*, and on *Move* and on *Remove* the jobs and tests that name
     the resource (MOD-resource-list's `namedBy`), listed and not changed; for an endpoint or agent that also works on the
-    product, *Add as participant*, which opens `participants` with its parameters `type` and `address` filled in;
+    product, *Add as participant*, which opens `participants` with its parameters `type`, `agent`, and `model`, the model
+    the resource serves, filled in;
     *Copy from the instance*.
   - `mailbox` — the route recognised from the address; for Microsoft 365 the app registration's steps and the sign-in
     with its permissions named before the provider's window opens; for every other mailbox the servers and ports, the
     account name, the SMTP server's own account name and the sender where they differ (UC-037 step 4.1), the notice
     before the password field, and an app password explained; the Bridge the connection goes through, chosen
     among this browser's Bridges, and, for one reached through the jump host, the notice that the jump host can read the
-    password and the mails, before saving; the folders; the processing places the mail may go to, a place outside the EU
-    stated as not compliant before saving; *Store and test*; *Disconnect*. Each test of the mailbox — *Store and test*
+    password and the mails, before saving; the folders; the processing places the mail may go to, offered from the places this browser's
+    connections declare (`endpointsOffered`, `sessionsOffered`), a place outside the EU stated as not compliant before
+    saving; *Store and test*; *Disconnect*. Each test of the mailbox — *Store and test*
     here, *Test* on its line of `settings` — is stored as its last test, `last-test:mailbox`, with the `sending` its
     `test()` gives (UC-037 7d).
   - `bridge` — the release's file for this computer's system with its size and the SHA-256 the server reports for it,
@@ -274,9 +275,10 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     range, HTTPS address and web-server login; the jump host's web-server configuration for every Bridge reached through
     it; *Test* of a Bridge at its address — for one reached through the jump host its HTTPS address —, a certificate the
     browser does not trust named as a possible cause; for each CLI session a Bridge offers (MOD-bridge-client's
-    `testBridge`), the place where it processes data, its context in tokens, its model and its capabilities, prefilled
-    as for a CLI agent (UC-017), kept under `session:<bridge>:<agent>`, and one lacking a place, a context or a model
-    named as not offered in the prompt bar (UC-049 1b).
+    `testBridge`), the place where it processes data, preset to *this machine* for a Bridge on this computer, its
+    capabilities, preset to every capability, and each model it can run, with its context in tokens and its price per
+    million input and output tokens where the person declares one (UC-044 step 5), kept under
+    `session:<bridge>:<agent>`, and one lacking a place, a model or a model's context named as not offered (UC-049 1b).
   - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
     with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key
     `github-token`, the product for its own key, and for *Change* the repository its setting's key names. A refusal of
@@ -331,12 +333,11 @@ reaches.
   the text a save writes; MOD-artifact-edits.saveFile — a person's edit of one register, only on the blob it was opened
   on; MOD-artifact-edits.reviewLayoutCommit — the review layout of a new product.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the participant register and its
-  participants; MOD-participant-list.reachedThrough — the CLI agent a subagent is reached through, kept when its row is
-  changed; MOD-product-process.declarationSchema, productWorkflow, roleAssignmentSchema — the products and roles that use
+  participants on this browser's connections; MOD-product-process.declarationSchema, productWorkflow, roleAssignmentSchema — the products and roles that use
   a participant: each product's roles from its declared workflow, and who fills them from its role assignments, since the
   declaration names roles and never participants; MOD-product-process.roleAssignmentFindings — the assignments that a
-  changed participant makes invalid, such as a holder that lacks a capability its role needs, shown before the change is
-  saved (UC-017 7a).
+  changed participant makes invalid, such as an agent in a role that needs a person, shown before the change is saved
+  (UC-017 4a).
 - MOD-source-register.sourceSchemas, MOD-source-register.registrationCommits, MOD-source-register.versionCommits,
   MOD-source-register.linkedVersion, MOD-source-register.affectedRequirements, MOD-source-register.changedPassages,
   MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links;
@@ -357,7 +358,9 @@ reaches.
 - MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
   MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
   MOD-prompt-bar.spawnEndpointJob, MOD-prompt-bar.followJob — the test job of an endpoint that runs through GitHub Actions.
-- MOD-prompt-bar.endpointLacks — what an endpoint lacks for the prompt bar to offer it, named on its line and on its own page (UC-049 1b).
+- MOD-prompt-bar.endpointLacks — what an endpoint or a CLI session lacks for the prompt bar to offer it, named on its line and on its own page (UC-049 1b).
+- MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered — this browser's connections: the models a participant
+  may be given, and the places a mailbox may allow.
 - MOD-repository-hosts.setCiSecret — an endpoint's key stored as a GitHub Actions secret, on the person's click.
 - MOD-repository-hosts.ciVariableScopes — a GitLab product's CI/CD variables by name and scope, checked against the scopes
   the job workflow needs.

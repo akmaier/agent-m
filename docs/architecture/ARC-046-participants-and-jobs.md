@@ -176,7 +176,7 @@ job has, across every product.
 
 | Module | Functions other subsystems use |
 |---|---|
-| MOD-participant-list | `Participant`, `participantSchema`, `eligible`, `differs`, `reachedThrough` |
+| MOD-participant-list | `Participant`, `Connection`, `participantSchema`, `participantsOf`, `eligible`, `differs` |
 | MOD-endpoint-calls | `endpointDriver`, `testEndpoint`, `diagnoseEndpoint` |
 | MOD-agent-processes | `Agent`, `Enclosure`, `installedAgents`, `agentDriver`, `testAgent` |
 | MOD-checkout-tools | `checkoutStrategies`, `checkoutPrompt` |
@@ -189,9 +189,9 @@ job has, across every product.
 
 | Module | Folder | Responsibility |
 |---|---|---|
-| MOD-participant-list | `src/participant-list/` | the schema of the instance's `docs/participants.md`: the five types, model, context size and price, capabilities, processing place, route — a subagent's through the agent that starts it —; which participants may do a job — capabilities, places a source or a mailbox permits —, and that a reviewer or checker differs from the drafter in participant and model |
+| MOD-participant-list | `src/participant-list/` | the schema of the instance's `docs/participants.md`: a name, *person* or *agent*, and an agent's model; each agent joined with the connections a browser keeps that offer its model, which declare its context and price, capabilities, processing place and route; which participants may do a job — capabilities, places a source or a mailbox permits —, and that a reviewer or checker differs from the drafter in participant and model |
 | MOD-endpoint-calls | `src/endpoint-calls/` | the driver for OpenAI-compatible and Anthropic endpoints, in a browser or in Node, with the endpoint's own tool calling where tools are offered; the test request, with whether the model calls a tool; the reason a browser cannot call an endpoint, with the routes that would work |
-| MOD-agent-processes | `src/agent-processes/` | in Node only: the coding-agent CLIs installed on the machine, and the driver that runs one with a task in a working folder — with the machine's own login, or in CI with its key from a secret, opencode also with a model endpoint — streaming its output and stopping it on cancel |
+| MOD-agent-processes | `src/agent-processes/` | in Node only: the coding-agent CLIs installed on the machine, and the driver that runs one with its participant's model and a task in a working folder — with the machine's own login, or in CI with its key from a secret, opencode also with a model endpoint — streaming its output and stopping it on cancel |
 | MOD-checkout-tools | `src/checkout-tools/` | in Node only: the tools a model endpoint works with in a job's checkout — read, write, edit, bash, grep, glob, webfetch, ported from opencode — as strategies of the runner, every path held inside the checkout, and the prompt that names the endpoint's environment and how it uses them |
 | MOD-job-runner | `src/job-runner/` | the interpreter of a job's definition: preconditions, recipes, fitting the parts to the participant's context, every destination and what goes there, the tools offered and their calls carried out, the correction loop with checks and reviewing participants, the gates, the writer; the registry of strategies; the provenance lines of its commits |
 | MOD-job-catalogue | `src/job-catalogue/` | every job kind as data, one folder each, with its definition, prompt and output schema; the tools a kind may offer, each with its description and the schema of its arguments; the schema of a definition |

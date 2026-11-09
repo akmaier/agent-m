@@ -30,7 +30,7 @@ realises:
   - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
   - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
   - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
-  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A CONNECTION DECLARES WHERE IT PROCESSES DATA
   - THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
   - THE PAGE NAMES WHERE IT SENDS
   - A GENERATED ARTIFACT IS A PROPOSAL
@@ -66,9 +66,10 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
   Microsoft 365, IMAP through the Bridge the connection names otherwise — Gmail included; the Bridge a chosen CLI
   agent runs on hands the mails to it.
 - **Mail server** — holds the mailbox.
-- **Participant** — a model endpoint or CLI agent (UC-017) that proposes the issue.
-- **Checking participants** — three LLM participants with three different models (UC-017) that each read
-  the rewritten texts for any mention of a person.
+- **Participant** — an agent of the instance's list (UC-017), on a connection of this browser that offers its model — a
+  model endpoint or a Bridge's CLI agent (UC-003, UC-044) —, that proposes the issue.
+- **Checking participants** — three agents with three different models (UC-017), each on such a connection, that each
+  read the rewritten texts for any mention of a person.
 - **Issue tracker** — the product's issues on GitHub or on its GitLab server.
 
 ## Precondition
@@ -91,8 +92,8 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    at once, without a participant — its identifier added to the issue — and shown there (UC-039).
 4. The mails are listed as a mail program lists its inbox — one line per mail with sender, subject and date,
    the newest first, the undecided ones in bold —, visible only in this browser. The
-   author picks the participant for the proposals; Agent M offers only participants whose processing
-   place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
+   author picks the participant for the proposals; Agent M offers only participants on a connection whose
+   processing place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
    it receives: the mail text, the list of the instance's products with their one-line descriptions,
    and the titles and numbers of their open issues — and the three checking participants, where each
@@ -157,13 +158,13 @@ sequenceDiagram
 - **2a. The mailbox cannot be reached** — the connection's Bridge does not answer, or the provider's sign-in has
   expired. Nothing is read; Agent M names the reason (UC-037, 7a or 3b).
 - **2b. A mail nobody decided is older than 30 days.** It is no longer read or listed; it stays in the mailbox.
-- **4a. The chosen participant is a CLI agent.** The dashboard hands the job to the Bridge the participant names; the
-  mails go to the agent on that Bridge's computer and do not travel further than that agent's own processing
-  place, which the panel states.
+- **4a. The chosen participant runs on a Bridge's CLI agent.** The dashboard hands the job to the Bridge of that
+  connection; the mails go to the agent on that Bridge's computer and do not travel further than that connection's
+  processing place, which the panel states.
 - **4b. The author does not press Propose.** Nothing is sent to any participant; the author can still
   decide each mail by hand in step 7, with an empty proposal.
-- **4c. No participant processes data at a place this mailbox allows.** Agent M says so and links to
-  the mailbox's processing places (UC-037, 6a); nothing is sent. The author can still decide each
+- **4c. No connection that offers a participant's model processes data at a place this mailbox allows.** Agent M says
+  so and links to the mailbox's processing places (UC-037, 6a); nothing is sent. The author can still decide each
   mail by hand in step 7.
 - **5a. The mail has attachments.** Their text is sent to the participant only if the author ticks it
   for that mail in step 4. An attachment reaches the issue only rewritten without persons (step 6), and only if the
@@ -176,8 +177,9 @@ sequenceDiagram
 - **6b. The product has switched pseudonymisation off** (UC-042). Report data goes into the issue
   unchanged; the panel says so above the data. The issue text itself is still checked and stays
   neutral.
-- **6c. Fewer than three LLM participants are at places this mailbox allows.** The participant's texts
-  cannot be written; Agent M names what is missing and links UC-017 and the mailbox's places (UC-037, 6a).
+- **6c. Fewer than three agents with different models run on connections at places this mailbox allows.** The
+  participant's texts cannot be written; Agent M names what is missing and links UC-017, the connections (UC-003,
+  UC-044) and the mailbox's places (UC-037, 6a).
   The author may still write the issue text by hand (4b) — covered by the search for the mail's people —
   and adds no report data.
 - **7a. The author changes the proposal** — another product, another kind, another duplicate. The

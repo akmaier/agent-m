@@ -25,6 +25,7 @@ realises:
   - THE BRIDGE OPENS ITS TUNNELS ITSELF
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
   - THE BRIDGE FINDS THE INSTALLED AGENTS
+  - A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
 ---
 # UC-011 Hand a job to a local CLI session
 
@@ -51,9 +52,11 @@ they control, through the Agent M Bridge already running there.
    stores the Bridge under the name it reports, with its address and token, in this browser. The Bridge keeps the token
    across restarts; after that, handing a job over needs neither again.
 2. The author's click commits the job's start record `docs/jobs/JOB-<id>.md` in the product repository;
-   the site hands the job over to the Bridge the participant's route names, with that Bridge's token.
+   the site hands the job over to the Bridge of a connection that offers the participant's model, with that Bridge's
+   token.
 3. The Bridge checks the token, brings the clones in the agent's working folder to the job's commits — the product's
-   branch, and the instance at the commit the job's record names — and starts the agent there with the task.
+   branch, and the instance at the commit the job's record names — and starts the agent there with the participant's
+   model and the task.
 4. The CLI session commits the artifacts to the default branch, where they are open; a code change
    goes to a branch with a pull request instead.
 5. The CLI session writes the job's end record with its last commit; the bridge reports what was
@@ -100,8 +103,9 @@ sequenceDiagram
   5. If the author would rather have no tunnel, a **self-hosted runner** on that machine works without
      any incoming connection (UC-010, UC-017) — registered to a private repository only.
 - **1d. Several Bridges.** Each computer whose agents are to work runs a Bridge of its own; this browser keeps each under
-  its name, and the route of each participant names the Bridge its agent runs on (UC-017). A job goes to the Bridge its
-  participant names; several participants may name one Bridge and one agent, and each job starts its own process there.
+  its name, and each agent a Bridge offers is a connection with the models it can run (UC-044, step 5). A job goes to a
+  Bridge whose agent offers its participant's model; several participants may run on one Bridge and one agent, and each
+  job starts its own process there.
 - **1b. The author suspects the token has leaked.** They press **Pair anew** in the bridge's window; it
   shows a new token, the old one is rejected from then on, and the new one is pasted once as in step 1
   (UC-044, 4b).

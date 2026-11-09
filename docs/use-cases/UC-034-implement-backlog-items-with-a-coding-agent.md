@@ -26,6 +26,7 @@ realises:
   - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
   - A PROCESS REQUIREMENT ADDS TO THE MODEL
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
+  - A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
   - THE PAGE NAMES WHERE IT SENDS
   - THE GATE IS RECORDED
@@ -62,11 +63,11 @@ names a person.
 
 - **Author**: starts the jobs — in a product with several teams, those of their own team (UC-048).
 - **Coding agent**: a participant assigned to the role that implements, typically *Developers*
-  (UC-048). It needs *read the repository*, *write to the repository* and *run code and tests*. It
-  is one of these (UC-017):
-  - a CLI agent reached through the local bridge (UC-011);
-  - a sandboxed agent reached through the bridge over a tunnel;
-  - a CI agent in a workflow, on a self-hosted runner where it needs the CLI.
+  (UC-048). Its job runs on a connection that offers its model and has *read the repository*, *write to the
+  repository* and *run code and tests* (UC-017), one of these:
+  - a coding agent of a Bridge (UC-011), on this computer or in a sandbox reached over a tunnel, started with the
+    participant's model;
+  - a model endpoint whose work runs in the product's CI (UC-010).
 - **CI**: the product's continuous integration, which runs the tests on every push.
 - **Gate decider**: whoever the gate names — a person or an agent holding its role, or an automated
   check in CI —, for example the *Security reviewer* from
@@ -96,7 +97,7 @@ names a person.
 3. For the startable items, Agent M proposes one participant each from the holders of the
    implementing role in the item's role assignment — its team's, in a model with sprints. The run panel shows, per item:
    - the participant;
-   - where the participant processes data;
+   - the connection it runs on, which offers its model, and where that connection processes data;
    - what is sent: the item; the requirements and use cases it realises, and their existing tests; the
      files of the modules it changes, the decisions of their subsystems and of the system, and the
      interfaces — not the code — of the modules they use (ch. 10 §3: develop against interfaces); the
@@ -105,8 +106,8 @@ names a person.
 
    The author may pick another holder of the role. They press **Start jobs**: one click.
 4. Agent M queues one job per item, commits its start record under `docs/jobs/` of the product, and
-   hands each to its participant through that participant's
-   route: the bridge for CLI and sandboxed agents, a workflow for CI agents. The job definition comes
+   hands each to its participant through the route of its connection: the bridge for a coding agent, started with the
+   participant's model, the job workflow for an endpoint whose work runs in CI. The job definition comes
    from the repository's single definition (`ONE DEFINITION, THREE DRIVERS`).
 5. The coding agent works in a branch named after the item:
    1. It writes tests for the item's acceptance criteria. Each test names the requirement it guards.

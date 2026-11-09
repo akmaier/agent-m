@@ -36,8 +36,9 @@ realises:
   - THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
   - A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
   - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
-  - A PARTICIPANT DECLARES ITS CAPABILITIES
-  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A CONNECTION DECLARES ITS CAPABILITIES
+  - A CONNECTION DECLARES WHERE IT PROCESSES DATA
+  - A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
   - ONE DEFINITION, THREE DRIVERS
   - THE LOCAL BRIDGE REQUIRES A TOKEN
@@ -80,9 +81,9 @@ it is one job per step the author picks; in a run (UC-043), the steps' jobs star
 ## Actors
 
 - **Author** — starts the jobs and chooses the participants.
-- **Coding participant** — a participant assigned to the role that implements (UC-048): a CLI agent reached through the
-  local bridge, a sandboxed agent reached through a tunnel (UC-011), or a CI agent in a workflow on a self-hosted runner
-  on that agent's machine (UC-010, UC-017).
+- **Coding participant** — an agent assigned to the role that implements (UC-048), whose job runs on a connection that
+  offers its model, started with that model: a coding agent of a Bridge — on this computer, or in a sandbox reached
+  through a tunnel (UC-011) —, or a model endpoint whose work runs in the product's CI (UC-010).
 - **CI** — the product's GitHub Actions or GitLab CI, which runs the test suite on every push.
 - **Gate decider** — whoever a gate of the model names: a person or an agent holding its role, or an automated check
   (UC-031).

@@ -6,3 +6,4 @@
 |---|---|---|---|---|
 | 01 | `SPEC.md` | ## 10. Review on GitHub Pages | — | — |
 | 02 | `SPEC.md` | ## 10. Review on GitHub Pages | — | — |
+| 03 | `SPEC.md` | ## 10. Review on GitHub Pages | — | — |

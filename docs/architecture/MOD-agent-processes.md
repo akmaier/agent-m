@@ -28,9 +28,10 @@ provides:
 
 It belongs to Participants and jobs (ARC-046). It knows the coding-agent CLIs Agent M supports — Claude Code, Codex and
 opencode —: which of them are installed on the machine it runs on, with their versions (`THE BRIDGE FINDS THE INSTALLED
-AGENTS`), and how to run one as a participant: the driver that gives an agent its task in a working folder, streams its
-output, and stops it on a cancel. The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
-PERSON'S OWN LOGIN`); in CI it reads its key from the environment variable the CI fills from the secret the participant
+AGENTS`), and how to run one as a participant: the driver that starts an agent with its participant's model (`A JOB RUNS
+ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), gives it its task in a working folder, streams its output, and
+stops it on a cancel. The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
+PERSON'S OWN LOGIN`); in CI it reads its key from the environment variable the CI fills from the secret its connection
 names (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`), or, where CI runs it as the model's own user, reaches
 its provider through the key holder with no key of its own (`NO MODEL READS A CREDENTIAL`). It runs in Node only — inside the Bridge and in the
 Workflows — and keeps nothing but the processes it started.
@@ -53,6 +54,7 @@ Workflows — and keeps nothing but the processes it started.
 | Command | the command the CLI is started by |
 | Version | how its version is asked for |
 | Task | the arguments that make it read a task from its standard input without a conversation, and how its final answer is told from its other output |
+| Model | the arguments that start it with a named model, as its vendor documents them, with a placeholder `{model}` — Claude Code's `--model {model}`, which its Endpoint column already gives —, or `—` where it cannot be told one |
 | Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in |
 | Key variable | the environment variable from which it reads a key, used only in CI |
 | Endpoint | how it is made to work with a model endpoint of the kind OpenAI-compatible or Anthropic — the options or settings that name the endpoint's address and model —, or `—` where it cannot |
@@ -88,7 +90,7 @@ never an argument: it is written to the agent's standard input, so no size of a 
   "openai-compatible" | "anthropic", baseUrl: string, model: string } | null, keyHolder?: string | null, enclosure?:
   Enclosure, writable?: string[] }, participant: Participant) -> Driver` — a
   driver whose `send` starts the agent in the working folder and writes `driverPrompt(input)`, its task, to the agent's
-  standard input — where `endpoint` is
+  standard input, with `participant.model` given by the register's Model column — where `endpoint` is
   given, made to work with that endpoint as the register's Endpoint column says, its key from `keyVariable` — CI does not
   run a model endpoint's work this way: it runs it in Agent M's own loop (MOD-workflow-entries) —; an agent whose
   Endpoint is `—` refuses it with `EndpointUnsupported`, before it starts —, streams its output
@@ -99,13 +101,14 @@ never an argument: it is written to the agent's standard input, so no size of a 
   reports its branch: in CI a repository the writing machine pushes from with the person's token from a CI secret
   (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`), on a Bridge an outbox the Bridge pushes from with the
   computer's own login (MOD-bridge-jobs). Outside CI, `keyVariable` is `null`: the command carries no
-  key and no key variable. In CI, `keyVariable` names the variable the CI filled from the participant's secret; this
+  key and no key variable. In CI, `keyVariable` names the variable the CI filled from the secret of the participant's connection; this
   module never sees or passes the value. With `keyHolder`, the address of a key holder on the model's user's side of a
   CI machine, the agent inherits no declared key variable and is started with its row's Key holder options — its requests
   go to that address, its key variable holds a placeholder —, so that no key is in its environment; an agent whose Key
-  holder is `—` refuses it with `KeyHolderUnsupported`, before it starts. An abort of the signal stops the agent and every
+  holder is `—` refuses it with `KeyHolderUnsupported`, before it starts. An agent whose Model is `—` refuses a participant
+  that names a model with `ModelUnsupported`, before it starts. An abort of the signal stops the agent and every
   process it started, before anything further is pushed. It throws `AgentMissing`, `EndpointUnsupported`,
-  `KeyHolderUnsupported`, `AgentNotLoggedIn`, `AgentFailed { exitCode, lastOutput }` and `Cancelled`.
+  `KeyHolderUnsupported`, `ModelUnsupported`, `AgentNotLoggedIn`, `AgentFailed { exitCode, lastOutput }` and `Cancelled`.
 - `stopTree(child: ChildProcess, signal?: string) -> Promise<void>` — sends `signal`, `SIGKILL` where none is given, to the
   process group of a child started detached, so that every process it started receives it; on Windows it ends the
   child's tree with `taskkill`, whatever the signal. A group that is already gone is no failure. The driver stops an agent
@@ -125,5 +128,5 @@ product's branch, which on a Bridge lies in the agent's own working folder besid
 - `MOD-job-runner.Driver`, `MOD-job-runner.DriverInput`, `MOD-job-runner.Usage` — the driver type it implements, its
   input, and the usage it returns.
 - `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent as one task.
-- `MOD-participant-list.Participant` — the participant the driver stands for.
+- `MOD-participant-list.Participant` — the participant the driver stands for, and the model it is started with.
 - `MOD-documents.loadSchema`, `MOD-documents.readRegister` — the register of supported agents.

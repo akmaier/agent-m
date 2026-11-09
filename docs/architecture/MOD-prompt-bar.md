@@ -25,6 +25,7 @@ uses:
   - MOD-documents.writeDocument
   - MOD-documents.readRegister
   - MOD-participant-list.Participant
+  - MOD-participant-list.Connection
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
@@ -83,6 +84,7 @@ provides:
   - loadHandOverStrategies
   - endpointLacks
   - endpointsOffered
+  - sessionsOffered
   - spawnEndpointJob
   - followJob
   - namedProduct
@@ -196,25 +198,15 @@ IN THE REPOSITORY`).
   `target`, fixed to the bottom of the window, and keeps it for the life of the page. Where the page hands `instanceSnapshot`
   and it gives the instance's default branch as the page's own load read it, the bar reads through it and asks the host for no
   commit and no tree again (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); else it reads the default branch itself. It first reads this browser's
-  configuration, and reads no participant list for the offer (UC-049 1). It offers each model endpoint the store keeps
-  under `endpoint:<name>`, called by the tab or through the Bridge its setting names, and each CLI session — a coding
-  agent that a Bridge the store keeps under `bridge:<name>` offers, as MOD-bridge-client's `testBridge` lists it ready
-  —, whose configuration declares a place, a context and a model; one that lacks any of them is not offered (UC-049 1b),
-  and with none offered it draws nothing and says nothing (UC-049 1a). It hands each to the job runner as a
-  `Participant` of MOD-participant-list's shape, built from its configuration:
-  - for an endpoint, the type *model endpoint*, its model, the capabilities *draft text* and *read the repository*, and
-    *use tools* where its last test found that the model calls tools (`last-test:endpoint:<name>`), its context and
-    place, and the route `endpoint <name>`, with ` secret <NAME>` where its configuration names the CI secret of its
-    key;
-  - for a CLI session, the type *CLI agent*, and its model, capabilities, context and place as
-    `session:<bridge>:<agent>` declares them, and the route `bridge <bridge> agent <agent>`.
+  connections, and reads no participant list for the offer (UC-049 1): `endpointsOffered` and `sessionsOffered`, the
+  model endpoints and the CLI sessions, each once for each model it offers; with none offered it draws nothing and says
+  nothing (UC-049 1a). It hands the one chosen to the job runner as it is, a `Connection` of MOD-participant-list, which
+  has a `Participant`'s shape.
 
   Of those offered it offers only each that can do `converse`: `eligible` judges them against the `needs` of `kindOf`'s
   definition of that kind (UC-019 2). Where some are offered and none can do it, it says so, names the capabilities it
-  needs, and links the route `endpoints` through `go` (UC-019 3a). Beside this browser's endpoints, and after them, it still offers the participants of
-  the instance's list that this browser reaches, other than an endpoint offered already, until the offer of CLI sessions
-  is built. With one offered, it names it; with several, a small selector above the input
-  chooses, each named with its processing place. A folded *What is this?* explains the bar. An endpoint that names the
+  needs, and links the route `endpoints` through `go` (UC-019 3a). With one offered, it names it; with several, a small
+  selector above the input chooses, each named with its model and its processing place. A folded *What is this?* explains the bar. An endpoint that names the
   CI secret of its key and no Bridge runs through GitHub Actions, whether or not this browser keeps its key: while it is
   chosen, the button reads *Spawn job* instead of *Send*, and that click — the person's — makes the message the task of
   a job that is the endpoint's own (UC-049 4f), of the kind `converse`, spawned with `spawnEndpointJob` and followed as
@@ -323,11 +315,25 @@ and sends nothing while the job does not
   older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's
   line `not run — <SECRET> is missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued
   and untaken, and one `ciRunLog` call when a failed run turns up.
-- `endpointLacks(setting: object) -> string[]` — what an endpoint's configuration lacks for the bar to offer it (UC-049 1b): the
-  place where it processes data, its context in tokens, its model; empty when it lacks nothing. `endpointsOffered` offers only
-  one that lacks nothing; the settings page names the rest where the endpoint is configured.
-- `endpointsOffered(store: Store) -> Participant[]` — this browser's endpoints the bar offers, as `startPromptBar` builds
-  them; for the settings page's test job of an endpoint.
+- `endpointLacks(setting: object) -> string[]` — what an endpoint's configuration, or a CLI session's declaration, lacks
+  for the bar to offer it (UC-049 1b): the place where it processes data, a model, a model's context in tokens; empty when
+  it lacks nothing. `endpointsOffered` and `sessionsOffered` offer only one that lacks nothing; the settings page names the
+  rest where the connection is configured.
+- `endpointsOffered(store: Store) -> Connection[]` — this browser's model endpoints (`endpoint:<name>`, in the store's
+  order) that lack nothing, one `Connection` each: the type *model endpoint*, its model, context and price, its place, the
+  capabilities *draft text* and *read the repository*, and *use tools* where its last test found that the model calls
+  tools (`last-test:endpoint:<name>`) (`A CONNECTION DECLARES ITS CAPABILITIES`), and the route `endpoint <name>`, with
+  ` secret <NAME>` where it names the CI secret of its key; none named through a Bridge this browser does not keep. The
+  bar's offer; the settings page's test job of an endpoint, and its list of the models a participant may be given and of
+  the places a mailbox may allow; and every page that joins the instance's participants with this browser's connections
+  (MOD-participant-list's `participantsOf`).
+- `sessionsOffered(store: Store) -> Promise<Connection[]>` — the CLI sessions this browser's Bridges offer: for each Bridge
+  the store keeps under `bridge:<name>`, in the store's order, each agent MOD-bridge-client's `testBridge` lists ready
+  whose `session:<bridge>:<agent>` lacks nothing, one `Connection` for each model its `models` names, in their order: named
+  `<bridge>:<agent>`, the type *CLI agent*, that model with its context and price, the place and capabilities the
+  declaration gives, and the route `bridge <bridge> agent <agent>`. A Bridge that cannot be tested offers none. The same
+  callers as `endpointsOffered`. Crosses the network: `testBridge`'s two requests per Bridge kept; fails with nothing,
+  since a Bridge that does not answer offers none.
 - `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, entry?,
   instanceSnapshot?, test? }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
   endpoint's own, on GitHub Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the
@@ -390,8 +396,9 @@ on, it writes, through the host of the page's repository, the conversation recor
 - MOD-documents.loadSchema, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister — its two
   files and the participant list.
 - MOD-participant-list.Participant — the shape an endpoint or a CLI session is handed to the job runner in;
-  MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the instance's participants, which the
-  offer and `routesFor` read; MOD-participant-list.eligible, MOD-job-catalogue.kindOf — which of the
+  MOD-participant-list.Connection — the shape `endpointsOffered` and `sessionsOffered` give;
+  MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the instance's participants on this
+  browser's connections, which a job's context and `routesFor` read; MOD-participant-list.eligible, MOD-job-catalogue.kindOf — which of the
   offered can do `converse`, and whether the participant can do a handed-over kind in this tab.
 - MOD-job-runner.prepareJob, MOD-job-runner.Prepared, MOD-job-runner.JobResult — a message prepared and checked to fit,
   and its result; MOD-job-runner.Strategies — the type of what `loadHandOverStrategies` gives; MOD-job-runner.handOverParams — the
