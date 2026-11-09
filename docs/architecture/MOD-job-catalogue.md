@@ -116,7 +116,7 @@ Agent M prepares no job of the kind.
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
 | `draft-replies` | UC-039 | draft text | | `reply-inputs` | | | | `none` · `mail-drafts` | one reply per mail of a closed issue; or, with the parameter `question` — the person's point to ask —, one question to the reporter of a listed mail of an open issue (UC-039 1a) |
 | `check-resource` | UC-040 | run code and tests | | `instruction?`, `resource-check` | | | | `none` · `return-draft` | what answered |
-| `converse` | UC-049 | draft text | | `page`, `conversation`, `instruction`, `chapters-for-page?` | `document-schema`, `graph-checks` | | | `person` · `proposed-edits` | the answer, the edits the participant proposed, and the plan of the pieces it hands on |
+| `converse` | UC-049 | draft text | | `page`, `conversation`, `instruction`, `chapters-for-page?` | `document-schema`, `graph-checks`, `plan-works-on` | | | `person` · `proposed-edits` | the answer, the edits the participant proposed, and the plan of the pieces it hands on |
 
 **The tools**, `tools.md`, a register read with MOD-documents. A tool's description and the schema of its arguments are
 data, kept here once like a kind's prompt; the module that owns what a tool does offers its strategy (MOD-job-runner's

@@ -24,6 +24,9 @@ uses:
   - MOD-job-ledger.JobStart
   - MOD-job-ledger.JobRecord
   - MOD-job-ledger.LiveState
+  - MOD-job-ledger.worksOnProblem
+  - MOD-text-tools.finding
+  - MOD-text-tools.Finding
   - MOD-endpoint-calls.endpointDriver
   - MOD-endpoint-calls.endpointExchange
   - MOD-endpoint-calls.EndpointConfig
@@ -405,7 +408,14 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   Bridge client names; nothing is queued when the record's commit fails, and a start that the server refuses after the
   commit ends the job's record as failed with the server's reason. A secret the run lacks ends it `not run`, naming the
   secret (MOD-workflow-entries), and the prompt bar shows that (UC-049 4c).
-- `routeStrategies` — `Partial<Strategies>` with the writer `branch-and-pull-request`.  reads the branch named after the job
+- `routeStrategies` — `Partial<Strategies>` with the check `plan-works-on` and the writer `branch-and-pull-request`.
+  `plan-works-on`: for each piece of the draft's plan, `handOver`, whether the tool `hand-over` held it or the answer gave
+  it (MOD-job-runner), whose `works_on` is not empty and is refused by MOD-job-ledger's `worksOnProblem`, an error on
+  `answer`, line 1, under `A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`, its `what` naming the piece by its number from 1
+  and the reason `worksOnProblem` gives, its `fix` asking to name each entry in one of the forms that reason names, or to
+  leave `works_on` empty for something new, whose place the task names — the job of such a piece works on the repository,
+  by its address —, so that the drafter corrects in the round what `handOverJob` could not record (UC-049 4a, 4f). A draft
+  without a plan has no finding. Pure. The writer reads the branch named after the job
   and its commits. With a host of a server's API, it opens the pull request if the coding participant has not — into
   MOD-work-plans' `targetBranch` of the item or step the job works on, over the product's sprint records, plan order
   and declared branches, with the default branch the host's `repositoryInfo` names —, gives it
@@ -435,7 +445,9 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
   Bridge; tab callers do not pre-render this context for an endpoint or Bridge driver.
 - `MOD-job-ledger.startRecord`, `MOD-job-ledger.appendToRecord`, `MOD-job-ledger.newJobId`, `MOD-job-ledger.JobStart`,
   `MOD-job-ledger.JobRecord`, `MOD-job-ledger.LiveState` — the records it writes and the live state it reports;
-  `MOD-job-ledger.jobCost` — the cost an end of a job it ran in the tab records.
+  `MOD-job-ledger.jobCost` — the cost an end of a job it ran in the tab records;
+  `MOD-job-ledger.worksOnProblem`, with `MOD-text-tools.finding` and `MOD-text-tools.Finding` — the findings of
+  `plan-works-on`, by the one rule of what a job's record names it works on.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-endpoint-calls.EndpointConfig` — the driver of an endpoint the browser calls,
   and the configuration a Bridge receives for one it calls; `MOD-endpoint-calls.endpointExchange` — one request of the
   tool loop of an endpoint the Bridge calls.
