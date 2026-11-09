@@ -402,8 +402,8 @@ Each participant that is an agent names the model it works with.
 its model is accepted, and a person needs none.
 
 **A CONNECTION NAMES THE MODELS IT OFFERS** *(PO A. Maier)*
-Each connection to a language model that the browser's settings keep — a model endpoint, or a coding agent that a Bridge
-offers — names the models it offers, each with how many tokens its context holds.
+Each connection to a language model — a model endpoint, a coding agent that a Bridge offers, or a coding agent on CI —
+names the models it offers, each with how many tokens its context holds.
 *Check:* `tests/prompt-bar-endpoints.test.mjs` — reads fixture settings of an endpoint naming one model and of a Bridge's
 coding agent naming two. It checks that the endpoint is offered with its model and the agent once with each of its two,
 each with its context; counter-proof: a model without its context is not offered.
@@ -430,7 +430,7 @@ provider in the USA".
 the same connection naming one is offered with it.
 
 **THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE** *(PO A. Maier)*
-A connection that the prompt bar offers from the browser's settings counts, with the model the person chooses, as a
+A connection that the prompt bar offers counts, with the model the person chooses, as a
 participant for every rule of this specification, except that it is not listed in the instance's participant list and
 holds no role.
 *Check:* `tests/prompt-bar-endpoints.test.mjs` — an endpoint or CLI session without a place or a model is not offered,
@@ -1895,8 +1895,7 @@ After a person cancels a job, the job commits nothing further to any repository.
 implementation commit leaves the branch at the test commit.
 
 **NO COST IS GUESSED** *(PO A. Maier; Vibe Coding, ch. 15 §4)*
-A job shows a cost only when its runtime reports one, or when the runtime reports usage and the
-connection it runs on declares a price for its model. In every other case the cost is shown as unknown.
+A job shows a cost only when its runtime reports one. In every other case the cost is shown as unknown.
 *Check:* `tests/test_job_cost.py`. A job whose runtime reports neither cost nor usage shows
 "unknown", never zero.
 
