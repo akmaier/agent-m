@@ -1,5 +1,5 @@
 // Release coverage for UC-038 "Turn mails into issues". The release-level guard that every requirement UC-038 realises with an automatic check is covered by executable evidence, that the system tests walk the main flow and every
-// alternative flow the item names — 2a, 4b, 4c, 6a, 6c, 7a, 7b and 8a — and, for the requirements that concern what a whole session does with a mailbox, its mails, its participants and the tracker, release cases that run the page over the fixtures:
+// alternative flow the item names — 2a, 4b, 4c, 6a, 7a, 7b and 8a — and, for the requirements that concern what a whole session does with a mailbox, its mails, its participants and the tracker, release cases that run the page over the fixtures:
 // a whole session leaves the mails in the mailbox and in no write of Agent M that names a sender, a name, a subject or a sentence of a mail, the issues carry the identifiers and the labels, and a participant at a place the mailbox does not allow
 // receives nothing. And, for the inbox of steps 1 to 4 and 7: opening Mail reads the mailbox at once and every five minutes while it stays open; a reading lists only the mails of the last 30 days, as the mail server
 // selects them, an older undecided mail stays in the mailbox unlisted (2b); the mails are listed newest first with sender, subject and date, the undecided ones in bold, the decided ones with their issue or mark and
@@ -62,7 +62,7 @@ const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 test("TST-965201: UC-038 release coverage names every automatic requirement and the system tests walk every flow", () => {
   const realised = ucRealises();
   const checks = specChecks();
-  assert.equal(realised.length, 29, "known positive: the use case realises twenty-nine requirements");
+  assert.equal(realised.length, 28, "known positive: the use case realises twenty-eight requirements");
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
   const reviewOnly = realised.filter((name) => /^no automatic check; at review/.test(checks.get(name) ?? ""));
   assert.deepEqual(REVIEW_ONLY.toSorted(), reviewOnly.toSorted());
@@ -82,9 +82,9 @@ test("TST-965201: UC-038 release coverage names every automatic requirement and 
   }
   assert.deepEqual(missing, [], "no requirement of UC-038 names a check that is listed as missing");
   const declarations = [GRAPH_SYSTEM, BRIDGE_SYSTEM].flatMap((file) => testDeclarations(file, read(file)));
-  assert.ok(declarations.length >= 12, "known positive: the declarations of the system tests are found");
+  assert.ok(declarations.length >= 11, "known positive: the declarations of the system tests are found");
   const declared = declarations.map((one) => `${one.guards.join("; ")} ${one.given ?? ""} ${one.input ?? ""} ${one.expect ?? ""}`).join("\n");
-  for (const phrase of ["UC-038 main flow", ...["2a", "4b", "4c", "6a", "6c", "7a", "7b", "8a"].map((flow) => `UC-038 alternative ${flow}`)]) {
+  for (const phrase of ["UC-038 main flow", ...["2a", "4b", "4c", "6a", "7a", "7b", "8a"].map((flow) => `UC-038 alternative ${flow}`)]) {
     assert.ok(declared.includes(phrase), `the system tests declare ${phrase}`);
   }
   assert.ok(declarations.every((one) => one.level === "system"), "every declaration of the system tests is level system");

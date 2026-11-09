@@ -1,7 +1,7 @@
 # Module: MOD-mail-handling
 # Module: MOD-personal-data
 # Guards: MAIL STAYS IN THE MAILBOX; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; UC-038
-# Guards: REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; A REWRITTEN TEXT IS CHECKED BY THREE LLMS; NO CHECKER IS THE REWRITER;
+# Guards: REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS;
 # Guards: A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF;
 # Guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
 # Level: release
@@ -28,7 +28,7 @@ ISSUE = "THE PRODUCT ISSUE CARRIES NO PERSONAL DATA"
 REPOSITORY = "NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY"
 RATE = "Rate: "
 PERSONAL_RULES = ["A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE", "REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS",
-                  "A REWRITTEN TEXT IS CHECKED BY THREE LLMS", "NO CHECKER IS THE REWRITER", "PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF",
+                  "PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF",
                   "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED"]
 RATES = "Rate: report data"
 
@@ -57,15 +57,6 @@ if (op === "search") {
   out.findings = found.map(rule);
   out.hits = personalData.personHits(input.rewriting, people).map((h) => [h.kind, h.value]);
   out.present = present(input.rewriting);
-} else if (op === "checkers") {
-  const all = input.participants.map(toParticipant);
-  const rewriter = all.find((p) => p.name === input.rewriter);
-  const got = personalData.checkersFor(all, rewriter, input.places);
-  out.checkers = got.checkers ? got.checkers.map((p) => p.name) : null;
-  out.missing = Boolean(got.missing);
-  if (got.checkers) {
-    out.models = got.checkers.map((p) => p.model);
-  }
 } else if (op === "prepare") {
   const all = input.participants.map(toParticipant);
   const byName = (name) => all.find((p) => p.name === name);
@@ -208,29 +199,13 @@ class TestMailPrivacyPersonalData(unittest.TestCase):
     def test_a_rewriting_that_keeps_one_of_the_five_is_refused_and_one_that_keeps_none_passes(self):
         personal(self, PERSONAL_RULES[1])
 
-    # TST-1038103 · level: release · module: MOD-personal-data
-    # guards: A REWRITTEN TEXT IS CHECKED BY THREE LLMS; UC-038
-    # given: the cases under that requirement: seven fixture participants, and the catalogue's kind rewrite-without-persons with three checkers whose answers the case gives
-    # input: checkersFor over the participants; runJob of the kind with the rewriter and three checkers, one of which reports a name, and with none reporting
-    # expect: three checkers at the mailbox's place with three models; with one reporting, the finding goes back to the rewriter, the job stops with it remaining and commits or opens nothing; with none reporting, the job passes in one round
-    def test_three_checkers_and_the_finding_of_one_goes_back(self):
-        personal(self, PERSONAL_RULES[2])
-
-    # TST-1038104 · level: release · module: MOD-personal-data
-    # guards: NO CHECKER IS THE REWRITER; UC-038
-    # given: the cases under that requirement: a checker with the rewriter's model, two with one model, three others, and one at another place
-    # input: prepareJob and runJob of the kind with each checker set; checkersFor with the participants
-    # expect: a set with the rewriter's model, or with two of one model, is refused as NotStartable and no participant is asked; three others are accepted and each asked; fewer than three eligible give no checkers and a sentence
-    def test_a_checker_set_with_the_rewriter_or_its_model_is_refused_before_anything_is_sent(self):
-        personal(self, PERSONAL_RULES[3])
-
     # TST-1038105 · level: release · module: MOD-personal-data
     # guards: PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; UC-038
     # given: the cases under that requirement: no settings file, one without the key, one with off, one with on
     # input: settingsSchemas, readDocument and pseudonymisationOf for each
     # expect: on for no file, for a file without the key and for on; off only for the file that says off
     def test_pseudonymisation_is_on_unless_a_product_switches_it_off(self):
-        personal(self, PERSONAL_RULES[4])
+        personal(self, PERSONAL_RULES[2])
 
     # TST-1038106 · level: release · module: MOD-personal-data
     # guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-038
@@ -238,10 +213,10 @@ class TestMailPrivacyPersonalData(unittest.TestCase):
     # input: the recipe report-data for each participant
     # expect: the one at campus is given the part; the one at eu-cloud gets PlaceNotAllowed and no part
     def test_report_data_goes_only_to_a_participant_at_a_listed_place(self):
-        personal(self, PERSONAL_RULES[5])
+        personal(self, PERSONAL_RULES[3])
 
     # TST-1038107 · level: release · module: MOD-personal-data
-    # guards: REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; A REWRITTEN TEXT IS CHECKED BY THREE LLMS; UC-038
+    # guards: REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; UC-038
     # given: the rate case beside this file: four fixed rewritings of the log, and four runs of three checkers over one text
     # input: personHits and a term scan, and a check for the technical content E42 and 1.4, over each rewriting; runJob of the kind for each checker run
     # expect: the measure covers all four rewritings and all four runs; three are clean, three keep the technical content, two runs pass all three checkers; the rates are printed and not gated

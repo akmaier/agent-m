@@ -6,7 +6,6 @@
 import { loadSchema } from "../documents/index.mjs";
 
 export { peopleIn, personHits } from "./people.mjs";
-export { checkersFor } from "./checkers.mjs";
 export { namedPersonFindings } from "./consent.mjs";
 export { privacyStrategies } from "./strategies.mjs";
 

@@ -100,8 +100,8 @@ test("Only participants at a place the mailbox allows are offered, and a place o
 // guards: THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-038
 // given: two mails listed; the participant local-llm chosen and the name entered
 // input: nothing more
-// expect: the run panel names local-llm, where it processes data (this machine) and the parts it receives — each listed mail by its identifier, the products and their open issues —; the three checkers are listed with their places and the sentence that each receives only the rewritten texts; Run is offered once; nothing was sent to any endpoint and nothing was written
-test("The run panel names the participant's place, what it receives, and the three checkers' places", async () => {
+// expect: the run panel names local-llm, where it processes data (this machine) and the parts it receives — each listed mail by its identifier, the products and their open issues —; no checker is listed for Propose, whose neutral texts the author checks; Propose is offered once; nothing was sent to any endpoint and nothing was written
+test("The run panel names the participant's place and what it receives; Propose lists no checker", async () => {
   const f = await setup();
   await choose(f.target, "local-llm");
   const panel = textOf(one(f.target, "run-panel"));
@@ -109,12 +109,7 @@ test("The run panel names the participant's place, what it receives, and the thr
   assert.match(panel, /this machine/);
   assert.ok(panel.includes(`mail ${f.one.id}`) && panel.includes(`mail ${f.two.id}`), "each listed mail is a part");
   assert.ok(panel.includes("products") && panel.includes("open issues"));
-  assert.equal(byClass(f.target, "mail-checker").length, 3);
-  for (const [at, checker] of byClass(f.target, "mail-checker").entries()) {
-    assert.match(textOf(checker), new RegExp(`check-${at + 1}`));
-    assert.match(textOf(checker), /this machine/);
-    assert.match(textOf(checker), /only the rewritten texts/);
-  }
+  assert.equal(byClass(f.target, "mail-checker").length, 0, "the author checks the proposals' neutral texts");
   assert.equal(buttonsOf(one(f.target, "mail-stage"), "Propose").length, 1);
   assert.deepEqual(nothingSent(f.w), [0, 0, 0], "nothing is sent before the click");
 });
@@ -220,48 +215,6 @@ const rewriting = (request, { one: first, two }) => {
   }
   return proposals(request, { one: first, two });
 };
-
-// TST-964007 · level: component · module: MOD-maintenance-pages
-// guards: REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; A REWRITTEN TEXT IS CHECKED BY THREE LLMS; UC-038
-// given: local-llm chosen; the checkers check-1 to check-3; the first rewrite names Ricky, which one checker finds; the rewrite that follows the finding does not
-// input: the person's click on Add to the issue for log.txt of the first mail, then on Run of its panel
-// expect: the panel names local-llm and the three checkers; the rewriter is asked twice and the second request carries the finding; each round is read by the three checkers; the text of the issue holds the corrected rewrite and neither Ricky nor the attachment's own text; nothing is created in any tracker
-test("With three checkers a finding goes back, and only the corrected rewrite is added to the issue", async () => {
-  const f = await setup({ answer: rewriting });
-  await choose(f.target, "local-llm");
-  await trusted(one(f.item(f.one), "add-report-data"));
-  await waitFor(() => byClass(f.item(f.one), "run-panel").length > 0);
-  const panel = textOf(one(f.item(f.one), "run-panel"));
-  for (const name of ["local-llm", "check-1", "check-2", "check-3"]) assert.ok(panel.includes(name), name);
-  assert.deepEqual(nothingSent(f.w).slice(0, 2), [0, 0], "nothing is sent before Run");
-  await trusted(buttonsOf(one(f.item(f.one), "mail-report-stage"), "Run")[0]);
-  await waitFor(() => /home folder/.test(String(one(f.item(f.one), "mail-body").value)));
-  const asked = requestsOf(f.w, REWRITE);
-  assert.equal(asked.length, 2, "the rewriter is asked again after the finding");
-  assert.ok(promptOf(asked[1]).includes("names the nickname Ricky"), "the finding goes back to the rewriter");
-  assert.equal(requestsOf(f.w, CHECK).length, 6, "three checkers read each round");
-  const text = String(one(f.item(f.one), "mail-body").value);
-  assert.ok(text.includes("in the user's home folder") && !text.includes("Ricky") && !text.includes("/home/erika"), text);
-  assert.equal(f.w.kept.github.filter((request) => request.method === "POST" && /\/issues$/.test(request.path)).length, 0);
-});
-
-// TST-964008 · level: component · module: MOD-maintenance-pages
-// guards: A REWRITTEN TEXT IS CHECKED BY THREE LLMS; THE PAGE NAMES WHERE IT SENDS; UC-038
-// given: a register in which only one participant besides local-llm drafts text at this machine
-// input: local-llm chosen; the person's click on Add to the issue
-// expect: the page names that three checking participants are needed and how many were found, and links the participants and the mailbox's places; no run panel is drawn for Propose or for the report data; nothing is sent
-test("With fewer than three checkers the missing ones are named and nothing is sent", async () => {
-  const f = await setup({ rows: [LOCAL, CHECKS[0]] });
-  await choose(f.target, "local-llm");
-  const missing = one(f.target, "mail-missing-checkers");
-  assert.match(textOf(missing), /Three checking participants are needed.*only 1 found/);
-  assert.equal(byClass(missing, "participants-link")[0].getAttribute("href"), "#participants");
-  assert.equal(byClass(missing, "places-link")[0].getAttribute("href"), "#mailbox");
-  assert.equal(byClass(f.target, "run-panel").length, 0);
-  await trusted(one(f.item(f.one), "add-report-data"));
-  assert.equal(byClass(f.target, "run-panel").length, 0);
-  assert.deepEqual(nothingSent(f.w), [0, 0, 0]);
-});
 
 // TST-964009 · level: component · module: MOD-maintenance-pages
 // guards: PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; UC-038

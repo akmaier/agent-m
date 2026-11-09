@@ -115,7 +115,6 @@ test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail
     await mailboxRead(p);
     await chooseParticipant(p, "local-llm");
     assert.match(textOf(one(p.main(), "run-panel")), /this machine/);
-    assert.equal(byClass(p.main(), "mail-checker").length, 3);
     assert.equal(await propose(p, clicks), 0, "a click a script makes sends nothing");
     const asked = p.w.kept.endpoint.filter((request) => JSON.stringify(request.body).includes("You turn mails into proposals"));
     assert.equal(asked.length, 1, "one request for all listed mails");
@@ -262,26 +261,6 @@ test("alternative 6a: a hit of the mail's people is marked, Create issue stays d
     await click(one(item, "create-issue"));
     await waitFor(() => created(p).length > 0);
     assert.ok(!JSON.stringify(created(p)).includes("erika@example.invalid"));
-  });
-});
-
-// TST-965008 · level: system · module: MOD-maintenance-pages
-// guards: UC-038; A REWRITTEN TEXT IS CHECKED BY THREE LLMS
-// given: a register with local-llm and only two checking participants at this machine
-// input: Mail opened, which reads the mailbox; local-llm chosen and a name typed
-// expect: the page names what is missing (a third checker) and links the participants and the mailbox's places; no run panel is drawn and nothing is sent; the author may still write the issue text by hand (flow: UC-038 alternative 6c)
-test("alternative 6c: with fewer than three checkers the missing one is named and nothing is sent", async () => {
-  const p = await open({ rows: [LOCAL, CHECKS[0], CHECKS[1]] });
-  await lastly(p, async () => {
-    await mailboxRead(p);
-    await chooseParticipant(p, "local-llm");
-    assert.ok(byClass(p.main(), "mail-missing-checkers").length > 0, "what is missing is named");
-    assert.ok(byClass(p.main(), "participants-link").length > 0);
-    assert.equal(byClass(p.main(), "run-panel").length, 0);
-    assert.equal(p.w.kept.endpoint.length + p.w.kept.ask.length, 0);
-    await typed(one(itemOf(p.main(), A.id), "mail-title"), "Export fails");
-    await typed(one(itemOf(p.main(), A.id), "mail-body"), "The export fails with error E42 in version 1.4.");
-    assert.equal(one(itemOf(p.main(), A.id), "create-issue").disabled, false);
   });
 });
 

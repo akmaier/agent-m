@@ -42,7 +42,6 @@ uses:
   - MOD-mail-records.noteText
   - MOD-personal-data.peopleIn
   - MOD-personal-data.personHits
-  - MOD-personal-data.checkersFor
   - MOD-personal-data.pseudonymisationOf
   - MOD-personal-data.settingsSchemas
   - MOD-personal-data.privacyStrategies
@@ -135,8 +134,10 @@ person reviews it. Its formats are those of the modules it uses.
     back to it, on a narrow one: the mail in full and, for a proposable mail, its proposal, its text editable, every hit
     of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*. On the right, above the
     mail opened, the participant for the proposals, one select among those at places the mailbox allows, the first
-    chosen, a place outside the EU named as not compliant, and the three checkers; the run panel and *Propose*, for the
-    proposable mails, proposed in the name of the account of the instance's token. Where this browser manages no product,
+    chosen, a place outside the EU named as not compliant; the run panel and *Propose*, for the proposable mails,
+    proposed in the name of the account of the instance's token. The author checks every text before it is written: the
+    proposal's, and an attachment's, which *Add to the issue* puts into the text box — rewritten without persons where
+    the product's pseudonymisation is on. Where this browser manages no product,
     the place of *Propose* says so — nothing can be proposed — and links *Add product* (UC-001). A later reading keeps the
     mail that is open, the proposals and their edits, the chosen participant and a running proposal; a mail decided
     leaves bold and shows its decision.
@@ -200,8 +201,8 @@ instance's participants.
 - MOD-mail-records.listedMailIds, MOD-mail-records.notesOf, MOD-mail-records.noteText — an issue's mails, its notes, and
   the text of a note offered again.
 - MOD-personal-data.peopleIn — the people of a mail `repliesDue` gives, which carries none;
-  MOD-personal-data.personHits, MOD-personal-data.checkersFor, MOD-personal-data.pseudonymisationOf — the hits of the
-  mail's people, the three checkers, and whether the product rewrites report data; MOD-personal-data.settingsSchemas —
+  MOD-personal-data.personHits, MOD-personal-data.pseudonymisationOf — the hits of the mail's people, and whether the
+  product rewrites report data; MOD-personal-data.settingsSchemas —
   the schema `docs/settings.md` is read with, for `pseudonymisationOf`.
 - MOD-mail-handling.readNewMail, MOD-mail-handling.decideMail, MOD-mail-handling.repliesDue,
   MOD-mail-handling.storeReplies, MOD-mail-handling.sendReply, MOD-mail-handling.askReporter,

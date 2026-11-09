@@ -34,8 +34,8 @@ each model it offers (`A CONNECTION NAMES THE MODELS IT OFFERS`, `A CONNECTION D
 model (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`); and it decides which of them may do a given
 job: the capabilities the job or role needs (`A ROLE NAMES THE CAPABILITIES IT NEEDS`), the places its data may go
 (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`, `THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED`), the
-context it must hold, and that a reviewer or checker is neither the drafter nor uses the drafter's model (`NO REVIEWER IS
-THE DRAFTER`, `NO CHECKER IS THE REWRITER`). It runs unchanged in a browser and in Node; it keeps no state and performs
+context it must hold, and that a reviewer is neither the drafter nor uses the drafter's model (`NO REVIEWER IS
+THE DRAFTER`). It runs unchanged in a browser and in Node; it keeps no state and performs
 no input or output: the register's text is read by its callers through MOD-documents with the schema this module gives,
 the connections are read by MOD-prompt-bar's `endpointsOffered` and `sessionsOffered` from the browser's settings, and
 `participantsOf` joins what they read.
@@ -109,8 +109,7 @@ accepts a person's row without one. An example:
   others. The caller must give the places of every restricted source whose content is part of the job; a source it
   leaves out is treated as allowing no place.
 - `differs(a: Participant, b: Participant) -> boolean` — true when the two are different participants and name different
-  models; false when either names no model. A reviewer must differ from the drafter, and each of three checkers from the
-  rewriter and from each other. Of one agent on two connections, neither differs from the other.
+  models; false when either names no model. A reviewer must differ from the drafter. Of one agent on two connections, neither differs from the other.
 
 ## Files
 

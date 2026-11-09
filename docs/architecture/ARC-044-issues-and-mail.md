@@ -39,8 +39,6 @@ forced_by:
   - A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
   - A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
   - REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS
-  - A REWRITTEN TEXT IS CHECKED BY THREE LLMS
-  - NO CHECKER IS THE REWRITER
   - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
   - SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS
   - A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
@@ -93,7 +91,7 @@ the backlog; the product's settings for pseudonymisation and the collaborators w
 |---|---|
 | MOD-mail-routes | `routeFor`, `signIn`, `mailbox`, `providerLinks`, `Mail`, `Draft`, `DraftRef`, `ShownMail` |
 | MOD-mail-records | `mailId`, `listedMailIds`, `noteText`, `notesOf` |
-| MOD-personal-data | `personHits`, `checkersFor`, `settingsSchemas`, `pseudonymisationOf`, `namedPersonFindings`, `privacyStrategies` |
+| MOD-personal-data | `personHits`, `settingsSchemas`, `pseudonymisationOf`, `namedPersonFindings`, `privacyStrategies` |
 | MOD-mail-handling | `readNewMail`, `decideMail`, `repliesDue`, `storeReplies`, `sendReply`, `askReporter`, `noReply`, `mailStrategies` |
 | MOD-issue-handling | `confirmClass`, `backlogItemFrom`, `moveToBacklog`, `closeWithLinks`, `issueStrategies` |
 
@@ -103,7 +101,7 @@ the backlog; the product's settings for pseudonymisation and the collaborators w
 |---|---|---|
 | MOD-mail-routes | `src/mail-routes/` | one mailbox interface over two routes: Microsoft Graph, opened by the provider's sign-in in the page with exactly `Mail.ReadWrite`, `Mail.Send` and `offline_access`; IMAP and SMTP through the Bridge with the password for one request. Reading changes nothing; drafts are stored in the mailbox's Drafts folder; a draft is sent only with the confirmation of the exact mail shown |
 | MOD-mail-records | `src/mail-records/` | the identifier `MAIL-` and its derivation; the list of identifiers in an issue; the notes in an issue's comments — reply sent, question sent, no reply — with identifier and date only; matching a thread without a model; which mails are still undecided |
-| MOD-personal-data | `src/personal-data/` | the people of a mail and the search of a text for them, as a check every text from a mail passes; the choice of three checkers of three models, none of them the rewriter, at places the mailbox allows; the schemas of the product's `docs/settings.md`, with pseudonymisation on unless switched off, and of its `docs/collaborators.md`; the check that a generated artifact names a person only by account or with consent; the recipe of report data for rewriting |
+| MOD-personal-data | `src/personal-data/` | the people of a mail and the search of a text for them, as a check every text from a mail passes; the schemas of the product's `docs/settings.md`, with pseudonymisation on unless switched off, and of its `docs/collaborators.md`; the check that a generated artifact names a person only by account or with consent; the recipe of report data for rewriting |
 | MOD-mail-handling | `src/mail-handling/` | reading new mail and leaving decided mails out; a person's decision on a mail — create an issue, add to an issue, not an issue —; the replies due from closed issues and answers received; storing, sending and noting replies; asking a reporter; the recipes and writers of proposing issues and drafting replies |
 | MOD-issue-handling | `src/issue-handling/` | the recipe of an issue with the requirements, use cases and tests it touches, for its analysis and for fixing a bug test-first — never a mail —; confirming its class; the backlog item prefilled from an issue; closing an issue with links |
 
@@ -139,8 +137,8 @@ MOD-job-catalogue.
   only record of a mail's handling.
 - **IMAP from the browser through a web proxy.** Rejected: a proxy would be a server of Agent M's, and the password would
   pass through it.
-- **One model checking rewritten texts for persons.** Rejected: `A REWRITTEN TEXT IS CHECKED BY THREE LLMS`, none of them
-  the rewriter.
+- **Models checking rewritten texts for persons.** Rejected: the person reads and edits every text before it is written,
+  after the search for the mail's people.
 
 ## Consequences
 

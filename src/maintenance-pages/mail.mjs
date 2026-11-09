@@ -37,7 +37,7 @@ import { mailbox, signIn } from "../mail-routes/index.mjs";
 import { decideMail, readNewMail } from "../mail-handling/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { endpointsOffered, sessionsOffered, throughActions } from "../prompt-bar/index.mjs";
-import { checkersFor, personHits, pseudonymisationOf, settingsSchemas } from "../personal-data/index.mjs";
+import { personHits, pseudonymisationOf, settingsSchemas } from "../personal-data/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { runPanel } from "../site-frame/index.mjs";
@@ -256,10 +256,9 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
         refresh();
         return;
       }
-      const { participant, checkers, person } = choice;
+      const { participant, person } = choice;
       if (!participant || !person) { problem("Choose a participant under Propose first."); return; }
-      if (!checkers || checkers.missing) { reportStage.append(el("p", "mail-missing-checkers", checkers?.missing ?? "Three checking participants are needed.")); return; }
-      const job = await jobOf(session, "rewrite-without-persons", { participant, pieces: [{ name: `attachment ${index + 1} of ${mail.id}`, text: attachment.text }], people }, { drafter: participant, reviewers: checkers.checkers }, person);
+      const job = await jobOf(session, "rewrite-without-persons", { participant, pieces: [{ name: `attachment ${index + 1} of ${mail.id}`, text: attachment.text }], people }, { drafter: participant, reviewers: [] }, person);
       const result = el("div", "mail-report-result");
       reportStage.append(runPanel(job.prepared, { onRun: async () => {
         try {
@@ -320,7 +319,7 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
   return { item, fill, ticked: () => [...ticks].filter(([, tick]) => tick.checked === true).map(([name]) => name) };
 }
 
-// Propose: the participants the mailbox allows, the three checkers, the run panel and its Run — *Propose*, one click for all proposable mails (UC-038 4, 4a, 4c, 6c). `entries()` gives the proposable mails
+// Propose: the participants the mailbox allows, the run panel and its *Propose*, one click for all proposable mails (UC-038 4, 4a, 4c); the author checks every text before it is written. `entries()` gives the proposable mails
 // as they stand; `hooks.running` is true while a proposal runs, and `hooks.changed` draws the run panel anew.
 async function proposeSection(session, entries, reviews, choice, hooks) {
   const section = el("section", "mail-step-propose", el("h3", null, "Propose"), fold(STEP_TEXT.propose));
@@ -342,24 +341,14 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
   }
   // The person who proposes is the account of the instance's token, as the prompt bar names it; no name is typed.
   const name = readSetting(session.store, "github-token")?.name ?? "a reviewer";
-  const checkersBox = el("div", "mail-checkers-box");
   const stage = el("div", "mail-stage");
   let turn = 0;
 
   async function refresh() {
     const mine = turn += 1;
     stage.replaceChildren();
-    checkersBox.replaceChildren();
     const chosen = admitted.find((participant) => participant.name === select.value) ?? admitted[0];
-    Object.assign(choice, { participant: chosen, person: name, checkers: null });
-    const found = checkersFor(session.participants, chosen, session.allowed);
-    choice.checkers = found;
-    // Without three checkers nothing is sent (A REWRITTEN TEXT IS CHECKED BY THREE LLMS, UC-038 6c): what is missing is named, with where it is set up.
-    if (found.missing) {
-      checkersBox.append(el("p", "mail-missing-checkers", `${found.missing} Nothing is sent. `, link("#participants", "participants-link", "The participants"), " ", link("#mailbox", "places-link", "The mailbox's processing places")));
-      return;
-    }
-    checkersBox.append(el("ul", "mail-checkers", ...found.checkers.map((checker) => el("li", "mail-checker", `${checker.name} · `, el("span", "place", checker.place ?? "no processing place declared"), " · receives only the rewritten texts"))));
+    Object.assign(choice, { participant: chosen, person: name });
     try {
       const params = { mails: entries().map(({ mail, people }) => ({ mail, people, ticked: reviews.get(mail.id)?.ticked() ?? [] })), products: [...session.products.values()].map(({ address, host }) => ({ address, host })) };
       const job = await jobOf(session, "propose-issues", params, { drafter: chosen, reviewers: [] }, name);
@@ -385,7 +374,7 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
   }
   hooks.changed = refresh;
   select.addEventListener("change", refresh);
-  section.append(el("p", null, el("label", null, "Participant ", select)), checkersBox, stage);
+  section.append(el("p", null, el("label", null, "Participant ", select)), stage);
   refresh();
   return section;
 }
@@ -434,7 +423,7 @@ async function render(target, context) {
 
   // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose.
   const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "", noProduct: null };
-  const choice = { participant: null, checkers: null, person: "" };
+  const choice = { participant: null, person: "" };
   const hooks = { changed: () => {}, running: false };
   const proposable = () => state.rows.filter((row) => row.kind === "proposable").map(({ mail, people }) => ({ mail, people }));
 

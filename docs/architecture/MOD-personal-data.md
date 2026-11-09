@@ -11,13 +11,10 @@ uses:
   - MOD-documents.Document
   - MOD-text-tools.finding
   - MOD-text-tools.Finding
-  - MOD-participant-list.eligible
-  - MOD-participant-list.differs
   - MOD-job-runner.Strategies
 provides:
   - peopleIn
   - personHits
-  - checkersFor
   - settingsSchemas
   - pseudonymisationOf
   - namedPersonFindings
@@ -40,7 +37,6 @@ consent. Its functions are pure; it runs in the browser and in Node.
 
 - `index.mjs` — the interface.
 - `people.mjs` — the people of a mail, and the search of a text for them.
-- `checkers.mjs` — the choice of the three checking participants.
 - `consent.mjs` — names in generated artifacts against accounts and consenting collaborators.
 - `strategies.mjs` — the recipe `report-data` and the check `people-search`.
 - `settings.schema.md`, `collaborators.schema.md` — the schemas of the product's two files.
@@ -96,11 +92,6 @@ per person who agreed to be named in the repository, with the columns *Name* (as
 - `personHits(text: string, people: People) -> Hit[]` — every place in `text` where one of `people` appears: names also by
   their parts, addresses also by their local part, phone numbers by their digits whatever the separators, regardless of
   case. An empty result means the text names none of them; it says nothing about people the mail does not name.
-- `checkersFor(participants: Participant[], rewriter: Participant, places: string[]) -> { checkers: Participant[] } | {
-  missing: string }` — three participants that work with a language model, each at one of the processing places the
-  mailbox allows, with three different models, none of them the rewriter and none using the rewriter's model (`A
-  REWRITTEN TEXT IS CHECKED BY THREE LLMS`, `NO CHECKER IS THE REWRITER`); or, when there are not three, what is missing,
-  in a sentence the page shows. `Participant` is MOD-participant-list's.
 - `settingsSchemas() -> Promise<{ settings: Schema, collaborators: Schema }>` — the schemas of the two files, for
   MOD-documents and for the forms of the settings page.
 - `pseudonymisationOf(settings: Document | null) -> "on" | "off"` — whether report data from mails is rewritten without
@@ -130,7 +121,4 @@ the caller through MOD-documents and Access with these schemas; this module writ
 - `MOD-documents.Schema`, `MOD-documents.Document` — the types of a schema and of a document read by it.
 - `MOD-text-tools.finding`, `MOD-text-tools.Finding` — the findings of `namedPersonFindings` and of the check
   `people-search`, in the one compiler form.
-- `MOD-participant-list.eligible` — participants at an allowed place that can draft text, for `checkersFor`.
-- `MOD-participant-list.differs` — that a checker differs from the rewriter, and the checkers from each other, in
-  participant and model.
 - `MOD-job-runner.Strategies` — the type of `privacyStrategies`.

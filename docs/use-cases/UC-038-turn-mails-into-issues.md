@@ -8,7 +8,6 @@ actors:
   - Mail provider or Bridge
   - Mail server
   - Participant
-  - Checking participants
   - Issue tracker
 realises:
   - READING THE MAILBOX CHANGES NOTHING IN IT
@@ -25,7 +24,6 @@ realises:
   - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
   - A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
   - REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS
-  - A REWRITTEN TEXT IS CHECKED BY THREE LLMS
   - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
   - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
   - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
@@ -68,16 +66,13 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 - **Mail server** — holds the mailbox.
 - **Participant** — an agent of the instance's list (UC-017) — a model endpoint or a Bridge's CLI agent (UC-003,
   UC-044) — that proposes the issue.
-- **Checking participants** — three agents with three different models (UC-017) that each read the rewritten texts for
-  any mention of a person.
 - **Issue tracker** — the product's issues on GitHub or on its GitLab server.
 
 ## Precondition
 
 - A mailbox is connected in this browser (UC-037); on the IMAP route, the Bridge the connection names runs.
 - The instance manages at least one product (UC-001), and the stored token may create issues in it.
-- At least one participant that can draft text is configured (UC-017), and three LLM participants with
-  three different models check the rewritten texts.
+- At least one participant that can draft text is configured (UC-017).
 
 ## Main flow
 
@@ -96,8 +91,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    processing place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
    it receives: the mail text, the list of the instance's products with their one-line descriptions,
-   and the titles and numbers of their open issues — and the three checking participants, where each
-   processes data and that each receives only the rewritten texts. The author presses **Propose** — one
+   and the titles and numbers of their open issues. The author presses **Propose** — one
    click for all undecided mails.
 5. For each undecided mail, the participant returns a proposal:
    - **product** — which managed product the mail concerns;
@@ -111,8 +105,9 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    searched for; a hit is marked in the text. Attachments, logs and error messages the author wants in the
    issue are rewritten by the participant without any person, keeping their technical content — "the
    user's home folder" instead of a path with a user name — unless the product switched this off
-   (UC-042). Then the three checking participants each read the neutral text and the rewritten report
-   data for any mention of a person; a finding of any one of them goes back to the rewriting participant
+   (UC-042). The rewritten report data goes into the issue's text box, where the search for the mail's people marks it
+   as it marks the neutral text; the author reads and edits both before deciding (step 7). A finding of the search
+   goes back to the rewriting participant
    as a compiler-like message, and it corrects the text, within the round limit (UC-019, step 7). What
    is still found after the last round is marked in the text.
 7. The author clicks a mail in the list. Its details show: the mail in full, its proposal with the text editable, and
@@ -147,7 +142,6 @@ sequenceDiagram
     P-->>D: product, kind, neutral text, duplicates
     D->>D: search for this mail's people
     D->>P: rewrite report data without persons
-    D->>P: three LLMs check the rewritten texts, findings back
     A->>D: open a mail from the list
     A->>D: Create issue, Add to #n, or Not an issue
     D->>I: neutral issue with MAIL identifier, label defect or change
@@ -177,11 +171,6 @@ sequenceDiagram
 - **6b. The product has switched pseudonymisation off** (UC-042). Report data goes into the issue
   unchanged; the panel says so above the data. The issue text itself is still checked and stays
   neutral.
-- **6c. Fewer than three agents with different models run on connections at places this mailbox allows.** The
-  participant's texts cannot be written; Agent M names what is missing and links UC-017, the connections (UC-003,
-  UC-044) and the mailbox's places (UC-037, 6a).
-  The author may still write the issue text by hand (4b) — covered by the search for the mail's people —
-  and adds no report data.
 - **7a. The author changes the proposal** — another product, another kind, another duplicate. The
   author's choice is what is written; the participant's proposal is not kept as the decision.
 - **7b. The mail mixes several concerns.** The author splits it: **Create issue** once per concern;
