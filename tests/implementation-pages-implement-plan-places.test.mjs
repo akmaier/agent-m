@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
-import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -82,9 +82,8 @@ const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("
 const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n| dev-c | agent | model-c |\n`;
 // This browser's connections: the Bridge lab-pc, whose coding agents offer model-a at "this machine" (claude) and model-b at "elsewhere" (codex), each with every capability an implementing job needs, and
 // model-c at "a server in Singapore" (opencode), which reads and writes the repository but does not run code and tests; the Bridge answers here.
-const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]), "session:lab-pc:codex": session([["model-b"]], { place: "elsewhere" }),
-  "session:lab-pc:opencode": session([["model-c"]], { place: "a server in Singapore", capabilities: ["read the repository", "write to the repository"] }) };
-const bridge = withBridge(["claude", "codex", "opencode"]);
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridge = withBridge([agent("claude", [["model-a"]]), agent("codex", [["model-b"]], { place: "elsewhere" }), agent("opencode", [["model-c"]], { place: "a server in Singapore", capabilities: ["read the repository", "write to the repository"] })]);
 test.after(() => bridge.restore());
 
 

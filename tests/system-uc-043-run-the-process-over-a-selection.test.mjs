@@ -29,8 +29,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { LIMITS, RUN_ID, STEPS, architecture, found, lines, openWorld, productFiles } from "./uc-043-harness.mjs";
 import { openImplement, quiet, startRecords, stepRows, textOf } from "./uc-024-harness.mjs";
-import { MODELS, SETTINGS, itemPath, product as backlogProduct, storeOf } from "./uc-032-harness.mjs";
-import { session } from "./browser-connections-fixture.mjs";
+import { MODELS, itemPath, product as backlogProduct } from "./uc-032-harness.mjs";
+import { agent } from "./browser-connections-fixture.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const SELF = "tests/system-uc-043-run-the-process-over-a-selection.test.mjs";
@@ -50,8 +50,9 @@ async function ready({ ci = true, limits = LIMITS, selection = STEPS, ...options
 }
 const startsOf = (actions) => actions.filter((action) => action.do === "start").map((action) => (action.worksOn ?? action.kind));
 const stateOf = (facts, item) => facts.plan.states.find((state) => state.item === item)?.state;
-// The route a holder of the implementing role is offered on: the Bridge lab-pc, whose coding agent claude offers dev-a's model (tests/uc-032-harness.mjs' SETTINGS); and the route a job's record names, that connection's.
-const ROUTE = "bridge lab-pc", RECORD_ROUTE = "bridge lab-pc agent claude";
+// The route of a holder of the implementing role, as an action names it and a job's record writes it (MOD-run-planner, Action): the connection's, the coding agent claude of the Bridge lab-pc, which offers
+// dev-a's model (tests/uc-032-harness.mjs' LAB_PC).
+const RECORD_ROUTE = "bridge lab-pc agent claude";
 
 // ---------------------------------------------------------------- the map
 
@@ -230,11 +231,11 @@ test("TST-1045205: UC-043 step 2 — a run whose limits are unset gets the prese
 // guards: UC-043; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A GATE NAMES WHO DECIDES IT
 // given: the planned product with its CI configuration, and the run over the six steps
 // input: step 3 — nextActions for the run; the workflow the facts hold
-// expect: known positive — the first actions start ITM-101 and ITM-103, each naming dev-a, the one holder of the implementing role, and the route of its connection's Bridge, bridge lab-pc; the workflow names the gates on the way, Design → Implementation and Validation & Verification → Operation & Maintenance, each with the Reviewer as its decider
+// expect: known positive — the first actions start ITM-101 and ITM-103, each naming dev-a, the one holder of the implementing role, and the route of its connection, bridge lab-pc agent claude; the workflow names the gates on the way, Design → Implementation and Validation & Verification → Operation & Maintenance, each with the Reviewer as its decider
 test("TST-1045206: UC-043 step 3 — the run is planned from the model: the jobs, the participant of the role and every gate with its decider", async () => {
   await ready();
   const actions = await world.next();
-  assert.deepEqual(actions.map((action) => [action.do, action.kind, action.worksOn, action.participant, action.route]), [["start", "implement", "ITM-101", "dev-a", ROUTE], ["start", "implement", "ITM-103", "dev-a", ROUTE]], "known positive: two jobs");
+  assert.deepEqual(actions.map((action) => [action.do, action.kind, action.worksOn, action.participant, action.route]), [["start", "implement", "ITM-101", "dev-a", RECORD_ROUTE], ["start", "implement", "ITM-103", "dev-a", RECORD_ROUTE]], "known positive: two jobs");
   const facts = await world.facts();
   assert.deepEqual(facts.workflow.gates.map((gate) => [gate.name, gate.decider]), [["Requirements → Design", "Reviewer"], ["Design → Implementation", "Reviewer"], [GATE_AFTER, "Reviewer"]]);
 });
@@ -314,7 +315,7 @@ test("TST-1045211: UC-043 step 5.2 — the steps are implemented in the order of
   await ready({ ci: false });
   const result = await world.carryOut();
   assert.deepEqual(result.waves.map((wave) => wave.map((each) => each.worksOn ?? each.kind)), [["set-up-ci"], ["ITM-101", "ITM-103"], ["ITM-102", "ITM-105"], ["ITM-104"], ["ITM-106"]], "known positive: five rounds");
-  assert.ok(result.waves.flat().filter((each) => each.kind === "implement").every((each) => each.participant === "dev-a" && each.route === ROUTE));
+  assert.ok(result.waves.flat().filter((each) => each.kind === "implement").every((each) => each.participant === "dev-a" && each.route === RECORD_ROUTE));
   const order = result.waves.flatMap((wave, at) => wave.map((each) => [each.worksOn, at]));
   const at = Object.fromEntries(order);
   assert.ok(at["ITM-102"] > at["ITM-101"] && at["ITM-104"] > at["ITM-102"] && at["ITM-105"] > at["ITM-103"] && at["ITM-106"] > Math.max(at["ITM-104"], at["ITM-105"]));
@@ -571,7 +572,7 @@ test("TST-1045224: UC-043 3a — a cycle in the modules' interfaces starts nothi
 // expect: known positive — nothing starts; and the run's participant is told which role the plan needs, Developer, and which capability no participant holds, run code and tests
 test("TST-1045225: UC-043 3b — no participant holds a role the plan needs: nothing starts, and the role and the capability are named", { todo: "FINDING UC043-F7 (no module) — nextActions (src/run-planner/next.mjs:130-131) skips an item with no holder silently, and `refuse` is given for a cycle only; the reasons startable gives (`No job can implement ITM-101: no holder of Developer in plan has all it needs — ...; none can run code and tests`, src/work-plans/states.mjs, holderReason) reach the run's participant by no function: MOD-run-planner's text assigns the refusal of a cycle only" }, async () => {
   const weak = { capabilities: ["read the repository", "write to the repository"] };
-  await ready({ store: storeOf({ ...SETTINGS, "session:lab-pc:claude": session([["model-c"]], weak), "session:lab-pc:codex": session([["model-d"]], weak) }) });
+  await ready({ agents: [agent("claude", [["model-c"]], weak), agent("codex", [["model-d"]], weak)] });
   const actions = await world.next();
   assert.deepEqual(startsOf(actions), [], "known positive: nothing starts");
   const said = actions.map((action) => action.reason ?? "").join(" ");
@@ -597,7 +598,7 @@ test("TST-1045226: UC-043 5a — a job at a gate waits there, the jobs that do n
   assert.deepEqual(during.map((action) => [action.do, action.worksOn]), [["start", "ITM-105"]], "ITM-105 goes on, ITM-102 waits");
   await world.decide(GATE_AFTER, "Reviewer", "bob");
   const after = await world.next();
-  assert.deepEqual(after.map((action) => [action.do, action.worksOn, action.job, action.participant, action.route]), [["resume", "ITM-101", waiting, "dev-a", RECORD_ROUTE], ["start", "ITM-105", null, "dev-a", ROUTE]]);
+  assert.deepEqual(after.map((action) => [action.do, action.worksOn, action.job, action.participant, action.route]), [["resume", "ITM-101", waiting, "dev-a", RECORD_ROUTE], ["start", "ITM-105", null, "dev-a", RECORD_ROUTE]]);
 });
 
 // TST-1045227 · level: system · module: system

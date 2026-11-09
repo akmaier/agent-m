@@ -38,7 +38,7 @@ import { byClass } from "./main-page-home-harness.mjs";
 import { GATE_JOB, MODELS, decision, ended, found, gateRecord, itemPath, itemText, jobPage, jobPull, jobProduct, jobRecord, lines, moduleText, openImplement, pr, quiet, servers, sprintPath, sprintText, startRecords, teams,
   testFileOf, textOf, waitingJob, walk } from "./uc-034-harness.mjs";
 import { storeOf } from "./uc-032-harness.mjs";
-import { BRIDGE, bridgeAnswer, bridgeSetting, session } from "./browser-connections-fixture.mjs";
+import { BRIDGE, agent, bridgeAnswer, bridgeSetting } from "./browser-connections-fixture.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-034-implement-backlog-items-with-a-coding-agent.md";
@@ -54,10 +54,10 @@ const opened = (n, item) => pr(n, item, "open", day(22));
 const register = (...rows) => lines("# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "", "| Name | Type | Model |", "|---|---|---|", ...rows);
 const builder = (name, model) => `| ${name} | agent | ${model} |`;
 /**
- * The browser's Bridge lab-pc with a coding agent for each of `sessions` — [agent, model, place] —, as its settings declare them (`store`), and the fixture Bridge answering for those agents (`bridge`), for openImplement.
+ * The browser's Bridge lab-pc (`store`) and the fixture Bridge answering for it (`bridge`), listing a coding agent for each of `agents` — [agent, model, place] — with the declaration the Bridge keeps for it, for openImplement.
  */
-const onBridge = (sessions) => ({ store: storeOf({ "bridge:lab-pc": bridgeSetting(), ...Object.fromEntries(sessions.map(([agent, model, place = "this machine"]) => [`session:lab-pc:${agent}`, session([[model]], { place })])) }),
-  bridge: bridgeAnswer(sessions.map(([agent]) => agent)) });
+const onBridge = (agents) => ({ store: storeOf({ "bridge:lab-pc": bridgeSetting() }),
+  bridge: bridgeAnswer(agents.map(([name, model, place = "this machine"]) => agent(name, [[model]], { place }))) });
 const assignment = (team, owner, builders) => lines(`# ${team}`, "", "## Roles", "", "| Role | Participants |", "|---|---|", `| Owner | ${owner} |`, `| Builders | ${builders} |`, `| Checker | ${builders} |`);
 const tagged = (root, name) => walk(root, (node) => node.localName === name);
 /** The rows of the page: { id -> { state, startable, text, reasons } }. */
@@ -393,8 +393,8 @@ test("TST-805211: UC-034 4a a Bridge that does not answer leaves the job queued,
   async () => {
     const OTHER = "http://127.0.0.1:9419";
     const handed = [];
-    const store = storeOf({ "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-c"]]), "bridge:lab-b": { address: OTHER, token: "pairing-token-b" }, "session:lab-b:codex": session([["model-d"]]) });
-    const down = bridgeAnswer(["claude"]), up = bridgeAnswer(["codex"], handed);
+    const store = storeOf({ "bridge:lab-pc": bridgeSetting(), "bridge:lab-b": { address: OTHER, token: "pairing-token-b" } });
+    const down = bridgeAnswer([agent("claude", [["model-c"]])]), up = bridgeAnswer([agent("codex", [["model-d"]])], handed);
     const bridge = async (url, init = {}) => {
       if (url.origin === OTHER) return up(new URL(`${url.pathname}${url.search}`, BRIDGE), init);
       if (String(init.method ?? "GET").toUpperCase() === "POST") throw new TypeError("connect ECONNREFUSED 127.0.0.1:9418");

@@ -33,13 +33,13 @@ import { startRecord } from "../src/job-ledger/index.mjs";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { ADDRESS, GATES, HEAD, PARTICIPANTS, PRODUCT_REPO, V_MODEL, SCRUM_MODEL, architecture, decision, declaration, found, instanceFiles, lines, modulePath, plain, planFiles, planned, pr, stepId, stepPath, stepText, textOf,
   walk, waitFor, ORDER_PATH } from "./uc-045-harness.mjs";
-import { open as openScrum, product as scrumProduct, sprintPath, sprintText, storeOf } from "./uc-032-harness.mjs";
+import { open as openScrum, product as scrumProduct, sprintPath, sprintText, storeOf, LAB_PC } from "./uc-032-harness.mjs";
 import { BRIDGE, CODING, bridgeAnswer } from "./browser-connections-fixture.mjs";
 
 export { ADDRESS, GATES, HEAD, PARTICIPANTS, PRODUCT_REPO, REPO, TOKEN, V_MODEL, SCRUM_MODEL, architecture, declaration, found, lines, modulePath, plain, planFiles, planned, pr, stepId, stepPath, stepText, textOf, walk,
   waitFor, ORDER_PATH, openScrum, storeOf };
 
-/** The connection dev-a's jobs run on — the coding agent claude of the Bridge lab-pc, which offers model-c (tests/uc-032-harness.mjs' SETTINGS) — as a job's record names it and what it declares (MOD-job-ledger). */
+/** The connection dev-a's jobs run on — the coding agent claude of the Bridge lab-pc, which offers model-c (tests/uc-032-harness.mjs' LAB_PC) — as a job's record names it and what it declares (MOD-job-ledger). */
 export const DEV_A_ROUTE = "bridge lab-pc agent claude";
 export const DEV_A_DECLARES = { context: 200000, capabilities: CODING };
 
@@ -96,20 +96,20 @@ const githubPull = (p) => ({ number: p.number, title: p.title, head: { ref: p.br
   merge_commit_sha: p.mergeCommit, created_at: p.opened, updated_at: p.updated, closed_at: p.closed, draft: p.draft === true, html_url: p.url, body: p.body });
 
 /**
- * openImplement(params, { files, instance, pullRequests, green, denyWrites, store }) -> { target, srv, inst, log, merges, handed, press, script, done, html } — the route `implement` drawn for the product `files` (alice/thesis-tool)
+ * openImplement(params, { files, instance, pullRequests, green, denyWrites, store, agents }) -> { target, srv, inst, log, merges, handed, press, script, done, html } — the route `implement` drawn for the product `files` (alice/thesis-tool)
  * and the instance `instance`, each behind tests/app-harness.mjs' fake of GitHub; `store` is this browser's settings, tests/uc-032-harness.mjs' SETTINGS unless given, whose Bridge answers through
- * tests/browser-connections-fixture.mjs, every hand-over kept in `handed` — or, where `bridge` is given, through that request handler ((url, init) -> Promise<Response>), which then answers every request to
+ * tests/browser-connections-fixture.mjs, listing `agents` (LAB_PC of tests/uc-032-harness.mjs unless given) with their declarations, every hand-over kept in `handed` — or, where `bridge` is given, through that request handler ((url, init) -> Promise<Response>), which then answers every request to
  * 127.0.0.1, the loopback address of a Bridge on this machine. `pullRequests` are the product's (pr() of tests/uc-045-harness.mjs, or jobPull() of this file, whose commits and checks are served);
  * `green` the answer of greenToMerge's GraphQL field — true (a rule requires a check), false (none does) or undefined (the fake's own answer); `denyWrites` refuses every write of a commit with 403, as GitHub refuses a
  * token that may not write. `log` holds each request that writes, `merges` each merge asked for. `press(element)` is a person's click awaited, `script(element)` a script's; `done()` ends the page.
  */
-export async function openImplement(params = {}, { files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false, store = storeOf(), name = "implement", bridge = null } = {}) {
+export async function openImplement(params = {}, { files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false, store = storeOf(), name = "implement", bridge = null, agents = LAB_PC } = {}) {
   const { view } = await import("../src/implementation-pages/index.mjs");
   for (const [at, strategies] of view.strategies.entries()) {
     try { registerStrategies(`tests/uc-024-harness.mjs#${at}`, strategies); } catch { /* registered already */ }
   }
   const route = view.routes.find((candidate) => candidate.name === name);
-  const { srv, inst, log, merges, outside, handed, host, instanceHost, restore } = await servers({ files, instance: instanceGiven, pullRequests, green, denyWrites, bridge });
+  const { srv, inst, log, merges, outside, handed, host, instanceHost, restore } = await servers({ files, instance: instanceGiven, pullRequests, green, denyWrites, bridge, agents });
   const handlers = [];
   const Element = globalThis.window.Element, add = Element.prototype.addEventListener;
   Element.prototype.addEventListener = function (type, listener, ...rest) { if (type === "click") handlers.push([this, listener]); return add.call(this, type, listener, ...rest); };
@@ -130,10 +130,10 @@ export async function openImplement(params = {}, { files, instance: instanceGive
 }
 
 /**
- * servers({ files, instance, pullRequests, green, denyWrites }) -> { srv, inst, log, merges, outside, handed, host, instanceHost, restore } — the product's and the instance's fakes of GitHub as openImplement describes them, and
- * the fixture Bridge of tests/browser-connections-fixture.mjs listing the agents claude and codex, every hand-over kept in `handed`; the global `fetch` routed to them until `restore()`, and the real MOD-repository-hosts hosts of both, connected with the person's token.
+ * servers({ files, instance, pullRequests, green, denyWrites, agents }) -> { srv, inst, log, merges, outside, handed, host, instanceHost, restore } — the product's and the instance's fakes of GitHub as openImplement describes them, and
+ * the fixture Bridge of tests/browser-connections-fixture.mjs listing `agents` — LAB_PC of tests/uc-032-harness.mjs, claude and codex, unless given —, every hand-over kept in `handed`; the global `fetch` routed to them until `restore()`, and the real MOD-repository-hosts hosts of both, connected with the person's token.
  */
-export async function servers({ files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false, bridge: answerOf = null } = {}) {
+export async function servers({ files, instance: instanceGiven = instance(), pullRequests = [], green, denyWrites = false, bridge: answerOf = null, agents = LAB_PC } = {}) {
   const merges = [];
   const api = `/repos/${PRODUCT_REPO}`;
   const pulls = (url, init) => {
@@ -184,7 +184,7 @@ export async function servers({ files, instance: instanceGiven = instance(), pul
   };
   const real = globalThis.fetch;
   const log = [], outside = [], handed = [];
-  const bridge = answerOf ?? bridgeAnswer(["claude", "codex"], handed);
+  const bridge = answerOf ?? bridgeAnswer(agents, handed);
   globalThis.fetch = (input, init = {}) => {
     const url = new URL(String(input?.url ?? input));
     if (url.origin === BRIDGE || (answerOf && url.hostname === "127.0.0.1")) return bridge(url, init);

@@ -28,7 +28,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
-import { BRIDGE, bridgeAnswer, bridgeSetting, session, storeWith } from "./browser-connections-fixture.mjs";
+import { agent, BRIDGE, bridgeAnswer, bridgeSetting, storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { openStore } = await import("../src/browser-store/index.mjs");
@@ -41,7 +41,7 @@ const route = view.routes.find((candidate) => candidate.name === "implement");
 // and kept in `fetched`.
 const fetched = [];
 const handOver = { fails: false };
-const bridgeAnswers = bridgeAnswer(["claude", "codex", "opencode"]);
+const bridgeAnswers = bridgeAnswer([agent("claude", [["model-a"]]), agent("codex", [["model-b"]]), agent("opencode", [["model-c"]], { place: "a server in Singapore", capabilities: ["read the repository", "write to the repository"] })]);
 globalThis.fetch = async (address, init = {}) => {
   const url = new URL(String(address));
   if (handOver.fails && url.origin === BRIDGE && url.pathname === "/v1/jobs") throw new TypeError("fetch failed");
@@ -109,8 +109,7 @@ const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("
 const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n| dev-c | agent | model-c |\n`;
 // This browser's connections: the Bridge lab-pc, whose coding agents offer model-a (claude) and model-b (codex) at "this machine" with every capability an implementing job needs, and model-c (opencode) at
 // "a server in Singapore", which reads and writes the repository but does not run code and tests.
-const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]), "session:lab-pc:codex": session([["model-b"]]),
-  "session:lab-pc:opencode": session([["model-c"]], { place: "a server in Singapore", capabilities: ["read the repository", "write to the repository"] }) };
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
 
 // The strategies the kinds name: stand-ins, as tests/implementation-pages-implement.test.mjs has them.
 const part = (name) => ({ name, text: name, size: 0, sources: [], required: true });

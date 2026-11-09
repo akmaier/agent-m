@@ -22,7 +22,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
-import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -94,8 +94,8 @@ const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("
 const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n`;
 // This browser's connections: the Bridge lab-pc, whose coding agent claude offers model-a at "this machine" and whose coding agent codex offers model-b at "elsewhere", each with every capability an implementing job
 // needs; the Bridge answers here.
-const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]), "session:lab-pc:codex": session([["model-b"]], { place: "elsewhere" }) };
-const bridge = withBridge(["claude", "codex"]);
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridge = withBridge([agent("claude", [["model-a"]]), agent("codex", [["model-b"]], { place: "elsewhere" })]);
 after(() => bridge.restore());
 const assignmentBoth = lines("# team1", "", "## Roles", "", "| Role | Participants |", "|---|---|", "| Owner | alice |", "| Builders | dev-a, dev-b |", "| Checker | dev-a |");
 const sourceEntry = (licence, places) => lines("---", "id: SRC-fixture", "title: The fixture source", "kind: document", "authority: normative", `licence: ${licence}`,

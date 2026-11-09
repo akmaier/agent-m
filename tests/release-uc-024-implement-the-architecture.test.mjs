@@ -32,9 +32,9 @@ import { testDeclarations } from "../src/test-document/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { declarationSchema, productWorkflow, recordGateDecision, roleAssignmentSchema } from "../src/product-process/index.mjs";
 import { ADDRESS, FIRST, GATES, backlogProduct, openScrum, PARTICIPANTS, SECOND, STORE_TEST, fieldOf, found, instance, jobCheck, jobPull, jobRecord, lines, modulePath, openImplement, planned, pr, quiet, servers, startRecords, stepRows,
-  storeOf, textOf } from "./uc-024-harness.mjs";
-import { SETTINGS } from "./uc-032-harness.mjs";
-import { session } from "./browser-connections-fixture.mjs";
+  textOf } from "./uc-024-harness.mjs";
+import { LAB_PC } from "./uc-032-harness.mjs";
+import { agent } from "./browser-connections-fixture.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-024-implement-modules.md";
@@ -400,8 +400,8 @@ test("TST-740315: content of a restricted source is never given to a participant
     "", "## Responsibility", "", "r", "", "## Interfaces", "", "- `read` — i");
   const files = await planned({ files: { ...GATES, [modulePath("MOD-mail")]: mail, "docs/sources/SRC-letters/1/letter.md": "Dear reader.\n",
     "docs/role-assignments/plan.md": assignment(["| Product owner | alice |", "| Developer | dev-a, dev-b |", "| Tester | dev-a, dev-b |", "| Reviewer | bob |"]) } });
-  const store = () => storeOf({ ...SETTINGS, "session:lab-pc:codex": session([["model-d"]], { place: "a provider in the USA" }) });
-  const page = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters(["this machine"]) }), store: store() });
+  const agents = [LAB_PC[0], agent("codex", [["model-d"]], { place: "a provider in the USA" })];
+  const page = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters(["this machine"]) }), agents });
   try {
     assert.deepEqual(fieldOf(page, "ITM-103", "participant").childNodes.map(textOf), ["dev-a"]);
     assert.match(textOf(fieldOf(page, "ITM-103", "withheld")), /dev-b.*SRC-letters|SRC-letters.*dev-b/);
@@ -412,7 +412,7 @@ test("TST-740315: content of a restricted source is never given to a participant
     assert.equal(forMail.length, 1);
     assert.match(forMail[0].text, /^participant: dev-a$/m);
   } finally { page.done(); }
-  const both = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters(["this machine", "a provider in the USA"]) }), store: store() });
+  const both = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters(["this machine", "a provider in the USA"]) }), agents });
   try { assert.deepEqual(fieldOf(both, "ITM-103", "participant").childNodes.map(textOf), ["dev-a", "dev-b"]); } finally { both.done(); }
 });
 
@@ -463,7 +463,7 @@ test("TST-740322: a job goes to a connection that offers its participant's model
   const files = await planned({ files: { ...GATES, "docs/role-assignments/plan.md": assignment(["| Product owner | alice |", "| Developer | dev-a, dev-b |", "| Tester | dev-a, dev-b |", "| Reviewer | bob |"]) } });
   const offered = await openImplement({}, { files });
   try { assert.deepEqual(fieldOf(offered, "ITM-101", "participant").childNodes.map(textOf), ["dev-a", "dev-b"], "known positive: with a connection of model-d, dev-b is offered"); } finally { offered.done(); }
-  const page = await openImplement({}, { files, store: storeOf({ ...SETTINGS, "session:lab-pc:codex": session([["model-e"]]) }) });
+  const page = await openImplement({}, { files, agents: [LAB_PC[0], agent("codex", [["model-e"]])] });
   try {
     for (const step of ["ITM-101", "ITM-103"]) assert.deepEqual(fieldOf(page, step, "participant").childNodes.map(textOf), ["dev-a"], step);
     await page.press(found(page.target, "[data-start-jobs]")[0]);

@@ -25,7 +25,7 @@ import { blobSha } from "../src/text-tools/index.mjs";
 import { artifactSchemas, readDocument } from "../src/documents/index.mjs";
 import { planSchemas } from "../src/work-plans/index.mjs";
 import { found, row, part } from "./implementation-pages-sprints.mjs";
-import { CODING, bridgeAnswer, bridgeSetting, session, storeWith } from "./browser-connections-fixture.mjs";
+import { CODING, agent, bridgeAnswer, bridgeSetting, storeWith } from "./browser-connections-fixture.mjs";
 export { found, row, part };
 
 export const ADDRESS = `https://github.com/${REPO}`;
@@ -207,13 +207,15 @@ export function endpoints(draft, asked) {
 }
 /**
  * The browser's settings of a page, as MOD-browser-store keeps them: the model endpoints ep1 (model-a, this machine) and ep2 (model-b, a provider in the USA), which draft text and read; and the Bridge lab-pc, whose
- * coding agents claude and codex offer model-c and model-d on this machine with every capability an implementing job needs.
+ * coding agents the Bridge declares itself (LAB_PC).
  */
 export const SETTINGS = {
   "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k-ep1", place: "this machine", context: 200000 },
   "endpoint:ep2": { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k-ep2", place: "a provider in the USA", context: 200000 },
-  "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-c"]]), "session:lab-pc:codex": session([["model-d"]]),
+  "bridge:lab-pc": bridgeSetting(),
 };
+/** The agents the Bridge lab-pc lists ready, each with the declaration it keeps for it (MOD-bridge-http, GET /v1/agents): claude and codex, which offer model-c and model-d on this machine with every capability an implementing job needs. */
+export const LAB_PC = [agent("claude", [["model-c"]]), agent("codex", [["model-d"]])];
 /** storeOf(settings) -> a Store of MOD-browser-store holding `settings` (SETTINGS unless given), fresh for each page. */
 export const storeOf = (settings = SETTINGS) => storeWith(settings);
 /** The browser's settings of a page: SETTINGS. */
@@ -223,10 +225,10 @@ const register = (...rows) => lines("# Participants of this instance", "", "**RE
 export const PARTICIPANTS = register("| local-llm | agent | model-a |", "| cloud-llm | agent | model-b |", "| dev-a | agent | model-c |", "| dev-b | agent | model-d |");
 
 /**
- * open(name, params, { files, pullRequests, server, store }) -> { target, srv, route, press, click, done, html } — the route `name` drawn for the product `files` behind the fake of GitHub with `pullRequests` (the fake
- * holds a list a test can replace through `pulls.list`), `server` the test's own request handlers; `press(element)` is a person's click awaited, `script(element)` a script's click. `done()` ends the page.
+ * open(name, params, { files, pullRequests, server, store, agents }) -> { target, srv, route, press, click, done, html } — the route `name` drawn for the product `files` behind the fake of GitHub with `pullRequests` (the fake
+ * holds a list a test can replace through `pulls.list`), `server` the test's own request handlers, `agents` those the Bridge lab-pc lists (LAB_PC unless given); `press(element)` is a person's click awaited, `script(element)` a script's click. `done()` ends the page.
  */
-export async function open(name, params = {}, { files, pullRequests = PULL_REQUESTS, server = [], store = storeOf(), pulls = { list: pullRequests } } = {}) {
+export async function open(name, params = {}, { files, pullRequests = PULL_REQUESTS, server = [], store = storeOf(), pulls = { list: pullRequests }, agents = LAB_PC } = {}) {
   const { view } = await import("../src/implementation-pages/index.mjs");
   for (const [at, strategies] of view.strategies.entries()) {
     try { registerStrategies(`tests/uc-032-harness.mjs#${at}`, strategies); } catch { /* registered already */ }
@@ -245,7 +247,7 @@ export async function open(name, params = {}, { files, pullRequests = PULL_REQUE
     return json({ ref: body.ref, object: { sha: body.sha } }, 201);
   };
   const handed = [];
-  const srv = await repoServer({ files, handlers: [pullsApi, refsApi, ...server, bridgeAnswer(["claude", "codex"], handed)], head: HEAD });
+  const srv = await repoServer({ files, handlers: [pullsApi, refsApi, ...server, bridgeAnswer(agents, handed)], head: HEAD });
   const real = globalThis.fetch;
   globalThis.fetch = srv.fetch;
   const host = connect(parseAddress(ADDRESS), { token: TOKEN });
