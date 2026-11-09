@@ -193,8 +193,8 @@ test("TST-2026101: a hosted endpoint's job of a code kind runs through the endpo
     }
     const first = w.requests[0].body;
     assert.deepEqual((first.tools ?? []).map((tool) => tool.function.name), SEVEN, "the seven tools of the checkout are offered");
-    assert.equal(first.messages[0].role, "system");
-    assert.ok(first.messages[0].content.includes(`Working folder: ${w.productDir}`), "the system prompt names the checkout");
+    assert.equal(first.messages[0].role, "user", "no system prompt precedes AGENTS.md");
+    assert.ok(first.messages[0].content.includes(`Working folder: ${w.productDir}`), "the first message names the checkout");
     const user = first.messages.find((message) => message.role === "user").content;
     assert.ok(user.startsWith(AGENTS_MD.trimEnd()), "the input begins with AGENTS.md's text");
     assert.equal(user.includes(w.instanceDir), false, "no path of the instance's checkout is given");
