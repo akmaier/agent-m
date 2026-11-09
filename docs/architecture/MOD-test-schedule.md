@@ -15,9 +15,6 @@ uses:
   - MOD-test-document.isNamedTestFile
   - MOD-test-document.testHeader
   - MOD-test-document.testDeclarations
-  - MOD-participant-list.participantSchema
-  - MOD-participant-list.participantsOf
-  - MOD-participant-list.eligible
   - MOD-resource-list.resourceSchema
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
@@ -104,7 +101,7 @@ It keeps nothing. It owns the schedule.
 | front matter `setup` | a command run in every test job before its tests, which installs what they need; empty where nothing is installed |
 | front matter `cache` | the paths `setup` fills that the CI service keeps between runs; empty where nothing is kept |
 | front matter `minutes` | the time limit of every job the configuration runs on every commit and on a pull request, a whole number of minutes; empty where none is set |
-| section `## Levels` | a table with the columns `Row`, `every commit`, `pull request`, `nightly`, `release candidate`, `on demand`, `runs on`, `shards`; the rows `unit`, `component`, `system`, `paid` (tests that call a paid service or a model), `release`, `user`; a cell is `✓` or empty; `runs on` is `hosted` or a participant of the instance with *run code and tests* whose route is a self-hosted runner; `shards` is the number of parallel jobs the row's tests are split across on every occasion, a whole number from 1, empty for 1 |
+| section `## Levels` | a table with the columns `Row`, `every commit`, `pull request`, `nightly`, `release candidate`, `on demand`, `runs on`, `shards`; the rows `unit`, `component`, `system`, `paid` (tests that call a paid service or a model), `release`, `user`; a cell is `✓` or empty; `runs on` is `hosted` or `runner:<label>`, a self-hosted runner identified by its label; `shards` is the number of parallel jobs the row's tests are split across on every occasion, a whole number from 1, empty for 1 |
 
 The default (`default-schedule.md`), with no command, setup, cache or time limit, one shard per row:
 
@@ -193,12 +190,11 @@ module. The file holds:
 
 - `scheduleSchema: Schema` — the schedule's schema, for MOD-documents.
 - `defaultSchedule() -> Document` — the book's default as a schedule, marked as the default.
-- `scheduleFindings(schedule: Document, participants: Document) -> Finding[]` — what a schedule may not say: the release
+- `scheduleFindings(schedule: Document) -> Finding[]` — what a schedule may not say: the release
   candidate column not ticked for a row (`A RELEASE RUNS EVERY TEST AT EVERY LEVEL`); the row `paid` ticked for every
-  commit or a pull request (`COMMIT TESTS CALL NO PAID SERVICE`); `runs on` naming a participant without *run code and
-  tests* or without a runner route. Each finding names the row and column.
+  commit or a pull request (`COMMIT TESTS CALL NO PAID SERVICE`); `runs on` neither `hosted` nor `runner:<label>`. Each finding names the row and column.
 - `ciConfiguration(schedule: Document, target: { server: "github" | "gitlab", instance: string, instanceCommit: string
-  }, resources: Document, participants: Document) -> { files: Record<string, string>, include: { file: ".gitlab-ci.yml", entry: string } | null,
+  }, resources: Document) -> { files: Record<string, string>, include: { file: ".gitlab-ci.yml", entry: string } | null,
   pipelineSchedule: { cron: string, rows: string[] } | null }` — the configuration generated from the schedule; on
   GitLab also the include entry the product's `.gitlab-ci.yml` must hold, and the pipeline schedule to set after the
   configuration is merged. Considers: the schedule must have no error finding; `instanceCommit` pins the Agent M whose
@@ -206,9 +202,9 @@ module. The file holds:
   own history, so that the code of a pull request never runs the entries that hold the token. Errors: `InvalidSchedule`
   with its findings.
 - `configurationDrift(files: Record<string, string>, schedule: Document, target: { server: "github" | "gitlab",
-  instance: string, instanceCommit: string }, resources: Document, participants: Document) -> Array<{ path: string,
+  instance: string, instanceCommit: string }, resources: Document) -> Array<{ path: string,
   difference: string }>` — where the committed configuration differs from the one `ciConfiguration` generates from the
-  same schedule, target, resources and participants, on GitLab including a `.gitlab-ci.yml` without the include
+  same schedule, target and resources, on GitLab including a `.gitlab-ci.yml` without the include
   entry; empty when they agree, and for a configuration Agent M did not generate, the triggers it has and which rows they
   run, as far as they can be read.
 - `secretsNeeded(schedule: Document, resources: Document) -> Array<{ name: string, for: string }>` — the names of the
@@ -220,7 +216,7 @@ module. The file holds:
   with their texts; `unreadable` the named test files whose level cannot be read. Pure; it never throws on content.
   Errors: `UnknownRow` for a row the schema does not name.
 - `proposeSchedule(host: Host, schedule: Document, context: { server: "github" | "gitlab", instance: string,
-  instanceCommit: string, resources: Document, participants: Document, head: string, trailers: string[] }) -> Promise<{
+  instanceCommit: string, resources: Document, head: string, trailers: string[] }) -> Promise<{
   pullRequest: PullRequest, branch: string }>` — the person's **Save** (UC-027 step 5) and the writer below: generates the
   configuration with `ciConfiguration`, creates a branch from the head that was read, commits the schedule file, the
   generated file and, on GitLab, the product's `.gitlab-ci.yml` with the include entry in one commit, and opens one pull
@@ -243,7 +239,7 @@ module. The file holds:
 
 ## Files
 
-- Reads `docs/tests/schedule.md`, the instance's `docs/participants.md` and the product's `docs/resources.md`, the
+- Reads `docs/tests/schedule.md` and the product's `docs/resources.md`, the
   committed configuration for its drift, and on GitLab the product's `.gitlab-ci.yml`; `testsOfRow` reads no file, its
   caller gives it the texts.
 - Writes, through `proposeSchedule`, a branch with `docs/tests/schedule.md` and `.github/workflows/agent-m-tests.yml`,
@@ -252,12 +248,10 @@ module. The file holds:
 
 ## Uses
 
-- MOD-documents.Schema, Document, loadSchema, readDocument, readRegister, writeDocument — the schedule, the participants and the
+- MOD-documents.Schema, Document, loadSchema, readDocument, readRegister, writeDocument — the schedule and the
   resources by their schemas, and the schedule's text to commit.
 - MOD-test-document.isNamedTestFile, testHeader, testDeclarations — which committed files are tests that run, their
   levels, and which of them call a paid service.
-- MOD-participant-list.participantSchema, participantsOf, eligible — the instance's register, its participants and which
-  may run a row on a self-hosted runner.
 - MOD-resource-list.resourceSchema — the services the tests call and the names of their secrets.
 - MOD-repository-hosts.Host, Snapshot, PullRequest, readSnapshot, repositoryInfo, createBranch, commitFiles,
   openPullRequest, setPipelineSchedule — the product's `.gitlab-ci.yml` at the head, the pull request of a schedule and

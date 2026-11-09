@@ -89,6 +89,8 @@ uses:
   - MOD-runtimes.cancelJob
   - MOD-runtimes.retryJob
   - MOD-runtimes.routeStrategies
+  - MOD-prompt-bar.endpointsOffered
+  - MOD-prompt-bar.sessionsOffered
 provides:
   - view
 ---
@@ -148,9 +150,10 @@ Its formats are those of the modules it uses.
       against that version's workflow.
   - `roles` — *Roles* (UC-048): the product's role assignments — its teams, in a model with sprints —, each with who fills
     which role, and the roles of the model with what each needs and how many fill it; for a role, the participants of the
-    instance's list that have every capability it needs, each with where it processes data; *+ Team* in a model with
-    sprints; the findings of `roleAssignmentFindings`, given the entries of the instance's source register that the
-    product's `docs/sources.md` links; *Save* writes a role assignment with `saveFile`; a team is removed only while no
+    instance's list, each agent with its model and the connections of this browser that offer it (`participantsOf`),
+    each with where it processes data and whether it has every capability the role needs (UC-048 step 3); *+ Team* in a
+    model with sprints; the findings of `roleAssignmentFindings`, given this browser's connections and the entries of the
+    instance's source register that the product's `docs/sources.md` links; *Save* writes a role assignment with `saveFile`; a team is removed only while no
     sprint of it holds an item (`heldItems`): *Remove team* deletes its role assignment file in one commit with
     MOD-repository-hosts' `commitFiles`, on the head that was read and with the person's token, and otherwise names the
     items its sprints hold (UC-048 4b).
@@ -277,7 +280,8 @@ product's `docs/sources.md`.
 - MOD-repository-hosts.readFileAt — the declared model's file at the commit the declaration names, which `plan` and
   `board` read before anything else.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
-  participants a role or a job may have.
+  participants a role or a job may have, on this browser's connections; MOD-prompt-bar.endpointsOffered,
+  MOD-prompt-bar.sessionsOffered — those connections.
 - MOD-source-register.sourceSchemas, restrictedPlaces — the product's links to its sources and the linked entries of the
   instance's register, which `roleAssignmentFindings` judges the holders' places against; and the places each restricted
   source permits, against which the route `implement` judges the participants it offers: a participant whose place a

@@ -61,6 +61,7 @@ uses:
   - MOD-approvals.statuses
   - MOD-source-register.sourceStrategies
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
@@ -72,6 +73,8 @@ uses:
   - MOD-runtimes.liveState
   - MOD-runtimes.jobLog
   - MOD-runtimes.routeStrategies
+  - MOD-prompt-bar.endpointsOffered
+  - MOD-prompt-bar.sessionsOffered
 provides:
   - view
 ---
@@ -125,8 +128,8 @@ formats are those of the modules it uses.
     (MOD-progress-measures' `storedView` with the page `schedule`, with its as-of line while the head's are not stored
     yet), or counted from the test files where the repository stores none; the release candidate column
     that cannot be cleared and the commit and pull request columns that
-    refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row
-    among the participants that can run tests, and for a row on a self-hosted runner the server's runner page with the
+    refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row,
+    the server's or a self-hosted runner by its label, and for a row on a self-hosted runner the server's runner page with the
     label the runner must carry and a folded explanation, the row's runs — the queued runs whose `ciRunLabels` hold
     that label — shown as queued until one is online; the
     secrets needed, by name, with the server's secrets page; *Save*,
@@ -145,9 +148,10 @@ formats are those of the modules it uses.
     (MOD-repository-hosts' `readSnapshot` with `folders`), and the test files of the commit in batches (`readMany`).
   - `generate` — the accepted requirements, use cases and modules — a requirement as the SPEC holds it, a use case or a
     module whose file MOD-approvals' `statuses` gives as accepted — with the levels whose tests already guard each, the
-    uncovered ones preselected; the levels chosen; the participants that fill the test-writing role, the implementer left
-    out for release tests and said so; the run panel; a job of the kind `propose-tests`, run attended through the
-    participant's Bridge — or, for a CI agent, on CI, its cases then read from its job's record —; the proposed cases
+    uncovered ones preselected; the levels chosen; the participants that fill the test-writing role, on this browser's
+    connections, the implementer left out for release tests and said so; the run panel; a job of the kind
+    `propose-tests`, run attended through the Bridge its participant's connection names — or, on a model endpoint whose
+    key is a CI secret, on CI, its cases then read from its job's record —; the proposed cases
     beside the existing tests of the same identifier, removed, edited or reclassified; *Write tests*, which queues a job
     of the kind `write-tests` with the cases as the person left them, the selection and the levels, on the participant's
     route — the participant writes the tests and their counter-proofs on a branch and opens a pull request.
@@ -194,8 +198,8 @@ the result records on the branch `test-results`, the product's resources and the
 - MOD-documents.readDocument — the schedule, the result records, the instance's participants and, for the schedule and
   the runs, the product's resources, each by its schema; MOD-documents.readRegister — the product's resources for
   generating tests; MOD-documents.documentFindings — the findings of the schedule's schema in its form;
-  MOD-resource-list.resourceSchema, MOD-participant-list.participantSchema — the schemas of the product's resources and
-  of the instance's participants, which the schedule's runners and paid services come from;
+  MOD-resource-list.resourceSchema, MOD-participant-list.participantSchema — the schemas of the product's resources, which
+  the schedule's paid services come from, and of the instance's participants;
   MOD-resource-list.reachableBy — the routes that reach the product's resources, for the routes of `write-tests` and
   `run-tests`.
 - MOD-test-document.testDeclarations, MOD-trace-graph.storedGraph, MOD-trace-graph.tracesTo — which levels guard what. A
@@ -212,7 +216,9 @@ the result records on the branch `test-results`, the product's resources and the
   MOD-release-evidence.acceptAndRelease — the release.
 - MOD-text-tools.blobSha — the blob SHA of the text of the release report that the route shows, which `acceptAndRelease`
   takes as the report's `blob`; `releaseReport` gives the text only.
-- MOD-participant-list.eligible — who can write or run tests; MOD-job-ledger.listJobs — the implementer of a behaviour,
+- MOD-participant-list.participantsOf, MOD-participant-list.eligible — the instance's participants on this browser's
+  connections (MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered), and who can write or run tests;
+  MOD-job-ledger.listJobs — the implementer of a behaviour,
   left out for its release tests, and the cases a job of `propose-tests` on CI recorded.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-ledger.newJobId,
   MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.runOnTab, MOD-runtimes.liveState, MOD-runtimes.jobLog —

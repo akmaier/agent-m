@@ -76,6 +76,7 @@ uses:
   - MOD-source-register.sourceStrategies
   - MOD-reuse-facts.reuseStrategies
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
   - MOD-participant-list.differs
   - MOD-product-process.productWorkflow
@@ -95,6 +96,8 @@ uses:
   - MOD-prompt-bar.latestDraft
   - MOD-prompt-bar.dropDraft
   - MOD-prompt-bar.ConversationDraft
+  - MOD-prompt-bar.endpointsOffered
+  - MOD-prompt-bar.sessionsOffered
 provides:
   - view
 ---
@@ -296,7 +299,7 @@ ReviewKind = {
     and *Write proposals* lets it go on, writing the draft as the person left it; while a step leaves an error — a reuse
     decision whose due diligence could not be fetched —, nothing is written and the findings left are named. A kind
     whose result does not wait — drafting use cases — writes its files open at once, and they appear in the list. A job
-    on another route — a CI agent, an agent behind a Bridge it is handed to — is queued there and followed on the page;
+    on another route — a model endpoint on CI, a coding agent behind a Bridge it is handed to — is queued there and followed on the page;
     its route writes its result as open files or queue entries.
   - `arrange/<group kind>` — *Arrange* for requirements, use cases, decisions, modules or tests: the hierarchy with every
     item once, moves, new and renamed groups, the pending changes listed, *Propose groups*, whose proposal arrives as
@@ -308,7 +311,7 @@ It writes nothing itself: every decision is one call of the service the descript
 MOD-spec-changes, MOD-artifact-edits, MOD-release-evidence —, a drafting job's start record through MOD-runtimes, or,
 for a result that waited for the person, the writer of its kind through MOD-job-runner. It reads the product's snapshot
 through its host — the reviewed files, the SPEC, the group files, the tests, the approval records, the job records —,
-and `docs/participants.md` of the instance.
+and `docs/participants.md` of the instance, whose agents it joins with this browser's connections.
 
 ## Uses
 
@@ -366,15 +369,17 @@ and `docs/participants.md` of the instance.
   keeps no copy of the rule that computes them.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.
-- MOD-participant-list.participantSchema, MOD-participant-list.eligible, MOD-participant-list.differs — who may draft and
-  who may review, a reviewer differing from the drafter in participant and model.
+- MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible,
+  MOD-participant-list.differs — the instance's participants on this browser's connections, who may draft and who may
+  review, a reviewer differing from the drafter in participant and model.
 - MOD-product-process.productWorkflow — whether the product's model is planned or pulled, beside a use case's *Accept*.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob —
   the run panel; MOD-job-runner.writeResult — a result that waited for the person, written on their click;
   MOD-job-runner.provenanceLines — the trailers of a draft of the conversation the person saves.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar; MOD-prompt-bar.latestDraft,
   MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows; MOD-prompt-bar.dropDraft — the
-  draft dropped once it is saved or discarded.
+  draft dropped once it is saved or discarded; MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered — this
+  browser's connections, which `participantsOf` joins with the instance's participants.
 - MOD-job-ledger.newJobId — the identifier of a job started here; MOD-job-ledger.listJobs — the jobs a page lists;
   MOD-job-ledger.recordsNewestFirst — the record of the job that drafted a file, with its rounds, read newest first and
   no further than that record.

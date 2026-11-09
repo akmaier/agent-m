@@ -226,8 +226,8 @@ so; a model's command there reaches what that user can.
   kind's writer writes at once (`A CI AGENT'S DRAFT ENTERS AS OPEN`), and a kind that hands its draft back leaves it in
   the record's end as `draft:`, from which the page shows it. A job whose draft
   holds a plan (MOD-job-runner's `hand-over`, UC-049 4f) hands over each of its pieces whose `after` is empty and whose
-  kind is not the job's own as a job of its own, on this route, with the same participant — built from `declares` where
-  the record holds it —: its parameters the job's `source`, those MOD-job-runner's `handOverParams` gives for what it
+  kind is not the job's own as a job of its own, on this route, with the same participant, `model` and `declares` as the job's
+  record —: its parameters the job's `source`, those MOD-job-runner's `handOverParams` gives for what it
   works on, and `refuses` naming `hand-over`. The agent's machine leaves those pieces, with their tasks, with its result
   (`leaveResult`); the writing machine, which holds the person's token, prepares each with its kind's preconditions and
   no start rule of the product's process, and hands it over with MOD-runtimes' `handOverJob`, its start's `startedBy`
@@ -296,11 +296,11 @@ so; a model's command there reaches what that user can.
   the instance's register for the product; where the content of one in the product — a path of `places.contents` — is
   refused to the participant's place by MOD-job-runner's `withheld`, the job's parameter `refuses` names `bash`, since a
   command can read any file of the checkout, and the job's end notes `bash is not offered:` with that refusal
-  (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`) —; a record that holds `declares` is run with the
+  (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`) —; a record is run with the
   `Participant` of MOD-participant-list's shape built from it alone — its name and model from `participant` and `model`,
-  its place from `## Destinations`, its context and capabilities from `declares`, the type *model endpoint* and no price,
-  and, for a kind that works in the checkout, also *use tools* and the capabilities its kind's tools need —, any other
-  with the participant of the instance's list that it names; it writes the task to no file, and a branch whose commit
+  its place from `## Destinations`, its context, capabilities and price from `declares`, its route from `route`, the
+  type *model endpoint*, and, for a kind that works in the checkout, also *use tools* and the capabilities its kind's
+  tools need —, nothing of it read from the instance's list; it writes the task to no file, and a branch whose commit
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
   merged — on the agent's machine, where the branch is not on the server yet, `writeResult` refuses it; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
   and log — in the log between the lines `--- answer of <id> ---` and `--- end of the answer of <id> ---` —, where the
@@ -314,7 +314,7 @@ so; a model's command there reaches what that user can.
   holds no secret: which agent's job of the route runs, given on GitHub as the step's output `agent`, on GitLab as the line
   `AGENT_M_AGENT=<n>` of the job's dotenv report — the place, from
   1, of the key the run's job reads among the key names, 0 for none. The key is the one the input `secret` names for a
-  hand-over to a model endpoint, for any other start the one the route of the job's participant names, and on a push the
+  hand-over to a model endpoint, for any other start the one the route of the job's record names, and on a push the
   one of the oldest queued job of the route; a name the file does not read is none, and the agent's machine then ends
   `not run`, naming it. Writes nothing.
 - `leaveResult(env: CiEnvironment) -> Promise<EntryStatus>` — on the agent's machine, after its entry, whether that
@@ -444,7 +444,7 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   `MOD-job-runner.handOverParams` — the parameters of a piece of a plan handed over as a job of its own;
   `MOD-job-runner.taskRefusal` — a hand-over whose kind takes no instruction, refused;
   `MOD-job-runner.withheld` — whether a restricted source's content in the checkout refuses `bash`;
-  `MOD-job-catalogue.toolsOf` — the capabilities a kind's tools need, for a participant built from `declares`.
+  `MOD-job-catalogue.toolsOf` — the capabilities a kind's tools need, for a participant built from its record.
 - `MOD-source-register.sourceSchemas`, `registerPaths`, `restrictedPlaces` — the places of the restricted sources a job's
   context carries.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `newJobId`, `startRecord`, `takeJob`, `appendToRecord`, `jobState` — the
