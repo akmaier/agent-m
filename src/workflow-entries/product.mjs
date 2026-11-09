@@ -300,13 +300,17 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
         notes.push(`bash is not offered: ${why}`);
       }
     }
-    const prepared = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
-    if (prepared.blocking.length > 0 || prepared.notFitting.length > 0) {
-      throw Object.assign(new Error(prepared.blocking.map((found) => found.what).join("; ") || "the job does not fit its participant"), { name: "NotStartable" });
+    const preparedJob = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
+    if (preparedJob.blocking.length > 0 || preparedJob.notFitting.length > 0) {
+      throw Object.assign(new Error(preparedJob.blocking.map((found) => found.what).join("; ") || "the job does not fit its participant"), { name: "NotStartable" });
     }
+    // In the checkout, MOD-checkout-tools' instructions follow AGENTS.md — the job's rules — in the input, before the kind's prompt; no system prompt precedes
+    // them (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST).
+    const instructions = inCheckout ? await checkoutPrompt({ folder: context.product.checkout, now: env.now }) : null;
+    const prepared = instructions && preparedJob.rules ? { ...preparedJob, rules: { ...preparedJob.rules, text: `${preparedJob.rules.text}\n\n${instructions}` } }
+      : instructions ? { ...preparedJob, rules: { name: "checkout", text: instructions, sources: [], required: true, recipe: null, artifacts: [] } } : preparedJob;
     const driver = !endpoint ? await driverOf(participant, record.params ?? {}, secretName, job.keys[secretName], instance.checkout, job.keyHolder)
-      : inCheckout ? endpointDriver(config, participant, undefined, { system: await checkoutPrompt({ folder: context.product.checkout, now: env.now }) })
-        : endpointDriver(config, participant);
+      : endpointDriver(config, participant);
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context });
     outcome = result.written;
     // The plan the participant proposed (UC-049 4f): each piece that rests on no other is handed over as a job of its own where the person's token is — kept with the result

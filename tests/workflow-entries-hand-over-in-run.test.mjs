@@ -286,7 +286,7 @@ test("TST-2026281002: a piece of implement on an item whose use case is not acce
 // guards: UC-049; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
 // given: the world of TST-2026281001 after its writing machine handed piece 1 over as a job of implement
 // input: onDispatch and leaveResult on a new agent's machine, with the inputs the start named — job (that job), task (piece 1's task), endpoint and secret FIXTURE_KEY —; the endpoint answers implement's prompt by writing src/reader/due.mjs, committing it on the branch agent-m/ITM-001, pushing it and reporting that branch
-// expect: outcome done; implement's prompt is sent with the job's own endpoint, model and key — the seven tools of the checkout offered and hand-over not among them, the system prompt naming the checkout —; the result's repository holds agent-m/ITM-001 with src/reader/due.mjs; one pull request of it into main is kept for the writing machine; the job's own end is kept, listing `pending-pull-request:agent-m/ITM-001`
+// expect: outcome done; implement's prompt is sent with the job's own endpoint, model and key — the seven tools of the checkout offered and hand-over not among them, no system prompt, the first message beginning with the instance's AGENTS.md, sent once, and naming the checkout after it —; the result's repository holds agent-m/ITM-001 with src/reader/due.mjs; one pull request of it into main is kept for the writing machine; the job's own end is kept, listing `pending-pull-request:agent-m/ITM-001`
 test("TST-2026114907: a piece handed over runs in a run of its own, by its kind's definition, in the job's checkout", async () => {
   await world([piece("implement", ["ITM-001"], PIECE_TASK)], async (w) => {
     await w.agent(JOB, TASK);
@@ -303,8 +303,15 @@ test("TST-2026114907: a piece handed over runs in a run of its own, by its kind'
       assert.equal(request.headers.Authorization, `Bearer ${KEY}`);
     }
     assert.deepEqual((implementing[0].body.tools ?? []).map((tool) => tool.function.name), SEVEN, "the seven tools of the checkout, and no hand-over");
-    assert.equal(implementing[0].body.messages[0].role, "system");
-    assert.ok(implementing[0].body.messages[0].content.includes(`Working folder: ${run.productDir}`), "checkoutPrompt names the checkout");
+    // EVERY MODEL READS AGENT M'S AGENTS.MD FIRST: no system prompt; the first message is the person's side, beginning with the instance's AGENTS.md, sent
+    // once, and the checkout's instructions follow it.
+    const first = implementing[0].body.messages[0];
+    assert.ok(!implementing[0].body.messages.some((message) => message.role === "system"), "no system prompt precedes AGENTS.md");
+    assert.equal(first.role, "user");
+    assert.ok(first.content.startsWith(AGENTS_MD), first.content.slice(0, 120));
+    assert.equal(JSON.stringify(implementing[0].body).split(AGENTS_MD.trim()).length - 1, 1, "AGENTS.md is sent once");
+    assert.ok(first.content.indexOf(`Working folder: ${run.productDir}`) > AGENTS_MD.length, "checkoutPrompt names the checkout, after AGENTS.md");
+    assert.ok(first.content.indexOf(`Working folder: ${run.productDir}`) < first.content.indexOf(IMPLEMENT), "and before the kind's prompt");
     assert.deepEqual(run.kept.pullRequests.map((each) => [each.branch, each.base]), [[BRANCH, "main"]]);
     const end = run.kept.ends.find((each) => each.path === `docs/jobs/${pieceId}.md`);
     assert.ok(end?.part.part.results.includes(`pending-pull-request:${BRANCH}`), JSON.stringify(run.kept.ends));
