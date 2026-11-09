@@ -54,8 +54,7 @@ teams, which work in parallel (UC-032).
 3. The author assigns participants from the instance's list (UC-017) to each role: people and agents, as the role
    allows — one to a role that one fills, as many as the work needs to a role that several may fill. Agent M shows for
    each agent its model and the connections of this browser that offer it, each with its processing place and whether
-   it has every capability the role needs; a job of the role runs only on such a connection (`A ROLE NAMES THE
-   CAPABILITIES IT NEEDS`).
+   it has every capability the role needs.
 4. The author presses **Save** — one click. Agent M commits `docs/role-assignments/<name>.md` to the product repository:
    for each role of the model, its participants by name, and nothing of the process. From now on, the product's jobs go to
    these holders of their roles, and its gates are decided by them (UC-034).
