@@ -45,7 +45,7 @@ import { readDocument, writeDocument } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
 import { groupFileText, parseGroupFile, placeItems } from "../group-document/index.mjs";
-import { placesOf, queuesAt, queues, replaceSpan, spanText } from "./queues.mjs";
+import { decisionsTitle, placesOf, queuesAt, queues, replaceSpan, spanText } from "./queues.mjs";
 
 // Whether a requirement stated by the proposal is another than the one the section holds under its name: its source, rule or check.
 const differs = (was, is) => was.source !== is.source || was.rule !== is.rule || was.check !== is.check;
@@ -201,7 +201,7 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
   };
   for (const item of sorted) place(item);
 
-  const rows = new Map();
+  const rows = new Map(), headings = new Map();
   for (const item of ordered) {
     const folder = item.queue;
     const queue = loaded.get(folder) ?? null;
@@ -263,10 +263,13 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
         ...(item.placesBlob ? { places: item.placesBlob } : {}) } }));
     }
     rows.set(folder, [...(rows.get(folder) ?? []), decisionRow(entry.number, recordFile, now)]);
+    headings.set(folder, entry.anchor);
     applied.push({ item, id: `spec-${folder.split("/").pop()}-${pad2(entry.number)}` });
   }
   for (const [folder, added] of [...rows].sort(([a], [b]) => (a < b ? -1 : 1))) {
-    const decisions = (await get(`${folder}/entscheidungen.md`)) ?? "";
+    // A queue without a decisions file yet gets it with its title and `Append-only.` (queue-decisions.schema.md), as proposing a queue writes it: rows alone are no
+    // document the schema reads, and their entries would count as undecided.
+    const decisions = (await get(`${folder}/entscheidungen.md`)) || decisionsTitle(folder.split("/").pop(), headings.get(folder) ?? "");
     put(`${folder}/entscheidungen.md`, (decisions && !decisions.endsWith("\n") ? `${decisions}\n` : decisions) + added.join(""));
   }
   // The group file is in the commit only where a place was applied, written as groupFileText writes it.

@@ -38,6 +38,10 @@ import { blobSha } from "../text-tools/index.mjs";
 
 const OWNER = "MOD-spec-changes";
 const INDEX_SCHEMA_FILE = new URL("./queue-index.schema.md", import.meta.url);
+// The title of a queue's entscheidungen.md (queue-decisions.schema.md): `# Decisions — queue <package> <heading>`, the section's heading without its marks and number,
+// and the line `Append-only.`; proposing a new queue writes it, and accepting writes it where a queue has no decisions file yet.
+export const decisionsTitle = (name, anchor) => `# Decisions — queue ${name} ${String(anchor).replace(/^#+\s*/, "").replace(/^\d+[a-z]?[.)]?\s+/, "")}\n\nAppend-only.\n`;
+
 const DECISIONS_SCHEMA_FILE = new URL("./queue-decisions.schema.md", import.meta.url);
 const RATIONALE_SCHEMA_FILE = new URL("./queue-rationale.schema.md", import.meta.url);
 const PLACES_SCHEMA_FILE = new URL("./queue-places.schema.md", import.meta.url);

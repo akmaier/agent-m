@@ -32,7 +32,7 @@ import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact } from "../trace-graph/index.mjs";
 import { graphOf, impactOf } from "./accept.mjs";
-import { issueLine, nextEntry, PLACES_SUFFIX, queueRationaleSchema, queues, spanText } from "./queues.mjs";
+import { issueLine, nextEntry, PLACES_SUFFIX, queueRationaleSchema, queues, spanText, decisionsTitle } from "./queues.mjs";
 
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
@@ -191,7 +191,7 @@ async function sectionEntry(snapshot, { target, anchor, until, text, rationale, 
   if (index === null) {
     planned.set(paths[0], [`# SPEC approvals — queue ${name} · ${heading}`, "", `**Zieldatei aller Einträge:** \`${target}\``, "",
       "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", row].join("\n"));
-    planned.set(`${folder}/entscheidungen.md`, `# Decisions — queue ${name} ${heading}\n\nAppend-only.\n`);
+    planned.set(`${folder}/entscheidungen.md`, decisionsTitle(name, anchor));
     paths.splice(1, 0, `${folder}/entscheidungen.md`);
   } else {
     planned.set(paths[0], `${index}${index === "" || index.endsWith("\n") ? "" : "\n"}${row}`);
