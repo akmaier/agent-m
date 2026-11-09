@@ -12,6 +12,7 @@ preconditions:
 recipes:
   - instruction?
   - implementation-inputs
+  - chapters-for-implementation
   - resource-pins
 checks:
 person_decides:

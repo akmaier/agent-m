@@ -39,7 +39,7 @@ WORK = {
     "requirements or use cases": (["derive-requirements", "change-requirements", "derive-use-cases", "change-use-case"], [8]),
     "tests": (["propose-tests", "write-tests", "fix-bug"], [13]),
     "the architecture": (["derive-architecture", "change-architecture", "review-architecture"], [9, 10, 11, 12]),
-    "implementation": (["implement"], [9, 11, 12, 13]),
+    "implementation": (["implement", "fix-bug", "refactor"], [9, 11, 12, 13]),
 }
 
 SETUP = """
