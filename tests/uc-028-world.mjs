@@ -130,22 +130,24 @@ globalThis.localStorage = { getItem: (k) => (kept.has(k) ? kept.get(k) : null), 
   removeItem: (k) => { kept.delete(k); }, key: (i) => [...kept.keys()][i] ?? null, get length() { return kept.size; } };
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 
-// The connections this browser keeps (MOD-browser-store): the endpoint ci, which offers ci-model on the server, its key the CI secret CI_KEY, so that its jobs
-// are offered on CI; and the Bridge lab-pc, whose CLI session claude offers writer-model at "this machine" with the capabilities draft text and read the repository.
+// The connections this browser keeps (MOD-browser-store): the coding agent on CI ci, claude on the server's runners, which offers ci-model on the server, its key
+// the CI secret CI_KEY, with the capabilities of a coding agent, so that its jobs are offered on CI; and the Bridge lab-pc, which keeps the declaration of its
+// coding agent claude (MOD-bridge-jobs, GET /v1/agents): writer-model at "this machine" with the capabilities draft text and read the repository.
 export const BRIDGE_ADDRESS = "http://127.0.0.1:47811";
 export const CONNECTIONS = {
-  "endpoint:ci": { url: "https://ci-endpoint.example.test/v1", kind: "openai-compatible", model: "ci-model", key: "sk-fixture-ci-endpoint-key", place: "the server", context: 200000, secret: "CI_KEY" },
+  "ci-agent:ci": { agent: "claude", runner: "hosted", secret: "CI_KEY", place: "the server", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+    models: [{ model: "ci-model", context: 200000 }] },
   "bridge:lab-pc": { address: BRIDGE_ADDRESS, token: "fixture-bridge-token" },
-  "session:lab-pc:claude": { place: "this machine", capabilities: ["draft text", "read the repository"], models: [{ model: "writer-model", context: 200000 }] },
 };
-// The Bridge lab-pc as the prompt bar's testBridge meets it: GET /v1/pair names it, GET /v1/agents lists claude ready. Every other address is refused. These two
+const LAB_CLAUDE = { name: "claude", version: "1.0.0", ready: true, loggedIn: true, place: "this machine", capabilities: ["draft text", "read the repository"], models: [{ model: "writer-model", context: 200000 }] };
+// The Bridge lab-pc as the prompt bar's testBridge meets it: GET /v1/pair names it, GET /v1/agents lists claude ready with its declaration. Every other address is refused. These two
 // requests are the Bridge's answer to the browser's offer of its connections, which every page makes when it is drawn; they are no job's and are kept apart in `bridgeAsked`.
 export const bridgeAsked = [];
 globalThis.fetch = async (input) => {
   const address = String(input?.url ?? input);
   const json = (value) => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
   if (address === `${BRIDGE_ADDRESS}/v1/pair`) { bridgeAsked.push(address); return json({ bridge: { name: "lab-pc" } }); }
-  if (address === `${BRIDGE_ADDRESS}/v1/agents`) { bridgeAsked.push(address); return json({ agents: [{ name: "claude", ready: true }] }); }
+  if (address === `${BRIDGE_ADDRESS}/v1/agents`) { bridgeAsked.push(address); return json({ agents: [LAB_CLAUDE], missing: [] }); }
   throw new TypeError(`the test's network refuses ${address}`);
 };
 

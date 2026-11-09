@@ -54,8 +54,10 @@ const INSTANCE_LIST = list("agent-m", LLM, CLUSTER);
 const PARTICIPANTS = ["# Participants of this instance", "",
   "| Name | Type | Model |", "|---|---|---|",
   "| ci-drafter | agent | ci-model |", ""].join("\n");
-// The connection of this browser that offers ci-drafter's model, its key named as the CI secret CI_KEY, so that its jobs may run on CI.
-const CONNECTION = { kind: "openai-compatible", url: "https://models.example.test/v1", model: "ci-model", key: "sk-ci-model-0123456789", place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" };
+// The connection of this browser that offers ci-drafter's model: the coding agent on CI gpu-coder, claude on the self-hosted runner gpu, its key named as the CI secret
+// CI_KEY, so that its jobs may run on that runner (MOD-browser-store, `ci-agent:<name>`).
+const CONNECTION = { agent: "claude", runner: "gpu", secret: "CI_KEY", place: "NHR@FAU, Erlangen", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+  models: [{ model: "ci-model", context: 200000 }] };
 const WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n" };
 
 // The page: a world of the repositories, the real hosts over it, a context as the frame hands it to a route, and the route rendered.
@@ -68,7 +70,7 @@ async function open(t, { productFiles = { "docs/resources.md": PRODUCT_LIST }, i
   const store = freshStore();
   // The product's own token, as the settings page stores it: the person the job and the commit are made as.
   writeSetting(store, `github-token:${PRODUCT_REPO}`, { name: "Agent M", expires: "2027-06-01", stored: "2026-01-01", value: PRODUCT_TOKEN });
-  writeSetting(store, "endpoint:ci-model", CONNECTION);
+  writeSetting(store, "ci-agent:gpu-coder", CONNECTION);
   const went = [];
   const context = { page: "review", instance: { repository: INSTANCE, host: connect(parseAddress(`https://github.com/${INSTANCE}`), { token: TOKEN }) },
     product: product ? { address: PRODUCT, kind: "github", host: connect(parseAddress(PRODUCT), { token: PRODUCT_TOKEN }) } : null, store, went, go(name, params) { went.push([name, params]); } };
@@ -280,9 +282,9 @@ test("resources — Copy from the instance copies an entry into the product's li
 
 // TST-642010 · level: unit · module: MOD-settings-pages
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: a private product with Agent M's job workflow, whose list holds cluster reached by the runner gpu; the instance's register holds the agent ci-drafter, whose model this browser's endpoint ci-model offers with the CI secret CI_KEY
+// given: a private product with Agent M's job workflow, whose list holds cluster reached by the runner gpu; the instance's register holds the agent ci-drafter, whose model this browser's coding agent on CI gpu-coder offers on the runner gpu with the CI secret CI_KEY
 // input: press Check on cluster; a click a script makes on Run; the person's click on Run
-// expect: the page names the job on the runner gpu and ci-drafter, and shows the run panel with ci-drafter as destination and a button Run; the script's click writes nothing; the person's click writes one commit in the product's repository adding one file docs/jobs/JOB-….md that names the kind check-resource, the participant ci-drafter, the route "ci runner:gpu" and the resource cluster, signed with the product's token, and the page says "Queued as JOB-…"
+// expect: the page names the job on the runner gpu and ci-drafter, and shows the run panel with ci-drafter as destination and a button Run; the script's click writes nothing; the person's click writes one commit in the product's repository adding one file docs/jobs/JOB-….md that names the kind check-resource, the participant ci-drafter, the route of its connection "ci runner:gpu agent claude secret CI_KEY" and the resource cluster, signed with the product's token, and the page says "Queued as JOB-…"
 test("resources — a compute resource reached by a runner is checked by a check job, shown in the run panel and queued on the person's click", async (t) => {
   registerOnce();
   const page = await open(t, { productFiles: { "docs/resources.md": PRODUCT_LIST, ...WORKFLOW }, visibility: "private" });
@@ -303,7 +305,8 @@ test("resources — a compute resource reached by a runner is checked by a check
   assert.equal(paths.length, 1);
   assert.match(paths[0], /^docs\/jobs\/JOB-\d{8}-\d{4}-[0-9a-f]{4}\.md$/);
   const record = commit.files[paths[0]];
-  for (const text of ["check-resource", "ci-drafter", "ci runner:gpu", "UC-040", "cluster"]) assert.ok(record.includes(text), `the job record holds ${text}`);
+  for (const text of ["check-resource", "ci-drafter", "UC-040", "cluster"]) assert.ok(record.includes(text), `the job record holds ${text}`);
+  assert.match(record, /^route: ci runner:gpu agent claude secret CI_KEY$/m);
   assert.equal(commit.authorization, `Bearer ${PRODUCT_TOKEN}`);
   assert.match(withClass(entry(page.target, "cluster"), "resource-queued")[0].textContent, /^Queued as JOB-\d{8}-\d{4}-[0-9a-f]{4} on the runner gpu/);
   assert.equal(page.world.commits(INSTANCE).length, 0);

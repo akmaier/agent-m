@@ -89,27 +89,29 @@ The participants of the test instance.
 `;
 const WRITERS_ONLY = REGISTER.replace("| hosted-ci | agent | ci-model |\n", "");
 
-// The browser: a localStorage over a Map, for MOD-browser-store, and the connections it keeps — the endpoint ci, which offers hosted-ci's model ci-model on the
-// server, its key the CI secret CI_KEY, so that its jobs are offered on CI; and the Bridge lab-pc, whose CLI session claude offers writer's model writer-model at
-// "this machine" with the capabilities draft text and read the repository.
+// The browser: a localStorage over a Map, for MOD-browser-store, and the connections it keeps — the coding agent on CI ci, claude on the server's runners, which
+// offers hosted-ci's model ci-model on the server, its key the CI secret CI_KEY, with the capabilities of a coding agent, so that its jobs are offered on CI; and the
+// Bridge lab-pc, which keeps the declaration of its coding agent claude (MOD-bridge-jobs, GET /v1/agents): writer's model writer-model at "this machine" with the
+// capabilities draft text and read the repository.
 const kept = new Map();
 globalThis.localStorage = { getItem: (k) => (kept.has(k) ? kept.get(k) : null), setItem: (k, v) => { kept.set(k, String(v)); },
   removeItem: (k) => { kept.delete(k); }, key: (i) => [...kept.keys()][i] ?? null, get length() { return kept.size; } };
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const BRIDGE_ADDRESS = "http://127.0.0.1:47812";
 const CONNECTIONS = {
-  "endpoint:ci": { url: "https://ci-endpoint.example.test/v1", kind: "openai-compatible", model: "ci-model", key: "sk-fixture-ci-endpoint-key", place: "the server", context: 200000, secret: "CI_KEY" },
+  "ci-agent:ci": { agent: "claude", runner: "hosted", secret: "CI_KEY", place: "the server", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+    models: [{ model: "ci-model", context: 200000 }] },
   "bridge:lab-pc": { address: BRIDGE_ADDRESS, token: "fixture-bridge-token" },
-  "session:lab-pc:claude": { place: "this machine", capabilities: ["draft text", "read the repository"], models: [{ model: "writer-model", context: 200000 }] },
 };
-// The Bridge lab-pc as the prompt bar's testBridge meets it: GET /v1/pair names it, GET /v1/agents lists claude ready; every other address is refused. These two
+const LAB_CLAUDE = { name: "claude", version: "1.0.0", ready: true, loggedIn: true, place: "this machine", capabilities: ["draft text", "read the repository"], models: [{ model: "writer-model", context: 200000 }] };
+// The Bridge lab-pc as the prompt bar's testBridge meets it: GET /v1/pair names it, GET /v1/agents lists claude ready with its declaration; every other address is refused. These two
 // requests are the browser's offer of its connections, made whenever the page is drawn, and no job's: they are kept apart, in `bridgeAsked`, from what the page writes.
 const bridgeAsked = [];
 globalThis.fetch = async (input) => {
   const address = String(input?.url ?? input);
   const json = (value) => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
   if (address === `${BRIDGE_ADDRESS}/v1/pair`) { bridgeAsked.push(address); return json({ bridge: { name: "lab-pc" } }); }
-  if (address === `${BRIDGE_ADDRESS}/v1/agents`) { bridgeAsked.push(address); return json({ agents: [{ name: "claude", ready: true }] }); }
+  if (address === `${BRIDGE_ADDRESS}/v1/agents`) { bridgeAsked.push(address); return json({ agents: [LAB_CLAUDE], missing: [] }); }
   throw new TypeError(`the test's network refuses ${address}`);
 };
 const browserStore = () => {
@@ -191,7 +193,7 @@ test("run on this commit — the levels without a record are preset, and nothing
 
 // TST-761002 · level: unit · module: MOD-test-pages
 // guards: UC-028; A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: a register with hosted-ci, an agent on the endpoint ci whose key is the CI secret CI_KEY, and writer, an agent on the Bridge lab-pc's session claude, which declares no run code and tests
+// given: a register with hosted-ci, an agent on the coding agent on CI ci whose key is the CI secret CI_KEY, and writer, an agent on the Bridge lab-pc's coding agent claude, whose declaration names no run code and tests
 // input: Run on this commit pressed
 // expect: the participants offered are hosted-ci alone
 test("run on this commit — only the participants that can run code and tests are offered", async () => {
@@ -224,7 +226,7 @@ test("run on this commit — the run panel names where the run happens, the paid
 // guards: UC-028; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the run panel for hosted-ci and the level release
 // input: a click a script makes on Run; the person's click on Run; a second click of the person
-// expect: the script's click writes nothing; the person's click commits exactly one start record under docs/jobs/ of kind run-tests, working on the commit, for hosted-ci, on the route ci hosted endpoint ci secret CI_KEY with the connection it declares, started by the name entered, with the parameters commit, levels [release] and occasion on-demand; the second click adds none
+// expect: the script's click writes nothing; the person's click commits exactly one start record under docs/jobs/ of kind run-tests, working on the commit, for hosted-ci, on its connection's route ci hosted agent claude secret CI_KEY with what the connection declares, started by the name entered, with the parameters commit, levels [release] and occasion on-demand; the second click adds none
 test("run on this commit — one click on Run queues one job of the kind run-tests with the commit and the levels", async () => {
   const written = [];
   const shown = await page({ written });
@@ -240,7 +242,7 @@ test("run on this commit — one click on Run queues one job of the kind run-tes
   assert.equal(written[0].files.length, 1);
   const { path, text } = written[0].files[0];
   assert.match(path, /^docs\/jobs\/JOB-[^/]+\.md$/);
-  for (const line of ["kind: run-tests", "participant: hosted-ci", "route: ci hosted endpoint ci secret CI_KEY", "declares: ", "started_by: Reviewer Rae", COMMIT]) assert.ok(text.includes(line), `the record holds ${line}`);
+  for (const line of ["kind: run-tests", "participant: hosted-ci", "route: ci hosted agent claude secret CI_KEY", "declares: ", "started_by: Reviewer Rae", COMMIT]) assert.ok(text.includes(line), `the record holds ${line}`);
   assert.match(text, /"levels":\s*\[\s*"release"\s*\]/);
   assert.match(text, /"occasion":\s*"on-demand"/);
   assert.match(textOf(byClass(form, "job-queued")[0]), /JOB-/);

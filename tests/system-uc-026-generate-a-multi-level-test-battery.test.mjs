@@ -3,8 +3,8 @@
 // a selection that does not fit (3, 3a), Run and the job of the kind propose-tests run by the job workflow with a participant whose first proposal fails the checks and whose second passes (4 to 6, 5a), the review panel (7, 1a),
 // Write tests and the job of the kind write-tests, which pushes a branch with the tests and their counter-proofs and opens the pull request (8), a test that fails on the current code (8a), a test that stays green with the fault
 // (8b), a proposal of nothing but duplicates (6a) and the only participant being the implementer (4a). The page is the real route of MOD-test-pages, drawn into the fixture DOM over the dashboard's clone; the jobs are run by the
-// real entries of MOD-workflow-entries over MOD-job-runner, MOD-job-catalogue and MOD-result-records, behind tests/uc-026-harness.mjs: git repositories on disk, a fake model endpoint that does the coding agent's work in the job's
-// checkout, a fake of the server's pull-request API. No request leaves the process.
+// real entries of MOD-workflow-entries over MOD-job-runner, MOD-job-catalogue and MOD-result-records, behind tests/uc-026-harness.mjs: git repositories on disk, a fake coding agent on CI that does the agent's work in the job's
+// checkout, a fake of the server's pull-request API. No request leaves this computer.
 // Run: node --test tests/system-uc-026-generate-a-multi-level-test-battery.test.mjs
 //
 // Module: MOD-test-pages
@@ -32,7 +32,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { text } from "./uc-010-harness.mjs";
 import { appendToRecord, startRecord } from "../src/job-ledger/index.mjs";
-import { OTHER_RULE, RULE, battery, byClass, caseNode, checkedLevels, checkedNames, ciRun, counterProof, declarations, fieldOfCase, git, implemented, listedNames, offeredNames, openGenerate, participant, prepare, proofPath,
+import { CI_ROUTE, CODING, OTHER_RULE, RULE, battery, byClass, caseNode, checkedLevels, checkedNames, ciRun, counterProof, declarations, fieldOfCase, git, implemented, listedNames, offeredNames, openGenerate, participant, prepare, proofPath,
   proposed, pushBranch, readProposal, register, run, runButtons, select, selectOfCase, settle, sharedWorld, writeButton, writeTests, click, find, until } from "./uc-026-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -227,7 +227,7 @@ const writing = (entries, branch, over = {}) => ({ files: { [EXTENSION]: declara
 // guards: UC-026; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; COMMIT TESTS CALL NO PAID SERVICE; TEST GENERATION SEES THE EXISTING TESTS; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the product with the paid endpoint mail-api; the selection A LOAN CAN BE EXTENDED ONCE, UC-001 and MOD-members at unit, system, release and user, test-bot chosen; test-bot's first proposal of seven cases holds TST-902 without an expected result, TST-903 with the guarded name, input and expected result of the existing test TST-312 classed new, TST-905 at unit level calling mail-api, TST-907 model-dependent and judged on one run, and TST-904 at release level calling mail-api; its second holds them corrected
 // input: Run pressed twice; the job workflow runs the job
-// expect: one commit holds one record of the kind propose-tests; the participant is asked twice; the first request begins with AGENTS.md, holds the existing test TST-312, which guards UC-001, with its code, mail-api marked paid and chapter 13, and no finding; the second carries the four rules, of the findings TST-902, TST-903, TST-905 and TST-907 — and none for TST-904 (release level) or TST-906; the record shows round 1 with four findings, each one line of the form file:line: kind: what [RULE] — fix, and round 2 with none, the loop stopped because it passed; the job ends done with the corrected cases
+// expect: one commit holds one record of the kind propose-tests; the participant — the coding agent on CI, which works in the run's checkout of the instance — is asked twice; the first prompt begins with the path of AGENTS.md in that checkout and the sentence that asks it to read the file in full first (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST), holds the existing test TST-312, which guards UC-001, with its code, mail-api marked paid and chapter 13, and no finding; the second carries the four rules, of the findings TST-902, TST-903, TST-905 and TST-907 — and none for TST-904 (release level) or TST-906; the record shows round 1 with four findings, each one line of the form file:line: kind: what [RULE] — fix, and round 2 with none, the loop stopped because it passed; the job ends done with the corrected cases
 test("TST-771205: UC-026 4 to 6, 5a Run queues one job; its first proposal is checked without a model and sent back with compiler-like findings, and the corrected one passes", async () => {
   const w = walk.w;
   const target = await openGenerate(w);
@@ -247,7 +247,7 @@ test("TST-771205: UC-026 4 to 6, 5a Run queues one job; its first proposal is ch
   assert.equal(status.outcome, "done", status.summary);
   const asked = state.requests;
   assert.equal(asked.length, 2, "the participant is asked twice");
-  assert.ok(asked[0].sent.startsWith(read("AGENTS.md").slice(0, 200)), "the first request begins with AGENTS.md");
+  assert.match(asked[0].sent, /^\S+\/AGENTS\.md\n\nThe file above is Agent M's AGENTS\.md: read it in full before anything else\./, "the first prompt begins with the path of AGENTS.md in the instance's checkout");
   for (const wanted of ["TST-312", "check(\"312\");", `${MAIL_API} (endpoint, https://api.example.org/v1): paid`, "# Chapter 13"]) assert.ok(asked[0].sent.includes(wanted), `the first request holds ${wanted}`);
   const rules = ["A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS", "TEST GENERATION SEES THE EXISTING TESTS", "COMMIT TESTS CALL NO PAID SERVICE", "A MODEL-DEPENDENT TEST IS MEASURED AS A RATE"];
   for (const rule of rules) {
@@ -408,7 +408,7 @@ test("TST-771209: UC-026 8b a test that stays green with the planted fault is no
 // expect: known positive — the participant pushed the branch and reported it; the job ends done in one round with a pull request for the branch
 test("TST-771210: UC-026 5, 8 a reviewed case that guards a module is written as a test of that module and the job passes", async () => {
   const cases = [proposed("TST-908", "unit", ["MOD-members"])];
-  const { path, text: start } = startRecord({ id: "JOB-20261030-0900-bb01", kind: "propose-tests", worksOn: ["MOD-members"], participant: "test-bot", model: "fixture-llm", route: "ci hosted endpoint fixture secret FIXTURE_KEY", declares: { context: 200000, capabilities: ["read the repository", "write to the repository", "run code and tests"] }, run: null, retries: null, startedBy: "alice",
+  const { path, text: start } = startRecord({ id: "JOB-20261030-0900-bb01", kind: "propose-tests", worksOn: ["MOD-members"], participant: "test-bot", model: "fixture-llm", route: CI_ROUTE, declares: { context: 200000, capabilities: CODING }, run: null, retries: null, startedBy: "alice",
     start: new Date("2026-10-30T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [],
     params: { requirements: [], useCases: [], modules: ["MOD-members"], levels: ["unit"] } });
   const ended = appendToRecord(start, { part: "end", at: new Date("2026-10-30T09:05:00Z"), state: "done", results: [], draft: { cases }, rounds: [], usage: null, cost: { known: false, usage: null }, reason: null, log: null });

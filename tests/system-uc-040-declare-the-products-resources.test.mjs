@@ -71,8 +71,10 @@ const INSTANCE_LIST = list("agent-m", LLM, CLUSTER);
 const PARTICIPANTS = ["# Participants of this instance", "",
   "| Name | Type | Model |", "|---|---|---|",
   "| ci-drafter | agent | ci-model |", ""].join("\n");
-// The connection of this browser that offers ci-drafter's model, its key named as the CI secret CI_KEY, so that its jobs may run on CI.
-const CONNECTION = { kind: "openai-compatible", url: "https://models.example.test/v1", model: "ci-model", key: "sk-ci-model-0123456789", place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" };
+// The connection of this browser that offers ci-drafter's model: the coding agent on CI gpu-coder, claude on the self-hosted runner gpu, its key named as the CI secret
+// CI_KEY, so that its jobs may run on that runner (MOD-browser-store, `ci-agent:<name>`).
+const CONNECTION = { agent: "claude", runner: "gpu", secret: "CI_KEY", place: "NHR@FAU, Erlangen", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+  models: [{ model: "ci-model", context: 200000 }] };
 const WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n" };
 
 // A person opens the page at `fragment`: the frame started on the module view of MOD-settings-pages, over this browser's store with the instance's token, the product with its own, and the Bridges `bridges`.
@@ -82,7 +84,7 @@ function visit(t, fragment, { productFiles = { "docs/resources.md": PRODUCT_LIST
     repositories: { [INSTANCE]: { files: instanceFiles }, [PRODUCT_REPO]: { files: productFiles, visibility },
       "alice/dlls": { files: { "README.md": CONTENT } }, "alice/dlls2": { files: { "README.md": CONTENT } } },
     settings: { "github-token": { value: TOKEN, name: "Agent M · akmaier/agent-m", expires: "2027-01-01" }, products: [PRODUCT],
-      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" }, "endpoint:ci-model": CONNECTION,
+      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" }, "ci-agent:gpu-coder": CONNECTION,
       ...Object.fromEntries(Object.entries(bridges).map(([name, kept]) => [`bridge:${name}`, typeof kept === "string" ? { address: kept, token: BRIDGE_TOKEN } : kept])) },
   });
 }
@@ -222,9 +224,9 @@ test("UC-040 steps 3, 6, 7, 8 — through the frame, a compute resource on a Bri
 
 // TST-1041004 · level: system · module: MOD-settings-pages; MOD-resource-list
 // guards: UC-040; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
-// given: the product is private and holds Agent M's job workflow; the instance's register holds the agent ci-drafter, whose model this browser's endpoint ci-model offers with the CI secret CI_KEY
+// given: the product is private and holds Agent M's job workflow; the instance's register holds the agent ci-drafter, whose model this browser's coding agent on CI gpu-coder offers on the runner gpu with the CI secret CI_KEY
 // input: choose the kind compute, name "gpu-box", give the address "gpu01.example.org", press "+ Add resource"; type the route "runner:gpu" and the place "the group's workstation"; press Save; open the page again; press Check on gpu-box; a click a script makes on Run; the person's click on Run
-// expect: Save gives one commit holding only docs/resources.md with the row; 7b "The route is a self-hosted runner. The browser cannot reach it; Agent M offers a check job on that runner label through the (flow: UC-040 steps 3, 7 and 7b) product's workflow and shows its result on the dashboard": Check names the job and the runner gpu and shows the run panel naming ci-drafter, with a button Run, and writes nothing; the script's click writes nothing; the person's click gives one commit that adds one file docs/jobs/JOB-<date>-<time>-<4 hex>.md to alice/thesis-tool and changes no other, made with the product's token; the record names the kind check-resource, the participant ci-drafter, the route "ci runner:gpu" and the resource gpu-box; docs/resources.md is not among the files of that commit; nothing is committed to the instance
+// expect: Save gives one commit holding only docs/resources.md with the row; 7b "The route is a self-hosted runner. The browser cannot reach it; Agent M offers a check job on that runner label through the (flow: UC-040 steps 3, 7 and 7b) product's workflow and shows its result on the dashboard": Check names the job and the runner gpu and shows the run panel naming ci-drafter, with a button Run, and writes nothing; the script's click writes nothing; the person's click gives one commit that adds one file docs/jobs/JOB-<date>-<time>-<4 hex>.md to alice/thesis-tool and changes no other, made with the product's token; the record names the kind check-resource, the participant ci-drafter, the route of its connection "ci runner:gpu agent claude secret CI_KEY" and the resource gpu-box; docs/resources.md is not among the files of that commit; nothing is committed to the instance
 test("UC-040 step 7b — through the frame, a compute resource on a runner is checked by a check job that is shown first and queued on the person's click", async (t) => {
   const page = await visit(t, FRAGMENT);
   await add(page, "compute", "gpu-box", "gpu01.example.org");
@@ -260,7 +262,7 @@ test("UC-040 step 7b — through the frame, a compute resource on a runner is ch
 
 // TST-1041005 · level: system · module: MOD-settings-pages; MOD-resource-list
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
-// given: the product is public (a self-hosted runner serves a private repository only) and holds Agent M's job workflow; its list names cluster on the runner gpu; the instance's register holds ci-drafter, on this browser's endpoint ci-model with the CI secret CI_KEY
+// given: the product is public (a self-hosted runner serves a private repository only) and holds Agent M's job workflow; its list names cluster on the runner gpu; the instance's register holds ci-drafter, on this browser's coding agent on CI gpu-coder, on the runner gpu with the CI secret CI_KEY
 // input: press Check on cluster
 // expect: 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the page says that no participant on a connection of this browser reaches the runner gpu and that nothing (flow: UC-040 steps 7b and 9b) can check cluster until one does, gives the reason (the runner serves private repositories only), offers no Run, and writes nothing
 test("UC-040 steps 7b, 9b — through the frame, a check job is not offered where no runtime reaches the resource, and the page names the resource and the route", async (t) => {

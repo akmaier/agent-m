@@ -315,8 +315,11 @@ export const route = {
           instance: { snapshot: instanceSnapshot, host: context.instance.host, checkout: null }, connect: async () => null, participants,
           places: { sources: {}, mailbox: null, contents: [] }, gates: [], person, now, agentM, jobId: id };
         const prepared = await prepareJob("check-resource", jobContext, { drafter: drafter.participant, reviewers: [] });
-        const start = { id, kind: "check-resource", worksOn: ["UC-040"], participant: drafter.participant.name, model: drafter.participant.model ?? null, route: `ci runner:${label}`,
-          run: null, retries: null, startedBy: person, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "in parameters",
+        // The record's route is the connection's, `ci runner:<label> agent <agent> secret <NAME>` for a coding agent on CI, with what the connection declares for the model (MOD-job-ledger, `route`, `declares`).
+        const connection = String(drafter.participant.route ?? "").trim();
+        const start = { id, kind: "check-resource", worksOn: ["UC-040"], participant: drafter.participant.name, model: drafter.participant.model ?? null,
+          route: /^ci\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `ci runner:${label}`,
+          declares: { context: drafter.participant.context ?? null, capabilities: drafter.participant.capabilities ?? [] }, run: null, retries: null, startedBy: person, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "in parameters",
           conversation: null, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })), params };
         const panel = runPanel(prepared, {
           async onRun() {
