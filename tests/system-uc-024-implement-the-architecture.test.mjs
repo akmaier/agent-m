@@ -34,9 +34,9 @@ import { testDeclarations } from "../src/test-document/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { declarationSchema, productWorkflow, recordGateDecision, roleAssignmentSchema } from "../src/product-process/index.mjs";
 import { ADDRESS, backlogProduct, openScrum, CHECK_JOB, FIRST, GATES, PARTICIPANTS, SECOND, STORE_TEST, declaration, fieldOf, found, gitlabProject, instance, jobCheck, jobOf, jobPull, jobRecord, lines, modulePath, openImplement, planned, pr,
-  quiet, servers, startRecords, stepRows, storeOf, testFileOf, textOf, walk } from "./uc-024-harness.mjs";
-import { SETTINGS } from "./uc-032-harness.mjs";
-import { BRIDGE, session } from "./browser-connections-fixture.mjs";
+  quiet, servers, startRecords, stepRows, testFileOf, textOf, walk } from "./uc-024-harness.mjs";
+import { LAB_PC } from "./uc-032-harness.mjs";
+import { BRIDGE, agent } from "./browser-connections-fixture.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-024-implement-modules.md";
@@ -316,8 +316,8 @@ test("TST-740209: UC-024 5b a participant whose place a source forbids is not of
     "---", "# MOD-mail The module MOD-mail", "", "## Responsibility", "", "r", "", "## Parts", "", "p", "", "## Data", "", "d", "", "## Interfaces", "", "- `read` — i", "", "## Files", "", "f", "", "## Uses", "", "u");
   const files = await planned({ files: { ...GATES, [modulePath("MOD-mail")]: mail, "docs/sources/SRC-letters/1/letter.md": "Dear reader.\n",
     "docs/role-assignments/plan.md": assignment(["| Product owner | alice |", "| Developer | dev-a, dev-b |", "| Tester | dev-a, dev-b |", "| Reviewer | bob |"]) } });
-  const store = storeOf({ ...SETTINGS, "session:lab-pc:codex": session([["model-d"]], { place: "a provider in the USA" }) });
-  const page = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters }), store });
+  const agents = [LAB_PC[0], agent("codex", [["model-d"]], { place: "a provider in the USA" })];
+  const page = await openImplement({}, { files, instance: instance({ "docs/sources/SRC-letters.md": letters }), agents });
   try {
     assert.deepEqual(fieldOf(page, "ITM-103", "participant").childNodes.map(textOf), ["dev-a"]);
     const withheld = textOf(fieldOf(page, "ITM-103", "withheld"));
@@ -372,7 +372,7 @@ test("TST-740210: UC-024 6, 7, 3a the panel names the target branch and the gate
 // expect: 7a: the result names, for each step, that the Bridge gave no answer, and that its job stays queued — its start record committed —; the Bridge took no job
 test("TST-740211: UC-024 7a a Bridge that does not answer is named and the job stays queued", async () => {
   const handed = [];
-  const answering = (await import("./browser-connections-fixture.mjs")).bridgeAnswer(["claude", "codex"], handed);
+  const answering = (await import("./browser-connections-fixture.mjs")).bridgeAnswer(LAB_PC, handed);
   const bridge = async (url, init = {}) => {
     if (url.origin === BRIDGE && String(init.method ?? "GET").toUpperCase() === "POST") throw new TypeError("connection refused");
     return answering(url, init);

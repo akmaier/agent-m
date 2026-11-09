@@ -21,7 +21,7 @@ import { backlogProduct, instance, openImplement } from "./uc-024-harness.mjs";
 import { MODELS, itemPath, itemText, sprintPath, sprintText, lines } from "./uc-032-harness.mjs";
 import { INSTANCE, PRODUCT, browser, draw, headOf, network, timers, withEnd } from "./main-page-home-harness.mjs";
 import { writeSetting } from "../src/browser-store/index.mjs";
-import { BRIDGE, CODING, bridgeAnswer, session } from "./browser-connections-fixture.mjs";
+import { BRIDGE, CODING, agent, bridgeAnswer } from "./browser-connections-fixture.mjs";
 import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
 import { view } from "../src/main-page/index.mjs";
 
@@ -96,8 +96,8 @@ export function jobProduct({ jobs = [waitingJob()], files = {} } = {}) {
 
 /**
  * jobPage(person, { files }) -> { net, seen, draw(), restore() } — the route `job` of MOD-main-page for the job GATE_JOB of alice/product, the person being the name the product's stored token carries. `seen` keeps the writes of one commit the fake answers:
- * { trees, commits, moves }. The browser keeps the Bridge lab-pc-4 of tests/main-page-home-harness.mjs' browser(), whose coding agents claude and codex are declared as the builders' connections (ON), and testBridge's two
- * requests to it are answered here, listing both ready. `net` is tests/main-page-home-harness.mjs' fake of GitHub; `draw()` draws the page and returns its element.
+ * { trees, commits, moves }. The browser keeps the Bridge lab-pc-4 of tests/main-page-home-harness.mjs' browser(), whose coding agents claude and codex are the builders' connections (ON), and testBridge's two
+ * requests to it are answered here, listing both ready with the declarations the Bridge keeps for them. `net` is tests/main-page-home-harness.mjs' fake of GitHub; `draw()` draws the page and returns its element.
  */
 const GLOBALS = ["window", "document", "location", "localStorage", "sessionStorage"];
 export function jobPage(person, { files = jobProduct(), participants = null, model = MODELS.scrum } = {}) {
@@ -122,9 +122,8 @@ export function jobPage(person, { files = jobProduct(), participants = null, mod
     if (url.host === "127.0.0.1:4711" && method === "GET" && ["/v1/pair", "/v1/agents"].includes(url.pathname)) return bridge(new URL(url.pathname, BRIDGE), init);
     return inner(input, init);
   };
-  const bridge = bridgeAnswer(Object.values(ON).map((each) => each.agent));
+  const bridge = bridgeAnswer(Object.values(ON).map((each) => agent(each.agent, [[each.model]])));
   const context = browser();
-  for (const { agent, model } of Object.values(ON)) writeSetting(context.store, `session:lab-pc-4:${agent}`, session([[model]]));
   writeSetting(context.store, `github-token:${PRODUCT}`, { value: "github_pat_HOME827PRODUCT0123456789abcdefg", name: person, expires: "2027-01-01" });
   const route = view.routes.find((candidate) => candidate.name === "job");
   return { net, seen, context, draw: () => draw(route, context, { id: ID }), restore: () => {

@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
-import { bridgeSetting, session, storeWith as connectionStore, withBridge } from "./browser-connections-fixture.mjs";
+import { agent, bridgeSetting, storeWith as connectionStore, withBridge } from "./browser-connections-fixture.mjs";
 
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { startRecord } = await import("../src/job-ledger/index.mjs");
@@ -72,8 +72,8 @@ const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("
 const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n`;
 // This browser's connections, the store a page is drawn with unless a test names its own: the Bridge lab-pc, whose coding agent claude offers model-a on this machine with every capability an
 // implementing job needs (tests/browser-connections-fixture.mjs answers the Bridge's requests).
-const CONNECTIONS = () => connectionStore({ "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]) });
-withBridge(["claude"]);
+const CONNECTIONS = () => connectionStore({ "bridge:lab-pc": bridgeSetting() });
+withBridge([agent("claude", [["model-a"]])]);
 const FIXTURE_MODEL = readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8");
 const SHIPPED = ["waterfall", "v-model", "reuse-oriented", "scrum", "kanban"];
 const SHIPPED_FILES = Object.fromEntries(SHIPPED.map((name) => [`src/model-catalogue/models/${name}.md`, readFileSync(new URL(`../src/model-catalogue/models/${name}.md`, import.meta.url), "utf8")]));

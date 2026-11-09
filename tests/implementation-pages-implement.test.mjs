@@ -26,7 +26,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
-import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -98,8 +98,8 @@ const HEAD = onDisk("docs/participants.md").split("\n").filter((row, at, all) =>
 const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n| dev-b | agent | model-b |\n`;
 
 // This browser's connections: the Bridge lab-pc, whose coding agents claude and codex offer model-a and model-b on this machine; the Bridge answers here, and every hand-over is kept.
-const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]), "session:lab-pc:codex": session([["model-b"]]) };
-const bridge = withBridge(["claude", "codex"]);
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridge = withBridge([agent("claude", [["model-a"]]), agent("codex", [["model-b"]])]);
 after(() => bridge.restore());
 
 // A host of this file's own: the part of MOD-repository-hosts' interface the route uses, keeping every commit it is asked for.

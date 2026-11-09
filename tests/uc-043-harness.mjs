@@ -23,6 +23,7 @@
 
 import "./site-frame-dom.mjs";
 import { decision, moduleText, orderText, stepText } from "./uc-045-harness.mjs";
+import { LAB_PC } from "./uc-032-harness.mjs";
 import { servers, instance, planned, storeOf, GATES, ADDRESS, PARTICIPANTS, V_MODEL, SCRUM_MODEL, found, lines, modulePath, architecture, planFiles, stepId, pr } from "./uc-024-harness.mjs";
 import { endpointsOffered, sessionsOffered } from "../src/prompt-bar/index.mjs";
 import { productFacts } from "../src/progress-measures/index.mjs";
@@ -68,15 +69,15 @@ export const chainFiles = async ({ uses = { "MOD-b": ["MOD-a.read"], "MOD-c": ["
 };
 
 /**
- * openWorld({ files, instanceFiles, pullRequests, store }) -> the world of a run over the product `files` (default: productFiles()) behind the fake of GitHub, with the instance `instanceFiles` laid over the instance of
+ * openWorld({ files, instanceFiles, pullRequests, store, agents }) -> the world of a run over the product `files` (default: productFiles()) behind the fake of GitHub, with the instance `instanceFiles` laid over the instance of
  * tests/uc-024-harness.mjs. The run's participant reaches its jobs' participants through the connections of `store` — tests/uc-032-harness.mjs' SETTINGS unless given —, read as a page reads them (MOD-prompt-bar's
- * endpointsOffered and sessionsOffered, the fixture Bridge answering), and hands them to productFacts. `pullRequests` is the list the fake serves for the product; the world pushes the merged pull requests of the jobs it finishes into it.
+ * endpointsOffered and sessionsOffered, the fixture Bridge answering, listing `agents`: tests/uc-032-harness.mjs' LAB_PC unless given), and hands them to productFacts. `pullRequests` is the list the fake serves for the product; the world pushes the merged pull requests of the jobs it finishes into it.
  * @returns {Promise<object>} { facts, rows, next, startRun, begin, finish, merge, carryOut, record, commit, read, raise, stop, end, srv, host, pulls, restore, clock }
  */
-export async function openWorld({ files, instanceFiles = {}, pullRequests = [], store = storeOf() } = {}) {
+export async function openWorld({ files, instanceFiles = {}, pullRequests = [], store = storeOf(), agents = LAB_PC } = {}) {
   const pulls = pullRequests;
   const served = files ?? await productFiles();
-  const world = await servers({ files: served, instance: instance(instanceFiles), pullRequests: pulls });
+  const world = await servers({ files: served, instance: instance(instanceFiles), pullRequests: pulls, agents });
   // The fake of GitHub answers the tags of the product with "not found"; a product with no tag has the empty list.
   const inner = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {

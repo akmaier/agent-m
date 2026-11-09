@@ -25,7 +25,7 @@ import "./site-frame-dom.mjs";
 import { REPO, TOKEN, repoServer } from "./app-harness.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
-import { HEAD, PARTICIPANTS, SETTINGS, STORE, UC1, UC1_PATH, found, lines, plain, specOf, storeOf, walk, classed, buttons, choose, settle, waitFor, typeInto, clickOn, textOf, writerOf, pr } from "./uc-032-harness.mjs";
+import { HEAD, LAB_PC, PARTICIPANTS, SETTINGS, STORE, UC1, UC1_PATH, found, lines, plain, specOf, storeOf, walk, classed, buttons, choose, settle, waitFor, typeInto, clickOn, textOf, writerOf, pr } from "./uc-032-harness.mjs";
 import { bridgeAnswer } from "./browser-connections-fixture.mjs";
 export { HEAD, PARTICIPANTS, SETTINGS, STORE, storeOf, found, lines, plain, walk, classed, buttons, choose, settle, waitFor, typeInto, clickOn, textOf, writerOf, pr };
 
@@ -131,7 +131,7 @@ const githubPull = (p) => ({ number: p.number, title: p.title, head: { ref: p.br
  * openPlan(name, params, { files, instance, pullRequests, server, store }) -> { target, srv, inst, route, press, script, done, html } — the route `name` of MOD-implementation-pages drawn for the product `files` (the repository
  * alice/thesis-tool) and the instance `instance` (the repository akmaier/agent-m), each behind a fake of GitHub's API of its own (tests/app-harness.mjs' repoServer), `pullRequests` those of the product, `server` the test's own
  * request handlers (the model endpoints). `store` is this browser's settings, tests/uc-032-harness.mjs' SETTINGS unless given, whose Bridge tests/browser-connections-fixture.mjs answers for its coding agents claude
- * and codex. `srv` is the product's server, `inst` the instance's; `press(element)` is a person's click awaited, `script(element)` a script's; `done()` ends the page.
+ * and codex, with the declarations it keeps for them (tests/uc-032-harness.mjs' LAB_PC). `srv` is the product's server, `inst` the instance's; `press(element)` is a person's click awaited, `script(element)` a script's; `done()` ends the page.
  */
 export async function openPlan(name, params = {}, { files, instance = instanceFiles(), pullRequests = [], server = [], store = storeOf(), pulls = { list: pullRequests }, dates = {} } = {}) {
   const { view } = await import("../src/implementation-pages/index.mjs");
@@ -154,7 +154,7 @@ export async function openPlan(name, params = {}, { files, instance = instanceFi
   // MOD-trace-graph's storedGraph keeps the graph of a commit for the length of a test file, so a product of other files stands at a head of its own: the head is named by its files.
   const head = createHash("sha1").update(JSON.stringify(Object.entries(files).sort())).digest("hex");
   const srv = await repoServer({ files, handlers: [pullsApi, refsApi], head, repo: PRODUCT_REPO, dates });
-  const inst = await repoServer({ files: instance, handlers: [...server, bridgeAnswer(["claude", "codex"])], head: HEAD });
+  const inst = await repoServer({ files: instance, handlers: [...server, bridgeAnswer(LAB_PC)], head: HEAD });
   const ofProduct = (url, init) => {
     if (url.pathname.startsWith(`/repos/${PRODUCT_REPO}`) || url.pathname.startsWith(`/${PRODUCT_REPO}/`)) return true;
     if (url.origin === "https://api.github.com" && url.pathname === "/graphql" && init?.body) return JSON.parse(init.body).variables?.name === PRODUCT_REPO.split("/")[1];

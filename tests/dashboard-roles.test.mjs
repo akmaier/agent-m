@@ -28,7 +28,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { repoServer, openDashboard, REPO, setting } from "./app-harness.mjs";
-import { CODING, bridgeAnswer, bridgeSetting, session } from "./browser-connections-fixture.mjs";
+import { CODING, agent, bridgeAnswer, bridgeSetting } from "./browser-connections-fixture.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const inMain = (selector) => globalThis.document.getElementById("main").querySelector(selector);
@@ -44,14 +44,16 @@ function tick(selector, on = true) {
 
 const PARTICIPANTS = ["# Participants of this instance", "", "**REGISTER**", "", "| Name | Type | Model |", "|---|---|---|",
   "| alice | person | — |", "| bob | person | — |", "| dev-a | agent | model-a |", "| dev-b | agent | model-b |", ""].join("\n");
-// This browser's settings: the Bridge lab-pc with its two coding agents' sessions — with or without use tools, which Builders need —,
-// and the model endpoint local, which offers model-a.
-function connectionEntries(useTools = true) {
-  const capabilities = useTools ? CODING : CODING.filter((each) => each !== "use tools");
+// This browser's settings: the Bridge lab-pc and the model endpoint local, which offers model-a.
+function connectionEntries() {
   return { ...setting("bridge:lab-pc", bridgeSetting()),
-    ...setting("session:lab-pc:claude", session([["model-a"]], { capabilities })),
-    ...setting("session:lab-pc:codex", session([["model-b"]], { place: "a provider in the USA", capabilities })),
     ...setting("endpoint:local", { kind: "openai-compatible", url: "http://localhost:8000/v1", model: "model-a", key: "sk-local-fixture-0123456789", place: "this machine", context: 100000 }) };
+}
+// The Bridge lab-pc's answer: its two coding agents, each with the declaration the Bridge keeps for it — with or without use tools,
+// which Builders need.
+function labPc(useTools = true) {
+  const capabilities = useTools ? CODING : CODING.filter((each) => each !== "use tools");
+  return bridgeAnswer([agent("claude", [["model-a"]], { capabilities }), agent("codex", [["model-b"]], { place: "a provider in the USA", capabilities })]);
 }
 const DECLARATION = ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md",
   `model_version: ${"a".repeat(40)}`, "---", "# How the fixture product is developed", "", "## Practices", "", "- none", "",
@@ -83,8 +85,8 @@ function fixtureFiles({ sprints = true, restricted = false } = {}) {
   };
 }
 async function rolesPage({ useTools = true, ...options } = {}) {
-  const server = await repoServer({ files: fixtureFiles(options), handlers: [bridgeAnswer(["claude", "codex"])] });
-  const page = await openDashboard({ server, hash: "#roles", entries: connectionEntries(useTools) });
+  const server = await repoServer({ files: fixtureFiles(options), handlers: [labPc(useTools)] });
+  const page = await openDashboard({ server, hash: "#roles", entries: connectionEntries() });
   return { server, page };
 }
 function part(html, marker) {
@@ -282,7 +284,7 @@ async function removeTeam1(list, { closed = false } = {}) {
   const asked = [];
   const files = fixtureFiles();
   if (closed) files["docs/backlog/sprints/team1/01.md"] = CLOSED_SPRINT;
-  const server = await repoServer({ files, handlers: [pullsServed(list, asked), bridgeAnswer(["claude", "codex"])] });
+  const server = await repoServer({ files, handlers: [pullsServed(list, asked), labPc()] });
   const page = await openDashboard({ server, hash: "#roles", entries: connectionEntries() });
   await page.click('[data-remove="team1"]');
   return { server, asked, said: inMain('[data-remove-result="team1"]')?.innerHTML ?? "" };

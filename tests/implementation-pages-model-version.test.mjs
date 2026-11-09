@@ -18,7 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
-import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 
 // ---------------------------------------------------------------- the document: the part of a browser's DOM that is used
 //
@@ -286,8 +286,8 @@ const PARTICIPANTS = `# Participants of this instance
 
 // This browser's connections: the Bridge lab, whose coding agent claude offers bot-a's model in a lab with every capability Developers needs (tests/browser-connections-fixture.mjs answers the
 // Bridge's requests), so that the role assignments' findings hold only what the model's change makes of them.
-const connections = () => storeWith({ "bridge:lab": bridgeSetting(), "session:lab:claude": session([["fixture-endpoint"]], { place: "a lab" }) });
-withBridge(["claude"]);
+const connections = () => storeWith({ "bridge:lab": bridgeSetting() });
+withBridge([agent("claude", [["fixture-endpoint"]], { place: "a lab" })]);
 
 const SPEC_TEXT = `# SPEC
 

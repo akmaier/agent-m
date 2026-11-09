@@ -27,7 +27,7 @@
 
 import "./site-frame-dom.mjs";
 import test from "node:test";
-import { bridgeSetting, session, storeWith, withBridge } from "./browser-connections-fixture.mjs";
+import { agent, bridgeSetting, storeWith, withBridge } from "./browser-connections-fixture.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -108,8 +108,8 @@ const REGISTER_HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8"
 const REGISTER = `${REGISTER_HEAD}\n| dev-a | agent | model-a |\n`;
 // This browser's connection of dev-a's model: the coding agent claude of the Bridge lab-pc, at "this machine", with every capability an implementing job needs; the Bridge answers here
 // (tests/browser-connections-fixture.mjs).
-const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]) };
-const bridge = withBridge(["claude"]);
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridge = withBridge([agent("claude", [["model-a"]])]);
 test.after(() => bridge.restore());
 
 const productFiles = (model = "scrum", extra = {}) => ({

@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
-import { bridgeAnswer, bridgeSetting, session, storeWith } from "./browser-connections-fixture.mjs";
+import { agent, bridgeAnswer, bridgeSetting, storeWith } from "./browser-connections-fixture.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "implement");
@@ -72,8 +72,8 @@ const ROOT = new URL("../", import.meta.url);
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 const REGISTER = `${HEAD}\n| dev-a | agent | model-a |\n`;
 // This browser's connection of dev-a's model: the coding agent claude of the Bridge lab-pc, at "this machine", with every capability an implementing job needs.
-const SETTINGS = { "bridge:lab-pc": bridgeSetting(), "session:lab-pc:claude": session([["model-a"]]) };
-const bridgeAnswers = bridgeAnswer(["claude"]);
+const SETTINGS = { "bridge:lab-pc": bridgeSetting() };
+const bridgeAnswers = bridgeAnswer([agent("claude", [["model-a"]])]);
 
 // A host of this file's own: the part of MOD-repository-hosts' interface the route uses, keeping every commit it is asked for; `refuse` makes the commit fail.
 function hostOf(files, commits, refuse = null) {
