@@ -14,10 +14,10 @@
 //
 // The world is tests/maintenance-pages-world.mjs: the harness's browser and fake GitHub, the Bridge's mail operation `read` (the mails given) and its asks (an agent's answer), GitHub's issues of alice/product, the instance's participants, the model
 // endpoints ep1 and ep2 (their answers given by the test). The real MOD-job-runner, MOD-runtimes, MOD-mail-handling, MOD-personal-data and MOD-participant-list run as they are. Readings the texts leave open, which the tests state (the pull request names them):
-//   - After the reading that drawing the page starts, the page shows <section class="mail-step-propose"> above the list; a mail's review is in the page once its line is clicked. Its participants are <li class="mail-participant" data-participant="<name>"> with <input class="participant"> (a radio), <span class="place"> and, for a place the
-//     mailbox allows and records as outside the EU, <span class="not-compliant">. Only participants that draft text and whose place the mailbox allows are listed; with none, <p class="mail-no-participant"> names the allowed places and holds
+//   - After the reading that drawing the page starts, the page shows <section class="mail-step-propose"> on the right, above the mail opened; a mail's review is in the page once its line is clicked. Its participants are the options of <select class="participant">, each data-participant="<name>" and naming its place, the first chosen, and, for a place the
+//     mailbox allows and records as outside the EU, the option's class not-compliant and its text naming the GDPR. Only participants that draft text and whose place the mailbox allows are listed; with none, <p class="mail-no-participant"> names the allowed places and holds
 //     <a class="places-link" href="#mailbox"> to the mailbox's processing places, and nothing is sent (UC-038 4c).
-//   - <input class="person"> is the name of the person who presses Propose, as on the page replies. Once a participant is chosen and the name is entered, <ul class="mail-checkers"> lists the three checkers as <li class="mail-checker"> with their <span class="place">
+//   - The person who presses Propose is the account of the instance's token; no name is typed. Once a participant is chosen, <ul class="mail-checkers"> lists the three checkers as <li class="mail-checker"> with their <span class="place">
 //     and the sentence that each receives only the rewritten texts; with fewer than three, <p class="mail-missing-checkers"> gives the sentence checkersFor gives and links <a class="participants-link" href="#participants"> and the places link, no run panel
 //     is drawn and nothing is sent (UC-038 6c). Otherwise <div class="mail-stage"> holds MOD-site-frame's run panel of the kind propose-issues, whose Run is *Propose* — one click for all listed mails —, as the page replies has it (ITM-966).
 //   - The run is the person's click (isTrusted) and runs in this tab. Each mail with attachments has, per attachment with a text, <input class="attachment-tick" data-attachment="<name>"> (a checkbox, not ticked): the attachment's text is a part of the job only
@@ -68,16 +68,13 @@ async function setup({ rows = ROWS, places, answer, product, withAttachments = t
 }
 const participants = (target) => walk(target, (node) => node.getAttribute?.("data-participant")).map((node) => node.getAttribute("data-participant"));
 const choose = async (target, name, person = "Anna Author") => {
-  const input = one(target, "person");
-  input.value = person;
-  input.dispatchEvent(new Event("change"));
-  const radio = one(walk(target, (node) => node.getAttribute?.("data-participant") === name)[0], "participant");
-  radio.checked = true;
-  radio.dispatchEvent(new Event("change"));
+  const select = one(target, "participant");
+  select.value = name;
+  select.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(target, "run-panel").length > 0 || byClass(target, "mail-missing-checkers").length > 0);
 };
 const propose = async (target) => {
-  await trusted(buttonsOf(one(target, "mail-stage"), "Run")[0]);
+  await trusted(buttonsOf(one(target, "mail-stage"), "Propose")[0]);
   await waitFor(() => byClass(target, "mail-proposed").length > 0 || byClass(target, "mail-propose-problem").length > 0);
 };
 const nothingSent = (w) => [w.kept.endpoint.length, w.kept.ask.length, w.kept.github.filter((request) => request.method !== "GET").length];
@@ -94,7 +91,7 @@ test("Only participants at a place the mailbox allows are offered, and a place o
   restoreWorld();
   const g = await setup({ places: USA });
   assert.deepEqual(participants(g.target), ["local-llm", "check-1", "check-2", "check-3", "cloud-llm"]);
-  const marked = walk(g.target, (node) => node.getAttribute?.("data-participant")).filter((node) => byClass(node, "not-compliant").length > 0).map((node) => node.getAttribute("data-participant"));
+  const marked = walk(g.target, (node) => node.getAttribute?.("data-participant")).filter((node) => node.className === "not-compliant").map((node) => node.getAttribute("data-participant"));
   assert.deepEqual(marked, ["cloud-llm"]);
   assert.match(textOf(byClass(g.target, "not-compliant")[0]), /GDPR/);
 });
@@ -118,7 +115,7 @@ test("The run panel names the participant's place, what it receives, and the thr
     assert.match(textOf(checker), /this machine/);
     assert.match(textOf(checker), /only the rewritten texts/);
   }
-  assert.equal(buttonsOf(one(f.target, "mail-stage"), "Run").length, 1);
+  assert.equal(buttonsOf(one(f.target, "mail-stage"), "Propose").length, 1);
   assert.deepEqual(nothingSent(f.w), [0, 0, 0], "nothing is sent before the click");
 });
 
@@ -130,7 +127,7 @@ test("The run panel names the participant's place, what it receives, and the thr
 test("One Propose sends all listed mails in one job, and each proposal is shown beside its mail", async () => {
   const f = await setup();
   await choose(f.target, "local-llm");
-  const run = buttonsOf(one(f.target, "mail-stage"), "Run")[0];
+  const run = buttonsOf(one(f.target, "mail-stage"), "Propose")[0];
   run.dispatchEvent(new Event("click"));
   await flush();
   assert.equal(requestsOf(f.w, PROPOSE).length, 0, "a click a script makes does nothing");
@@ -375,7 +372,7 @@ test("Propose offers the endpoints the prompt bar offers from this browser, at t
   };
   const f = await setup({ places: USA, settings });
   assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3", "cloud-llm", "GPT-OSS-120B", "far-llm"]);
-  const marked = walk(f.target, (node) => node.getAttribute?.("data-participant")).filter((node) => byClass(node, "not-compliant").length > 0).map((node) => node.getAttribute("data-participant"));
+  const marked = walk(f.target, (node) => node.getAttribute?.("data-participant")).filter((node) => node.className === "not-compliant").map((node) => node.getAttribute("data-participant"));
   assert.deepEqual(marked, ["cloud-llm", "far-llm"]);
   restoreWorld();
   const g = await setup({ settings });

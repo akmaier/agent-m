@@ -10,7 +10,8 @@
 //   - The mailbox is read when the page is drawn and then five minutes after each reading has ended (EVERY), so that no reading starts while one runs and two readings never write the same note twice; the readings stop once
 //     the frame has drawn another route into the element (the page is no longer one of its children), as MOD-main-page's reread.mjs stops. A reading that fails after one that listed mails keeps the list as it was and
 //     names the problem above it; nothing is read. Each decision is made on a click the browser marks as a person's (`isTrusted`); opening a mail writes nothing and answers any click, the keyboard's included.
-//   - The page reads, top to bottom: the problem of a failed reading, Propose, the inbox, and the status line of the readings with its folded explanation, as a mail program's status bar (the PO's layout; the accepted text places none of them).
+//   - The page reads, top to bottom: the problem of a failed reading, the inbox, and the status line of the readings with its folded explanation, as a mail program's status bar; in the
+//     inbox, the list on the left and everything the author edits on the right — Propose above the mail opened (the PO's layout).
 //   - The list holds the proposable and the decided mails and the mails attached to an issue of their thread, each with its Mail (MOD-mail-handling, NewMail), sorted by their date, the newest first; a mail
 //     whose date cannot be read comes after the dated ones.
 //   - The date of a line is written as a mail program writes it, in the browser's time zone: the time for a mail of today, day and month for one of this year, day, month and year for an older one; the details
@@ -256,7 +257,7 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
         return;
       }
       const { participant, checkers, person } = choice;
-      if (!participant || !person) { problem("Choose a participant and enter your name under Propose first."); return; }
+      if (!participant || !person) { problem("Choose a participant under Propose first."); return; }
       if (!checkers || checkers.missing) { reportStage.append(el("p", "mail-missing-checkers", checkers?.missing ?? "Three checking participants are needed.")); return; }
       const job = await jobOf(session, "rewrite-without-persons", { participant, pieces: [{ name: `attachment ${index + 1} of ${mail.id}`, text: attachment.text }], people }, { drafter: participant, reviewers: checkers.checkers }, person);
       const result = el("div", "mail-report-result");
@@ -330,18 +331,17 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
     return section;
   }
   const outsideEu = (place) => (session.places ?? []).find((each) => each.place === place)?.outsideEu === true;
-  const radios = admitted.map((participant) => {
-    const radio = el("input", "participant");
-    radio.setAttribute("type", "radio");
-    radio.setAttribute("name", "participant");
-    radio.value = participant.name;
-    const item = el("li", "mail-participant", el("label", null, radio, ` ${participant.name} `), el("span", "place", participant.place ?? "no processing place declared"),
-      ...(outsideEu(participant.place) ? [" ", el("span", "not-compliant", "outside the EU: not compliant with the GDPR and the EU AI Act")] : []));
-    item.setAttribute("data-participant", participant.name);
-    return { radio, item, participant };
-  });
-  const person = el("input", "person");
-  person.setAttribute("placeholder", "Your name");
+  // The participants as one select, the first chosen; each option names its place, and a place outside the EU as not compliant.
+  const select = el("select", "participant");
+  for (const participant of admitted) {
+    const option = el("option", null, `${participant.name} — ${participant.place ?? "no processing place declared"}${outsideEu(participant.place) ? " — outside the EU: not compliant with the GDPR and the EU AI Act" : ""}`);
+    option.value = participant.name;
+    option.setAttribute("data-participant", participant.name);
+    if (outsideEu(participant.place)) option.className = "not-compliant";
+    select.append(option);
+  }
+  // The person who proposes is the account of the instance's token, as the prompt bar names it; no name is typed.
+  const name = readSetting(session.store, "github-token")?.name ?? "a reviewer";
   const checkersBox = el("div", "mail-checkers-box");
   const stage = el("div", "mail-stage");
   let turn = 0;
@@ -350,12 +350,11 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
     const mine = turn += 1;
     stage.replaceChildren();
     checkersBox.replaceChildren();
-    const chosen = radios.find((each) => each.radio.checked === true)?.participant;
-    const name = String(person.value ?? "").trim();
-    Object.assign(choice, { participant: chosen ?? null, person: name, checkers: null });
-    if (!chosen || !name) { stage.append(el("p", "muted", "Choose a participant and enter your name to see the run panel.")); return; }
+    const chosen = admitted.find((participant) => participant.name === select.value) ?? admitted[0];
+    Object.assign(choice, { participant: chosen, person: name, checkers: null });
     const found = checkersFor(session.participants, chosen, session.allowed);
     choice.checkers = found;
+    // Without three checkers nothing is sent (A REWRITTEN TEXT IS CHECKED BY THREE LLMS, UC-038 6c): what is missing is named, with where it is set up.
     if (found.missing) {
       checkersBox.append(el("p", "mail-missing-checkers", `${found.missing} Nothing is sent. `, link("#participants", "participants-link", "The participants"), " ", link("#mailbox", "places-link", "The mailbox's processing places")));
       return;
@@ -366,7 +365,7 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
       const job = await jobOf(session, "propose-issues", params, { drafter: chosen, reviewers: [] }, name);
       if (mine !== turn) return;
       const result = el("div", "mail-propose-result");
-      stage.append(runPanel(job.prepared, { onRun: async () => {
+      stage.append(runPanel(job.prepared, { label: "Propose", onRun: async () => {
         hooks.running = true;
         try {
           const outcome = await runJobOf(session, job);
@@ -385,8 +384,9 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
     }
   }
   hooks.changed = refresh;
-  for (const input of [...radios.map((each) => each.radio), person]) input.addEventListener("change", refresh);
-  section.append(el("ul", "mail-participants", ...radios.map((each) => each.item)), el("label", null, "Your name ", person), checkersBox, stage);
+  select.addEventListener("change", refresh);
+  section.append(el("p", null, el("label", null, "Participant ", select)), checkersBox, stage);
+  refresh();
   return section;
 }
 
@@ -425,10 +425,11 @@ async function render(target, context) {
   const list = el("ul", "mail-list");
   const details = el("section", "mail-details");
   details.setAttribute("aria-label", "The mail opened");
-  const inbox = el("div", "mail-inbox", el("section", "mail-step-list", list, fold(STEP_TEXT.list)), details);
+  // Everything the author edits stands on the right: Propose above the mail opened; the list stands on the left.
+  const inbox = el("div", "mail-inbox", el("section", "mail-step-list", list, fold(STEP_TEXT.list)), el("div", "mail-right", proposeSlot, details));
   // The reading's status line stands at the bottom, as a mail program's status bar; a failed reading is named above the list.
   const readStep = el("section", "mail-step-read", status, fold(STEP_TEXT.read));
-  page.append(problemSlot, proposeSlot, readStep);
+  page.append(problemSlot, readStep);
   target.replaceChildren(page);
 
   // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose.
@@ -552,7 +553,7 @@ async function render(target, context) {
     redrawPropose();
     drawList();
     drawDetails();
-    if (inbox.parentNode !== page) page.replaceChildren(problemSlot, proposeSlot, inbox, readStep);
+    if (inbox.parentNode !== page) page.replaceChildren(problemSlot, inbox, readStep);
     const at = new Date();
     status.textContent = `Read at ${twoDigits(at.getHours())}:${twoDigits(at.getMinutes())}. The mailbox is read again every five minutes while this page is open.`;
   };

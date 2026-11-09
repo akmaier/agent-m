@@ -44,14 +44,11 @@ test("main flow on the IMAP route: the Bridge reads read-only with the password 
     assert.deepEqual(commands.filter((line) => /\b(STORE|APPEND|EXPUNGE|COPY|MOVE)\b/i.test(line)), [], "no command changed the mailbox");
     assert.deepEqual(commands.filter((line) => /FETCH/i.test(line) && /BODY\[/i.test(line) && !/PEEK/i.test(line)), [], "no FETCH marks a mail as read");
     assert.ok(p.imap.logs.logins.length > 0 && p.imap.logs.logins.every((login) => login.secure === true && login.password === PASSWORD), "every login was after TLS with the marker password");
-    const input = one(p.main(), "person");
-    input.value = "Anna Author";
-    input.dispatchEvent(new Event("change"));
-    const radio = one(walk(p.main(), (node) => node.getAttribute?.("data-participant") === "local-llm")[0], "participant");
-    radio.checked = true;
-    radio.dispatchEvent(new Event("change"));
+    const select = one(p.main(), "participant");
+    select.value = "local-llm";
+    select.dispatchEvent(new Event("change"));
     await waitFor(() => byClass(p.main(), "run-panel").length > 0);
-    await trusted(buttonsOf(one(p.main(), "mail-stage"), "Run")[0]);
+    await trusted(buttonsOf(one(p.main(), "mail-stage"), "Propose")[0]);
     await waitFor(() => byClass(p.main(), "mail-proposed").length > 0);
     await trusted(one(openMail(p.main(), A.id), "create-issue"));
     await waitFor(() => p.w.kept.issues.some((issue) => issue.number >= 100));

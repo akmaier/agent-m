@@ -138,15 +138,12 @@ async function openMailAgain(p, count) {
   await listed(p, count);
 }
 async function propose(p) {
-  const input = one(p.main(), "person");
-  input.value = "Anna Author";
-  input.dispatchEvent(new Event("change"));
-  const radio = one(walk(p.main(), (node) => node.getAttribute?.("data-participant") === "local-llm")[0], "participant");
-  radio.checked = true;
-  radio.dispatchEvent(new Event("change"));
+  const select = one(p.main(), "participant");
+  select.value = "local-llm";
+  select.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(p.main(), "run-panel").length > 0);
   assert.match(textOf(one(p.main(), "run-panel")), /this machine/, "the panel names where local-llm processes data");
-  await click(buttonsOf(one(p.main(), "mail-stage"), "Run")[0]);
+  await click(buttonsOf(one(p.main(), "mail-stage"), "Propose")[0]);
   await waitFor(() => byClass(p.main(), "mail-proposed").length > 0 || byClass(p.main(), "mail-propose-problem").length > 0);
 }
 const DAY = 24 * 60 * 60 * 1000;

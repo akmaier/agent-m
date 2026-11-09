@@ -293,7 +293,7 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .mail-open .mail-subject { grid-column: 1 / -1; }
 .mail-line .mail-decision { padding-inline: .8rem; font-size: .85rem; font-weight: 400; color: var(--muted); }
 .mail-decision a, .mail-decided-as a { display: inline-flex; align-items: center; min-height: 24px; }
-.mail-details { min-width: 0; }
+.mail-right, .mail-details { min-width: 0; }
 .mail-details .mail-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mail-details .mail-title, .mail-details .mail-body { box-sizing: border-box; width: 100%; }
 .mail-details .mail-body { min-height: 8rem; }
@@ -301,6 +301,6 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 @media (max-width: 760px) {
   .mail-inbox { grid-template-columns: minmax(0, 1fr); }
   .mail-inbox.mail-open-shown > .mail-step-list { display: none; }
-  .mail-inbox:not(.mail-open-shown) > .mail-details { display: none; }
+  .mail-inbox:not(.mail-open-shown) .mail-details { display: none; }
   .mail-details .mail-back { display: inline-block; }
 }

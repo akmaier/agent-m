@@ -133,9 +133,10 @@ person reviews it. Its formats are those of the modules it uses.
     the proposable mails in bold, the attached and decided ones not, each of these with its issue or its mark *not an
     issue*. The mail clicked shows its details beside the list on a wide screen, and in place of the list, with a way
     back to it, on a narrow one: the mail in full and, for a proposable mail, its proposal, its text editable, every hit
-    of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*. Above the list, the
-    participant for the proposals among those at places the mailbox allows, a place outside the EU named as not
-    compliant, and the three checkers; the run panel and *Propose*, for the proposable mails. Where this browser manages no product,
+    of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*. On the right, above the
+    mail opened, the participant for the proposals, one select among those at places the mailbox allows, the first
+    chosen, a place outside the EU named as not compliant, and the three checkers; the run panel and *Propose*, for the
+    proposable mails, proposed in the name of the account of the instance's token. Where this browser manages no product,
     the place of *Propose* says so — nothing can be proposed — and links *Add product* (UC-001). A later reading keeps the
     mail that is open, the proposals and their edits, the chosen participant and a running proposal; a mail decided
     leaves bold and shows its decision.

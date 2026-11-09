@@ -54,16 +54,13 @@ async function readAgain(p, clicks) {
 // A mail opened from the list: its details.
 const itemOf = (main, id) => openMail(main, id);
 async function chooseParticipant(p, name, person = "Anna Author") {
-  const input = one(p.main(), "person");
-  input.value = person;
-  input.dispatchEvent(new Event("change"));
-  const radio = one(walk(p.main(), (node) => node.getAttribute?.("data-participant") === name)[0], "participant");
-  radio.checked = true;
-  radio.dispatchEvent(new Event("change"));
+  const select = one(p.main(), "participant");
+  select.value = name;
+  select.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(p.main(), "run-panel").length > 0 || byClass(p.main(), "mail-missing-checkers").length > 0);
 }
 async function propose(p, clicks) {
-  const run = buttonsOf(one(p.main(), "mail-stage"), "Run")[0];
+  const run = buttonsOf(one(p.main(), "mail-stage"), "Propose")[0];
   run.dispatchEvent(new Event("click"));
   await flush();
   const byScript = p.w.kept.endpoint.length;
