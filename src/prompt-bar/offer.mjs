@@ -1,8 +1,9 @@
 // MOD-prompt-bar, offer.mjs — the endpoints and CLI sessions offered, read from this browser's configuration, and the place each is named with
 // (docs/architecture/MOD-prompt-bar.md: Parts, Interfaces: startPromptBar, endpointLacks, endpointsOffered, sessionsOffered). This browser's own
 // endpoints that declare a place, a context and a model (endpointsOffered), and whether one runs through GitHub Actions (throughActions); and the CLI
-// sessions this browser's Bridges offer, each agent a Bridge kept under `bridge:<name>` lists ready, whose `session:<bridge>:<agent>` declares a place,
-// once for each model it names with its context (sessionsOffered) (UC-049 Precondition, 1, 1a, 1b): each a Connection of MOD-participant-list. No
+// sessions this browser's Bridges offer, each agent a Bridge kept under `bridge:<name>` lists ready whose declaration, as the Bridge keeps it, names a
+// place, once for each model it names with its context (sessionsOffered) (UC-049 Precondition, 1, 1a, 1b); and the coding agents on CI this browser keeps
+// (ciAgentsOffered), which the bar does not offer: each a Connection of MOD-participant-list. No
 // participant list is read for the offer. readParticipants joins the rows of the instance's docs/participants.md with those connections, which the
 // job's preparation and a hand-over's route take (send.mjs, hand-over.mjs).
 //
@@ -67,8 +68,8 @@ export function endpointsOffered(store) {
 
 /**
  * sessionsOffered(store: Store) -> Promise<Connection[]> — the CLI sessions this browser's Bridges offer (MOD-prompt-bar, Interfaces: sessionsOffered): for
- * each Bridge the store keeps under `bridge:<bridge>`, in the store's order, each agent MOD-bridge-client's testBridge lists ready whose
- * `session:<bridge>:<agent>` declares a place, one MOD-participant-list Connection for each model its `models` names with its context, in their order:
+ * each Bridge the store keeps under `bridge:<bridge>`, in the store's order, each agent MOD-bridge-client's testBridge lists ready whose declaration, as the
+ * Bridge keeps it and its list gives it, names a place, one MOD-participant-list Connection for each model its `models` names with its context, in their order:
  * named `<bridge>:<agent>`, as its setting is, the type *CLI agent*, that model with its context, the place and capabilities the declaration gives, and
  * the route `bridge <bridge> agent <agent>`. A session that lacks a place or names no model offers none, and a model without its context is not offered
  * (UC-049 1b). A Bridge that cannot be tested — no answer, a refused token, no jump host stored for one at a port — offers none, and is not named here:
@@ -89,14 +90,39 @@ export async function sessionsOffered(store) {
     }
     for (const agent of Array.isArray(agents) ? agents : []) {
       if (agent?.ready !== true || typeof agent.name !== "string") continue;
-      const declared = readSetting(store, `session:${bridge}:${agent.name}`);
-      if (!declared || typeof declared !== "object" || !text(declared.place)) continue;
+      const declared = agent;
+      if (!text(declared.place)) continue;
       const capabilities = Array.isArray(declared.capabilities) ? declared.capabilities.filter((each) => typeof each === "string") : [];
       for (const { model, context } of modelsOf(declared)) {
         if (context === null) continue;
         offered.push({ name: `${bridge}:${agent.name}`, type: "CLI agent", model, context, place: declared.place.trim(), capabilities,
           route: `bridge ${bridge} agent ${agent.name}` });
       }
+    }
+  }
+  return offered;
+}
+
+/**
+ * ciAgentsOffered(store: Store) -> Connection[] — this browser's coding agents on CI (`ci-agent:<name>`, in the store's order) that declare a place, one
+ * MOD-participant-list Connection for each model their `models` name with its context, in their order: named `<name>`, the type *CI agent*, that model with
+ * its context, the place and capabilities the setting declares, and the route `ci hosted agent <agent> secret <NAME>`, or `ci runner:<label> agent <agent>
+ * secret <NAME>` for a self-hosted runner. A setting without an agent or a secret offers none. The prompt bar does not offer them (MOD-prompt-bar, Interfaces:
+ * ciAgentsOffered).
+ */
+export function ciAgentsOffered(store) {
+  const offered = [];
+  for (const { key } of listSettings(store)) {
+    if (!key.startsWith("ci-agent:")) continue;
+    const name = key.slice("ci-agent:".length);
+    const setting = readSetting(store, key);
+    if (!setting || typeof setting !== "object" || !text(setting.place) || !text(setting.agent) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(setting.secret))) continue;
+    const runner = text(setting.runner) && text(setting.runner) !== "hosted" ? `runner:${text(setting.runner)}` : "hosted";
+    const capabilities = Array.isArray(setting.capabilities) ? setting.capabilities.filter((each) => typeof each === "string") : [];
+    for (const { model, context } of modelsOf(setting)) {
+      if (context === null) continue;
+      offered.push({ name, type: "CI agent", model, context, place: setting.place.trim(), capabilities,
+        route: `ci ${runner} agent ${text(setting.agent)} secret ${text(setting.secret)}` });
     }
   }
   return offered;

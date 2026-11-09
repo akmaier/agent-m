@@ -142,6 +142,14 @@ export async function testBridge(bridge) {
   return { ...paired, ...agents };
 }
 
+// declareAgent(bridge, agent, declaration) -> Promise<void> — `PUT /v1/agents/{agent}`: the declaration of an agent the Bridge offers — its place, capabilities
+// and models, each with its context —, which the Bridge keeps (MOD-bridge-client, Interfaces: declareAgent; UC-044 step 5).
+export async function declareAgent(bridge, agent, declaration) {
+  const route = apiRoute("PUT", "/v1/agents/{agent}");
+  await call(bridge, route.path.replace("{agent}", encodeURIComponent(agent)), { method: route.method,
+    body: JSON.stringify({ place: declaration.place, capabilities: declaration.capabilities, models: declaration.models }) });
+}
+
 export async function handOver(bridge, job) {
   const route = apiRoute("POST", "/v1/jobs");
   return call(bridge, route.path, { method: route.method, body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit, ...(job.task === undefined ? {} : { task: job.task }) }) });

@@ -65,7 +65,7 @@ export { jobCost } from "./cost.mjs";
 /**
  * One part of a record, as it is appended over time (MOD-job-ledger.md, Data: the appended sections). A `"gate reached"`
  * part is a named gate; a `"question"` part is the other form of the same heading, a question to the author.
- * @typedef {{ part: "taken", at: Date, by: string } | { part: "gate reached", at: Date, gate: string, decider: string } |
+ * @typedef {{ part: "taken", at: Date, by: string, connection?: string, declares?: { context: number, capabilities: string[] } } | { part: "gate reached", at: Date, gate: string, decider: string } |
  *   { part: "question", at: Date, question: string } | { part: "resumed", at: Date, gateRecord: string } |
  *   { part: "job started", at: Date, job: string, kind: string, worksOn: string[] } |
  *   { part: "limits raised", at: Date, by: string, limits: { jobsAtOnce: number, cost: number | null, rounds: number } } |
@@ -365,7 +365,8 @@ function recordFromDocument(doc) {
     destinations: parseDestinations(destinations?.text),
     params: parseFencedJson(parameters?.text, {}),
     path: doc.path,
-    taken: taken ? { at: parseTime(taken.fields.at), by: taken.fields.by } : null,
+    taken: taken ? { at: parseTime(taken.fields.at), by: taken.fields.by,
+      ...(taken.fields.connection ? { connection: taken.fields.connection, declares: decodeJsonField(taken.fields.declares) } : {}) } : null,
     gates,
     question,
     jobs: chunksOf(doc, "## Job started").map((chunk) => ({
@@ -522,7 +523,8 @@ export function appendToRecord(text, part) {
   }
   const at = formatTime(part.at);
   switch (part.part) {
-    case "taken": return appended(text, "## Taken", { at, by: part.by });
+    case "taken": return appended(text, "## Taken", { at, by: part.by, ...(part.connection ? { connection: part.connection,
+      declares: JSON.stringify({ context: part.declares?.context ?? null, capabilities: part.declares?.capabilities ?? [] }) } : {}) });
     case "gate reached": return appended(text, "## Gate reached", { at, gate: part.gate, decider: part.decider });
     case "question": return appended(text, "## Gate reached", { at, question: part.question });
     case "resumed": return appended(text, "## Resumed", { at, "gate record": part.gateRecord });
@@ -552,9 +554,9 @@ export function appendToRecord(text, part) {
 // ---------------------------------------------------------------- takeJob
 
 /**
- * takeJob(host: Host, path: string, by: string, head: string) -> Promise<{ taken: true, commit: string } | { taken: false,
- * by: string | null }> — reads the record at `path` at the commit `head`, and, unless it has been taken, appends `## Taken`
- * (the time of the call and `by`) and commits it on the default branch only on that head. When the branch has moved, the host
+ * takeJob(host: Host, path: string, by: string, head: string, on?: { connection, declares }) -> Promise<{ taken: true, commit: string } |
+ * { taken: false, by: string | null }> — reads the record at `path` at the commit `head`, and, unless it has been taken, appends `## Taken`
+ * (the time of the call and `by`, and with `on`, for a job of the route `any`, the connection it runs on and what that connection declares) and commits it on the default branch only on that head. When the branch has moved, the host
  * refuses with Moved { head }: the record is read again at the head the branch has, and the job is taken there, or — if the
  * record has been taken meanwhile — not, and who took it is reported. A record that is taken at the head read is not
  * committed again. Crosses the network, through the host, and fails as the host fails; a record the commit does not hold fails
@@ -564,7 +566,7 @@ export function appendToRecord(text, part) {
  * @param {string} by
  * @param {string} head
  */
-export async function takeJob(host, path, by, head) {
+export async function takeJob(host, path, by, head, on = null) {
   const { defaultBranch } = await host.repositoryInfo();
   const id = /([^/]+)\.md$/.exec(path)?.[1] ?? path;
   for (let at = head; ; ) {
@@ -574,7 +576,7 @@ export async function takeJob(host, path, by, head) {
     if (taken) return { taken: false, by: taken.by };
     try {
       const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: at,
-        files: [{ path, text: appendToRecord(text, { part: "taken", at: new Date(), by }) }], message: `take ${id} (${by})` });
+        files: [{ path, text: appendToRecord(text, { part: "taken", at: new Date(), by, ...(on ?? {}) }) }], message: `take ${id} (${by})` });
       return { taken: true, commit };
     } catch (error) {
       if (error?.name !== "Moved" || error.head === at) throw error;

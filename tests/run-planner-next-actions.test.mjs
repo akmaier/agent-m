@@ -83,7 +83,7 @@ const workflowWith = (flow = { wip: null, timeBox: null, sprints: false }) => ({
 const PARTICIPANTS = [
   { name: "alice", type: "person", model: null, capabilities: ["read the repository", "write to the repository"], place: null, route: "account alice" },
   { name: "dev-a", type: "CLI agent", model: "model-a", capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "this machine", route: "bridge lab agent claude" },
-  { name: "dev-b", type: "CI agent", model: "model-b", capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "NHR@FAU, Erlangen", route: "ci hosted secret KEY" },
+  { name: "dev-b", type: "CI agent", model: "model-b", capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "NHR@FAU, Erlangen", route: "ci hosted agent claude secret KEY" },
   { name: "dev-c", type: "model endpoint", model: "model-c", capabilities: ["draft text", "read the repository"], place: "this machine", route: "endpoint local" },
 ];
 const assignmentOf = (developers) => readDocument(roleAssignmentSchema, "docs/role-assignments/team1.md",
@@ -112,7 +112,7 @@ const runOf = ({ selection = ALL, jobsAtOnce = 3, jobs = [], state = "running" }
   jobs: jobs.map(({ job, kind = "implement", worksOn }) => ({ job, kind, worksOn })), state });
 const started = (id, worksOn, kind = "implement") => ({ job: id, kind, worksOn });
 
-const startOf = (worksOn, participant = "dev-a", route = "bridge lab") => ({ do: "start", kind: "implement", worksOn, route, participant, job: null, reason: null });
+const startOf = (worksOn, participant = "dev-a", route = "bridge lab agent claude") => ({ do: "start", kind: "implement", worksOn, route, participant, job: null, reason: null });
 const worksOnOf = (actions) => actions.map((action) => action.worksOn).sort();
 const SET_UP_CI = { do: "start", kind: "set-up-ci", worksOn: null, route: null, participant: null, job: null, reason: null };
 const next = (run, over) => {
@@ -127,7 +127,7 @@ const next = (run, over) => {
 // guards: A RUN SETS UP CI BEFORE IT IMPLEMENTS; A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS; UC-043
 // given: a run over ITM-003 and ITM-004, both ready, and a participant who holds the implementing role; the product's CI configuration is (a) not there, (b) not there and the run has started its set-up-ci job, (c) there — the known positive
 // input: nextActions(the run, the facts) of each
-// expect: (a) exactly one action, the start of the kind set-up-ci that names no item, route or participant; (b) none: nothing else starts until its pull request is merged; (c) the starts of ITM-003 and ITM-004 as implement jobs of dev-a on the bridge lab, and no set-up-ci
+// expect: (a) exactly one action, the start of the kind set-up-ci that names no item, route or participant; (b) none: nothing else starts until its pull request is merged; (c) the starts of ITM-003 and ITM-004 as implement jobs of dev-a on its connection "bridge lab agent claude", and no set-up-ci
 test("nextActions starts only the CI setup while the product has no CI configuration, then the implementation", async () => {
   const items = only("ITM-003", "ITM-004");
   const selection = ["ITM-003", "ITM-004"];
@@ -280,7 +280,7 @@ test("nextActions refuses a run whose modules' uses form a cycle, naming its mod
 // guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; UC-043
 // given: ITM-004 ready; the role assignment's Developers are (a) dev-c, a model endpoint that can only draft text and read; (b) dev-a and dev-b, in the register's order dev-b first, dev-b a CI agent on the server's own runners, dev-a a CLI agent on the Bridge lab; the product's resource needs are none, then one that only the Bridge lab reaches, then one that only the runner gpu reaches
 // input: nextActions(the run, the facts) of each
-// expect: (a) none: no holder of the role has what it needs; (b) with no need the start on dev-b's route "ci hosted"; with the Bridge's need, dev-a on "bridge lab"; with the runner's need, none — neither reaches it
+// expect: (a) none: no holder of the role has what it needs; (b) with no need the start on dev-b's route as its record writes it, its connection's "ci hosted agent claude secret KEY"; with the Bridge's need, dev-a on "bridge lab agent claude"; with the runner's need, none — neither reaches it
 test("nextActions gives a job to the first holder of the implementing role whose route reaches the product's resources", async () => {
   const items = only("ITM-004");
   const selection = ["ITM-004"];
@@ -288,8 +288,8 @@ test("nextActions gives a job to the first holder of the implementing role whose
   assert.deepEqual(next(runOf({ selection }), await factsOf({ items, developers: "dev-c" })), []);
   const register = [dev("alice"), dev("dev-b"), dev("dev-a"), dev("dev-c")];
   const withNeeds = (resourceNeeds) => factsOf({ items, developers: "dev-a, dev-b", participants: register, over: { resourceNeeds } });
-  assert.deepEqual(next(runOf({ selection }), await withNeeds([])), [startOf("ITM-004", "dev-b", "ci hosted")]);
-  assert.deepEqual(next(runOf({ selection }), await withNeeds([{ resource: "cluster", route: "bridge lab" }])), [startOf("ITM-004", "dev-a", "bridge lab")]);
+  assert.deepEqual(next(runOf({ selection }), await withNeeds([])), [startOf("ITM-004", "dev-b", "ci hosted agent claude secret KEY")]);
+  assert.deepEqual(next(runOf({ selection }), await withNeeds([{ resource: "cluster", route: "bridge lab" }])), [startOf("ITM-004", "dev-a", "bridge lab agent claude")]);
   assert.deepEqual(next(runOf({ selection }), await withNeeds([{ resource: "card", route: "runner:gpu" }])), []);
 });
 

@@ -2,8 +2,8 @@
 // Interfaces: Connection, participantsOf; MOD-prompt-bar's endpointsOffered and sessionsOffered): a Store of
 // MOD-browser-store held in memory, with the settings a test names written through writeSetting, so that a key the
 // catalogue does not know fails as it would in a browser; and the answers of a Bridge at BRIDGE to MOD-bridge-client's
-// testBridge — GET /v1/pair and GET /v1/agents, listing the agents given ready — and to a job's hand-over, POST /v1/jobs,
-// each hand-over kept. Nothing reaches the network.
+// testBridge — GET /v1/pair and GET /v1/agents, listing the agents given ready, each with the declaration the Bridge keeps for it
+// (MOD-bridge-http, GET /v1/agents) — and to a job's hand-over, POST /v1/jobs, each hand-over kept. Nothing reaches the network.
 //
 // Module: MOD-participant-list
 // Level: fixture
@@ -34,8 +34,8 @@ export function storeWith(settings, instance = "acme/agent-m") {
 }
 
 /**
- * session(models, { place, capabilities }) -> the setting `session:<bridge>:<agent>` (MOD-browser-store, Data): its place, its
- * capabilities, and each model [name, context] it offers.
+ * session(models, { place, capabilities }) -> the declaration a Bridge keeps for one of its agents (MOD-desktop-shell, `agents`), which its
+ * GET /v1/agents lists with the agent: its place, its capabilities, and each model [name, context] it offers.
  */
 export const session = (models, { place = "this machine", capabilities = CODING } = {}) =>
   ({ place, capabilities, models: models.map(([model, context = 200000]) => ({ model, context })) });
@@ -46,9 +46,15 @@ export const bridgeSetting = (token = "pairing-token") => ({ address: BRIDGE, to
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 /**
+ * agent(name, models, options) -> an agent of the fixture Bridge's list: its name, with the declaration session(models, options) gives.
+ */
+export const agent = (name, models, options) => ({ name, ...session(models, options) });
+
+/**
  * bridgeAnswer(agents, handed) -> (url: URL, init) -> Promise<Response | null> — the fixture Bridge's answer to a request for
- * it: testBridge's two requests, listing `agents` ready; a hand-over, kept in `handed` with its body; null for a request to
- * any other address, so that a harness's next handler answers it.
+ * it: testBridge's two requests, listing `agents` ready — each a name, listed without a declaration, or { name, place, capabilities,
+ * models }, listed with that declaration —; a hand-over, kept in `handed` with its body; null for a request to any other address,
+ * so that a harness's next handler answers it.
  */
 export const bridgeAnswer = (agents, handed = []) => async (url, init = {}) => {
   if (url.origin !== BRIDGE) return null;
@@ -57,7 +63,8 @@ export const bridgeAnswer = (agents, handed = []) => async (url, init = {}) => {
     return reply({ bridge: { name: "fixture-bridge", version: "1.0.0", platform: "linux" }, origin: "https://acme.github.io" });
   }
   if (method === "GET" && url.pathname === "/v1/agents") {
-    return reply({ agents: agents.map((name) => ({ name, version: "1.0.0", ready: true, loggedIn: true })), missing: [] });
+    return reply({ agents: agents.map((each) => (typeof each === "string" ? { name: each, place: null, capabilities: [], models: [] } : each))
+      .map(({ name, place = null, capabilities = [], models = [] }) => ({ name, version: "1.0.0", ready: true, loggedIn: true, place, capabilities, models })), missing: [] });
   }
   if (method === "POST" && url.pathname === "/v1/jobs") {
     const body = JSON.parse(init.body ?? "{}");

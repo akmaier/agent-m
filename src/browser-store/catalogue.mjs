@@ -8,8 +8,8 @@ const LITERAL_KEYS = new Set(["github-token", "products", "notifications", "noti
 
 // Key families this item names, each parameterised after its prefix: a GitHub product's own token
 // (A GITHUB PRODUCT USES A TOKEN OF ITS OWN), a GitLab project's access token (A GITLAB PRODUCT USES A PROJECT ACCESS
-// TOKEN), and the CLI session a Bridge offers for an agent (`session:<bridge>:<agent>`).
-const KEY_FAMILIES = [/^github-token:.+$/, /^gitlab-token:.+$/, /^endpoint:.+$/, /^session:.+:[^:]+$/, /^bridge:.+$/, /^remote-session:.+$/, /^last-test:.+$/, /^acknowledged:.+$/, /^resource-key:.+$/];
+// TOKEN), and a coding agent on CI (`ci-agent:<name>`).
+const KEY_FAMILIES = [/^github-token:.+$/, /^gitlab-token:.+$/, /^endpoint:.+$/, /^ci-agent:.+$/, /^bridge:.+$/, /^remote-session:.+$/, /^last-test:.+$/, /^acknowledged:.+$/, /^resource-key:.+$/];
 
 // isKnownKey(key) -> whether `key` is one this item's catalogue names.
 export function isKnownKey(key) {

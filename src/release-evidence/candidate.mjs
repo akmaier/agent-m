@@ -5,31 +5,15 @@
 //
 // Module: MOD-release-evidence
 //
-// Gap, noted rather than designed around (developers.md, "Where the item ... is unclear"): the schedule's "runs on"
-// cell is documented (schedule.schema.md) for the automated levels — hosted CI or a self-hosted runner — and left out
-// where a row names none, which a valid schedule allows (scheduleFindings does not flag an empty cell). The levels
-// "release" and "user" are run by a person as a checklist (this item's own Outcome and MOD-release-evidence.md,
-// Interfaces: startReleaseCandidate), never by CI, so for these two rows alone an empty cell means no one is assigned
-// at all, and NoRunner names the row. For "release" alone, RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER (UC-013
-// 2a) is checked against MOD-job-ledger's listJobs: every job of kind "implement" recorded for this product gives its
-// participant; when the row's named runner is the only one among them (and at least one is recorded), only the
-// implementer could run the release tests, and NoRunner names "release" the same way. Nothing in MOD-job-ledger.md or
-// MOD-release-evidence.md's Interfaces narrows "implementer" further than a job's own kind and participant, so no
-// finer match (by module or by requirement) is built; no item needs either file changed for this.
-//
-// listJobs is async (MOD-job-ledger.md types it JobRow[], without Promise<>; src/job-ledger/index.mjs:373 names the
-// gap and awaits it the same way) — awaited here at the call below, for the same reason this sprint's own record
-// already names (docs/backlog/sprints/team1/12.md, "notes of earlier gates").
+// The complete run is a job without a participant, on the runner each row of the schedule names — `hosted` or `runner:<label>` (MOD-test-schedule) —, so that no
+// implementer runs the release tests (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER). A level whose row names no runner is refused with NoRunner, naming it.
 
-import { listJobs, newJobId } from "../job-ledger/index.mjs";
+import { newJobId } from "../job-ledger/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";
 import { ReleaseEvidenceError } from "./errors.mjs";
 import { scheduleAt, levelRows } from "./schedule.mjs";
 
 const JOB_PATH = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
-// The levels a person runs as a checklist, never CI (this item's Outcome; MOD-test-schedule.md, Data: "user-level
-// tests as a checklist for the people assigned to them").
-const PERSON_RUN_LEVELS = new Set(["release", "user"]);
 
 // The next free N of a candidate tag v<version>-rc.<N>: the greatest N already tagged for this version, plus one, or 1
 // where none stands yet.
@@ -45,25 +29,12 @@ async function nextCandidateNumber(host, version) {
   return highest + 1;
 }
 
-// NoRunner where a person-run level's schedule row names no one, or where "release" names only the implementer
-// (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
-async function checkRunners(rows, host, branchSnapshot) {
+// NoRunner where a level's row of the schedule names no runner.
+function checkRunners(rows) {
   for (const row of rows) {
+    if (String(row.cells["runs on"] ?? "").trim()) continue;
     const level = row.cells.Row;
-    if (!PERSON_RUN_LEVELS.has(level)) continue;
-    const runner = row.cells["runs on"];
-    if (!runner) {
-      throw new ReleaseEvidenceError("NoRunner", { level },
-        `No participant can run the level "${level}" — the schedule names none.`);
-    }
-    if (level !== "release") continue;
-    const jobs = await listJobs([{ address: branchSnapshot.repository.path, snapshot: branchSnapshot }], new Map());
-    const implementers = new Set(
-      jobs.filter((row2) => row2.record.kind === "implement" && row2.record.participant).map((row2) => row2.record.participant));
-    if (implementers.size > 0 && [...implementers].every((p) => p === runner)) {
-      throw new ReleaseEvidenceError("NoRunner", { level },
-        `Only the implementer (${runner}) could run the release tests — RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER.`);
-    }
+    throw new ReleaseEvidenceError("NoRunner", { level }, `No runner runs the level "${level}" — its row of the schedule names none.`);
   }
 }
 
@@ -77,7 +48,7 @@ export async function startReleaseCandidate(host, version, commit, changelog, pe
   const schedule = await scheduleAt(atCommit);
   const rows = levelRows(schedule);
   const branchSnapshot = await host.readSnapshot(info.defaultBranch);
-  await checkRunners(rows, host, branchSnapshot);
+  checkRunners(rows);
 
   const n = await nextCandidateNumber(host, version);
   const tag = `v${version}-rc.${n}`;

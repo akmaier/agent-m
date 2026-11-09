@@ -199,19 +199,17 @@ const DECLARED = { place: "this machine", capabilities: CLI, models: [{ model: "
 
 // TST-1187001 · level: unit · module: MOD-prompt-bar
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049
-// given: a store holding the endpoint complete (place, context, model), the endpoint modelless (no model), and the Bridge mac, which lists its agents claude and codex ready, whose sessions declare: mac:claude the place "this machine", the capabilities it declares and three models — claude-model with the context 200000, claude-small with 100000, and claude-bare without a context; mac:codex the same place and capabilities and no model
+// given: a store holding the endpoint complete (place, context, model), the endpoint modelless (no model), and the Bridge mac, which lists its agents claude and codex ready, each with the declaration the Bridge keeps: mac:claude the place "this machine", the capabilities it declares and three models — claude-model with the context 200000, claude-small with 100000, and claude-bare without a context; mac:codex the same place and capabilities and no model
 // input: offer.mjs's sessionsOffered(store), and endpointsOffered(store)
 // expect: sessionsOffered gives one Connection for each model of mac:claude that names its context, in their order — { name "mac:claude", type "CLI agent", model "claude-model", context 200000, place "this machine", the declared capabilities, route "bridge mac agent claude" } and the same with claude-small and 100000 —, none of claude-bare, which lacks its context, and none of mac:codex, which names no model; after the two requests GET /v1/pair and GET /v1/agents to mac and no other; endpointsOffered gives complete alone
-test("sessionsOffered — each ready agent of a stored Bridge whose session declares a place, once for each model it names with its context", async () => {
+test("sessionsOffered — each ready agent of a stored Bridge whose declaration names a place, once for each model it names with its context", async () => {
   assert.equal(typeof offer.sessionsOffered, "function", "offer.mjs gives sessionsOffered");
   const store = freshStore();
   writeSetting(store, "endpoint:complete", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-x", key: "k", place: "Anthropic, USA", context: 200000 });
   writeSetting(store, "endpoint:modelless", { kind: "openai-compatible", url: "https://models.example/v1", model: "", key: "k", place: "Anthropic, USA", context: 200000 });
   writeSetting(store, "bridge:mac", { address: "http://127.0.0.1:7777", token: "token-mac" });
-  writeSetting(store, "session:mac:claude", { ...DECLARED, models: [{ model: "claude-model", context: 200000 }, { model: "claude-small", context: 100000 },
-    { model: "claude-bare" }] });
-  writeSetting(store, "session:mac:codex", { ...DECLARED, models: [] });
-  const net = bridgesAnswer([{ name: "claude", version: "1", ready: true, loggedIn: true }, { name: "codex", version: "1", ready: true, loggedIn: true }]);
+  const net = bridgesAnswer([{ name: "claude", version: "1", ready: true, loggedIn: true, ...DECLARED, models: [{ model: "claude-model", context: 200000 },
+    { model: "claude-small", context: 100000 }, { model: "claude-bare", context: null }] }, { name: "codex", version: "1", ready: true, loggedIn: true, ...DECLARED, models: [] }]);
   try {
     const of = (model, context) => ({ name: "mac:claude", type: "CLI agent", model, context, place: "this machine", capabilities: CLI, route: "bridge mac agent claude" });
     assert.deepEqual(await offer.sessionsOffered(store), [of("claude-model", 200000), of("claude-small", 100000)]);
@@ -224,33 +222,48 @@ test("sessionsOffered — each ready agent of a stored Bridge whose session decl
 
 // TST-1187002 · level: unit · module: MOD-prompt-bar
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049
-// given: (a) a store that keeps no Bridge; (b) the Bridge mac, which lists its agent claude not ready, its session declared; (c) the Bridge lab, which refuses its token, its session declared; (d) the Bridge far, reached through the jump host at a port, while no jump host is stored, its session declared
+// given: (a) a store that keeps no Bridge; (b) the Bridge mac, which lists its agent claude not ready, with its declaration; (c) the Bridge lab, which refuses its token; (d) the Bridge far, reached through the jump host at a port, while no jump host is stored
 // input: offer.mjs's sessionsOffered(store) for each
 // expect: (a) no session and no request; (b) no session — an agent that is not ready is not offered —, after mac's two requests; (c) no session, after one request, GET /v1/pair to lab, and nothing thrown; (d) no session, no request, and nothing thrown
 test("sessionsOffered — none without a Bridge, none of an agent not ready, none of a Bridge that cannot be tested", async () => {
   assert.equal(typeof offer.sessionsOffered, "function", "offer.mjs gives sessionsOffered");
-  const net = bridgesAnswer([{ name: "claude", version: "1", ready: false, loggedIn: false }]);
+  const net = bridgesAnswer([{ name: "claude", version: "1", ready: false, loggedIn: false, ...DECLARED }]);
   try {
     assert.deepEqual(await offer.sessionsOffered(freshStore()), []);
     assert.deepEqual(net.asked, []);
     const notReady = freshStore();
     writeSetting(notReady, "bridge:mac", { address: "http://127.0.0.1:7777", token: "token-mac" });
-    writeSetting(notReady, "session:mac:claude", DECLARED);
     assert.deepEqual(await offer.sessionsOffered(notReady), []);
     assert.deepEqual(net.asked, ["mac GET /v1/pair", "mac GET /v1/agents"]);
     net.asked.length = 0;
     const refused = freshStore();
     writeSetting(refused, "bridge:lab", { address: "http://127.0.0.1:7778", token: "token-lab" });
-    writeSetting(refused, "session:lab:claude", DECLARED);
     assert.deepEqual(await offer.sessionsOffered(refused), []);
     assert.deepEqual(net.asked, ["lab GET /v1/pair"]);
     net.asked.length = 0;
     const far = freshStore();
     writeSetting(far, "bridge:far", { port: 41001, token: "token-far" });
-    writeSetting(far, "session:far:claude", DECLARED);
     assert.deepEqual(await offer.sessionsOffered(far), []);
     assert.deepEqual(net.asked, []);
   } finally {
     net.restore();
   }
+});
+
+// TST-20261109303 · level: unit · module: MOD-prompt-bar
+// guards: A CONNECTION NAMES THE MODELS IT OFFERS; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-010; UC-017
+// given: a store holding the coding agent on CI dev-ci (claude, the server's runners, the secret CLAUDE_KEY, the place "Anthropic, USA", two models with their contexts and one without), gpu-ci (claude on the self-hosted runner gpu), no-secret (no secret) and no-place (no place)
+// input: ciAgentsOffered(store), and endpointsOffered(store)
+// expect: one Connection of type "CI agent" for each model of dev-ci that names its context, route `ci hosted agent claude secret CLAUDE_KEY`, then gpu-ci's with `ci runner:gpu agent claude secret CLAUDE_KEY`; none of no-secret and no-place; the endpoints give none of them
+test("ciAgentsOffered — each coding agent on CI with a place and a secret, once for each model it names with its context", () => {
+  const store = freshStore();
+  const CI = { agent: "claude", runner: "hosted", secret: "CLAUDE_KEY", place: "Anthropic, USA", capabilities: CLI, models: [{ model: "claude-model", context: 200000 }] };
+  writeSetting(store, "ci-agent:dev-ci", { ...CI, models: [{ model: "claude-model", context: 200000 }, { model: "claude-small", context: 100000 }, { model: "claude-bare" }] });
+  writeSetting(store, "ci-agent:gpu-ci", { ...CI, runner: "gpu" });
+  writeSetting(store, "ci-agent:no-secret", { ...CI, secret: "" });
+  writeSetting(store, "ci-agent:no-place", { ...CI, place: "" });
+  const of = (name, model, context, route) => ({ name, type: "CI agent", model, context, place: "Anthropic, USA", capabilities: CLI, route });
+  assert.deepEqual(promptBar.ciAgentsOffered(store), [of("dev-ci", "claude-model", 200000, "ci hosted agent claude secret CLAUDE_KEY"),
+    of("dev-ci", "claude-small", 100000, "ci hosted agent claude secret CLAUDE_KEY"), of("gpu-ci", "claude-model", 200000, "ci runner:gpu agent claude secret CLAUDE_KEY")]);
+  assert.deepEqual(promptBar.endpointsOffered(store), []);
 });

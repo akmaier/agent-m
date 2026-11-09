@@ -369,8 +369,8 @@ test("TST-740210: UC-024 6, 7, 3a the panel names the target branch and the gate
 // guards: UC-024; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: the planned product, ITM-101 and ITM-103 ready; dev-a's connection is the coding agent claude of the Bridge lab-pc, which answered when the page was drawn and gives no answer once Start jobs hands it a job
 // input: the author presses Start jobs
-// expect: 7a: the result names, for each step, that the Bridge gave no answer; the Bridge took no job
-test("TST-740211: UC-024 7a a Bridge that does not answer is named and nothing is started", async () => {
+// expect: 7a: the result names, for each step, that the Bridge gave no answer, and that its job stays queued — its start record committed —; the Bridge took no job
+test("TST-740211: UC-024 7a a Bridge that does not answer is named and the job stays queued", async () => {
   const handed = [];
   const answering = (await import("./browser-connections-fixture.mjs")).bridgeAnswer(["claude", "codex"], handed);
   const bridge = async (url, init = {}) => {
@@ -385,6 +385,7 @@ test("TST-740211: UC-024 7a a Bridge that does not answer is named and nothing i
     const result = textOf(found(page.target, "[data-start-result]")[0]);
     assert.match(result, /ITM-101: The Bridge gave no answer/);
     assert.match(result, /ITM-103: The Bridge gave no answer/);
+    assert.match(result, /ITM-101: The Bridge gave no answer[^;]*; its start record is committed and stays queued/);
     assert.deepEqual(handed, [], "the Bridge took no job");
   } finally { page.done(); }
 });

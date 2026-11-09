@@ -304,16 +304,17 @@ test("onRecordsChanged — a result equal to the current files ends done with no
 
 // TST-473206 · level: unit · module: MOD-workflow-entries
 // guards: UC-010; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A CI AGENT'S DRAFT ENTERS AS OPEN
-// given: a product with another queued job and no record of the one started, and a start from the server's own page with the inputs job, kind, participant, works_on and the parameters
+// given: a product with another queued job and no record of the one started, and a start from the server's own page with the inputs job, kind, participant, works_on and the parameters, and its connection: the input endpoint — its kind, address, model and context — and the input secret FIXTURE_KEY
 // input: onDispatch, the event's payload read from the file GITHUB_EVENT_PATH names
-// expect: outcome `done`; the start record committed at docs/jobs/<job>.md — route `ci hosted`, started by the actor, the inputs' parameters —, then taken and run as a queued job is: the writer's commit and the End; the other queued job is left as it is
+// expect: outcome `done`; the start record committed at docs/jobs/<job>.md — route `ci hosted endpoint ci-bot secret FIXTURE_KEY`, declaring the endpoint's context, started by the actor, the inputs' parameters —, then taken and run as a queued job is: the writer's commit and the End; the other queued job is left as it is
 test("onDispatch — a dispatched job is started and run", async () => {
   fakeEndpoint();
   const id = "JOB-20261008-0900-d1e2";
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
     const payload = join(w.root, "event.json");
     const queued = fileAt(w, `docs/jobs/${JOB}.md`);
-    writeFileSync(payload, JSON.stringify({ inputs: { job: id, kind: "decide-gate", participant: "ci-bot", works_on: "A LOAN HAS A DUE DATE", parameters: JSON.stringify({ endpoint: ENDPOINT }) } }));
+    writeFileSync(payload, JSON.stringify({ inputs: { job: id, kind: "decide-gate", participant: "ci-bot", works_on: "A LOAN HAS A DUE DATE", parameters: JSON.stringify({ endpoint: ENDPOINT }),
+      endpoint: JSON.stringify({ kind: ENDPOINT.kind, baseUrl: ENDPOINT.baseUrl, model: ENDPOINT.model, context: 200000 }), secret: "FIXTURE_KEY" } }));
     assert.ok(runEntry, `runEntry: ${entries.error?.message}`);
     const status = await runEntry("onDispatch", environment(w, { GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_EVENT_PATH: payload }), { now: NOW });
     assert.equal(status.outcome, "done");
@@ -321,7 +322,8 @@ test("onDispatch — a dispatched job is started and run", async () => {
     assert.ok(log[0].startsWith(`end ${id}`) && log[1] === "gate fixture decided" && log[2].startsWith(`take ${id}`) && log[3].includes(id), log.join(" | "));
     const record = fileAt(w, `docs/jobs/${id}.md`);
     assert.match(record, /kind: decide-gate/);
-    assert.match(record, /route: ci hosted/);
+    assert.match(record, /route: ci hosted endpoint ci-bot secret FIXTURE_KEY/);
+    assert.match(record, /declares: \{"context":200000,/);
     assert.match(record, /started_by: alice/);
     assert.match(record, /baseUrl/);
     assert.match(record, /## End[^]*state: done/);

@@ -19,6 +19,7 @@ import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs"
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, CLEARED_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
+import { ciAgentsPanel } from "./ci-agents.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
 import { settingsSubject } from "./subject.mjs";
 import { heads } from "./routes.mjs";
@@ -230,10 +231,6 @@ function bridgeTestFailure(error) {
   return error?.message ?? String(error);
 }
 
-// The CLI sessions this browser declares for the Bridge `name`: its `session:<name>:<agent>` settings, by their agents.
-const sessionsOnBridge = (store, name) => listSettings(store).map((setting) => setting.key)
-  .filter((key) => key.startsWith(`session:${name}:`)).map((key) => key.slice(`session:${name}:`.length));
-
 // The resources of the list docs/resources.md of a repository whose route is exactly `bridge <name>`, by their names (MOD-resource-list, Data: Route); a repository that holds no list has none.
 async function resourcesOnBridge(host, name) {
   const { defaultBranch } = await host.repositoryInfo();
@@ -245,12 +242,11 @@ async function resourcesOnBridge(host, name) {
     .filter(({ cells }) => /^bridge (\S+)$/.exec(String(cells.Route ?? "").trim())?.[1] === name).map(({ cells }) => cells.Name);
 }
 
-// What clearing the Bridge `name` stops working in this browser, said before it is cleared (UC-042, 2a): the endpoints, the CLI sessions, the resources of the instance and of the chosen
+// What clearing the Bridge `name` stops working in this browser, said before it is cleared (UC-042, 2a): the endpoints, the resources of the instance and of the chosen
 // product, and the mailbox that name it. Resources that cannot be read are said to be unread, never left out as if there were none.
 async function clearingConsequence(context, name) {
   const endpoints = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
     .filter((setting) => readSetting(context.store, setting.key)?.bridge === name).map((setting) => endpointName(setting.key));
-  const sessions = sessionsOnBridge(context.store, name);
   const lists = [];
   for (const [label, host] of [["instance", context.instance?.host], ["product", context.product?.host]]) {
     if (!host) continue;
@@ -260,7 +256,6 @@ async function clearingConsequence(context, name) {
   const plural = (list, one, many) => (list.length === 1 ? one : many);
   const sentences = [
     ...(endpoints.length ? [`${plural(endpoints, "The endpoint", "The endpoints")} ${endpoints.join(", ")} ${plural(endpoints, "names", "name")} it.`] : []),
-    ...(sessions.length ? [`${plural(sessions, "The CLI session", "The CLI sessions")} ${sessions.join(", ")} ${plural(sessions, "is", "are")} declared on it.`] : []),
     ...lists.flatMap(({ label, names, unread: why }) => [
       ...(names.length ? [`${plural(names, "The resource", "The resources")} ${names.join(", ")} of the ${label} ${plural(names, "names", "name")} it.`] : []),
       ...(why ? [`The ${label}'s resources could not be read (${why}), so those that name it are not listed.`] : []),
@@ -882,43 +877,6 @@ function remoteSessionLine(target, context, info) {
   );
 }
 
-// A CLI session a Bridge offers, kept under `session:<bridge>:<agent>` (MOD-browser-store): its line shows the label and no value; Test asks the Bridge `<bridge>` whether it still offers `<agent>`.
-function sessionLine(target, context, info) {
-  if (!info.key.startsWith("session:") || !readSetting(context.store, info.key)) return null;
-  const rest = info.key.slice("session:".length);
-  const bridgeName = rest.slice(0, rest.lastIndexOf(":")), agent = rest.slice(rest.lastIndexOf(":") + 1);
-  const test = el("button", "settings-session-test btn", "Test");
-  const change = el("button", "settings-session-change btn", "Change");
-  const clear = el("button", "settings-session-clear btn", "Clear");
-  const result = el("p", "settings-session-result");
-  const status = el("p", "settings-session-status", stateText(info.lastTest));
-  change.addEventListener("click", () => context.go("bridge", { name: bridgeName }));
-  test.addEventListener("click", async () => {
-    let lastTest;
-    try {
-      const entry = readSetting(context.store, `bridge:${bridgeName}`);
-      if (!entry || typeof entry !== "object") throw new Error(`This browser does not keep a Bridge named ${bridgeName}. Pair it on the Bridge page.`);
-      const settings = settingsOf({ name: bridgeName, ...entry }, readSetting(context.store, "jump-host"));
-      result.textContent = `Asking ${bridgeName} at ${settings.address} for its agents…`;
-      const answer = await testBridge(bridgeAt(settings));
-      const offered = (answer.agents ?? []).some((candidate) => candidate.name === agent);
-      lastTest = { at: new Date().toISOString(), outcome: offered ? "working" : "refused" };
-      result.textContent = offered ? `✓ ${bridgeName} still offers ${agent}.` : `✗ ${bridgeName} answers, but does not offer ${agent}.`;
-    } catch (error) {
-      lastTest = { at: new Date().toISOString(), outcome: "refused" };
-      result.textContent = `✗ ${bridgeTestFailure(error)}`;
-    }
-    writeSetting(context.store, `last-test:${info.key}`, lastTest);
-    status.textContent = stateText(lastTest);
-  });
-  clear.addEventListener("click", async () => {
-    clearSetting(context.store, info.key);
-    clearSetting(context.store, `last-test:${info.key}`);
-    await route.render(target, context, {});
-  });
-  return el("section", "settings-session panel", el("h3", null, info.label), status, el("p", null, test, " ", change, " ", clear), result);
-}
-
 // On GitLab, which gives a job every CI/CD variable not scoped to an environment, the scope each variable the job workflow reads needs (MOD-runtimes'
 // gitlabVariableScopes), and the state of the project's variables as its server lists them — names and scopes, never a value. The setup is called safe only
 // where every variable stands with exactly the scopes it needs; a variable missing a scope, one with another scope, and a list the server refuses are named.
@@ -1323,7 +1281,6 @@ export const route = {
     const bridge = bridgeLine(target, inPlace);
     const jumpHost = jumpHostLine(target, inPlace);
     const remoteSessions = listSettings(context.store).map((info) => remoteSessionLine(target, inPlace, info)).filter(Boolean);
-    const sessions = listSettings(context.store).map((info) => sessionLine(target, inPlace, info)).filter(Boolean);
     const namedBridges = listSettings(context.store).filter((info) => info.key.startsWith("bridge:"))
       .map((info) => bridgeNamedLine(target, inPlace, info)).filter(Boolean);
     const general = el("section", "settings-tab-panel",
@@ -1347,10 +1304,10 @@ export const route = {
       el("h3", null, "Endpoints & Agents · this browser"),
       configurationControls(inPlace), form,
       ...(bridge ? [bridge] : []), ...namedBridges, ...(jumpHost ? [jumpHost] : []),
-      ...remoteSessions, ...sessions,
+      ...remoteSessions,
       mailboxSetting(inPlace),
       ...(given[CLEARED] ? [el("p", "settings-endpoint-cleared", given[CLEARED])] : []),
-      endpoints);
+      endpoints, ciAgentsPanel(context.store));
     const usability = el("section", "settings-tab-panel",
       el("h3", null, "Usability · this browser"), notificationsControls(context));
     const tabbed = tabbedSettings([

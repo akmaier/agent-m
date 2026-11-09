@@ -23,7 +23,7 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { mailbox, providerLinks, routeFor, signIn } from "../mail-routes/index.mjs";
 import { pagesAddress } from "../identifiers/index.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { heads } from "./routes.mjs";
 
@@ -61,7 +61,7 @@ function bridgesOf(store) {
 // The processing places this browser's connections declare, once each, in the order they stand: the endpoints and CLI sessions the prompt bar offers
 // (A CONNECTION DECLARES WHERE IT PROCESSES DATA), read with the bar's own endpointsOffered and sessionsOffered.
 async function placesOf(context) {
-  const places = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)].map((connection) => connection.place);
+  const places = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)].map((connection) => connection.place);
   return [...new Set(places.filter((place) => place && place !== "—"))];
 }
 

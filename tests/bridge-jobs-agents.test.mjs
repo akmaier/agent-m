@@ -86,7 +86,9 @@ const call = async (handlers, key, { params = {}, body = {} } = {}) => {
   if (key === "POST /v1/ask") asked.push({ handlers, ask: answer.ask });
   return answer;
 };
-const offered = (machine, ...names) => names.map((name) => ({ name, folder: machine.folders[name] }));
+// Each offered agent with its declaration as the Bridge's settings keep it; GET /v1/agents lists it with the agent.
+const DECLARED = { place: "this machine", capabilities: ["draft text", "run code and tests"], models: [{ model: "fixture-model", context: 200000 }] };
+const offered = (machine, ...names) => names.map((name) => ({ name, folder: machine.folders[name], ...DECLARED }));
 async function rejection(promise) {
   try { await promise; } catch (error) { return error; }
   assert.fail("the call was not refused");
@@ -107,14 +109,14 @@ async function until(condition, what) {
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; UC-011; UC-017
 // given: a computer with claude (version 2.1.300, logged in) and codex (installed) and no opencode; settings that name claude and opencode with working folders
 // input: GET /v1/agents
-// expect: agents holding claude alone — its version, ready true, logged in true; missing holding opencode alone; codex, installed and not offered, in neither list; no agent was given a task
+// expect: agents holding claude alone — its version, ready true, logged in true, and its declaration as the settings keep it; missing holding opencode alone; codex, installed and not offered, in neither list; no agent was given a task
 test("GET /v1/agents — the offered agents, and the supported agents missing; an installed agent that is not offered is left out", async () => {
   const machine = computer({ claude: { loggedIn: true }, codex: {} });
   await onComputer(machine, async () => {
     const handlers = jobHandlers({ enclosures: openEnclosures(), agents: offered(machine, "claude", "opencode") });
     const answer = await call(handlers, "GET /v1/agents");
 
-    assert.deepEqual(answer, { agents: [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true }], missing: [{ name: "opencode" }] });
+    assert.deepEqual(answer, { agents: [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true, ...DECLARED }], missing: [{ name: "opencode" }] });
     assert.ok(machine.calls().length >= 2 && machine.calls().every((line) => /--version|auth status|login status/.test(line)), machine.calls().join("; "));
   });
 });
@@ -131,7 +133,7 @@ test("TST-1381003: without a working enclosure an agent is not ready, and neithe
       [openEnclosures({ works: { works: false, reason: "bwrap: not found", setup: "an administrator installs the package bubblewrap" } }), /bwrap: not found.*an administrator installs the package bubblewrap/]];
     for (const [enclosures, why] of cases) {
       const handlers = jobHandlers({ ...(enclosures ? { enclosures } : {}), agents: offered(machine, "claude") });
-      assert.deepEqual((await call(handlers, "GET /v1/agents")).agents, [{ name: "claude", version: "2.1.300", ready: false, loggedIn: false }]);
+      assert.deepEqual((await call(handlers, "GET /v1/agents")).agents, [{ name: "claude", version: "2.1.300", ready: false, loggedIn: false, ...DECLARED }]);
       const probe = await call(handlers, "POST /v1/probes/agent", { body: { args: { agent: "claude" } } });
       assert.equal(probe.answer.answered, false);
       assert.match(probe.answer.reason, why);
@@ -152,10 +154,10 @@ test("TST-1381003: without a working enclosure an agent is not ready, and neithe
 test("GET /v1/agents — an agent not logged in, or without a working folder, is not ready", async () => {
   const machine = computer({ claude: { loggedIn: false }, codex: {} });
   await onComputer(machine, async () => {
-    const handlers = jobHandlers({ enclosures: openEnclosures(), agents: [{ name: "claude", folder: machine.folders.claude }, { name: "codex", folder: "" }] });
+    const handlers = jobHandlers({ enclosures: openEnclosures(), agents: [{ name: "claude", folder: machine.folders.claude, ...DECLARED }, { name: "codex", folder: "" }] });
     const { agents, missing } = await call(handlers, "GET /v1/agents");
 
-    assert.deepEqual(agents, [{ name: "claude", version: "2.1.300", ready: false, loggedIn: false }, { name: "codex", version: "1.2.3", ready: false, loggedIn: true }]);
+    assert.deepEqual(agents, [{ name: "claude", version: "2.1.300", ready: false, loggedIn: false, ...DECLARED }, { name: "codex", version: "1.2.3", ready: false, loggedIn: true, place: null, capabilities: [], models: [] }]);
     assert.deepEqual(missing, [{ name: "opencode" }]);
   });
 });

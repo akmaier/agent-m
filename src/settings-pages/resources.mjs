@@ -34,7 +34,7 @@ import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, schemaForm } from "../site-frame/index.mjs";
 import { credentialsFor } from "./products.mjs";
 import { heads } from "./routes.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 const PATH = "docs/resources.md";
 const PARTICIPANTS = "docs/participants.md";
@@ -288,7 +288,7 @@ export const route = {
         const instanceInfo = await context.instance.host.repositoryInfo();
         const instanceSnapshot = place.ofInstance ? opened.snapshot : await context.instance.host.readSnapshot(instanceInfo.defaultBranch);
         const register = await instanceSnapshot.read(PARTICIPANTS);
-        const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+        const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
         const participants = register === null ? [] : participantsOf(readRegister(participantSchema(), PARTICIPANTS, register).document, connections);
         const jobWorkflow = WORKFLOWS.some((path) => opened.snapshot.paths.includes(path));
         const need = [{ resource: resource.name, route: `runner:${label}` }];

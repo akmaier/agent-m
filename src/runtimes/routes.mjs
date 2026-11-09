@@ -4,8 +4,9 @@
 // Module: MOD-runtimes
 //
 // A participant's route is its connection's (MOD-participant-list, Interfaces: Connection): `endpoint <name>` for a model endpoint, which
-// may add ` secret <NAME>`, the CI secret of its key; `bridge <bridge> agent <agent>` for a coding agent a Bridge offers; a route
-// `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>` is read as the server's own runners or that runner. A participant without
+// may add ` secret <NAME>`, the CI secret of its key; `bridge <bridge> agent <agent>` for a coding agent a Bridge offers;
+// `ci hosted agent <agent> secret <NAME>` or `ci runner:<label> agent <agent> secret <NAME>` for a coding agent on CI, on the server's own
+// runners or that runner. A participant without
 // a route — a person, an agent no connection offers — has none. Participant is MOD-participant-list's type, Route MOD-runtimes' own
 // (index.mjs).
 
@@ -16,7 +17,7 @@ const WORKFLOW_FILES = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-j
 function routeOf(row) {
   const text = String(row ?? "").trim();
   if (/^endpoint\s+\S+/.test(text)) return { kind: "tab" };
-  const ci = /^ci\s+(hosted|runner:(\S+))\s+secret\s+\S+/.exec(text);
+  const ci = /^ci\s+(hosted|runner:(\S+))\s+(?:agent\s+\S+\s+)?secret\s+\S+/.exec(text);
   if (ci) return { kind: "ci", runner: ci[2] ?? "hosted" };
   const bridge = /^bridge\s+(\S+)\s+agent\s+\S+/.exec(text);
   return bridge ? { kind: "bridge", bridge: bridge[1] } : null;

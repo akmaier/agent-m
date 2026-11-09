@@ -41,13 +41,15 @@ import { declarationSchema } from "../product-process/index.mjs";
 import { declaredModelOf, modelFirst } from "./plan.mjs";
 import { asOfLine, chartBlock, drawCharts, mergedAtOf, remainingOverTime, startWorkLink, workFacts } from "./progress.mjs";
 import { heads } from "./routes.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 // The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
 // agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
 const recordRoute = (route, participant = null) => {
   const connection = String(participant?.route ?? "").trim();
   if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
   const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
   return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
 };
@@ -679,7 +681,7 @@ export async function participantsIn(context, given = null) {
   const snapshot = given ?? await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
   const register = await snapshot.read(REGISTER);
   if (register === null) return [];
-  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
   return participantsOf(readDocument(participantSchema(), REGISTER, register), connections);
 }
 

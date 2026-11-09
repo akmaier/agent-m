@@ -11,7 +11,7 @@ import { readSetting, secretValues } from "../browser-store/index.mjs";
 import { documentFindings, readDocument, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, productWorkflow } from "../product-process/index.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -173,7 +173,7 @@ export const route = {
       target.replaceChildren(el("section", "head", el("h2", null, "Participants")), el("p", "participants-unreadable", `The participants register could not be read: ${error?.message ?? error}.`));
       return;
     }
-    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
     const models = modelsOffered(connections);
     const productUse = productUseBasis(context, opened).catch(() => []);
 

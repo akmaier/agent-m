@@ -26,7 +26,7 @@ export async function serveBridge(config, handlers) {
     const log = (status) => console.info(JSON.stringify({ method: request.method, path, status, duration: Date.now() - started }));
     if (origin !== config.origin) { error(response, 403, "origin-refused", "Bridge origin refused."); log(403); return; }
     if (request.method === "OPTIONS") {
-      const headers = { "access-control-allow-origin": config.origin, "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type, x-agent-m-bridge-token", vary: "Origin" };
+      const headers = { "access-control-allow-origin": config.origin, "access-control-allow-methods": "GET, POST, PUT, OPTIONS", "access-control-allow-headers": "content-type, x-agent-m-bridge-token", vary: "Origin" };
       if (request.headers["access-control-request-private-network"] === "true") headers["access-control-allow-private-network"] = "true";
       response.writeHead(204, headers);
       response.end(); log(204); return;
@@ -67,12 +67,12 @@ export async function serveBridge(config, handlers) {
     }
     if (route.path !== "/v1/probes/{kind}") {
       let body = {};
-      if (request.method === "POST") {
+      if (request.method === "POST" || request.method === "PUT") {
         let text = ""; for await (const chunk of request) text += chunk;
         try { body = text ? JSON.parse(text) : {}; } catch { error(response, 422, "invalid-request", "Bridge request is not JSON.", config.origin); log(422); return; }
       }
       if (route.path === "/v1/jobs" && request.method === "POST" && !validJobRequest(body)) { error(response, 422, "invalid-request", "Job hand-over is invalid.", config.origin); log(422); return; }
-      const key = `${route.method} ${route.path}`, handler = handlers.jobs?.[key];
+      const key = `${route.method} ${route.path}`, handler = handlers.settings?.[key] ?? handlers.jobs?.[key];
       if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
       try { reply(response, 200, await handler({ params, query: Object.fromEntries(new URL(request.url, "http://localhost").searchParams), body }), config.origin); log(200); }
       catch (failure) { const code = Object.hasOwn(bridgeApi.errors, failure.code) ? failure.code : "upstream-failed"; error(response, bridgeApi.errors[code], code, failure.message || "Bridge handler failed.", config.origin); log(bridgeApi.errors[code]); }

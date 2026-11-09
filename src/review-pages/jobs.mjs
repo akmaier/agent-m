@@ -26,7 +26,7 @@ import { editedResult, flagged, passagesLine, placeLine, shownOnPanel, showCurre
 import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
-import { endpointsOffered, sessionsOffered, throughActions } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered, throughActions } from "../prompt-bar/index.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -38,6 +38,8 @@ const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 const recordRoute = (route, participant = null) => {
   const connection = String(participant?.route ?? "").trim();
   if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
   const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
   return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
 };
@@ -73,7 +75,7 @@ export async function loadStage(where, jobKind, instance = null) {
   const instanceSnapshot = instance ?? (context.product ? await defaultSnapshot(context.instance.host) : snapshot);
   const register = await instanceSnapshot.read(REGISTER);
   // The instance's participants on this browser's connections (MOD-prompt-bar's endpointsOffered and sessionsOffered).
-  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+  const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
   const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register), connections);
   const info = await host.repositoryInfo();
   const product = { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) };

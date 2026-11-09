@@ -37,11 +37,38 @@ function jumpHostOf(value) {
   return { hostname: text(value.hostname), user: text(value.user), sshPort: value.sshPort };
 }
 
+// The capabilities an agent's declaration presets, every one (MOD-desktop-shell, Data structures).
+export const CAPABILITIES = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"];
+
+// An agent's declaration as a connection, as the settings keep it: its place, *this machine* preset; its capabilities, every one preset; its models, each
+// with its context in tokens.
+function declarationOf(value) {
+  const place = text(value?.place)?.trim() || "this machine";
+  const capabilities = Array.isArray(value?.capabilities) ? CAPABILITIES.filter((each) => value.capabilities.includes(each)) : [...CAPABILITIES];
+  const models = Array.isArray(value?.models) ? value.models.filter((each) => object(each) && text(each.model)?.trim())
+    .map((each) => ({ model: each.model.trim(), context: Number.isInteger(each.context) && each.context > 0 ? each.context : null })) : [];
+  return { place, capabilities, models };
+}
+
 function agentOf(value) {
   if (!object(value)) return null;
   const name = text(value.name);
   const folder = text(value.folder);
-  return name && folder ? { name, folder } : null;
+  return name && folder ? { name, folder, ...declarationOf(value) } : null;
+}
+
+// declareAgent(dataFolder, agent, declaration) -> settings — keeps the declaration of an agent the Bridge offers (`PUT /v1/agents/{agent}`, UC-044 step 5): its place,
+// capabilities and models, each with its context in tokens. An agent the Bridge does not offer fails with NotOffered; a declaration without a place, or with a model
+// without a context in tokens, with InvalidSettings; nothing is written then.
+export function declareAgent(dataFolder, agent, declaration) {
+  const settings = loadSettings(dataFolder);
+  if (!settings.agents.some((each) => each.name === agent)) throw namedError("NotOffered", `The Bridge does not offer the agent ${agent}.`);
+  const models = Array.isArray(declaration?.models) ? declaration.models : null;
+  if (!text(declaration?.place)?.trim() || !Array.isArray(declaration?.capabilities) || !models
+    || models.some((each) => !object(each) || !text(each.model)?.trim() || !Number.isInteger(each.context) || each.context <= 0)) {
+    throw namedError("InvalidSettings", "A declaration names a place, its capabilities, and each model with its context in tokens.");
+  }
+  return saveSettings(dataFolder, { ...settings, agents: settings.agents.map((each) => (each.name === agent ? { ...each, ...declarationOf(declaration) } : each)) });
 }
 
 function tunnelOf(dataFolder, value) {
@@ -104,6 +131,24 @@ export function saveSettings(dataFolder, value) {
   ownFolder(dataFolder);
   writeFileSync(fileOf(dataFolder), JSON.stringify(settings), { encoding: "utf8", mode: 0o600 });
   return settings;
+}
+
+// The shell's own handler: `PUT /v1/agents/{agent}` keeps an agent's declaration in the settings, and in the agents the Bridge's handlers and its watching hold.
+export function composeSettingsHandlers(settings, dataFolder) {
+  return {
+    "PUT /v1/agents/{agent}": async ({ params, body }) => {
+      let kept;
+      try { kept = declareAgent(dataFolder, decodeURIComponent(params.agent), body); }
+      catch (error) {
+        if (error?.name === "NotOffered") throw Object.assign(new Error(error.message), { code: "not-found" });
+        if (error?.name === "InvalidSettings") throw Object.assign(new Error(error.message), { code: "invalid-request" });
+        throw error;
+      }
+      const declared = kept.agents.find((each) => each.name === decodeURIComponent(params.agent));
+      for (const agent of settings.agents ?? []) if (agent.name === declared.name) Object.assign(agent, { place: declared.place, capabilities: declared.capabilities, models: declared.models });
+      return { declared: true };
+    },
+  };
 }
 
 function jumpHostBridges(settings) {

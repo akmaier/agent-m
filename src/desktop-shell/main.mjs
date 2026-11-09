@@ -8,7 +8,7 @@ import { listJobs, testAccess } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
 import { createUpdates } from "./updates.mjs";
-import { loadSettings, saveSettings, setJumpHost, takeExport } from "./settings.mjs";
+import { CAPABILITIES, loadSettings, saveSettings, setJumpHost, takeExport } from "./settings.mjs";
 
 let tray;
 
@@ -115,7 +115,7 @@ export async function start(electron, supplied = {}) {
       return updates.install(value);
     }
     if (startupFailure) return bridgeState();
-    if (action === "agents") return { platform: platformName(), agents: await installedAgents(), selected: bridge.settings.agents, enclosures: await enclosureStates() };
+    if (action === "agents") return { platform: platformName(), agents: await installedAgents(), selected: bridge.settings.agents, enclosures: await enclosureStates(), capabilities: CAPABILITIES };
     // The one-time step of an agent's enclosure, where the Bridge can take it (on Windows, through the elevation prompt), and the agent's own login step,
     // in a terminal in its enclosure (ARC-054).
     if (action === "enclosure-setup") return enclosureFor(value?.name).setUp();

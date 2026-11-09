@@ -46,15 +46,16 @@ const field = (label, value, type = "text") => {
 const area = (label, value) => { const input = document.createElement("textarea"), caption = document.createElement("label"); input.value = value ?? ""; caption.textContent = label; caption.append(input); return { caption, input }; };
 const installUrl = (agent, platform) => agent.install?.[platform] ?? Object.values(agent.install ?? {})[0] ?? null;
 async function agents(target, context) {
-  const state = await window.bridge.state("agents"), selected = new Map((state.selected ?? []).map((agent) => [agent.name, agent.folder]));
+  const state = await window.bridge.state("agents"), selected = new Map((state.selected ?? []).map((agent) => [agent.name, agent]));
   const heading = document.createElement("h1"), list = document.createElement("div"), result = document.createElement("p"), rows = [];
   heading.textContent = "Bridge agents";
   for (const agent of state.agents ?? []) {
     const row = document.createElement("p"), name = document.createElement("strong"), status = document.createElement("span");
     name.textContent = agent.name;
     if (agent.installed) {
-      const tick = document.createElement("input"), folder = field(" Working folder", selected.get(agent.name) ?? "");
-      tick.type = "checkbox"; tick.checked = selected.has(agent.name);
+      const kept = selected.get(agent.name) ?? null;
+      const tick = document.createElement("input"), folder = field(" Working folder", kept?.folder ?? "");
+      tick.type = "checkbox"; tick.checked = kept !== null;
       status.textContent = ` ${agent.version ?? "installed"}${agent.loggedIn === false ? " not logged in" : " ready"}`;
       const choose = button("Choose folder", async () => { const chosen = await window.bridge.chooseFolder(); if (chosen) { folder.input.value = chosen; tick.checked = true; } }, "small");
       row.append(tick, name, status, folder.caption, choose);
@@ -73,7 +74,20 @@ async function agents(target, context) {
           row.append(line);
         }
       }
-      rows.push({ agent, tick, folder: folder.input });
+      // Its declaration as a connection (UC-044 step 5): the place where it processes data, this machine preset; its capabilities, every one preset; each model it can
+      // run with its context in tokens, one per line as `<model> <context>`.
+      const declaration = document.createElement("span"), place = field(" Place", kept?.place ?? "this machine"), ticks = [];
+      declaration.append(place.caption);
+      for (const capability of state.capabilities ?? []) {
+        const box = field(` ${capability}`, "", "checkbox");
+        box.input.checked = kept ? (kept.capabilities ?? []).includes(capability) : true;
+        ticks.push([capability, box.input]);
+        declaration.append(box.caption);
+      }
+      const models = area(" Models, one per line: model and context in tokens", (kept?.models ?? []).map((each) => `${each.model} ${each.context ?? ""}`.trim()).join("\n"));
+      declaration.append(models.caption);
+      row.append(declaration);
+      rows.push({ agent, tick, folder: folder.input, place: place.input, ticks, models: models.input });
     } else {
       const link = document.createElement("a");
       link.textContent = "How to install";
@@ -86,7 +100,9 @@ async function agents(target, context) {
   }
   const save = button("Save agents", async () => {
     const agents = rows.filter(({ agent, tick, folder }) => agent.installed && tick.checked && folder.value)
-      .map(({ agent, folder }) => ({ name: agent.name, folder: folder.value }));
+      .map(({ agent, folder, place, ticks, models }) => ({ name: agent.name, folder: folder.value, place: place.value.trim() || "this machine",
+        capabilities: ticks.filter(([, box]) => box.checked).map(([capability]) => capability),
+        models: models.value.split("\n").map((line) => line.trim().split(/\s+/)).filter(([model]) => model).map(([model, context]) => ({ model, context: Number(context) || null })) }));
     await window.bridge.state("save-agents", { agents });
     result.textContent = `Saved ${agents.length} agent(s).`;
   }, "primary");

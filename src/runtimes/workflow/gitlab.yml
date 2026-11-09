@@ -30,6 +30,7 @@ spec:
     AGENT_M_INSTANCE: "@@repository@@"
     AGENT_M_COMMIT: "@@commit@@"
     AGENT_M_KEY_NAMES: "@@key-names@@"
+    AGENT_M_CI_AGENTS: @@ci-agents@@
     AGENT_M_INPUT_JOB: $[[ inputs.job ]]
     AGENT_M_INPUT_TASK: $[[ inputs.task ]]
     AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]
@@ -66,6 +67,7 @@ spec:
     AGENT_M_PART: "write"
     AGENT_M_TOKEN_NAME: "@@token@@"
     AGENT_M_KEY_NAMES: "@@key-names@@"
+    AGENT_M_CI_AGENTS: @@ci-agents@@
     AGENT_M_INPUT_JOB: $[[ inputs.job ]]
     AGENT_M_INPUT_TASK: $[[ inputs.task ]]
     AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]
@@ -141,6 +143,7 @@ spec:
     GIT_DEPTH: 0
     AGENT_M_MODEL_USER: "agent-m-model"
     AGENT_M_KEY_NAMES: "@@key-names@@"
+    AGENT_M_CI_AGENTS: @@ci-agents@@
     AGENT_M_KEY: "@@agent@@"
     AGENT_M_INPUT_JOB: $[[ inputs.job ]]
     AGENT_M_INPUT_TASK: $[[ inputs.task ]]

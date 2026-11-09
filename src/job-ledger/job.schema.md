@@ -62,7 +62,9 @@ example shows.
   "appended": [
     { "heading": "## Taken", "repeat": false, "fields": {
       "at": { "type": "time", "required": true },
-      "by": { "type": "text", "required": true }
+      "by": { "type": "text", "required": true },
+      "connection": { "type": "text", "required": false },
+      "declares": { "type": "text", "required": false }
     } },
     { "heading": "## Gate reached", "repeat": true, "fields": {
       "at": { "type": "time", "required": true },

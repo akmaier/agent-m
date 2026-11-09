@@ -21,7 +21,7 @@
 import { readDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { heldItems, planSchemas } from "../work-plans/index.mjs";
@@ -88,7 +88,7 @@ export const route = {
     const participantsDoc = readDocument(participantSchema(), PARTICIPANTS, participantsText ?? "");
     // The members of the instance's list, one each, and each agent on the connections of this browser that offer its model (UC-048 step 3).
     const participants = participantsOf(participantsDoc);
-    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
     const joined = participantsOf(participantsDoc, connections);
 
     // The practices the declaration names, from their files, for the roles they add.

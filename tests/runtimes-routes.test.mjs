@@ -208,3 +208,20 @@ test("routesFor — the hosted offer of an endpoint is available exactly when a 
     assert.equal(found[1].reason, ciAgentOffer(PRIVATE, [need]).reason);
   }
 });
+
+// ---------------------------------------------------------------- a coding agent on CI
+
+// TST-20261109302 · level: unit · module: MOD-runtimes
+// guards: A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-010
+// given: two agents on coding agents on CI — one on the server's runners (`ci hosted agent claude secret CLAUDE_KEY`), one on the self-hosted runner gpu (`ci runner:gpu agent claude secret CLAUDE_KEY`); a private product with the job workflow, a public one, and a job that needs `runner:gpu`
+// input: routesFor(each, product, needs)
+// expect: the first is offered on the server's runners, the second on the runner gpu, both available for the private product; for the public product the runner is refused naming the runner and the visibility; with the need of runner:gpu only the second is available
+test("routesFor — a coding agent on CI is offered on the server's runners or on the self-hosted runner its route names", () => {
+  const onCi = (route) => ({ name: "dev-a", type: "CI agent", model: "example-model", context: 200000, capabilities: ["run code and tests"], place: "GitHub", route });
+  const hosted = onCi("ci hosted agent claude secret CLAUDE_KEY"), gpu = onCi("ci runner:gpu agent claude secret CLAUDE_KEY");
+  assert.deepEqual(routesFor(hosted, PRIVATE, []), [{ route: { kind: "ci", runner: "hosted" }, available: true, reason: null }]);
+  assert.deepEqual(routesFor(gpu, PRIVATE, []), [{ route: { kind: "ci", runner: "gpu" }, available: true, reason: null }]);
+  assertRefused(routesFor(gpu, { visibility: "public", jobWorkflow: true }, [])[0], ["gpu", "public"], "gpu on a public product");
+  assert.equal(routesFor(hosted, PRIVATE, [RUNNER_NEED])[0].available, false);
+  assert.equal(routesFor(gpu, PRIVATE, [RUNNER_NEED])[0].available, true);
+});

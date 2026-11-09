@@ -169,15 +169,16 @@ test("TST-373203: UC-010 the main flow — a job queued on the CI route is run b
 
 // TST-373204 · level: system · module: system
 // guards: UC-010; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: the product with the job workflow installed and no record of the job JOB-20261030-0905-d1e2; a start from GitHub's Actions page by alice with the inputs job, kind change-use-case, participant ci-bot, works_on UC-001 and the parameters with the instruction and the endpoint; the fixture endpoint answers UC-001 with the alternative flow 2a added
+// given: the product with the job workflow installed and no record of the job JOB-20261030-0905-d1e2; a start from GitHub's Actions page by alice with the inputs job, kind change-use-case, participant ci-bot, works_on UC-001 and the parameters with the instruction and the endpoint, and the connection — the input endpoint with its kind, address, model and context, and the input secret FIXTURE_KEY (UC-010 step 1) —; the fixture endpoint answers UC-001 with the alternative flow 2a added
 // input: step 1 the workflow's event workflow_dispatch; steps 2 to 4 onDispatch with the secrets AGENT_M_TOKEN and FIXTURE_KEY
-// expect: the entry ends done naming the job; main holds, in order, the start record committed by the run — docs/jobs/JOB-20261030-0905-d1e2.md with the kind, the route ci hosted, alice as who started it and the instruction —, the taking naming the run's address, the commit that writes UC-001 with the alternative flow 2a and the end; the record ends done; UC-001 on main is the changed text
+// expect: the entry ends done naming the job; main holds, in order, the start record committed by the run — docs/jobs/JOB-20261030-0905-d1e2.md with the kind, the route ci hosted endpoint ci-bot secret FIXTURE_KEY, the endpoint's context declared, alice as who started it and the instruction —, the taking naming the run's address, the commit that writes UC-001 with the alternative flow 2a and the end; the record ends done; UC-001 on main is the changed text
 test("TST-373204: UC-010 the main flow — a start from the server's own page writes the job's record and runs the job", async () => {
   const requests = endpoint();
   const id = "JOB-20261030-0905-d1e2";
   await world({}, async (w) => {
     await install(await openSettings(w), w);
-    const inputs = { job: id, kind: "change-use-case", participant: "ci-bot", works_on: "UC-001", parameters: JSON.stringify(PARAMS) };
+    const inputs = { job: id, kind: "change-use-case", participant: "ci-bot", works_on: "UC-001", parameters: JSON.stringify(PARAMS),
+      endpoint: JSON.stringify({ kind: ENDPOINT.kind, baseUrl: ENDPOINT.baseUrl, model: ENDPOINT.model, context: 200000 }), secret: "FIXTURE_KEY" };
     const { status, run } = await dispatchRun(w, inputs);
     assert.equal(status.outcome, "done", status.summary);
     assert.ok(status.summary.includes(id), status.summary);
@@ -186,7 +187,8 @@ test("TST-373204: UC-010 the main flow — a start from the server's own page wr
     assert.deepEqual(w.subjects().slice(0, 4), [`end ${id}: done`, "draft UC-001 as open files", `take ${id} (${runAddress(run.id)})`, `Queue job ${id}: change-use-case`]);
     const record = w.fileAt(`docs/jobs/${id}.md`);
     assert.match(record, /^kind: change-use-case$/m);
-    assert.match(record, /^route: ci hosted$/m);
+    assert.match(record, /^route: ci hosted endpoint ci-bot secret FIXTURE_KEY$/m);
+    assert.match(record, /^declares: \{"context":200000,/m);
     assert.match(record, /^started_by: alice$/m);
     assert.ok(record.includes(INSTRUCTION));
     assert.match(record, /## End[^]*state: done/);

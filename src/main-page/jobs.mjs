@@ -303,6 +303,8 @@ const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.y
 const recordRoute = (route, participant = null) => {
   const connection = String(participant?.route ?? "").trim();
   if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
   const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
   return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
 };

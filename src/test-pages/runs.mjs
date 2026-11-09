@@ -33,7 +33,7 @@ import { resourceSchema } from "../resource-list/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { testsHead, readsAt, column, listTable } from "./look.mjs";
 import { heads } from "./routes.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -203,6 +203,8 @@ function checklistOf(host, { declarations, levels, schedule, commit, again }) {
 const recordRoute = (route, participant = null) => {
   const connection = String(participant?.route ?? "").trim();
   if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  // A coding agent on CI: its connection's route names its runner already.
+  if (route.kind === "ci" && /^ci\s+\S+\s+agent\s+\S+/.test(connection)) return connection;
   const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
   return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
 };
@@ -285,7 +287,7 @@ async function openRun(state, section) {
     const info = await context.instance.host.repositoryInfo();
     const register = await context.instance.host.readSnapshot(info.defaultBranch);
     const registerText = await register.read(PARTICIPANTS_PATH);
-    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
     const participants = registerText == null ? [] : participantsOf(readDocument(participantSchema(), PARTICIPANTS_PATH, registerText), connections);
     const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
     const product = { visibility: (await host.repositoryInfo()).visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) };

@@ -52,7 +52,7 @@ import { personAccount } from "../source-register/index.mjs";
 import { jobTrail, queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { recordRoute } from "../prompt-bar/hand-over.mjs";
-import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { runPanel, schemaForm } from "../site-frame/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
@@ -120,7 +120,7 @@ async function runSection({ context, product, issue, kindName, title, text, name
     const instanceSnapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
     const register = await instanceSnapshot.read(REGISTER);
     // The instance's participants on this browser's connections (MOD-prompt-bar's endpointsOffered, sessionsOffered).
-    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
     const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document, connections);
     // A person holds roles and decides but is no driver of a job (MOD-participant-list's `eligible`): the work is handed to the agents on their connections.
     const admitted = eligible(participants.filter((each) => each.type !== "person"), { capabilities: definition.needs }).eligible;

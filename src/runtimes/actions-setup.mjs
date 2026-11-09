@@ -20,6 +20,14 @@ function endpointSecrets(store) {
     .map((setting) => ({ secret: setting.secret, key: typeof setting.key === "string" && setting.key !== "" ? setting.key : null }));
 }
 
+// The coding agents on CI this browser keeps (`ci-agent:<name>`), each with its name, as jobWorkflowFiles names them: one whose secret is no plain name, or whose runner label is none, is left out.
+function ciAgentSettings(store) {
+  return listSettings(store).filter((setting) => setting.key.startsWith("ci-agent:"))
+    .map((setting) => ({ name: setting.key.slice("ci-agent:".length), ...readSetting(store, setting.key) }))
+    .filter((each) => typeof each.agent === "string" && each.agent !== "" && typeof each.secret === "string" && PLAIN_NAME.test(each.secret)
+      && (!each.runner || each.runner === "hosted" || /^[A-Za-z0-9_.:-]+$/.test(each.runner)));
+}
+
 // The value this browser keeps for the CI secret `name`: the product's token for AGENT_M_TOKEN, else the key of the endpoint setting whose secret names it; null where it keeps none.
 function valueOf(store, tokenKey, name) {
   if (name === TOKEN_SECRET) {
@@ -32,7 +40,8 @@ function valueOf(store, tokenKey, name) {
 /**
  * actionsSetup({ product: { address, host, tokenKey }, instance: { host }, store }) -> Promise<{ missing: { workflow, secrets }, outdated, pins: { instance, product }, unknown, named:
  * { token, keys }, setUp }> (MOD-runtimes, Interfaces). It reads the instance's default branch — its repository and commit — and the product's; `named` is what the job workflow reads:
- * AGENT_M_TOKEN and, without a name twice, the `secret` each endpoint setting of `store` names; the runners are the server's own. `missing.workflow` is true where a file jobWorkflowFiles gives is absent, `outdated` names each that stands with another text. `pins.instance` is the
+ * AGENT_M_TOKEN and, without a name twice, the `secret` each `endpoint:*` and `ci-agent:*` setting of `store` names; the runners are the server's own and the label of each
+ * `ci-agent:*` setting on a self-hosted runner, and the coding agents on CI those settings. `missing.workflow` is true where a file jobWorkflowFiles gives is absent, `outdated` names each that stands with another text. `pins.instance` is the
  * instance commit jobWorkflowFiles is given, `pins.product` the instance commit the product's job workflow file pins, null where that file is absent or names none. On GitHub
  * `missing.secrets` names each secret `named` that ciSecretNames does not list, the token first, and `unknown` those for which this browser keeps no value; on GitLab both are empty.
  * `setUp`, called only on a person's click, commits every absent or outdated file in one commit on the default branch on the head that was read, as the person's commit, then stores
@@ -42,15 +51,16 @@ function valueOf(store, tokenKey, name) {
 export async function actionsSetup({ product, instance, store }) {
   const { defaultBranch: instanceBranch } = await instance.host.repositoryInfo();
   const instanceSnapshot = await instance.host.readSnapshot(instanceBranch);
-  const keys = [...new Set(endpointSecrets(store).map((endpoint) => endpoint.secret))];
-  const runners = [];
+  const agents = ciAgentSettings(store);
+  const keys = [...new Set([...endpointSecrets(store).map((endpoint) => endpoint.secret), ...agents.map((each) => each.secret)])];
+  const runners = [...new Set(agents.map((each) => each.runner).filter((runner) => runner && runner !== "hosted"))];
   const named = { token: TOKEN_SECRET, keys };
 
   const { defaultBranch } = await product.host.repositoryInfo();
   const snapshot = await product.host.readSnapshot(defaultBranch);
   const server = snapshot.repository.server;
   const gitlabCi = server === "gitlab" ? (await snapshot.read(".gitlab-ci.yml")) ?? null : null;
-  const files = jobWorkflowFiles(server, { repository: instanceSnapshot.repository.path, commit: instanceSnapshot.commit }, named, runners, gitlabCi);
+  const files = jobWorkflowFiles(server, { repository: instanceSnapshot.repository.path, commit: instanceSnapshot.commit }, named, runners, gitlabCi, agents);
   const standing = await Promise.all(files.map((file) => snapshot.read(file.path)));
   // The instance commit the files are given, and the one the product's job workflow file pins — the one a job queued on the CI route records —, null where it is absent or names none.
   const jobFile = standing[files.findIndex((file) => file.path === WORKFLOW_PATH[server])];

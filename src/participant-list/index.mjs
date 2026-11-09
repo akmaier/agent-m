@@ -29,11 +29,11 @@ export { differs, eligible, participantsOf } from "./eligibility.mjs";
 
 /**
  * One model that one connection offers, as a browser's settings declare it — a model endpoint offers one, a coding agent of
- * a Bridge one for each model it can run: the connection's name, `<endpoint>` or `<bridge>:<agent>`; its type; the model
+ * a Bridge or on CI one for each model it can run: the connection's name, `<endpoint>`, `<bridge>:<agent>` or `<name>`; its type; the model
  * and how many tokens its context holds; the connection's capabilities and the place where it processes data; and its
  * route, `endpoint <name>`, with ` secret <NAME>` where its settings name the CI secret of its key, or
- * `bridge <bridge> agent <agent>`.
- * @typedef {{ name: string, type: "model endpoint" | "CLI agent", model: string, context: number,
+ * `bridge <bridge> agent <agent>`, or `ci hosted agent <agent> secret <NAME>` or `ci runner:<label> agent <agent> secret <NAME>`.
+ * @typedef {{ name: string, type: "model endpoint" | "CLI agent" | "CI agent", model: string, context: number,
  *   capabilities: Capability[], place: string, route: string }} Connection
  */
 
@@ -42,7 +42,7 @@ export { differs, eligible, participantsOf } from "./eligibility.mjs";
  * agent of the register on one connection that offers its model, with the agent's name and model and the connection's
  * type, context, capabilities, place and route; an agent that no connection given offers its model, of the type `agent`,
  * with no context, capabilities, place or route; or a connection the prompt bar offers, which has this shape already.
- * @typedef {{ name: string, type: "person" | "agent" | "model endpoint" | "CLI agent", model: string | null,
+ * @typedef {{ name: string, type: "person" | "agent" | "model endpoint" | "CLI agent" | "CI agent", model: string | null,
  *   context: number | null, capabilities: Capability[], place: string | null, route: string | null }} Participant
  */
 
