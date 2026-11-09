@@ -19,6 +19,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { startPromptBar } from "../src/prompt-bar/index.mjs";
 import { until } from "./prompt-bar.d/until.mjs";
 
@@ -80,7 +81,7 @@ const instanceHost = () => {
   };
 };
 
-registerStrategies("tests/prompt-bar-fixed.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
+registerStrategies("tests/prompt-bar-fixed.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async () => [] } });
 
 const realFetch = globalThis.fetch;
 let requests = 0;

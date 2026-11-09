@@ -26,6 +26,7 @@ import { listSettings, openStore, readSetting, readTabValue, writeSetting } from
 import { approvalStrategies } from "../src/approvals/index.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { dropDraft, startPromptBar } from "../src/prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { tick, until } from "./prompt-bar.d/until.mjs";
@@ -246,6 +247,7 @@ registerStrategies("tests/prompt-bar-hand-over.test.mjs", {
     "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
   preconditions: { "rests-on-accepted": approvalStrategies.preconditions["rests-on-accepted"] },
   writers: { "branch-and-pull-request": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
+  checks: routeStrategies.checks,
 });
 
 const bars = [];

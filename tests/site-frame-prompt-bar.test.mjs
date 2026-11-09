@@ -33,6 +33,7 @@ import test from "node:test";
 import { all, changeFragment, fixtureStorage, installPage } from "./site-frame-start.d/dom.mjs";
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { subjectOf } from "../src/site-frame/subject.mjs";
 import { until } from "./prompt-bar.d/until.mjs";
 
@@ -65,7 +66,7 @@ const reply = (body, status = 200) => new Response(JSON.stringify(body), { statu
 // with the draft `{ answer: "ok", edits: [docs/notes.md] }` — an edit, so that the answer is a draft to review. Every request is kept with its Authorization header.
 let requests = [];
 const seen = [];
-registerStrategies("tests/site-frame-prompt-bar.test.mjs", { recipes: { "chapters-for-page": async (context, params) => { seen.push(params); return []; } } });
+registerStrategies("tests/site-frame-prompt-bar.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async (context, params) => { seen.push(params); return []; } } });
 const realFetch = globalThis.fetch;
 function installNetwork() {
   requests = [];

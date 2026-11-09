@@ -18,12 +18,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { prepareMessage } from "../src/prompt-bar/send.mjs";
 import { estimate, registerStrategies, runJob } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { endpointDriver } from "../src/endpoint-calls/index.mjs";
 import { freshStore } from "./settings-pages-setup.d/dom.mjs";
 
 // The strategy of another module that the kind `converse` names.
 try {
-  registerStrategies("tests/prompt-bar-agents-first.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
+  registerStrategies("tests/prompt-bar-agents-first.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async () => [] } });
 } catch (error) {
   if (error.name !== "DuplicateStrategy") throw error;
 }

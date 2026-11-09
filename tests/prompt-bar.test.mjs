@@ -24,6 +24,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { latestDraft, currentJob, startPromptBar } from "../src/prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { tick, until } from "./prompt-bar.d/until.mjs";
@@ -130,7 +131,7 @@ const SWITCH_ON ="---\nrecording: on\n---\n# Recording of conversations\n";
 
 // The strategy of another module that the kind `converse` names; it keeps the parameters of every message.
 const seen = [];
-registerStrategies("tests/prompt-bar.test.mjs", { recipes: { "chapters-for-page": async (context, params) => { seen.push(params); return []; } } });
+registerStrategies("tests/prompt-bar.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async (context, params) => { seen.push(params); return []; } } });
 
 // The model endpoints behind the global fetch: they answer the drafts given in turn (the last again), and keep every request with what the page showed at that moment.
 // The Bridge mac at BRIDGE answers testBridge's two requests, listing the agents of the sessions the page declares ready, and an ask with the next draft; its requests

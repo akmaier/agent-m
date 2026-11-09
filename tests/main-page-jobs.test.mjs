@@ -34,6 +34,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { openStore, writeSetting, secretValues } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 import { startPromptBar } from "../src/prompt-bar/index.mjs";
@@ -359,7 +360,7 @@ test("TST-509005 the four filters offer all and the values the rows hold, and ea
 // expect: while the message runs the job of this tab is the second row, after the job waiting at a gate and before every other, its cells "this tab's" in place of an identifier, "—" for the product, "" for what it works on, "converse", "drafter-a", "this tab", "running", "1h 2m 3s", "unknown", with no data-id; the seven jobs of the records follow it; once it has ended the list holds the seven rows and no row of this tab
 test("TST-509006 the job of this tab's conversation is listed first among the rows that do not wait at a gate, and is gone once it has ended", async () => {
   install();
-  registerStrategies("tests/main-page-jobs.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
+  registerStrategies("tests/main-page-jobs.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async () => [] } });
   const it = browser();
   writeSetting(it.store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   const foot = document.createElement("div");
@@ -498,7 +499,7 @@ test("TST-970002 the filters narrow every group, and a group with no row shown h
 // expect: the groups are waiting at a gate [bbbb] and running [this tab's, ffff, gggg, dddd] — the job of this tab is the newest running job and stands first in its group —, then done [aaaa], failed [cccc], cancelled [eeee]
 test("TST-970003 the job of this tab's conversation is the first row of the running group", async () => {
   install();
-  try { registerStrategies("tests/main-page-jobs.test.mjs", { recipes: { "chapters-for-page": async () => [] } }); } catch (failure) { if (failure.name !== "DuplicateStrategy") throw failure; /* TST-509006 registered it */ }
+  try { registerStrategies("tests/main-page-jobs.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async () => [] } }); } catch (failure) { if (failure.name !== "DuplicateStrategy") throw failure; /* TST-509006 registered it */ }
   const it = browser();
   writeSetting(it.store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   const foot = document.createElement("div");
