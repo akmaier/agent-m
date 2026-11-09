@@ -341,7 +341,7 @@ const snapshotOf = (path, files) => ({ repository: { server: "github", origin: "
 const hostOf = (snapshot) => ({ repositoryInfo: async () => ({ defaultBranch: "main" }), readSnapshot: async () => snapshot });
 const instance = snapshotOf("acme/instance", { "AGENTS.md": rules, "docs/participants.md": "# Participants\\n" });
 const product = snapshotOf("acme/product", { "AGENTS.md": productRules });
-jobRunner.registerStrategies("tests/test_job_reading.py", { recipes: { "chapters-for-page": async () => [] } });
+jobRunner.registerStrategies("tests/test_job_reading.py", { checks: runtimes.routeStrategies.checks, recipes: { "chapters-for-page": async () => [] } });
 const participant = { name: "gpt-oss", type: "model endpoint", model: "gpt-oss", context: 100000, capabilities: ["draft text", "read the repository"],
   place: "this machine", route: "endpoint e1" };
 const subject = { kind: "converse", entry: "settings", refuses: [], paramsFor: () => ({ page: "a page" }) };
@@ -352,6 +352,66 @@ const driver = { participant, send: async (input) => { sent.push(jobRunner.drive
 try { await jobRunner.runJob(ready.prepared, { drafter: driver, reviewers: [] }, { attended: true, context: ready.context }); }
 catch (error) { if (error.name !== "Recorded") throw error; }
 return sent;
+"""
+
+
+# The input a model endpoint receives on the route of MOD-workflow-entries where it works in the job's checkout of the product (a kind that changes code or runs
+# tests, handed over to CI), composed as src/workflow-entries/product.mjs (runJobOf) composes it: the job prepared by prepareJob for the endpoint — AGENTS.md
+# as text, the instance's checkout dropped —, its rules followed by MOD-checkout-tools' checkoutPrompt, sent by endpointDriver with no system prompt to an
+# OpenAI-compatible and an Anthropic endpoint whose fetch is recorded. runJobOf's own request is checked the same way in
+# tests/workflow-entries-hand-over-in-run.test.mjs (TST-2026114907). What the endpoint receives is the request body: the system prompt, then the messages,
+# in order. Beside it, for the counter-proof, the job as the route sent it before: its rules alone, with checkoutPrompt as the system prompt.
+CHECKOUT = """
+const rules = %s, productRules = %s, folder = %s;
+const snapshotOf = (path, read) => ({ repository: { server: "github", origin: "https://github.com", path, web: "https://github.com/" + path },
+  ref: "main", commit: "a".repeat(40), paths: [], read, blob: () => null });
+const instance = snapshotOf("akmaier/agent-m", async (path) => (path === "AGENTS.md" ? rules : null));
+const productSnapshot = snapshotOf("acme/product", async (path) => (path === "AGENTS.md" ? productRules : null));
+const empty = { recipes: async () => [], preconditions: async () => null, checks: () => [],
+  steps: async (draft) => ({ draft, findings: [] }), writers: async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) };
+const participant = { name: "gpt-oss", type: "model endpoint", model: "a-model", context: 10000000, price: null,
+  capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], place: "GitHub's hosted runners", route: "endpoint e1" };
+const bodies = [];
+globalThis.fetch = async (_url, init) => { bodies.push(JSON.parse(init.body));
+  return { ok: true, status: 200, headers: new Headers(), json: async () => ({ choices: [{ finish_reason: "stop", message: { content: "done" } }],
+    stop_reason: "end_turn", content: [{ type: "text", text: "done" }] }) }; };
+const tools = { definitions: [{ name: "read", description: "Read a file.", input: { type: "object", properties: {} } }], limit: 1, call: async () => "" };
+const textOf = (body) => [...(typeof body.system === "string" ? [body.system] : []),
+  ...body.messages.map((message) => (typeof message.content === "string" ? message.content : message.content.map((block) => block.text ?? "").join("")))].join("\\n\\n");
+const out = {};
+for (const name of ["implement", "fix-bug"]) {
+  const kind = await jobCatalogue.kindOf(name);
+  for (const [category, list] of Object.entries({ preconditions: kind.preconditions, recipes: kind.recipes.map((recipe) => recipe.name), checks: kind.checks,
+    steps: kind.steps, writers: [kind.writer] })) for (const strategy of list) {
+    try { jobRunner.registerStrategies("tests/test_job_reading.py#checkout", { [category]: { [strategy]: empty[category] } }); }
+    catch (error) { if (error.name !== "DuplicateStrategy") throw error; }
+  }
+  const context = { kind, params: {}, product: { address: "https://github.com/acme/product", snapshot: productSnapshot, host: null, checkout: folder },
+    instance: { snapshot: instance, host: null, checkout: undefined }, connect: async () => null, participants: [participant],
+    places: { sources: {}, mailbox: null }, gates: [], person: null, now: new Date(), agentM: { version: "unreleased", commit: "a".repeat(40) }, jobId: null };
+  const prepared = { ...(await jobRunner.prepareJob(name, context, { drafter: participant, reviewers: [] })), blocking: [], notFitting: [] };
+  const instructions = await checkoutTools.checkoutPrompt({ folder, now: new Date() });
+  const inputOf = async (job) => {
+    let input = null;
+    const recorder = { participant, send: async (given) => { input = given; const stop = new Error("recorded"); stop.name = "Recorded"; throw stop; } };
+    try { await jobRunner.runJob(job, { drafter: recorder, reviewers: [] }, { attended: true, context }); }
+    catch (error) { if (error.name !== "Recorded") throw error; }
+    return { ...input, tools };
+  };
+  const sent = await inputOf({ ...prepared, rules: { ...prepared.rules, text: `${prepared.rules.text}\\n\\n${instructions}` } });
+  const earlier = await inputOf(prepared);
+  for (const kindOfEndpoint of ["openai-compatible", "anthropic"]) {
+    const config = { name: "hand-over", kind: kindOfEndpoint, baseUrl: "https://llm.example.test/v1", model: "a-model", key: "k" };
+    bodies.length = 0;
+    await endpointCalls.endpointDriver(config, participant).send(sent);
+    const now = textOf(bodies[0]);
+    bodies.length = 0;
+    await endpointCalls.endpointDriver(config, participant, undefined, { system: instructions }).send(earlier);
+    out[`${name} ${kindOfEndpoint}`] = { sent: now, before: textOf(bodies[0]), prompt: jobRunner.driverPrompt(earlier),
+      kindPrompt: kind.prompt.split("\\n")[0] };
+  }
+}
+return out;
 """
 
 
@@ -370,10 +430,13 @@ class AgentsFirst(unittest.TestCase):
         cls.in_checkout = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.checkout),
                                       json.dumps(PRODUCT_SPEC)))
         cls.message = js(MESSAGE % (json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES)))
+        cls.product_folder = tempfile.TemporaryDirectory()
+        cls.endpoint_in_checkout = js(CHECKOUT % (json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.product_folder.name)))
 
     @classmethod
     def tearDownClass(cls):
         cls.folder.cleanup()
+        cls.product_folder.cleanup()
 
     # TST-1350021 · level: component · module: MOD-job-runner
     # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
@@ -430,6 +493,37 @@ class AgentsFirst(unittest.TestCase):
         in_checkout = self.in_checkout["implement"][0]
         self.assertTrue(begins_with(in_checkout, path))
         self.assertFalse(begins_with(in_checkout[len(path):], path), "the path left out")
+
+    # TST-1350025 · level: component · module: MOD-workflow-entries
+    # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+    # given: implement and fix-bug for a model endpoint that works in the job's checkout of the fixture product on CI, an OpenAI-compatible and an Anthropic one
+    # input: the request body of that route, composed as runJobOf composes it: its system prompt, then its messages, in order
+    # expect: each begins with the instance's AGENTS.md in full and holds it once; the checkout's instructions, naming the working folder, follow it and come
+    #   before the kind's prompt; the product's AGENTS.md is not in it
+    def test_an_endpoint_in_the_products_checkout_receives_the_instances_agents_md_first(self):
+        self.assertEqual(len(self.endpoint_in_checkout), 4)
+        for name, got in self.endpoint_in_checkout.items():
+            with self.subTest(name):
+                sent = got["sent"]
+                self.assertTrue(begins_with(got["prompt"], INSTANCE_RULES), "known positive: the job's prompt begins with it")
+                self.assertTrue(begins_with(sent, INSTANCE_RULES), sent[:120])
+                self.assertEqual(sent.count(INSTANCE_RULES), 1, "AGENTS.md is sent once")
+                folder = sent.find(f"Working folder: {self.product_folder.name}")
+                self.assertGreater(folder, len(INSTANCE_RULES))
+                self.assertIn(got["kindPrompt"], sent, "known positive: the kind's prompt is sent")
+                self.assertLess(folder, sent.index(got["kindPrompt"]))
+                self.assertNotIn("PRODUCT-RULES-TEXT", sent)
+
+    # TST-1350026 · level: component · module: MOD-workflow-entries
+    # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+    # given: the inputs of TST-1350025, and the same jobs sent as the route sent them before — with checkoutPrompt alone as the system prompt
+    # input: the check over each body
+    # expect: the check fails on every body sent the earlier way, whose system prompt puts the checkout's instructions before AGENTS.md
+    def test_counter_proof_a_system_prompt_before_agents_md_fails(self):
+        for name, got in self.endpoint_in_checkout.items():
+            with self.subTest(name):
+                self.assertIn(INSTANCE_RULES, got["before"], "known positive: the earlier body holds AGENTS.md")
+                self.assertFalse(begins_with(got["before"], INSTANCE_RULES), got["before"][:120])
 
 
 # A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY. The check of a requirement's form is the check `requirement-form`, the check of a document's
