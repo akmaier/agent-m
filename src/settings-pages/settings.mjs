@@ -133,8 +133,8 @@ function endpointLine(target, context, info) {
       return;
     }
     if (runsOnActions(setting)) {
-      await testThroughActions(context, name, result);
-      status.textContent = endpointStateText(setting, readSetting(context.store, `last-test:${info.key}`));
+      // The line's state is the test job's, once it has ended: shown here in place, beside its result.
+      await testThroughActions(context, name, result, (lastTest) => { status.textContent = endpointStateText(setting, lastTest); });
       return;
     }
     result.textContent = "Testing the endpoint…";

@@ -52,7 +52,9 @@ export async function contextFromTest(store, key, config, checked) {
 export function recordTest(store, key, checked) {
   // `browser` marks a refusal of the browser itself — the endpoint does not accept calls from a web page —, which the Settings page says plainly (UC-003 4a).
   const browser = !checked.works && Boolean(checked.diagnosis?.routes?.includes("ci") && checked.diagnosis?.routes?.includes("bridge"));
-  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...(checked.works ? { tools: checked.tools === true } : {}), ...(browser ? { browser: true } : {}) };
+  // A test that states nothing of tools — the test job on GitHub Actions offers the model none — keeps no `tools`.
+  const tools = checked.works && checked.tools !== undefined ? { tools: checked.tools === true } : {};
+  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...tools, ...(browser ? { browser: true } : {}) };
   writeSetting(store, `last-test:${key}`, lastTest);
   return lastTest;
 }
@@ -184,17 +186,19 @@ function jobRepository(context) {
 export const runsOnActions = (setting) => Boolean(setting?.secret) && !setting.bridge;
 
 /**
- * testThroughActions(context, name, result) -> Promise<void> — an endpoint that runs through GitHub Actions, tested there: one test job spawned on a person's click,
- * followed, its outcome shown in `result` and recorded as the endpoint's test.
+ * testThroughActions(context, name, result, ended?) -> Promise<void> — an endpoint that runs through GitHub Actions, tested there: one test job spawned on a person's click,
+ * followed, its outcome shown in `result` and recorded as the endpoint's test. It returns once the job is followed; `ended(lastTest)`, where given, is called with the
+ * recorded test when the job has ended — the Settings page's line shows its state from it —, else the endpoints are listed anew (`context.endpointsChanged`).
  */
-export async function testThroughActions(context, name, result) {
+export async function testThroughActions(context, name, result, ended) {
   const repository = jobRepository(context);
   if (!repository) { result.textContent = "No repository is connected to spawn the test job in."; return; }
-  await testOnActions(context, name, repository, result, "");
+  await testOnActions(context, name, repository, result, "", ended);
 }
 
 // The test job of an endpoint on GitHub Actions, spawned and followed; its outcome is the endpoint's test. `stored` is said before each line: that the secret was stored, or nothing.
-async function testOnActions(context, name, repository, result, stored = "The secret is stored. ") {
+// While it runs, its state is shown, or what a poll could not read; at its end, `ended` is given the recorded test, else the endpoints are listed anew.
+async function testOnActions(context, name, repository, result, stored = "The secret is stored. ", ended = () => context.endpointsChanged?.()) {
   const key = `endpoint:${name}`;
   const participant = endpointsOffered(context.store).find((each) => each.name === name);
   if (!participant) { result.textContent = `${stored}The endpoint lacks a place, a context or a model, so no test job was spawned.`; return; }
@@ -210,16 +214,17 @@ async function testOnActions(context, name, repository, result, stored = "The se
     }
     const follower = followJob({ id: spawned.id, address, host, store: context.store, show: (view) => {
       if (view.end === null) {
-        result.textContent = `${stored}Test job ${spawned.id}: ${view.state ?? "queued"} on GitHub Actions${view.address ? ` — ${view.address}` : ""}.`
+        result.textContent = `${stored}Test job ${spawned.id}: ${view.problem ?? `${view.state ?? "queued"} on GitHub Actions`}${view.address ? ` — ${view.address}` : ""}.`
           + (view.missingSecret ? ` Not run: the secret ${view.missingSecret} is missing from the job workflow; install it again from Settings.` : "");
         return;
       }
       follower?.stop();
       const works = view.end.state === "done" && Boolean(view.answer);
-      recordTest(context.store, key, { works, tools: false });
+      // The test job offers the model no tool: the test states nothing of tools.
+      const lastTest = recordTest(context.store, key, { works });
       result.textContent = works ? `✓ ${participant.model} answered through GitHub Actions (${spawned.id}): ${view.answer.trim()}`
         : `✗ The test job ${spawned.id} ended ${view.end.state}${view.end.reason ? `: ${view.end.reason}` : ""}${view.address ? ` — ${view.address}` : ""}`;
-      context.endpointsChanged?.();
+      ended(lastTest);
     } });
   } catch (error) {
     result.textContent = `${stored}The test job could not be spawned: ${error?.message ?? error}`;

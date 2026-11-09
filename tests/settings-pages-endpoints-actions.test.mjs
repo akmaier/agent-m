@@ -12,10 +12,22 @@
 // The repository servers are fixtures in memory; the model endpoint is a fake `fetch` that refuses as a browser refuses a call without a cross-origin permission
 // ("TypeError: Failed to fetch"), with `window` defined so that the call counts as the browser's. Nothing reaches the network; the key is a fixture.
 
-import test from "node:test";
+import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/settings-pages/index.mjs";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { appendToRecord } from "../src/job-ledger/index.mjs";
+import { registerStrategies } from "../src/job-runner/index.mjs";
+import { loadHandOverStrategies } from "../src/prompt-bar/index.mjs";
+import { sourceStrategies } from "../src/source-register/index.mjs";
+
+// The hand-over's strategy sets, as the page registers them (site-frame/register.mjs), so that a test job of an endpoint can be prepared; the recipes of the book's chapters give no part.
+const chaptersGiveNothing = Object.fromEntries(["chapters-for-requirements", "chapters-for-tests", "chapters-for-architecture", "chapters-for-implementation", "chapters-for-page"]
+  .map((name) => [name, async () => []]));
+for (const set of await loadHandOverStrategies()) {
+  registerStrategies("tests/settings-pages-endpoints-actions.test.mjs", set === sourceStrategies
+    ? { recipes: { "source-excerpt": sourceStrategies.recipes["source-excerpt"], ...chaptersGiveNothing } } : set);
+}
 
 class Element {
   constructor(name) { this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.disabled = false; this.hidden = false; this.attributes = new Map(); this.listeners = []; }
@@ -189,4 +201,89 @@ test("the job workflow's Set up GitHub Actions names the CI secret each of this 
   const workflow = writes[0].files.find((file) => file.path === ".github/workflows/agent-m-jobs.yml").text;
   assert.match(workflow, /^ {6}NVIDIA_API_KEY: \$\{\{ secrets\.NVIDIA_API_KEY \}\}$/m);
   assert.match(workflow, /AGENT_M_KEY_NAMES: "NVIDIA_API_KEY"/);
+});
+
+// The instance's repository on GitHub, in memory, with Agent M's job workflow: a commit of a job's record is kept as the record of a job that has already run on CI and ended
+// `done`, its log the run RUN, whose log holds the answer "ok" between the answer's lines (MOD-workflow-entries). With `failing`, every read of the repository after the job's
+// workflow was started fails, as a server that gives no answer does.
+const RUN = "https://github.com/fixture/instance/actions/runs/77";
+function instanceWithJobWorkflow({ failing = false } = {}) {
+  const repository = { server: "github", origin: "https://github.com", path: "fixture/instance", web: "https://github.com/fixture/instance" };
+  const files = new Map([["docs/participants.md", PARTICIPANTS], ["SPEC.md", "# Spec\n"], ["AGENTS.md", "# Agents\n"], [".github/workflows/agent-m-jobs.yml", "name: agent-m-jobs\n"]]);
+  let head = INSTANCE_COMMIT, made = 0, started = false, id = null;
+  const unreachable = () => { if (failing && started) throw new Error("Unreachable: the server gave no answer"); };
+  return { host: {
+    async repositoryInfo() { unreachable(); return { defaultBranch: "main", canWrite: true, visibility: "private", archived: false, description: "" }; },
+    async readSnapshot(ref) { unreachable(); return { repository, ref, commit: head, paths: [...files.keys()], blob: (path) => (files.has(path) ? `${made}`.repeat(40).slice(0, 40) : null), async read(path) { return files.get(path) ?? null; }, async readMany() {} }; },
+    async listPullRequests() { return []; },
+    async containsCommit() { return false; },
+    async setCiSecret() {},
+    async commitFiles(change) {
+      for (const file of change.files) {
+        const job = /^docs\/jobs\/(JOB-[^/]+)\.md$/.exec(file.path);
+        if (job) id = job[1];
+        files.set(file.path, job ? appendToRecord(file.text, { part: "end", at: new Date(), state: "done", results: [], usage: null, cost: null, reason: null, log: RUN, draft: null, rounds: [] }) : file.text);
+      }
+      made += 1;
+      head = `${made}`.repeat(40).slice(0, 40);
+      return { commit: head, url: `${repository.web}/commit/${head}` };
+    },
+    async startWorkflow() { started = true; return null; },
+    async listCiRuns() { unreachable(); return [{ id: 77, url: RUN, state: "done", started: null }]; },
+    async ciRunLog() { return `--- answer of ${id} ---\nok\n--- end of the answer of ${id} ---\n`; },
+  } };
+}
+
+// An endpoint that runs through GitHub Actions — a CI secret, no Bridge —, tested once before, with a last test that is old.
+const OLD_TEST = { at: "2026-01-01T00:00:00.000Z", outcome: "working", tools: true };
+function storeWithActionsEndpoint() {
+  const store = freshStore();
+  writeSetting(store, "endpoint:nvidia", { ...NVIDIA, place: "NVIDIA, USA", context: 128000, secret: "NVIDIA_API_KEY" });
+  writeSetting(store, "last-test:endpoint:nvidia", OLD_TEST);
+  writeSetting(store, "github-token", { value: "github_pat_FIXTURE0123456789abcdef", name: "alice", expires: "2027-01-01" });
+  return store;
+}
+
+// TST-1200205 · level: unit · module: MOD-settings-pages
+// guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: endpoint:nvidia, which runs through GitHub Actions, with a last test of 2026-01-01 that found it working and using tools; the instance's repository with the job workflow, where the test job runs and ends done with the answer "ok"; known positive: the line's status names the old test before Test
+// input: Test on the endpoint's line of the Settings page
+// expect: once the test job has ended, the line on the page says "Works. Last successful test: <the new test's time>", not the old one, and its result names the answer; the last test kept is working with no `tools` — the test job offered the model no tool —, and neither the result nor the status says "text only"
+test("Test of an endpoint on GitHub Actions shows the new last test on its line once the test job has ended, and claims nothing of tools", async () => {
+  const store = storeWithActionsEndpoint(), repo = instanceWithJobWorkflow();
+  const page = document.createElement("div");
+  await route("settings").render(page, { instance: { repository: "fixture/instance", host: repo.host }, product: null, store, go() {} }, {});
+  assert.match(one(page, "settings-endpoint-status").textContent, /Last successful test: 2026-01-01T00:00:00\.000Z\./, "known positive: the old test is shown before Test");
+  await click(one(page, "settings-endpoint-test"), true);
+  await until(() => readSetting(store, "last-test:endpoint:nvidia")?.at !== OLD_TEST.at || /ended|could not|No test job/.test(one(page, "settings-endpoint-result")?.textContent ?? ""), "the test job's end");
+  await until(() => true, "a turn");
+  const lastTest = readSetting(store, "last-test:endpoint:nvidia");
+  assert.notEqual(lastTest.at, OLD_TEST.at, `a new last test is recorded; the line says: ${one(page, "settings-endpoint-result")?.textContent}`);
+  assert.equal(lastTest.outcome, "working");
+  assert.equal(one(page, "settings-endpoint-status").textContent, `Runs through GitHub Actions with the CI secret NVIDIA_API_KEY. Works. Last successful test: ${lastTest.at}.`);
+  assert.match(one(page, "settings-endpoint-result").textContent, /answered through GitHub Actions \(JOB-[^)]+\): ok/);
+  assert.equal("tools" in lastTest, false, `the test job reached no tool use: ${JSON.stringify(lastTest)}`);
+  for (const where of ["settings-endpoint-result", "settings-endpoint-status"]) assert.doesNotMatch(one(page, where).textContent, /text only/);
+});
+
+// TST-1200206 · level: unit · module: MOD-settings-pages
+// guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: endpoint:nvidia of TST-1200205; the instance's repository, whose server gives no answer once the test job's workflow is started; known positive: the same page shows the job's outcome when the server answers (TST-1200205)
+// input: Test on the endpoint's line of the Settings page
+// expect: the line's result names what could not be read — "The job could not be followed. Error: Unreachable: the server gave no answer" —, and does not say the job is queued; no test is recorded
+test("a poll of the test job that fails is shown on the line as what could not be read, not as queued", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const store = storeWithActionsEndpoint(), repo = instanceWithJobWorkflow({ failing: true });
+    const page = document.createElement("div");
+    await route("settings").render(page, { instance: { repository: "fixture/instance", host: repo.host }, product: null, store, go() {} }, {});
+    await click(one(page, "settings-endpoint-test"), true);
+    await until(() => /Test job JOB-/.test(one(page, "settings-endpoint-result").textContent), "the followed test job is shown");
+    const said = one(page, "settings-endpoint-result").textContent;
+    assert.match(said, /The job could not be followed\. Error: Unreachable: the server gave no answer/);
+    assert.doesNotMatch(said, /queued/);
+    assert.deepEqual(readSetting(store, "last-test:endpoint:nvidia"), OLD_TEST, "a test job that is not seen to end records no test");
+  } finally {
+    mock.timers.reset();
+  }
 });
