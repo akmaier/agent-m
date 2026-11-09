@@ -604,8 +604,10 @@ export function startPromptBar(target, setup) {
   async function onSend(event) {
     if (event?.isTrusted !== true) return; // THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: a script's click sends nothing and records nothing
     if (state.controller || state.stopped) return;
-    const instruction = input.value.trim();
-    if (instruction === "") { show(problem("Write a message first.")); return; }
+    const typed = input.value.trim();
+    if (typed === "") { show(problem("Write a message first.")); return; }
+    // The issues the message names go with it, read from the repository the message is about (withIssues).
+    const instruction = await (await sendPart()).withIssues(typed, (namedBy(typed) ?? pageOf()).host).catch(() => typed);
     const participant = await rejudged();
     if (participant === null) { show(problem("Nothing was sent. No participant can do this kind of message.")); return; }
     if (throughActions(participant, store)) { await onSpawn(participant, instruction); return; }
