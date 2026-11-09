@@ -2240,21 +2240,6 @@ address and a home-directory path, rewritten by a fixture participant, contains 
 a rewriting that keeps one is refused. How often a rewriting keeps the error message, stack trace and
 version is measured as a rate on a fixed set of reports, reported, not gated.
 
-**A REWRITTEN TEXT IS CHECKED BY THREE LLMS** *(PO A. Maier)*
-A text that a participant rewrites from a mail is written only after three LLM participants with three
-different models, each on a connection at a place the mailbox allows, have each checked it for any mention of a person
-and none of them has found one.
-*Check:* `tests/test_mail_privacy.py` — with three fixture checkers of which one reports a name, nothing is
-written and the finding goes back; counter-proof: when none reports one, the text is written. How often a
-person passes all three is measured as a rate on a fixed set of mails, reported, not gated.
-
-**NO CHECKER IS THE REWRITER** *(PO A. Maier)*
-None of the three participants that check a rewritten text is the participant that rewrote it or uses its
-model.
-*Check:* `tests/test_mail_privacy.py` — a set of checkers that includes the rewriter, or a checker with the
-rewriter's model, is refused before anything is sent; counter-proof: three checkers with three other models
-are accepted.
-
 **PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF** *(PO A. Maier)*
 Rewriting report data without persons applies to every product whose settings do not switch it off.
 *Check:* `tests/test_mail_privacy.py` — a product without the setting gets rewritten report data;
