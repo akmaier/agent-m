@@ -22,6 +22,7 @@ import { readFileSync } from "node:fs";
 import { all, installPage, fixtureStorage, FixtureElement } from "./site-frame-start.d/dom.mjs";
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { renderArtifact } from "../src/markdown-render/index.mjs";
 import { view } from "../src/settings-pages/index.mjs";
 
@@ -44,7 +45,7 @@ const FILES = { "docs/participants.md": REGISTER };
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 const seen = [];
-registerStrategies("tests/site-frame-settings-subject.test.mjs", { recipes: { "chapters-for-page": async (context, params) => { seen.push(params); return []; } } });
+registerStrategies("tests/site-frame-settings-subject.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async (context, params) => { seen.push(params); return []; } } });
 const realFetch = globalThis.fetch;
 function installNetwork() {
   globalThis.fetch = async (url) => {

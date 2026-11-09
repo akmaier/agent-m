@@ -24,6 +24,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 import { startPromptBar } from "../src/prompt-bar/index.mjs";
 import { tick, until } from "./prompt-bar.d/until.mjs";
@@ -166,7 +167,7 @@ function network() {
   return state;
 }
 
-registerStrategies("tests/prompt-bar-actions-setup.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
+registerStrategies("tests/prompt-bar-actions-setup.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async () => [] } });
 
 const bars = [];
 beforeEach(() => { mock.timers.enable({ apis: ["setTimeout"] }); });

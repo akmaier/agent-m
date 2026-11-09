@@ -17,10 +17,11 @@ import assert from "node:assert/strict";
 import { prepareMessage } from "../src/prompt-bar/send.mjs";
 import { tools } from "../src/job-runner/tools.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { freshStore } from "./settings-pages-setup.d/dom.mjs";
 
 // The strategy of another module that the kind `converse` names.
-registerStrategies("tests/prompt-bar-places.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
+registerStrategies("tests/prompt-bar-places.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async () => [] } });
 
 const entry = (id, licence, places = [], content = null) => ["---", `id: ${id}`, `title: ${id} title`, "kind: document", "authority: informational", `licence: ${licence}`, ...(places.length ? ["places:", ...places.map((each) => `  - ${each}`)] : []), ...(content ? [`content_repository: ${content}`] : []),
   "---", `# ${id} ${id} title`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file, hashed only |", ""].join("\n");

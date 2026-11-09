@@ -96,7 +96,7 @@ function describe(result, context, { modules, realises, issues }, tests) {
  * `describe`; with a local host — one whose `listPullRequests` throws NotSupported — it opens nothing. It returns the pull request's address, or the one the agent reported. Throws NoBranch
  * for a branch the host does not hold, NoCommits for one with no commit beyond the job's snapshot, and what the host throws.
  */
-async function branchAndPullRequest(result, context) {
+export async function branchAndPullRequest(result, context) {
   const { host, snapshot } = context.product;
   const draft = result.draft ?? {};
   const name = draft.branch;
@@ -127,6 +127,3 @@ async function branchAndPullRequest(result, context) {
     body: describe(result, context, await workOf(snapshot, work), await newTests(branch, snapshot, files)) });
   return outcome(opened.url);
 }
-
-// routeStrategies: MOD-job-runner's Partial<Strategies> with the one writer.
-export const routeStrategies = { writers: { "branch-and-pull-request": branchAndPullRequest } };

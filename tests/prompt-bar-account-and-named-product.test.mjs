@@ -30,6 +30,7 @@ import { readFileSync } from "node:fs";
 const INSTANCE_SPEC = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { latestDraft, startPromptBar } from "../src/prompt-bar/index.mjs";
 import { specStrategies } from "../src/spec-changes/index.mjs";
 import { issueStrategies } from "../src/issue-handling/index.mjs";
@@ -117,7 +118,7 @@ const PLANTED_PAGE = "PLANTED-PAGE-7D31 the page shows A LOAN HAS A DUE DATE";
 
 registerStrategies("tests/prompt-bar-account-and-named-product.test.mjs:spec-changes", specStrategies);
 registerStrategies("tests/prompt-bar-account-and-named-product.test.mjs:issue-handling", issueStrategies);
-registerStrategies("tests/prompt-bar-account-and-named-product.test.mjs", { recipes: { "chapters-for-page": async () => [], "chapters-for-requirements": async () => [] } });
+registerStrategies("tests/prompt-bar-account-and-named-product.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async () => [], "chapters-for-requirements": async () => [] } });
 
 const CONVERSE = "You answer a person's message about the page they are looking at";
 const CHANGE_REQUIREMENTS = "You change requirements of a product";

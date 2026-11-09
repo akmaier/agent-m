@@ -149,8 +149,10 @@ export const builtins = {
     // The conversation so far, from the job's parameters, each message with who wrote it, as one part; none for the first message.
     conversation: async (context, params) => (Array.isArray(params.conversation) && params.conversation.length
       ? [part("conversation", params.conversation.map((message) => `${message.who}: ${message.text}`).join("\n\n"))] : []),
-    // The page the person sees, as its route's subject gives it in the job's parameters, as one part.
-    page: async (context, params) => (typeof params.page === "string" && params.page.trim() ? [part("page", params.page)] : []),
+    // The page the person sees, as its route's subject gives it in the job's parameters, as one part. A job whose parameters hold no page — one run from
+    // its record, which holds no page text (UC-049 4a.3, 4f) — is given the repository it works on instead, the one the reading tools read.
+    page: async (context, params) => [part("page", typeof params.page === "string" && params.page.trim() ? params.page
+      : `The repository this job works on: ${context.product.address}, at commit ${context.product.snapshot.commit}. These are the files list-files, read-file and search-files read.`)],
     // The draft the job is handed: the draft under review, for a reviewing kind; the cases as the person left them, for
     // write-tests. None while the job has no draft yet.
     draft: async (context, params) => (params.draft === undefined ? []

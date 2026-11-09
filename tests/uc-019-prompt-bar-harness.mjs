@@ -24,7 +24,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { byClass, buttonsNamed, click, find, until } from "./review-pages-draft-world.mjs";
 import { repoServer, settle } from "./app-harness.mjs";
 import { listSettings, openStore, readSetting, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
-import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
+import { jobWorkflowFiles, routeStrategies } from "../src/runtimes/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { issueStrategies } from "../src/issue-handling/index.mjs";
 import { view as tracePages } from "../src/trace-pages/index.mjs";
@@ -226,6 +226,8 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
 for (const [slug, view] of [["trace-pages", tracePages], ["review-pages", reviewPages]]) for (const strategies of view.strategies ?? []) registerStrategies(slug, strategies);
 // The recipe issue-context, which the kind change-requirements names (MOD-issue-handling), as the hand-over sets of the bar give it to the page.
 registerStrategies("MOD-issue-handling", issueStrategies);
+// The check plan-works-on, which the kind converse names (MOD-runtimes' routeStrategies), as the hand-over sets of the bar give it to the page.
+registerStrategies("MOD-runtimes", { checks: routeStrategies.checks });
 
 // Until the servers have had nothing in flight for a while.
 export async function rest(s) { await settle(s.instance); }

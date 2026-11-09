@@ -9,7 +9,7 @@
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 // ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
 // ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; ITM-973 builds retryJob (retry.mjs).
-// ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request. ITM-790 builds resumeJob. ITM-1280 builds liveStates: one listing of a repository's job workflow runs for all its records.
+// ITM-567 builds routeStrategies: the writer branch-and-pull-request (pull-request.mjs), beside which stands the check plan-works-on (hand-over.mjs). ITM-790 builds resumeJob. ITM-1280 builds liveStates: one listing of a repository's job workflow runs for all its records.
 //
 // Module: MOD-runtimes
 //
@@ -32,7 +32,11 @@ export { bridgeDriver } from "./bridge.mjs";
 export { jobTrail, revertAfterCancel } from "./trail.mjs";
 import { writtenAfterCancel } from "./trail.mjs";
 export { handOverJob } from "./hand-over.mjs";
-export { routeStrategies } from "./pull-request.mjs";
+import { planWorksOn } from "./hand-over.mjs";
+import { branchAndPullRequest } from "./pull-request.mjs";
+
+/** routeStrategies: MOD-job-runner's Partial<Strategies> with the check plan-works-on and the writer branch-and-pull-request. */
+export const routeStrategies = { checks: { "plan-works-on": planWorksOn }, writers: { "branch-and-pull-request": branchAndPullRequest } };
 
 export { RuntimeError } from "./ci.mjs";
 

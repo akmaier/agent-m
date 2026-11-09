@@ -1,17 +1,32 @@
 // hand-over.mjs — a conversation's work handed over (docs/architecture/MOD-runtimes.md, Parts: "hand-over.mjs — a conversation's work handed over"). Of it, ITM-495 builds
-// handOverJob. A GitLab server's pipeline takes the task as an input only once the GitLab template declares it (ITM-532); retryJob, which refuses a job whose task travelled with
+// handOverJob, and the check plan-works-on judges what each piece of a plan works on before it is handed over. A GitLab server's pipeline takes the task as an input only once the GitLab template declares it (ITM-532); retryJob, which refuses a job whose task travelled with
 // its hand-over, is not built yet.
 //
 // Module: MOD-runtimes
 //
 // It writes through the host only by MOD-job-ledger's startRecord (in ci.mjs and bridge.mjs, the routes' own commits) and appendToRecord, and the task in no file: it travels in the
 // inputs of the started workflow or in the hand-over to the Bridge. The findings of a refusal are made as MOD-text-tools' `finding` makes them — a line of at least 1, a rule's name
-// in capitals — without importing it, which the module file's Uses do not list.
+// in capitals; those of the check plan-works-on with `finding` itself.
 
-import { appendToRecord } from "../job-ledger/index.mjs";
+import { appendToRecord, worksOnProblem } from "../job-ledger/index.mjs";
 import { taskRefusal } from "../job-runner/index.mjs";
+import { finding } from "../text-tools/index.mjs";
 import { queueOnBridge } from "./bridge.mjs";
 import { RuntimeError, commitStart } from "./ci.mjs";
+
+/**
+ * planWorksOn(draft) -> Finding[] — the check plan-works-on of routeStrategies: for each piece of the draft's plan, `handOver`, whose works_on is not empty and is refused by
+ * MOD-job-ledger's worksOnProblem, an error on the answer naming the piece by its number from 1 and the reason, so that the drafter corrects in the round what handOverJob
+ * could not record (UC-049 4a, 4f). A draft without a plan has none.
+ */
+export const planWorksOn = (draft) => (Array.isArray(draft?.handOver) ? draft.handOver : []).flatMap((piece, at) => {
+  const worksOn = [piece?.works_on].flat().filter(Boolean).map(String);
+  const why = worksOn.length ? worksOnProblem(worksOn) : null;
+  return why ? [finding({ artifact: "answer", line: 1, kind: "error", rule: "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY",
+    what: `piece ${at + 1} of the plan works on what its job's record refuses: ${why}`,
+    fix: "name each entry of its works_on in one of the forms that reason names, or leave works_on empty for something new, whose place the task names — "
+      + "the job of such a piece works on the repository, by its address" })] : [];
+});
 
 // The findings that keep a prepared job from being handed over: those of its preconditions and eligibility, one for each participant it does not fit, and one for a kind whose
 // gate points hold before-write, since such a job would wait for its task at the gate; and MOD-job-runner's taskRefusal for a kind that takes no instruction,
