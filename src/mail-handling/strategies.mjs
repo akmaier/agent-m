@@ -11,7 +11,7 @@ const part = (name, text) => ({ name, text, size: 0, sources: [], required: true
  * chosen mails, each with its people and the names of the attachments the person ticked for it —, and `products`, `{ address:
  * string, host: Host }[]`. One part per mail with its identifier, subject, date and text, and the text of its ticked
  * attachments, numbered rather than named (a name can name a person); one part with the products and their descriptions; one part
- * with the titles and numbers of their open issues. The mail's headers go into no part: the people of all the chosen mails go
+ * with the titles and numbers of their open issues; one part per product with its SPEC.md, where it has one. The mail's headers go into no part: the people of all the chosen mails go
  * into the job's parameters as one `People` (`params.people`), where the check `people-search` of MOD-personal-data reads them.
  */
 async function mailBatch(context, params) {
@@ -30,12 +30,16 @@ async function mailBatch(context, params) {
 
   const described = [];
   const open = [];
+  const specs = [];
   for (const { address, host } of products) {
-    described.push(`${address}: ${(await host.repositoryInfo()).description}`);
+    const info = await host.repositoryInfo();
+    described.push(`${address}: ${info.description}`);
     const titles = (await host.listIssues({ state: "open" })).map((each) => `#${each.number} ${each.title}`);
     open.push(`${address}:`, ...(titles.length ? titles : ["(no open issues)"]));
+    const spec = await (await host.readSnapshot(info.defaultBranch, { folders: ["SPEC.md"] })).read("SPEC.md");
+    if (typeof spec === "string") specs.push(part(`SPEC of ${address}`, spec));
   }
-  return [...parts, part("products", described.join("\n")), part("open issues", open.join("\n"))];
+  return [...parts, part("products", described.join("\n")), part("open issues", open.join("\n")), ...specs];
 }
 
 /**

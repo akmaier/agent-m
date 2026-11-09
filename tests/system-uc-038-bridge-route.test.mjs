@@ -44,6 +44,7 @@ test("main flow on the IMAP route: the Bridge reads read-only with the password 
     assert.deepEqual(commands.filter((line) => /\b(STORE|APPEND|EXPUNGE|COPY|MOVE)\b/i.test(line)), [], "no command changed the mailbox");
     assert.deepEqual(commands.filter((line) => /FETCH/i.test(line) && /BODY\[/i.test(line) && !/PEEK/i.test(line)), [], "no FETCH marks a mail as read");
     assert.ok(p.imap.logs.logins.length > 0 && p.imap.logs.logins.every((login) => login.secure === true && login.password === PASSWORD), "every login was after TLS with the marker password");
+    openMail(p.main(), A.id);
     const select = one(p.main(), "participant");
     select.value = "local-llm";
     select.dispatchEvent(new Event("change"));

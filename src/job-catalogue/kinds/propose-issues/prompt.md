@@ -7,6 +7,6 @@ what was done, what happened, what was expected, the version, the error message 
 signatures, greetings or anything else that identifies a person. Name the open issues it may duplicate, each with a
 reason.
 
-## The mails, the products with their descriptions, and their open issues
+## The mails, the products with their descriptions, their open issues and their specifications
 
 {{mail-batch}}

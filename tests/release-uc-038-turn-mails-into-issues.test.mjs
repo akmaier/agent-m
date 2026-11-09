@@ -164,16 +164,18 @@ test("TST-965203: a whole session leaves the mails in the mailbox, writes only n
     assert.ok(bold(lineOf(p, A.id)) && bold(lineOf(p, B.id)), "the undecided mails are in bold");
     assert.ok(!bold(lineOf(p, LISTED.id)), "the mail issue 3 lists is not in bold");
     const before = clicks.count;
+    const first = await openLine(p, A.id);
     await propose(p);
-    await click(one(await openLine(p, A.id), "create-issue"));
+    await click(one(first, "create-issue"));
     await waitFor(() => p.w.kept.issues.some((issue) => issue.number >= 100));
     const second = await openLine(p, B.id);
+    await propose(p);
     one(second, "mail-issue-number").value = "3";
     one(second, "mail-issue-number").dispatchEvent(new Event("input"));
     await flush();
     await click(one(second, "add-to-issue"));
     await waitFor(() => p.w.kept.github.some((request) => request.method === "POST" && request.path.endsWith("/issues/3/comments")));
-    assert.equal(clicks.count - before, 1 + 2 * 2, "Propose, then per undecided mail one click to open it and one decision");
+    assert.equal(clicks.count - before, 2 * 3, "per undecided mail one click to open it, one on Propose and one decision");
     assert.deepEqual(p.graph.folders.inbox.map((message) => message.raw), inbox, "the mails of INBOX are the very bytes they were");
     assert.deepEqual(graphWrites(p), [], "Agent M's requests to Graph are only reads");
     const made = writes(p).filter((request) => request.method === "POST");
@@ -197,20 +199,20 @@ test("TST-965203: a whole session leaves the mails in the mailbox, writes only n
 // TST-965204 · level: release · module: MOD-maintenance-pages
 // guards: UC-038; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
 // given: a register with participants at this machine and one in the USA (outside the EU), and a mailbox that allows this machine only
-// input: Mail opened, which reads the mailbox; the participants offered; local-llm chosen; Propose; then the first mail's line clicked
-// expect: the participant in the USA is not offered; the panel names where local-llm processes data; every request a model endpoint received went to the endpoint of the participants at this machine and none to the one in the USA; before its line is clicked the mail's details are not shown, after the click they show the mail in full and its proposal (step 7)
+// input: Mail opened, which reads the mailbox; the first mail's line clicked; the participants offered; local-llm chosen; Propose
+// expect: before its line is clicked the mail's details are not shown, after the click they show the mail in full; the participant in the USA is not offered; the panel names where local-llm processes data; every request a model endpoint received went to the endpoint of the participants at this machine and none to the one in the USA; the details show its proposal (steps 4 and 7)
 test("TST-965204: with a mailbox that allows this machine only, nothing is sent to a participant elsewhere, and a clicked mail shows its proposal", async () => {
   const { p, A } = await session();
   await lastly(p, async () => {
     await listed(p, 3);
+    assert.ok(itemOf(p.main(), A.id) === undefined, "before its line is clicked, the mail's details are not shown");
+    const details = await openLine(p, A.id);
+    assert.ok(details, "the clicked mail's details are shown");
     const offered = walk(p.main(), (node) => node.getAttribute?.("data-participant")).map((node) => node.getAttribute("data-participant"));
     assert.ok(offered.includes("local-llm") && !offered.includes("cloud-llm"), `offered: ${offered.join(", ")}`);
     await propose(p);
     assert.ok(p.w.kept.endpoint.length > 0, "known positive: the participant was asked");
     assert.ok(p.w.kept.endpoint.every((request) => request.origin === "https://ep1.example.test"), "every request went to the endpoint of a participant at this machine");
-    assert.ok(itemOf(p.main(), A.id) === undefined, "before its line is clicked, the mail's details are not shown");
-    const details = await openLine(p, A.id);
-    assert.ok(details, "the clicked mail's details are shown");
     assert.match(textOf(details), /NEEDLE-SENTENCE-965 the export fails with error E42/, "the details show the mail in full");
     assert.equal(one(details, "mail-title").value, "Export fails with E42", "the details show its proposal");
   });

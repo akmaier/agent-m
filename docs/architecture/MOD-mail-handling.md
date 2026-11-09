@@ -123,7 +123,8 @@ are kept by Access in this browser.
 - `mailStrategies` — of MOD-job-runner's type `Strategies`:
   - recipe `mail-batch` — for proposing issues: one part per chosen mail with its text, and the text of the attachments
     the person ticked for it; one part with the instance's products, each with the one-line `description` of its
-    `RepositoryInfo`; one part with the titles and numbers of their open issues. Each mail's people go into the job's
+    `RepositoryInfo`; one part with the titles and numbers of their open issues; one part per product with its `SPEC.md`, where it has
+    one. Each mail's people go into the job's
     context for the check `people-search`, never into a part.
   - recipe `reply-inputs` — for drafting replies: the issue, what solved it — the closing pull request or commit, and the
     release that contains it, where known —, and each listed mail without a reply. With the parameter `question`, for an

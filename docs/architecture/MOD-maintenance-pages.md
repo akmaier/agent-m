@@ -134,7 +134,7 @@ person reviews it. Its formats are those of the modules it uses.
     back to it, on a narrow one: the mail in full and, for a proposable mail, its proposal, its text editable, every hit
     of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*. On the right, above the
     mail opened, the participant for the proposals, one select among those at places the mailbox allows, the first
-    chosen, a place outside the EU named as not compliant; the run panel and *Propose*, for the proposable mails,
+    chosen, a place outside the EU named as not compliant; the run panel and *Propose*, for the mail opened while it is proposable — the mail and the product chosen for it,
     proposed in the name of the account of the instance's token. The author checks every text before it is written: the
     proposal's, and an attachment's, which *Add to the issue* puts into the text box — rewritten without persons where
     the product's pseudonymisation is on. Where this browser manages no product,
