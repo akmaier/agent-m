@@ -15,9 +15,10 @@ realises:
   - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
   - A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
-  - A PARTICIPANT DECLARES ITS CAPABILITIES
+  - A CONNECTION NAMES THE MODELS IT OFFERS
+  - A CONNECTION DECLARES ITS CAPABILITIES
   - THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
-  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A CONNECTION DECLARES WHERE IT PROCESSES DATA
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
   - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
   - A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
@@ -62,18 +63,19 @@ enters the repository the way every proposal does.
 ## Precondition
 
 - At least one endpoint is configured in this browser (UC-003), or a Bridge paired with this browser offers at least one
-  CLI session (UC-044). Each declares, in this browser's configuration, the place where it processes data, its context
-  in tokens, its model and its capabilities. No participant list (UC-017) is configured or read for the bar.
+  CLI session (UC-044). Each declares, in this browser's configuration, the place where it processes data, its
+  capabilities and the models it offers, each with its context in tokens — an endpoint one, a CLI session each it can
+  run. No participant list (UC-017) is configured or read for the bar.
 - To save what comes back, a token that can write to the product repository is stored in this browser (otherwise UC-018
   4a, 4b apply at saving).
 
 ## Main flow
 
 1. On every page of the dashboard, the prompt bar is attached to the bottom of the window. Agent M first reads this
-   browser's configuration: its endpoints, and the CLI sessions its Bridges offer. Right above the bar, a small selector
-   names the endpoint or CLI session the bar talks to, with the place where it processes data, as the configuration
-   declares it — `hub — Anthropic, USA`. With one offered, it is chosen and the selector only names it; with several,
-   the author picks one. The selector is the statement of where the conversation's messages go. A folded **What is
+   browser's configuration: its endpoints, and the CLI sessions its Bridges offer, each once for each model it offers.
+   Right above the bar, a small selector names the endpoint or CLI session the bar talks to, with its model and the place
+   where it processes data, as the configuration declares them — `hub · claude-opus-5-5 — Anthropic, USA`. With one
+   offered, it is chosen and the selector only names it; with several, the author picks one. The selector is the statement of where the conversation's messages go. A folded **What is
    this?** explains the bar and what it sends with a message.
    Both work at the meta level — the SPEC and the use cases — from the start, before an architecture or a plan exists,
    and on every later page. The participants of the instance's list (UC-017) do the jobs of the product's workflow once
@@ -91,7 +93,7 @@ enters the repository the way every proposal does.
    the page belongs to, and the tools it may use (step 4). It checks that all of this fits into the declared context.
 4. It works with the tools its declared capabilities allow, and with no other. An endpoint's capabilities are reading
    the repository and drafting text, and using tools where its test found that it does (UC-003, step 5). A CLI session's
-   are declared in this browser, prefilled as for a CLI agent (UC-017), and it works in its working folder:
+   are declared in this browser (UC-044, step 5), and it works in its working folder, started with the model chosen:
 
    | Capability | Tool | Where it works |
    |---|---|---|
@@ -141,8 +143,8 @@ sequenceDiagram
 - **1a. Nothing is configured.** No endpoint is configured in this browser and no paired Bridge offers a CLI session.
   The prompt bar is not shown. The settings page says that it appears once an endpoint is configured or a Bridge offers
   a CLI session.
-- **1b. An endpoint or CLI session lacks a place, a context or a model.** It is not offered. The settings page names
-  what it lacks where it is configured.
+- **1b. An endpoint or CLI session lacks a place, a model or a model's context.** It is not offered, or, of a CLI session,
+  a model without its context is not. The settings page names what it lacks where it is configured.
 - **2a. The page shows a released version.** The endpoint or CLI session is given that version as context and answers
   about it; a change is drafted only against the current text (UC-020, 1a).
 - **3a. The context does not fit.** Nothing is sent. Agent M says what does not fit and offers an endpoint or CLI

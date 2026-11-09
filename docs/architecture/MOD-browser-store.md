@@ -32,7 +32,7 @@ provides:
 ## Responsibility
 
 It belongs to Access (ARC-047). It keeps everything that belongs to one person on one browser — tokens with their
-expiry, the list of products, endpoints and their keys, each Bridge under its name with its address or its port on the
+expiry, the list of products, endpoints and their keys, the declarations of the agents the Bridges offer, each Bridge under its name with its address or its port on the
 jump host and its token, the mailbox connection, the jump host, the mails marked *not an issue*, the notifications of what waits for acceptance and what they
 notified — in that browser's `localStorage` and nowhere else
 (`CONFIGURATION LIVES IN THE BROWSER`, `CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE`); it knows every key it
@@ -68,9 +68,9 @@ instances in one browser never share an entry. Each value is JSON. The settings 
 | `github-token:<owner>/<repository>` | `{ value, name, expires, stored }` — the fine-grained token of one GitHub product (`A GITHUB PRODUCT USES A TOKEN OF ITS OWN`) | yes |
 | `gitlab-token:<server>/<project>` | `{ value, name, expires, stored }` — the project access token of one GitLab product | yes |
 | `products` | the addresses of the products this browser manages (`THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER`) | no |
-| `endpoint:<name>` | `{ url, kind, model, key?, bridge?, place, context, secret? }` — a model endpoint; `bridge` names the Bridge that calls it, where the browser cannot, and is left out where the browser calls it directly; `place` the place where it processes data, `context` the model's context in tokens; `secret` the name of the CI secret that holds its key, for work handed to CI | the key |
-| `session:<bridge>:<agent>` | `{ place, context, model, capabilities }` — the CLI session the Bridge `<bridge>` offers for its agent `<agent>`: the place where it processes data, its context in tokens, its model, and its capabilities, prefilled as for a CLI agent | no |
-| `bridge:<name>` | `{ address, token }` — a Bridge reached directly, on this computer's loopback or at an SSH forward's address — or `{ port, token }` — a Bridge reached through the jump host, at its port of the jump host's range (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`); `<name>` is the Bridge's name, which its own settings and its participants' routes carry | the token |
+| `endpoint:<name>` | `{ url, kind, model, key?, bridge?, place, context, price?, secret? }` — a model endpoint, a connection that offers one model; `bridge` names the Bridge that calls it, where the browser cannot, and is left out where the browser calls it directly; `place` the place where it processes data, `context` the model's context in tokens; `price` `{ input, output, currency }` per million tokens, where the person declares one; `secret` the name of the CI secret that holds its key, for work handed to CI | the key |
+| `session:<bridge>:<agent>` | `{ place, capabilities, models }` — the connection the Bridge `<bridge>` offers for its agent `<agent>`: the place where it processes data, its capabilities, and `models`, each model the agent can run as `{ model, context, price? }`, its context in tokens and its price per million tokens where the person declares one | no |
+| `bridge:<name>` | `{ address, token }` — a Bridge reached directly, on this computer's loopback or at an SSH forward's address — or `{ port, token }` — a Bridge reached through the jump host, at its port of the jump host's range (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`); `<name>` is the Bridge's name, which its own settings and its connections' routes carry | the token |
 | `jump-host` | `{ hostname, user, sshPort, portRange, httpsAddress?, login? }` (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`) | the login |
 | `mailbox` | the connection's fields as MOD-mail-routes defines them — route, address, folders, allowed places, the client identifier of the app registration, or servers and password | the password |
 | `mailbox-sign-in` | not a key of its own: the keys the Microsoft sign-in library writes for its token cache under its own names (ARC-053), found by the client identifier the `mailbox` entry names and by the library's own key names | yes |

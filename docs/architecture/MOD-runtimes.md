@@ -31,10 +31,6 @@ uses:
   - MOD-endpoint-calls.endpointExchange
   - MOD-endpoint-calls.EndpointConfig
   - MOD-participant-list.Participant
-  - MOD-participant-list.reachedThrough
-  - MOD-participant-list.eligible
-  - MOD-participant-list.participantSchema
-  - MOD-participant-list.participantsOf
   - MOD-job-catalogue.KindDefinition
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.Host
@@ -60,7 +56,6 @@ uses:
   - MOD-product-process.branchesOf
   - MOD-product-process.gateSchema
   - MOD-documents.readDocument
-  - MOD-documents.readRegister
   - MOD-documents.artifactSchemas
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.ask
@@ -163,7 +158,7 @@ task in the participant's words, `endpoint`, the address and model of a model en
 secret of that endpoint's key, and `test`, set for the test job of that endpoint (UC-003, step 4); the task is given to
 the job and written to no file, and the run's answer, and an endpoint's test, are left in the run's own log and summary,
 never in the job's record. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
-an agent's key from the secret the participant's route names; the file names each secret it reads by its literal name,
+an agent's key from the secret its connection's route names; the file names each secret it reads by its literal name,
 never by a name computed while it runs; the dashboard names them, stores on a person's click each one whose value this
 browser keeps (`actionsSetup`), opens the server's page for secrets for the rest, and never asks for a value. Each job checks out the instance repository at the commit the file names and runs an entry of
 MOD-workflow-entries with Node.
@@ -249,13 +244,11 @@ pins — the commit the run's checkout of the instance is at —, not the commit
 - `ResourceNeed` — `{ resource: string, route: string }`: a resource a job needs and the route that reaches it —
   `bridge <name>`, or `runner:<label>` —, as MOD-resource-list's `reachableBy` gives it for the product's resources; a
   product's facts carry them (MOD-progress-measures).
-- `routesFor(participant: Participant, participants: Participant[], product: { visibility: "public" | "private" |
-  "internal", jobWorkflow: boolean }, needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route in the register: a model endpoint in the
+- `routesFor(participant: Participant, product: { visibility: "public" | "private" |
+  "internal", jobWorkflow: boolean }, needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route, its connection's (MOD-participant-list): a model endpoint in the
   tab, called directly or through the Bridge its configuration names, and, where its route names the CI secret of its
-  key, on the server's runners too, where Agent M's own loop calls that endpoint (MOD-workflow-entries); a CI agent in CI, on
-  the server's runners or on its runner; a CLI or sandboxed agent through the Bridge its route names; a subagent — whose
-  route `reachedThrough` names another participant — the routes of that participant among `participants`, as
-  MOD-participant-list's `eligible` finds it there, its job's input naming the subagent for that participant to start. A self-hosted runner is offered only for a repository whose server reports
+  key, on the server's runners too, where Agent M's own loop calls that endpoint (MOD-workflow-entries); a CLI agent
+  through the Bridge its route names; a participant without a route, none. A self-hosted runner is offered only for a repository whose server reports
   it private, and refused with the reason otherwise (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE
   REPOSITORY`). A job that needs no resource reached only by a Bridge or a runner is offered on the server's own runners
   whenever a CI agent can take it (`AGENT M WORKS WITHOUT A LOCAL INSTALLATION`); one that needs such a resource is offered
@@ -369,11 +362,9 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   null, stored: string[] }> }>` — what the product
   lacks for the CI route, and its setup (UC-001 step 5, UC-010, UC-049 4c); the one place the pages of settings and the
   prompt bar learn it. `tokenKey` is the key of the product's own token in `store`, which the caller hands, since this module reads no
-  rule of the frame. It reads the instance's default branch — its repository and commit, and its participants
-  (`docs/participants.md`, through `readRegister`, `participantSchema` and `participantsOf`) — and the product's:
+  rule of the frame. It reads the instance's default branch — its repository and commit — and the product's:
   `named` is what the job workflow reads, `token` `AGENT_M_TOKEN` and `keys`, in their order without a name twice, the
-  CI secret of each participant's route of the form `ci … secret <NAME>` and the `secret` each `endpoint:*` setting of
-  `store` names; the runners are the labels of those routes. It compares `jobWorkflowFiles` for them — on GitLab with
+  `secret` each `endpoint:*` setting of `store` names; the runners are the server's own. It compares `jobWorkflowFiles` for them — on GitLab with
   the product's `.gitlab-ci.yml` at that head — with the product's default branch: `missing.workflow` is true where a
   file is absent, `outdated` names each file that stands with another text. `pins.instance` is the instance commit
   `jobWorkflowFiles` is given, `pins.product` the instance commit the product's job workflow file pins — the one a job
@@ -453,7 +444,7 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
 - `MOD-endpoint-calls.endpointDriver`, `MOD-endpoint-calls.EndpointConfig` — the driver of an endpoint the browser calls,
   and the configuration a Bridge receives for one it calls; `MOD-endpoint-calls.endpointExchange` — one request of the
   tool loop of an endpoint the Bridge calls.
-- `MOD-participant-list.Participant` — a participant's route.
+- `MOD-participant-list.Participant` — a participant's route, its connection's.
 - `MOD-repository-hosts.Host`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.commitFiles`,
   `MOD-repository-hosts.listCiRuns`, `MOD-repository-hosts.cancelCiRun`, `MOD-repository-hosts.ciRunLog`,
   `MOD-repository-hosts.openPullRequest`, `MOD-repository-hosts.listPullRequests` — the CI route and the pull request;
@@ -468,10 +459,7 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
   `MOD-product-process.gateSchema`, with `MOD-documents.readDocument` — the decision of the gate record `resumeJob` is
   given;
   `MOD-repository-hosts.startWorkflow` — the start of a handed-over job, with its task.
-- `MOD-participant-list.reachedThrough` — a subagent's route through the participant that starts it.
-- `MOD-documents.readRegister`, `MOD-participant-list.participantSchema`, `MOD-participant-list.participantsOf` — the
-  instance's participants, whose CI routes name the keys the job workflow reads (`actionsSetup`);
-  `MOD-repository-hosts.ciSecretNames`, `MOD-repository-hosts.setCiSecret` — the product's Actions secrets, compared by
+- `MOD-repository-hosts.ciSecretNames`, `MOD-repository-hosts.setCiSecret` — the product's Actions secrets, compared by
   name and stored on the person's click; `MOD-browser-store.Store`, `MOD-browser-store.listSettings` — the endpoint
   settings, whose `secret` and `key` it reads with `readSetting`, and the product's token.
 - `MOD-bridge-client.Bridge`, `MOD-bridge-client.ask`, `MOD-bridge-client.handOver`, `MOD-bridge-client.bridgeJobs`,

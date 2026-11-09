@@ -5,3 +5,4 @@
 | Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |
 |---|---|---|---|---|
 | 01 | `SPEC.md` | ## 13. Process execution and jobs | ## 14. Issues, mail and personal data | — |
+| 02 | `SPEC.md` | ## 13. Process execution and jobs | — | — |

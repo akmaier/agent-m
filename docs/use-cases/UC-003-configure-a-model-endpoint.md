@@ -12,6 +12,10 @@ realises:
   - AN UNSUPPORTED ENDPOINT SAYS SO
   - A CLEAR IS A REAL CLEAR
   - NO SECRET IN THE REPOSITORY
+  - A CONNECTION NAMES THE MODELS IT OFFERS
+  - A CONNECTION DECLARES ITS CAPABILITIES
+  - A CONNECTION DECLARES WHERE IT PROCESSES DATA
+  - NO COST IS GUESSED
 ---
 # UC-003 Configure a model endpoint
 
@@ -33,14 +37,16 @@ directly, or through the Bridge that reaches it.
 
 1. The author opens the configuration screen.
 2. The author enters endpoint URL, model name and API key, the place where the endpoint processes data — the provider
-   and its country, or *this machine* —, the model's context in tokens, and, for work handed to CI, the name of the CI
-   secret that holds the key.
+   and its country, or *this machine* —, the model's context in tokens, where the author wants costs in money its price
+   per million input and output tokens, and, for work handed to CI, the name of the CI secret that holds the key. Left
+   without a price, a job's costs on it are shown as usage with *price unknown*.
 3. Agent M stores them in the browser's `localStorage` of the Agent M site; it sets no cookie.
 4. Agent M sends one short test request to the endpoint, which offers the model one tool and asks it to call it.
 5. The endpoint answers; Agent M shows the configuration as working, and whether the model called the tool — *can use
    tools* or *text only*. The endpoint is offered in the prompt bar with its place (UC-049, step 1), and a model that
-   can use tools works in its loop (UC-049, step 4). A participant on this endpoint is preset accordingly (UC-017, step
-   4).
+   can use tools works in its loop (UC-049, step 4). Its capabilities are *draft text* and *read the repository*, and
+   *use tools* where the model called the tool; its model is among those an agent of the instance's list may be given
+   (UC-017, step 3).
 
 ```mermaid
 sequenceDiagram

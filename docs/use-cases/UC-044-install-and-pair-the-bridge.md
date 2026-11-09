@@ -16,6 +16,10 @@ realises:
   - THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW
   - THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
   - THE BRIDGE FINDS THE INSTALLED AGENTS
+  - A CONNECTION NAMES THE MODELS IT OFFERS
+  - A CONNECTION DECLARES ITS CAPABILITIES
+  - A CONNECTION DECLARES WHERE IT PROCESSES DATA
+  - NO COST IS GUESSED
   - THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
   - THE BRIDGE OPENS ITS TUNNELS ITSELF
@@ -80,8 +84,11 @@ double-clicking it, and copying one token. Nobody types a command.
    dashboard's settings page, under the shared-origin notice, and presses **Pair** — one click. The dashboard
    stores the Bridge under the name it reports — by default its computer's name —, with its address and token
    (UC-042), and tests it; the bridge's window shows *paired with `<owner>.github.io`*.
-5. The bridge now appears as a place where participants run (UC-017): each agent it offers can be added as a
-   CLI agent in one click, with *this computer* as its processing place.
+5. Each agent the Bridge offers becomes a connection of this browser once the person declares, on the settings page,
+   where it processes data — *this computer* preset —, its capabilities — every one preset — and each model it can run,
+   with that model's context in tokens and, where the person wants costs in money, its price per million input and
+   output tokens. Its models are then among those an agent of the instance's list may be given (UC-017), and it is
+   offered in the prompt bar (UC-049).
 
 ```mermaid
 sequenceDiagram
@@ -98,7 +105,7 @@ sequenceDiagram
     P->>D: paste token, Pair
     D->>B: test with the token (127.0.0.1)
     B-->>D: paired
-    D-->>P: agents offered as participants
+    D-->>P: agents offered as connections
 ```
 
 ## Alternative flows
@@ -113,8 +120,8 @@ sequenceDiagram
   refused from then on; the person pastes the new one once.
 - **4d. A Bridge on another computer.** The person installs the Bridge there too (steps 1–3) and pairs it from this
   browser through an SSH forward to that computer's loopback (UC-011, 1a) or through the jump host (6a). This browser
-  keeps it as one more Bridge under its name; the agents it offers are offered as participants of that Bridge, and, once
-  their place, context, model and capabilities are declared in this browser, as CLI sessions in the prompt bar (UC-049).
+  keeps it as one more Bridge under its name; the agents it offers become connections once their place, capabilities and
+  models with their context are declared in this browser, as in step 5.
 - **4c. The browser cannot reach the bridge on this computer** — Safari blocks a call from an HTTPS page to
   `http://127.0.0.1`; Chrome, Edge and Firefox allow it after one local-network prompt, which the dashboard
   explains before it appears. The dashboard names the reason and offers the route over HTTPS through the
@@ -148,7 +155,8 @@ sequenceDiagram
 
 - The bridge runs as an app on this computer, paired with the person's dashboard; nothing was typed in a
   terminal.
-- The agents it offers are available as participants, and as CLI sessions in the prompt bar once declared, each
-  working in its own folder with its own login; no key passed through Agent M.
+- The agents it offers are connections of this browser once declared — their models available to the agents of the
+  instance's list, and offered in the prompt bar —, each working in its own folder with its own login; no key passed
+  through Agent M.
 - If configured, its tunnel to the jump host is open and ends on the jump host's loopback; its private SSH key
   never left this computer.
