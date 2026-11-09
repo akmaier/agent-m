@@ -30,6 +30,9 @@ on:
       secret:
         description: "The name of the CI secret that holds the key of that endpoint, a name this file reads below; never the key"
         required: false
+      test:
+        description: "Set for the test job of that endpoint: its test is sent first, and its result left in the run's log"
+        required: false
 
 permissions:
   contents: read

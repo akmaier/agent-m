@@ -12,7 +12,7 @@
 import { appendToRecord, jobCost, jobState, newJobId, recordsNewestFirst, startRecord, takeJob } from "../job-ledger/index.mjs";
 import { kindOf, toolsOf } from "../job-catalogue/index.mjs";
 import { failedBecause, handOverParams, prepareJob, provenanceLines, runJob, taskRefusal, withheld } from "../job-runner/index.mjs";
-import { endpointDriver } from "../endpoint-calls/index.mjs";
+import { endpointDriver, testEndpoint } from "../endpoint-calls/index.mjs";
 import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { checkoutPrompt } from "../checkout-tools/index.mjs";
 import { registerPaths, restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
@@ -247,8 +247,15 @@ function leaveAnswer(env, id, answer) {
   if (env.job.summaryFile) fs.appendFileSync(env.job.summaryFile, `## ${id}\n\n${answer}\n`);
 }
 
-// One job: taken, prepared, run, ended in its record. -> { id, state, summary }. `handOver` is { task, endpoint } for a job whose task travels with its hand-over: the
-// task is the job's instruction in memory only, the record keeps none, and what is written about the run hides the task and every secret.
+// An endpoint's test, sent in the test job of that endpoint (UC-003 step 4): what MOD-endpoint-calls' testEndpoint returns, left in the log as one line of JSON between the lines
+// `--- test of <id> ---` and `--- end of the test of <id> ---`, where the settings page reads it (MOD-prompt-bar's followJob). `hidden` takes every secret of the run out of it.
+function leaveTest(id, tested, hidden) {
+  console.log(`--- test of ${id} ---\n${hidden(JSON.stringify(tested))}\n--- end of the test of ${id} ---`);
+}
+
+// One job: taken, prepared, run, ended in its record. -> { id, state, summary }. `handOver` is { task, endpoint, secret, test } for a job whose task travels with its hand-over: the
+// task is the job's instruction in memory only, the record keeps none, and what is written about the run hides the task and every secret. With `test`, the endpoint's test
+// is sent first, with the configuration the job's driver is given, and left in the log (leaveTest); the job then runs as any other.
 async function runJobOf(env, composed, participants, row, handOver = null) {
   const { record, path } = row;
   const { job } = env;
@@ -258,12 +265,12 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
   if (!taking.taken) return { id: record.id, state: "skipped", summary: `${record.id} was taken by ${taking.by}` };
   // A hand-over with an endpoint reads its key from the secret the input `secret` names, and no other; every other job from the secret its participant's route names.
   const secretName = handOver?.endpoint ? (handOver.secret ?? undefined) : SECRET_OF.exec(participant.route ?? "")?.[1];
-  const hidden = (value) => {
+  const secretsHidden = (value) => {
     let said = String(value);
-    if (handOver) said = said.split(handOver.task.trim()).join("[the task]");
     for (const secret of [env.job.personToken, ...Object.values(env.job.keys)].filter(Boolean)) said = said.split(secret).join("[secret]");
     return said;
   };
+  const hidden = (value) => secretsHidden(handOver ? String(value).split(handOver.task.trim()).join("[the task]") : value);
   const instanceSnapshot = await instance.host.readSnapshot("HEAD");
   const context = { kind: null, params: handOver ? { ...(record.params ?? {}), instruction: handOver.task } : record.params ?? {}, product: { address: product.address, snapshot: await product.host.readSnapshot("HEAD"), host: product.host },
     instance: { snapshot: instanceSnapshot, host: instance.host, checkout: instance.checkout },
@@ -276,6 +283,9 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     const dropped = handOver ? taskRefusal(context.kind) : null;
     if (dropped) throw Object.assign(new Error(dropped.what), { name: "NotStartable" });
     endpoint = handOver?.endpoint ? endpointOf(handOver.endpoint) : null;
+    // On the model's user's side of the agent's machine (model-user.mjs) the endpoint is reached through the key holder, which adds the key; this side holds none.
+    const config = endpoint ? { name: "hand-over", ...endpoint, ...(job.keyHolder ? { baseUrl: job.keyHolder, key: null } : { key: job.keys[secretName] ?? null }) } : null;
+    if (config && handOver.test) leaveTest(record.id, await testEndpoint(config), secretsHidden);
     // A model endpoint driven by Agent M's own tool loop gets AGENTS.md as text, not as a path in the instance's checkout, which only a coding agent
     // reads (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST).
     if (endpoint || (record.params ?? {}).endpoint) context.instance = { ...context.instance, checkout: undefined };
@@ -294,8 +304,6 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     if (prepared.blocking.length > 0 || prepared.notFitting.length > 0) {
       throw Object.assign(new Error(prepared.blocking.map((found) => found.what).join("; ") || "the job does not fit its participant"), { name: "NotStartable" });
     }
-    // On the model's user's side of the agent's machine (model-user.mjs) the endpoint is reached through the key holder, which adds the key; this side holds none.
-    const config = endpoint ? { name: "hand-over", ...endpoint, ...(job.keyHolder ? { baseUrl: job.keyHolder, key: null } : { key: job.keys[secretName] ?? null }) } : null;
     const driver = !endpoint ? await driverOf(participant, record.params ?? {}, secretName, job.keys[secretName], instance.checkout, job.keyHolder)
       : inCheckout ? endpointDriver(config, participant, undefined, { system: await checkoutPrompt({ folder: context.product.checkout, now: env.now }) })
         : endpointDriver(config, participant);
@@ -545,7 +553,7 @@ async function runHandOver(env, composed, listed, row, inputs) {
       ? `${secret} is missing: the job workflow names no such key, so no secret of that name reaches the run; the job workflow is installed again from Settings, which names the keys of the participants' routes and of this browser's endpoints. Nothing was written.`
       : `${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`);
   }
-  return runRows(env, composed, participants, [row], { task, endpoint: inputs.endpoint ?? null, secret });
+  return runRows(env, composed, participants, [row], { task, endpoint: inputs.endpoint ?? null, secret, test: Boolean(inputs.test) });
 }
 
 // The participant a record declares for a model endpoint the instance does not list (MOD-job-ledger's `declares`). For a kind that works in the checkout, it also

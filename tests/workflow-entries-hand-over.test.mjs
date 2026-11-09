@@ -892,3 +892,58 @@ test("TST-8048006: a dispatched hand-over of a kind that takes no instruction en
     assert.equal(holdsTask(w.everything() + w.lines() + status.summary), false, "the task is written and printed nowhere");
   });
 });
+
+// ---------------------------------------------------------------- the test job of an endpoint (UC-003 step 4)
+
+// The endpoint's answer to the short test request of MOD-endpoint-calls' testEndpoint, which offers the tool agent_m_probe, as `probe` gives it; every other request is
+// answered the fixed draft (`works`).
+const probing = (probe) => (request) => (request.body.includes("agent_m_probe") ? probe(request) : works(request));
+const callsTheTool = answer(200, { choices: [{ finish_reason: "tool_calls", message: { content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "agent_m_probe", arguments: "{}" } }] } }] });
+// The text of the log between `--- <what> of <job> ---` and `--- end of the <what> of <job> ---`, or null where it holds none.
+const block = (log, what) => {
+  const open = `--- ${what} of ${JOB} ---\n`, from = log.indexOf(open), to = log.indexOf(`\n--- end of the ${what} of ${JOB} ---`);
+  return from === -1 || to === -1 ? null : log.slice(from + open.length, to);
+};
+
+// TST-2026313301 · level: component · module: MOD-workflow-entries
+// guards: UC-003; NO SECRET IN THE REPOSITORY
+// given: as TST-498001; the endpoint calls the tool agent_m_probe when it is offered it, and answers the fixed draft otherwise
+// input: onDispatch with the inputs of TST-498001 and `test` "true"; and, as the counter-proof, the same inputs without `test`
+// expect: with `test`: outcome `done`; the first request to the endpoint is the test request — it offers agent_m_probe, and carries FIXTURE_KEY's value as its bearer —, then the job's own request; the log holds, between `--- test of <job> ---` and `--- end of the test of <job> ---`, exactly the one line {"works":true,"model":"fixture-llm","tools":true,"toolMessage":null}, before the answer's lines, and the answer as before; no line of the log holds the key. Without `test`: the endpoint is asked once, and the log holds no test of <job>
+test("TST-2026313301: with the input test the run sends the endpoint's test first and leaves its result as one line of JSON in the log, then runs the job", async () => {
+  await world({ records: [HAND_OVER], endpoint: probing(callsTheTool) }, async (w) => {
+    const status = await w.dispatch({ ...INPUTS, test: "true" });
+    assert.equal(status.outcome, "done", status.summary);
+    const [first, ...rest] = w.starts();
+    assert.ok(first.body.includes("agent_m_probe"), "the first request is the test request");
+    assert.equal(first.headers.Authorization, `Bearer ${KEY}`);
+    assert.equal(rest.length, 1, "then the job's own request");
+    const log = w.lines();
+    assert.equal(block(log, "test"), JSON.stringify({ works: true, model: "fixture-llm", tools: true, toolMessage: null }));
+    assert.ok(log.indexOf(`--- test of ${JOB} ---`) < log.indexOf(`--- answer of ${JOB} ---`), "the test stands before the answer");
+    assert.ok(block(log, "answer").includes(ANSWER), "known positive: the answer is in the log as before");
+    assert.equal(log.includes(KEY), false, "no line of the log holds the key");
+  });
+  await world({ records: [HAND_OVER], endpoint: probing(callsTheTool) }, async (w) => {
+    assert.equal((await w.dispatch(INPUTS)).outcome, "done");
+    assert.equal(w.starts().length, 1, "without test the endpoint is asked once");
+    assert.equal(block(w.lines(), "test"), null);
+  });
+});
+
+// TST-2026313302 · level: component · module: MOD-workflow-entries
+// guards: UC-003; NO SECRET IN THE REPOSITORY; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: as TST-2026313301, but the endpoint refuses the test request with 401 and the message "Invalid API key <FIXTURE_KEY's value>", and answers the job's request with the fixed draft
+// input: onDispatch with the inputs of TST-498001 and `test` "true"
+// expect: outcome `done`; the test's line is JSON with works false and a diagnosis whose reason is "key refused"; neither that line nor any other line of the log holds the key's value
+test("TST-2026313302: a test the endpoint refuses is left as its diagnosis, which holds no key, and the job still runs", async () => {
+  await world({ records: [HAND_OVER], endpoint: probing(answer(401, { error: { message: `Invalid API key ${KEY}` } })) }, async (w) => {
+    const status = await w.dispatch({ ...INPUTS, test: "true" });
+    assert.equal(status.outcome, "done", status.summary);
+    assert.ok(w.starts()[0].answered.includes(KEY), "known positive: the endpoint's refusal holds the key");
+    const tested = JSON.parse(block(w.lines(), "test"));
+    assert.equal(tested.works, false);
+    assert.equal(tested.diagnosis.reason, "key refused");
+    assert.equal(w.lines().includes(KEY), false, "no line of the log holds the key");
+  });
+});

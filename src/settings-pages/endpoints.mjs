@@ -52,7 +52,7 @@ export async function contextFromTest(store, key, config, checked) {
 export function recordTest(store, key, checked) {
   // `browser` marks a refusal of the browser itself — the endpoint does not accept calls from a web page —, which the Settings page says plainly (UC-003 4a).
   const browser = !checked.works && Boolean(checked.diagnosis?.routes?.includes("ci") && checked.diagnosis?.routes?.includes("bridge"));
-  // A test that states nothing of tools — the test job on GitHub Actions offers the model none — keeps no `tools`.
+  // A test that states nothing of tools keeps no `tools`.
   const tools = checked.works && checked.tools !== undefined ? { tools: checked.tools === true } : {};
   const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...tools, ...(browser ? { browser: true } : {}) };
   writeSetting(store, `last-test:${key}`, lastTest);
@@ -196,7 +196,9 @@ export async function testThroughActions(context, name, result, ended) {
   await testOnActions(context, name, repository, result, "", ended);
 }
 
-// The test job of an endpoint on GitHub Actions, spawned and followed; its outcome is the endpoint's test. `stored` is said before each line: that the secret was stored, or nothing.
+// The test job of an endpoint on GitHub Actions, spawned with `test` and followed: its end and answer say whether the endpoint works, and the test the run left in its log
+// (MOD-workflow-entries) whether the model called the tool — can use tools or text only, its message folded (UC-003 step 5, 5a) —; recorded as the endpoint's test, with
+// `tools` false where the run left none. `stored` is said before each line: that the secret was stored, or nothing.
 // While it runs, its state is shown, or what a poll could not read; at its end, `ended` is given the recorded test, else the endpoints are listed anew.
 async function testOnActions(context, name, repository, result, stored = "The secret is stored. ", ended = () => context.endpointsChanged?.()) {
   const key = `endpoint:${name}`;
@@ -207,7 +209,7 @@ async function testOnActions(context, name, repository, result, stored = "The se
     const address = repository.address ?? (await host.readSnapshot((await host.repositoryInfo()).defaultBranch)).repository.web;
     result.textContent = `${stored}Spawning the test job on GitHub Actions…`;
     const spawned = await spawnEndpointJob({ kind: "converse", task: ACTIONS_TEST_TASK, participant, store: context.store, instance: context.instance,
-      page: { address, host }, ofProduct: repository.ofProduct, conversation: null });
+      page: { address, host }, ofProduct: repository.ofProduct, conversation: null, test: true });
     if (spawned.refused) {
       result.textContent = `${stored}No test job was spawned: ${spawned.refused}.${spawned.needsWorkflow ? " Install Agent M's job workflow in the product section of Settings, then test again." : ""}`;
       return;
@@ -220,10 +222,16 @@ async function testOnActions(context, name, repository, result, stored = "The se
       }
       follower?.stop();
       const works = view.end.state === "done" && Boolean(view.answer);
-      // The test job offers the model no tool: the test states nothing of tools.
-      const lastTest = recordTest(context.store, key, { works });
-      result.textContent = works ? `✓ ${participant.model} answered through GitHub Actions (${spawned.id}): ${view.answer.trim()}`
-        : `✗ The test job ${spawned.id} ended ${view.end.state}${view.end.reason ? `: ${view.end.reason}` : ""}${view.address ? ` — ${view.address}` : ""}`;
+      // Whether the model called the tool is the test MOD-endpoint-calls' testEndpoint sent in the run; false where the run left none.
+      const tools = view.test?.works === true && view.test.tools === true;
+      const lastTest = recordTest(context.store, key, { works, tools });
+      if (!works) {
+        result.textContent = `✗ The test job ${spawned.id} ended ${view.end.state}${view.end.reason ? `: ${view.end.reason}` : ""}${view.address ? ` — ${view.address}` : ""}`;
+      } else {
+        const message = !tools && typeof view.test?.toolMessage === "string" && view.test.toolMessage ? view.test.toolMessage : null;
+        result.replaceChildren(`✓ ${participant.model} answered through GitHub Actions (${spawned.id}): ${view.answer.trim()} — ${tools ? "can use tools" : "text only"}.`,
+          ...(message ? [" ", el("details", "endpoint-tool-message", el("summary", null, "The endpoint's message"), message)] : []));
+      }
       ended(lastTest);
     } });
   } catch (error) {
