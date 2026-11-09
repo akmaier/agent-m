@@ -62,8 +62,10 @@ const INSTANCE_LIST = list("agent-m", LLM, CLUSTER);
 const PARTICIPANTS = ["# Participants of this instance", "",
   "| Name | Type | Model |", "|---|---|---|",
   "| ci-drafter | agent | ci-model |", ""].join("\n");
-// The connection of this browser that offers ci-drafter's model, its key named as the CI secret CI_KEY, so that its jobs may run on CI.
-const CONNECTION = { kind: "openai-compatible", url: "https://models.example.test/v1", model: "ci-model", key: "sk-ci-model-0123456789", place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" };
+// The connection of this browser that offers ci-drafter's model: the coding agent on CI gpu-coder, claude on the self-hosted runner gpu, its key named as the CI secret
+// CI_KEY, so that its jobs may run on that runner (MOD-browser-store, `ci-agent:<name>`).
+const CONNECTION = { agent: "claude", runner: "gpu", secret: "CI_KEY", place: "NHR@FAU, Erlangen", capabilities: ["read the repository", "write to the repository", "run code and tests", "use tools"],
+  models: [{ model: "ci-model", context: 200000 }] };
 const WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n" };
 
 // A person opens the page at `fragment`: the frame started on the module view of MOD-settings-pages, over this browser's store with the instance's token, the product with its own, and the Bridges `bridges`.
@@ -72,7 +74,7 @@ function visit(t, fragment, { productFiles = { "docs/resources.md": PRODUCT_LIST
     repositories: { [INSTANCE]: { files: { "docs/resources.md": INSTANCE_LIST, "docs/participants.md": PARTICIPANTS } }, [PRODUCT_REPO]: { files: productFiles, visibility },
       "alice/dlls": { files: { "README.md": SENTINEL } }, "alice/dlls2": { files: { "README.md": SENTINEL } } },
     settings: { "github-token": { value: TOKEN, name: "Agent M - akmaier/agent-m", expires: "2027-01-01" }, products: [PRODUCT],
-      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M - alice/thesis-tool", expires: "2027-01-01" }, "endpoint:ci-model": CONNECTION,
+      [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M - alice/thesis-tool", expires: "2027-01-01" }, "ci-agent:gpu-coder": CONNECTION,
       ...Object.fromEntries(Object.entries(bridges).map(([name, address]) => [`bridge:${name}`, { address, token: BRIDGE_TOKEN }])) },
   });
 }
@@ -259,7 +261,7 @@ test("release · UC-040 3, 6–8: a compute resource on a Bridge is declared wit
 
 // TST-1041105 · level: release · module: MOD-settings-pages; MOD-resource-list
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
-// given: a private product with Agent M's job workflow, whose list names cluster on the runner gpu; the instance's register holds the agent ci-drafter, whose model this browser's endpoint ci-model offers with the CI secret CI_KEY; the same product public
+// given: a private product with Agent M's job workflow, whose list names cluster on the runner gpu; the instance's register holds the agent ci-drafter, whose model this browser's coding agent on CI gpu-coder offers on the runner gpu with the CI secret CI_KEY; the same product public
 // input: press "Check" on cluster; press "Run"; then the same Check on the public product
 // expect: 7b "The route is a self-hosted runner. The browser cannot reach it; Agent M offers a check job on that runner label through the product's workflow": the page names the job, the runner gpu and ci-drafter and offers "Run"; Check writes nothing; one press of Run gives one commit to alice/thesis-tool adding one file under docs/jobs/ and changing no other, made with the product's token; 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": on the public product the page says that no participant on a connection of this browser reaches the runner gpu and that nothing can check cluster, offers no Run and writes nothing
 test("release · UC-040 7b and 9b: a resource on a runner is checked by a job the person starts, and where no runtime reaches it the job is not offered", async (t) => {

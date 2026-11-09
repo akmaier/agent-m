@@ -113,20 +113,20 @@ const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, a
 const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
 const NEEDS = ["read the repository", "write to the repository", "run code and tests"];
 // The register (MOD-participant-list: Name, Type, Model): writer-a, writer-b and small-w are agents whose models the coding agent claude of the Bridge lab-pc
-// offers; ci-writer an agent on the endpoint ci, whose key is the CI secret CI_KEY; drafter an agent on the endpoint ep1 of this machine.
+// offers; ci-writer an agent whose model the coding agent on CI ci offers, whose key is the CI secret CI_KEY; drafter an agent on the endpoint ep1 of this machine.
 const WRITER_A = "| writer-a | agent | model-y |";
 const WRITER_B = "| writer-b | agent | model-z |";
 const SMALL_WRITER = "| small-w | agent | model-s |";
 const CI_WRITER = "| ci-writer | agent | model-x |";
 const DRAFTER = "| drafter | agent | example-model |";
-// The connections this browser keeps (MOD-browser-store): the Bridge lab-pc with its CLI session claude, which declares the three capabilities of the
-// test-writing role at "this machine" and offers model-y and model-z with a context of 200000 tokens and model-s with one of 100; the endpoint ci of
-// model-x at GitHub Actions in the USA, its key the CI secret CI_KEY; the endpoint ep1 of example-model at this machine.
+// The connections this browser keeps (MOD-browser-store): the Bridge lab-pc; the coding agent on CI ci, claude on the server's runners at GitHub Actions in
+// the USA, its key the CI secret CI_KEY, declaring the three capabilities of the test-writing role and model-x; the endpoint ep1 of example-model at this machine. The Bridge keeps the declaration of its coding agent claude (MOD-bridge-jobs, GET /v1/agents):
+// the three capabilities of the test-writing role at "this machine", model-y and model-z with a context of 200000 tokens and model-s with one of 100.
 const BRIDGE = "http://127.0.0.1:47123";
+const CLAUDE = { name: "claude", place: "this machine", capabilities: NEEDS, models: [{ model: "model-y", context: 200000 }, { model: "model-z", context: 200000 }, { model: "model-s", context: 100 }] };
 const CONNECTIONS = {
   "bridge:lab-pc": { address: BRIDGE, token: "bridge-pairing-token" },
-  "session:lab-pc:claude": { place: "this machine", capabilities: NEEDS, models: [{ model: "model-y", context: 200000 }, { model: "model-z", context: 200000 }, { model: "model-s", context: 100 }] },
-  "endpoint:ci": { url: "https://ci-endpoint.example.test/v1", kind: "openai-compatible", model: "model-x", key: "sk-fixture-endpoint-key", place: "GitHub Actions in the USA", context: 200000, secret: "CI_KEY" },
+  "ci-agent:ci": { agent: "claude", runner: "hosted", secret: "CI_KEY", place: "GitHub Actions in the USA", capabilities: NEEDS, models: [{ model: "model-x", context: 200000 }] },
   "endpoint:ep1": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model", key: "sk-fixture-endpoint-key", place: "this machine", context: 200000 },
 };
 // This browser's localStorage, over a Map, for MOD-browser-store; the store each page is drawn with keeps CONNECTIONS.
@@ -158,7 +158,7 @@ test.beforeEach(() => {
   globalThis.fetch = async (url) => {
     const address = String(url?.url ?? url);
     if (address === `${BRIDGE}/v1/pair`) return json({ bridge: { name: "lab-pc" } });
-    if (address === `${BRIDGE}/v1/agents`) return json({ agents: [{ name: "claude", ready: true }] });
+    if (address === `${BRIDGE}/v1/agents`) return json({ agents: [{ ...CLAUDE, version: "1.0.0", ready: true, loggedIn: true }], missing: [] });
     sent.push(address);
     throw new Error("no network");
   };
@@ -277,9 +277,9 @@ test("generate — when the only participant is the implementer, release is said
 
 // TST-763004 · level: unit · module: MOD-test-pages
 // guards: UC-026; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A TEST JOB RECEIVES THE CHAPTER ON TESTING
-// given: the page with the preselection and ci-writer chosen — an agent on the endpoint ci, whose setting names its CI secret CI_KEY —, a person's name entered
+// given: the page with the preselection and ci-writer chosen — an agent on the coding agent on CI ci, claude on the server's runners, whose setting names its CI secret CI_KEY —, a person's name entered
 // input: pressing Show the run panel; then Run twice
-// expect: the panel names the participant, where it processes data and what is sent — the selection and the book's chapter on testing —; nothing is written before Run; Run queues exactly one job: one commit of one record docs/jobs/JOB-….md of kind propose-tests, naming the selected names, the participant and the route ci hosted followed by the connection's route endpoint ci secret CI_KEY (MOD-job-ledger, route), with the levels as parameters
+// expect: the panel names the participant, where it processes data and what is sent — the selection and the book's chapter on testing —; nothing is written before Run; Run queues exactly one job: one commit of one record docs/jobs/JOB-….md of kind propose-tests, naming the selected names, the participant and its connection's route ci hosted agent claude secret CI_KEY (MOD-job-ledger, route), with the levels as parameters
 test("generate — the run panel names where the selection goes and Run queues one job of the kind propose-tests", async () => {
   const fake = fakeProduct(accepted);
   const target = await show(fake, { register: registerOf(WRITER_A, WRITER_B, CI_WRITER, DRAFTER) });
@@ -303,7 +303,7 @@ test("generate — the run panel names where the selection goes and Run queues o
   assert.match(file.path, /^docs\/jobs\/JOB-[^/]+\.md$/);
   assert.match(file.text, /kind: propose-tests/);
   assert.match(file.text, /participant: ci-writer/);
-  assert.match(file.text, /^route: ci hosted endpoint ci secret CI_KEY$/m);
+  assert.match(file.text, /^route: ci hosted agent claude secret CI_KEY$/m);
   for (const name of ["RULE TWO", "UC-002", "MOD-a"]) assert.ok(file.text.includes(name), `${name} is named in the record`);
   assert.match(file.text, /release/);
 });
