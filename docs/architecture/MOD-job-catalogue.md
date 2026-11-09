@@ -91,7 +91,7 @@ Agent M prepares no job of the kind.
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
 | `derive-requirements` | UC-005 | draft text | | `instruction?`, `source-excerpt`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class, and, for a new one, its place |
-| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | the same, without a source passage |
+| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form` | | | `person` · `spec-edits` | the texts it changes, each whole, as a person writes them in the editor: each SPEC section, each open entry's proposal, and `docs/groups/requirements.md`, with why |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `instruction?`, `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
 | `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `draft?`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `instruction?`, `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
@@ -155,13 +155,13 @@ a run nobody attends (UC-043): `propose-tests` ends with its cases in its job's 
 without a click, with those cases as its parameters. On `write-tests`, `test-proposals` holds the written tests against
 the cases it was handed, each with its counter-proof.
 
-A candidate of `derive-requirements` or `change-requirements` classed `new` names its place in the requirement hierarchy
+A candidate of `derive-requirements` classed `new` names its place in the requirement hierarchy
 the recipe `requirement-hierarchy` shows, as `place`, a MOD-group-document `Place`: `group`, the path of titles of a
 group the hierarchy holds from the top, `[]` for the top level, and `new`, the title of a new group standing in `group`,
 or `null`; their prompts ask for it, and for no place on a candidate of another class, which keeps the place of the
-requirement it refers to (UC-005 step 5, UC-019 step 6).
+requirement it refers to (UC-005 step 5).
 
-For `derive-requirements`, `change-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
+For `derive-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the
 latter for tests that pass before any code exists (UC-024, UC-034); for `write-tests`, `before-merge`. `implement`,
 `refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product` (MOD-resource-list's `resource-pins`).
@@ -169,10 +169,12 @@ latter for tests that pass before any code exists (UC-024, UC-034); for `write-t
 A job of `change-requirements` takes as its parameter `source` the account `<server>/<account>` of the person who starts
 it, so that every requirement it drafts names that person's account among its sources (`THE PERSON WHO PROMPTS IS A
 SOURCE`); its precondition `person-source`
-(MOD-spec-changes) keeps a job without one from starting, wherever it runs. Its candidates name no passage: what they
+(MOD-spec-changes) keeps a job without one from starting, wherever it runs. Its requirements name no passage: what they
 come from is the person's instruction, a message of the conversation, which a repository holds only in a conversation
-record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`), so that its prompt asks for none and its answer's schema has none, and the
-account stands alone as the source (MOD-spec-changes' `entrySections`). A job of `change-requirements` started from
+record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`), so that the account stands alone as the
+source; its check `requirement-form` holds each requirement it adds or changes to name it. Its draft is the new text
+of what it changes, never a class: what it renames, withdraws or adds follows from those texts against the texts they
+replace, when its entries are accepted (`A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED`). A job of `change-requirements` started from
 an issue takes as its parameter `issue` that issue's number, as `analyse-issue` and `fix-bug` do: its recipe
 `issue-context?` gives the issue with what it touches, and its writer names the issue as the origin of the queue it
 writes (UC-012 step 6); a job without the parameter `issue`, a change by prompt, gets no part of that recipe.

@@ -10,18 +10,14 @@ realises:
   - A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
   - A CI AGENT'S DRAFT ENTERS AS OPEN
   - A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
-  - A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
   - THE PERSON WHO PROMPTS IS A SOURCE
   - A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
   - NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
-  - DERIVATION SEES THE EXISTING REQUIREMENTS
-  - NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
-  - A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-  - EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
-  - A CHANGE IS PROPOSED UNDER THE EXISTING NAME
-  - A CONFLICT IS DECIDED BY A PERSON
+  - A REQUIREMENT HAS FOUR FIELDS
+  - EVERY ARTIFACT HAS AN IDENTIFIER
   - ARTIFACTS ARE ARRANGED IN NESTED GROUPS
   - AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+  - A REGROUPING IS COMMITTED DIRECTLY
   - A SPEC EDIT IS SAVED AS A PROPOSAL
   - A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
   - A REFUSED SAVE KEEPS THE EDIT
@@ -77,8 +73,8 @@ same Markdown the author does.
    change, Agent M offers there only those that can draft text.
 3. The open requirement, group or use case is the target of the change; the author does not name it.
 4. Agent M assembles what the drafter must see:
-   - **requirements:** the requirements to change, and every requirement of the product — in its
-     SPEC and in its open queues —, with its requirement hierarchy from `docs/groups/requirements.md`;
+   - **requirements:** the sections of the SPEC that hold the requirements to change, the proposal of each open entry
+     that proposes one of them, and the requirement hierarchy from `docs/groups/requirements.md`;
    - **use case:** the use case, every requirement it realises, and every other use case of the
      product;
    - **for both:** chapter 8 of the book *Vibe Coding*.
@@ -86,11 +82,12 @@ same Markdown the author does.
    It checks that the instruction and all of this fit into the drafter's context.
 5. The author presses **Send** — that click is the decision to send.
 6. Agent M sends the instruction and the context with the change prompt from the repository's single
-   definition. The drafter returns the changed text; for requirements, each resulting requirement
-   is classified as new, a change to a named requirement, a duplicate of one, or a conflict with one,
-   and names among its sources the author's account `<server>/<account>` — `github.com/akmaier` —, which needs no
-   register entry (UC-004) and no link (UC-015). A new requirement also names its place in the requirement
-   hierarchy — a group the hierarchy holds, or a new group with the group it stands in —, as in UC-005, step 5.
+   definition. The drafter returns the changed text. For requirements, that is the new text of each section it
+   changes, of each open entry's proposal it changes — a requirement an open entry proposes is changed there —, and of
+   `docs/groups/requirements.md` where it moves a requirement or names a group, as the author would write them in the
+   editor of UC-018, with one or two sentences of why. A renamed requirement stands under its new name. Each
+   requirement it adds or changes names among its sources the author's account `<server>/<account>` —
+   `github.com/akmaier` —, which needs no register entry (UC-004) and no link (UC-015).
 7. **The correction loop.** Before showing anything, Agent M checks the draft without a model and
    sends every finding back to the drafter, which returns a corrected draft; this repeats until the
    draft passes, or until the limit of rounds fixed before the first round and named in the conversation (default 5), or until a round
@@ -100,22 +97,22 @@ same Markdown the author does.
    ```text
    UC-007:4: error: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] — keep UC-007.
    UC-007:12: error: realises "EXPORT AS PDF" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.
-   SPEC:§3: error: "EXPORT IS A PDF" restates the existing requirement word for word but is classed new [EXACT DUPLICATES ARE FOUND WITHOUT A MODEL] — class it as duplicate of EXPORT IS A PDF.
-   SPEC:§3: warning: rule contains "and" [ONE STATEMENT PER REQUIREMENT] — split it, or keep it and give a one-line reason.
-   SPEC:§3: error: "EXPORT HAS A TITLE PAGE" is placed in "Export", which the hierarchy does not hold [AN ITEM HAS ONE PLACE IN ITS HIERARCHY] — name a group it holds, or propose "Export" as a new group with the group it stands in.
+   SPEC:41: error: "SESSION_HIGHSCORE_DATA" is no requirement's name [EVERY ARTIFACT HAS AN IDENTIFIER] — write the name in capitals, its words separated by single spaces.
+   SPEC:44: error: "SESSION HIGHSCORE DATA" names no check [A REQUIREMENT HAS FOUR FIELDS] — add its check.
+   SPEC:41: error: "SESSION HIGHSCORE DATA" does not name github.com/akmaier among its sources [THE PERSON WHO PROMPTS IS A SOURCE] — add the account to its source.
+   SPEC:52: warning: rule contains "and" [ONE STATEMENT PER REQUIREMENT] — split it, or keep it and give a one-line reason.
    ```
 
-   Errors must be fixed; a warning may be kept with a one-line reason. Not sent back: a conflict with
-   an existing requirement, which the author decides in step 8, and a requirement whose name changed,
-   which Agent M itself proposes as withdrawal plus new requirement.
-8. The dashboard opens the editor of UC-018 with the draft, showing the difference against the
-   current text line by line; for requirements, each one carries its class and stands beside the
-   existing requirement it refers to, a new one with its place, which the author changes by a follow-up instruction
-   or at acceptance (UC-006). The author edits freely, or writes a follow-up instruction in the prompt bar,
+   Errors must be fixed; a warning may be kept with a one-line reason. A requirement whose name changed is no finding:
+   the entry withdraws the old name and adds the new one when it is accepted (`A RENAMED REQUIREMENT IS WITHDRAWN AND
+   ADDED`).
+8. The dashboard opens the editor of UC-018 with the draft, each file showing its difference against the
+   current text line by line. The author edits freely, or writes a follow-up instruction in the prompt bar,
    which repeats steps 5–7 on the current draft.
 9. The author presses **Save** — one click — and UC-018 continues at step 5: the use case is
-   committed as open, or a queue entry is written, with the places of its new requirements beside its section
-   (UC-005, step 8), and the SPEC and `docs/groups/requirements.md` stay unchanged. The commit, or the
+   committed as open; each changed section is written as an entry of its queue, each changed proposal is saved in its
+   entry (UC-018 1a), and a changed `docs/groups/requirements.md` is committed as an arrangement is (UC-021); the SPEC
+   stays unchanged. The commit, or the
    queue entry, records the drafter, the model, the Agent M version, the date, and how many
    correction rounds the draft needed — never the instruction, which is a message of the conversation and is kept only
    in its conversation record when the instance records conversations (UC-049, 6c).
@@ -129,14 +126,14 @@ sequenceDiagram
     A->>D: instruction in the prompt bar, Send
     D->>G: read target, related requirements, their groups, and use cases
     D->>P: instruction, context, change prompt
-    P-->>D: changed text, classes and places for requirements
-    D->>D: exact duplicates, identifiers, realised names, places
+    P-->>D: changed text
+    D->>D: requirement form, identifiers, realised names
     D-->>A: difference against current text in the editor
     A->>D: edit or follow-up instruction, then Save
     alt use case
         D->>G: commit file (open)
-    else requirement
-        D->>G: commit queue entry with places, SPEC and groups untouched
+    else requirements
+        D->>G: commit queue entries or the open entry, and the group file, SPEC untouched
     end
 ```
 
@@ -150,13 +147,12 @@ sequenceDiagram
 - **6a. The drafter is a CLI session** (UC-011). The request goes through the local
   bridge; the agent returns the draft to the dashboard and the flow continues at step 7.
 - **6b. The work is handed to GitHub Actions** (UC-049, 4a). The workflow runs the correction loop of step 7 from
-  the same definition, then commits the draft to the default branch — a use case as open, a change to
-  requirements as an entry of its section's queue under `docs/spec-freigaben/`, with its places; `SPEC.md` and
-  `docs/groups/requirements.md` are not touched. The
+  the same definition, then writes the draft — a use case as open, each changed section as an entry of its queue and
+  each changed proposal in its entry, on the default branch, and a changed `docs/groups/requirements.md` as a pull
+  request; `SPEC.md` is not touched. The
   commit records what step 9 records, and its job record names no message of the conversation. Instead of step 8, the author reviews it on the dashboard: a use
   case in UC-008, shown against its last accepted text (UC-008, 2a); a queue entry in UC-006, beside the
-  current SPEC section, where a conflict with an existing requirement and each new requirement's place are decided. Nothing counts before
-  it is accepted.
+  current SPEC section. Nothing counts before it is accepted.
 - **6c. The drafter returns nothing usable** — no text, the unchanged text, or text that cannot
   be read as the artifact. That is a finding of the correction loop (step 7) like any other; if it is
   still so after the last round, the dashboard says which, shows the raw answer folded, and writes
@@ -169,9 +165,6 @@ sequenceDiagram
 - **7b. The drafter dropped a name from `realises`.** The difference highlights it — a dropped name
   is not an error, it may be intended; an added name that matches no requirement is an error of the loop
   and is never turned into a requirement.
-- **8a. A returned requirement conflicts with an existing one.** It is shown beside it, with both
-  sources and their authority. It is not written until the author decides; undecided conflicts stay
-  in the panel.
 - **8b. The instruction touched several use cases** ("align UC-007 and UC-008 with the new rule").
   Each file is shown with its own difference; *Save* commits all of them in one commit, and each is
   accepted on its own (UC-008).
@@ -182,7 +175,8 @@ sequenceDiagram
 ## Postcondition
 
 - Only what the author saved — or, through a CI agent, what its workflow committed for review (6b) —
-  was written: a use case as open, or a queue entry beside the current SPEC section; the SPEC itself and the
-  requirement hierarchy are unchanged.
-- No requirement was duplicated: a restated rule became a duplicate, a changed rule kept its name.
+  was written: a use case as open, a queue entry beside the current SPEC section, or the requirement hierarchy as
+  arranged; the SPEC itself is unchanged.
+- What an entry renames, withdraws or adds follows from its text against the section it replaces, when it is accepted
+  (UC-006).
 - The record of the change names the drafter and the model that drafted it, and no message of the conversation.

@@ -15,6 +15,8 @@ uses:
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.commitFiles
+  - MOD-repository-hosts.repositoryInfo
+  - MOD-repository-hosts.openPullRequest
   - MOD-documents.Schema
   - MOD-documents.Document
   - MOD-documents.loadSchema
@@ -79,7 +81,7 @@ TAKEN VERBATIM`, `AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL`); an ent
 hierarchy beside its section, and its acceptance writes them into `docs/groups/requirements.md` in the same commit,
 never into the SPEC. It keeps every change to a section in that
 section's queue and an edit of an open entry in that entry, composes the sections that drafted candidates change and writes
-them as entries, applies approvals committed without a token for the instance's workflow, and tells each requirement's
+them as entries, writes the texts a change of requirements drafts as entries, applies approvals committed without a token for the instance's workflow, and tells each requirement's
 history. It runs in the browser and in Node.
 
 ## Parts
@@ -89,7 +91,7 @@ history. It runs in the browser and in Node.
   schemas of a queue's files, in MOD-documents' schema language.
 - `queues.mjs` — reading queues and the state of each entry.
 - `propose.mjs` — writing an entry into its section's queue, saving an open entry in place, the sections that
-  classified candidates change, and the writer of classified candidates.
+  classified candidates change, and the writers of classified candidates and of drafted texts.
 - `accept.mjs` — accepting entries in their queue's order, and applying approvals without a token.
 - `reject.mjs` — an entry that was shown leaving its queue.
 - `history.mjs` — the history of a requirement.
@@ -193,13 +195,14 @@ entry of another queue that is not in SPEC creates it.
   ITSELF`). Crosses the network. Errors:
   `Moved`, `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`, `TokenRequired`.
 - `saveEntry(host: Host, edit: { queue: string, entry: number, text: string, why: string, person: string, openedBlob:
-  string, openedHead: string }) -> Promise<{ commit: string } | { refused: "changed meanwhile", current: string } | { refused: "not open",
+  string, openedHead: string, trailers?: string[] }) -> Promise<{ commit: string } | { refused: "changed meanwhile", current: string } | { refused: "not open",
   state: string } | { fallback: Array<{ url: string, path: string, text: string, differs: boolean }> }>` — saves an
   edited entry in place, in its own queue, in one commit under the person's account: its proposal replaced by `text`, its
-  rationale's impact list computed anew. No second queue is made, since the entry already is a proposal (UC-006 3a,
+  rationale's impact list computed anew; `trailers` end the commit's message, as `proposeSection`'s do. No second queue is made, since the entry already is a proposal (UC-006 3a,
   UC-018 1a). Refuses when the proposal's blob on the default branch differs from `openedBlob`, returning the newer text
   (`A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE`, `A REFUSED SAVE KEEPS THE EDIT`), and when the entry is no longer
-  open, naming its state; its places file stays as it is. Without a token, as `proposeSection`. Considers: called only on a person's click. Crosses the
+  open, naming its state; its places file stays as it is. Without a token, as `proposeSection`. Considers: called on a
+  person's click, or by the writer `spec-edits` (`A CI AGENT'S DRAFT ENTERS AS OPEN`). Crosses the
   network. Errors: those of `proposeSection`.
 - `entrySections(spec: string, draft: unknown, classes: Classified[], source: string) -> Array<{ anchor: string, until:
   string | null, text: string, places: Array<{ requirement: string, place: Place }> }>` — the sections of `spec` that the draft's candidates change, each as the whole
@@ -213,7 +216,7 @@ entry of another queue that is not in SPEC creates it.
   `namesAccount` tells it, stands alone whatever passage the draft holds, since what a person's account draws on is their
   instruction, a message of the conversation (`THE PERSON WHO PROMPTS IS A SOURCE`, `A CONVERSATION IS WRITTEN TO A
   REPOSITORY ONLY WHEN RECORDING IS ON`): `*(github.com/akmaier)*`.
-  `draft` is a draft of `derive-requirements` or `change-requirements`, in the form its kind expects (MOD-job-catalogue).
+  `draft` is a draft of `derive-requirements`, in the form its kind expects (MOD-job-catalogue).
   A section's `places` are those of the candidates `classes` add to it as `new` that name a place — of merged candidates,
   the one whose rule it takes —; every other candidate keeps the place of the requirement it refers to, so it has none.
   Every other byte of a section stays as it is. Pure. Throws `TwoChanges { requirement, candidates }` when two
@@ -292,7 +295,8 @@ entry of another queue that is not in SPEC creates it.
     artifact, since its requirements are those of `spec-with-queues`; no part where the product has no group file of
     requirements, every requirement then standing at the top level;
   - recipe `whole-spec` — the SPEC as it stands, as one part;
-  - recipe `named-requirements` — the requirements the job's parameters name, each with its whole section; each part
+  - recipe `named-requirements` — the requirements the job's parameters name, each with its whole section, or, for one
+    that an open entry proposes, with that entry's proposal under its path; each part
     carries its requirement as an artifact, as `spec-with-queues` does — its name as the identifier, its name and its
     rule as the key — so that the job runner counts it (`NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`);
   - recipe `chosen-requirements` — the requirements the person chose; without a choice, every requirement of the SPEC
@@ -315,6 +319,15 @@ entry of another queue that is not in SPEC creates it.
     names its origin and the impact list; the commit carries the provenance lines.
     With the job's parameter `issue`, the number of the product's issue the change comes from, each rationale names that
     issue as its origin beside the source, and in its line `**Issue:**`, with the product's address.
+  - writer `spec-edits` — writes a draft of `change-requirements` as the person left it, each text on the text the
+    job's snapshot holds: each section as an entry of its queue with `proposeSection`, its anchor the section's heading
+    line; each proposal of an open entry in that entry with `saveEntry`; the *Why* of each the draft's `why`, the origin
+    as `queue-entries` names it for a change by prompt or from an issue, and the provenance lines as the commit's
+    trailers. A changed `docs/groups/requirements.md` goes as a pull request of a branch `agent-m/<job>`, never as a
+    commit on the default branch (`A CI AGENT'S DRAFT ENTERS AS OPEN`). A text it does not write — a section whose
+    heading the SPEC does not hold, an entry that is no longer open, a text changed meanwhile — is named in the
+    outcome's notes, as `queue-entries` names what it does not write; a draft that changes nothing writes nothing, and
+    its one note says so.
 
 `Host` and `Snapshot` are MOD-repository-hosts'.
 
@@ -324,7 +337,8 @@ entry of another queue that is not in SPEC creates it.
   `docs/approvals/spec-*.md`, the target of each queue (`SPEC.md`), `docs/groups/requirements.md`, and every artifact the
   trace graph needs for an impact list.
 - Writes, in one commit each time: a new entry with its rationale, its places file where it proposes a place, and its
-  index row, in a new queue folder where its section has none; on acceptance,
+  index row, in a new queue folder where its section has none; for `spec-edits`, also a branch `agent-m/<job>` with the
+  group file and its pull request; on acceptance,
   `docs/approvals/spec-<queue>-<NN>-<blob12>.md`, the target's section, `docs/groups/requirements.md` where a place
   applies, and a row of `entscheidungen.md`; on a rejection, through MOD-approvals' `commitRejection`, the entry's
   proposal, rationale and places file deleted and its index row removed, or, for the queue's last entry, every file of
@@ -336,7 +350,8 @@ entry of another queue that is not in SPEC creates it.
   one commit of a rejection, or GitHub's pages for it without a token.
 - MOD-artifact-edits.fallbackEditLinks — GitHub's pages for the files of an entry without a token.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory, commitFiles — reading queues and the head, the history
-  of a requirement, and the one commit of a proposal or an acceptance;
+  of a requirement, and the one commit of a proposal or an acceptance; MOD-repository-hosts.repositoryInfo,
+  openPullRequest — the branch and pull request of a changed group file in `spec-edits`;
   MOD-repository-hosts.readFileAt — `SPEC.md` at every commit that changed it, for the history of a requirement, in
   batches.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, readRegister, appendSection — the queue's files
