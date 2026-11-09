@@ -107,9 +107,13 @@ h1, h2, h3, h4 { color: var(--heading); line-height: 1.25; }
 
 /* The buttons the pages draw, which every page shares: a button, or a link drawn as one; .primary the one action a page leads
    with, .small an action beside a line of text. */
-.btn, .prompt-bar button, .arrange button { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
+/* The links that start an action of a page — draft, arrange, edit, review all, the history — are drawn as buttons too, so that a
+   page's actions look alike; a link to an artifact, a commit or a trace stays a link. */
+.btn, .prompt-bar button, .arrange button, a.draft-link, a.arrange-link, a.edit-link, a.history-link, a.spec-history-link,
+a.spec-entries-link, a.older-link { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
   color: var(--fg); padding: .45rem .8rem; border-radius: 6px; text-decoration: none; display: inline-block; }
-.btn:hover, .prompt-bar button:hover, .arrange button:hover { border-color: var(--accent); }
+.btn:hover, .prompt-bar button:hover, .arrange button:hover, a.draft-link:hover, a.arrange-link:hover, a.edit-link:hover,
+a.history-link:hover, a.spec-history-link:hover, a.spec-entries-link:hover, a.older-link:hover { border-color: var(--accent); }
 .btn.primary, .prompt-bar button.send, .arrange button.arrange-save { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 .btn.small, .prompt-bar button.clear, .arrange-tree button, .arrange-add button { font-size: .78rem; padding: .2rem .5rem; }
 .btn:disabled, .prompt-bar button:disabled, .arrange button:disabled { opacity: .55; cursor: not-allowed; }
