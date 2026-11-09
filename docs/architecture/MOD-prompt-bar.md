@@ -289,7 +289,10 @@ and sends nothing while the job does not
   (MOD-job-ledger) —, then follows each by its record and
   `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows,
   as each ends, its log's answer and every result its end record lists, a piece not run with why and what it requires
-  among them (UC-049 4a.5); for a job that is the endpoint's own (UC-049 4f), also each job its end lists as handed
+  among them (UC-049 4a.5); for a job whose kind leaves its result to a person and whose writer writes nothing — its
+  `review` `person`, its writer `return-draft`, as `propose-groups` —, the draft that answer holds, read by the kind's
+  schema of its draft, is kept as the `ConversationDraft` of that kind with the job's parameters, as the draft of a piece
+  run in this tab is, which *Review the draft* leads to and the person saves there (UC-049 4a.1, 4a.5); for a job that is the endpoint's own (UC-049 4f), also each job its end lists as handed
   over, followed the same way, and each piece it did not hand over; *Stop* then cancels every one still queued or
   running with `cancelJob`. It says above the
   selector when the conversation is recorded (UC-049 6c). Crosses the network: to the participant through its route, and

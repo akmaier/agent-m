@@ -97,7 +97,7 @@ Agent M prepares no job of the kind.
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `instruction?`, `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `change-architecture` | UC-023, UC-049 | draft text | `rests-on-accepted` | `instruction`, `conversation`, `draft?`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `review-architecture` | UC-022, UC-023 | draft text | | `instruction?`, `whole-spec`, `accepted-use-cases`, `whole-architecture`, `draft`, `chapters-for-architecture` | | | | `none` · `return-draft` | findings, each a warning |
-| `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves, each a `GroupMove` of MOD-group-document |
+| `propose-groups` | UC-021, UC-049 | draft text | | `instruction?`, `items-of-kind` | `group-rules` | | | `person` · `return-draft` | moves, each a `GroupMove` of MOD-group-document |
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
 | `propose-items` | UC-032 | draft text | `rests-on-accepted` | `backlog-inputs` | `backlog-checks`, `candidate-classes` | | | `person` · `backlog-items` | items |
 | `check-affected-modules` | UC-008 | draft text | `rests-on-accepted` | `use-case-with-neighbours`, `whole-architecture` | `backlog-checks` | | `leave-out-named-modules` | `none` · `backlog-items` | items, one for each module whose implementation the accepted use case's text changes, each realising the use case and naming that module |
@@ -145,7 +145,9 @@ tool's capability is besides *use tools*, which a drafter must declare to be off
 
 For a kind of `review: person`, the click that lets the result go on is the one its use case names: *Write proposals*
 (UC-005, UC-022), *Save* (UC-023), *Save plan* (UC-045), *Add to backlog* (UC-032), *Save* of a change from an issue
-(UC-012) — each through MOD-job-runner's `writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, *Save* of a draft of the
+(UC-012) — each through MOD-job-runner's `writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, *Save arrangement* of a
+proposal of `propose-groups` (UC-021 1b), which commits the group file with MOD-artifact-edits' `saveGroupFile`, so that
+its writer, `return-draft`, writes nothing wherever the job runs (`A REGROUPING IS COMMITTED DIRECTLY`), *Save* of a draft of the
 conversation (UC-019, UC-049), which saves the draft as UC-018 saves an edit, so that the kind's writer writes a change by prompt only
 where nobody attends (UC-019 6b, UC-049 4f) — for `converse`, `proposed-edits` (MOD-job-runner), which writes the
 edits as a pull request —, and *Write tests*
@@ -162,7 +164,9 @@ or `null`; its prompt asks for it, and for no place on a candidate of another cl
 requirement it refers to (UC-005 step 5). A draft of `change-requirements` names in its `places` the place, in the same
 form, of each requirement one of its sections adds, as `{ requirement, place }`, and none of a requirement it does not
 add, which keeps its place (UC-019 step 6): moving a requirement to another group is a regrouping, the person's own
-input (`A REGROUPING IS COMMITTED DIRECTLY`), whose moves `propose-groups` drafts for the person to save (UC-021 1b).
+input (`A REGROUPING IS COMMITTED DIRECTLY`), whose moves `propose-groups` drafts for the person to save (UC-021 1b),
+started on the Arrange page with the kind as its parameter `kind`, or handed over from a conversation with the items its
+task is about, from which MOD-job-runner's `handOverParams` gives that parameter (UC-049 4a).
 
 For `derive-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the

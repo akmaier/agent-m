@@ -273,8 +273,13 @@ ReviewKind = {
     and this route then shows the newer draft. For a change of
     requirements, the person's account is its `source`, which the prompt bar gives (MOD-prompt-bar); no subject of these
     routes gives one. A draft of the kind `converse` — documents the participant proposed — is shown and saved the same way,
-    each file with `saveFile` after its owner's schema found no error. A draft handed to CI or a Bridge arrives as an
-    open file, a queue entry or a pull request instead.
+    each file with `saveFile` after its owner's schema found no error. A draft of the kind `propose-groups` — its moves,
+    for the group kind its parameter `kind` names — is shown as `arrange/<group kind>` shows a proposal, its moves the
+    pending changes beside the hierarchy (UC-021 1b, step 3), and saved as *Save arrangement* saves, with
+    `saveGroupFile`, the group file only, committed directly (`A REGROUPING IS COMMITTED DIRECTLY`), on the blob the job
+    read. A draft handed to CI or a Bridge arrives as an open file, a queue entry or a pull request instead; one whose
+    kind's writer writes nothing — the moves of `propose-groups` — arrives as the conversation's draft from the job's
+    answer (MOD-prompt-bar), and is shown and saved here.
   - `<k>/draft` — drafting: for use cases, the requirements to cover — by default those no use case realises —; for
     requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a), and, where the
     job's preparation finds a file of that version whose content no longer matches the SHA-256 its version records

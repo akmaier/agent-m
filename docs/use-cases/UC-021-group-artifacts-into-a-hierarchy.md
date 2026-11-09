@@ -105,7 +105,10 @@ sequenceDiagram
 - **1b. The author asks a participant to propose an arrangement** (**Propose groups**). As in UC-019:
   the author chooses a participant, sees what is sent — titles and identifiers of the items, with
   their text for requirements — and presses *Run*. The proposal arrives as a list of pending changes
-  in step 3, where the author edits it before saving.
+  in step 3, where the author edits it before saving. The author may ask for it in the prompt bar as well — "put the
+  review use cases into a group of their own" —: the conversation hands the task, with the items it is about, to the same
+  kind of job (UC-049 4a), and its proposal arrives the same way, as the conversation's draft, which the author edits and
+  saves as in steps 3 to 5, wherever that job ran.
 - **2a. The author tries to put an item into a group of another kind** — a use case into a
   requirement group. The move is refused and the reason shown; relations across kinds are
   traceability (UC-020), not grouping.

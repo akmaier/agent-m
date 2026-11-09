@@ -26,6 +26,7 @@ realises:
   - NO SERVER
   - ONE DEFINITION, THREE DRIVERS
   - A GENERATED ARTIFACT IS A PROPOSAL
+  - A REGROUPING IS COMMITTED DIRECTLY
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
@@ -174,7 +175,8 @@ sequenceDiagram
   that result is accepted, and asks the author to say so in the bar when it is; the author's message then starts it (5).
   1. Where a piece's kind leaves its result to the author and the endpoint or CLI session can do the kind — a kind
      other than the conversation itself —, it runs in this tab at once, on the page's context, with its record. Its
-     draft is shown as UC-019 describes, and the author saves it (step 6). Of several such pieces, each runs once the
+     draft is shown as UC-019 describes — a regrouping as the pending changes of UC-021, step 3 —, and the author saves
+     it (step 6) — a regrouping as UC-021, step 5, commits it. Of several such pieces, each runs once the
      draft before it is saved or discarded.
   2. Any other piece is spawned as a job of the endpoint or CLI session itself, the conversation itself handed on
      among them; several are spawned at once, each a job of its own. An endpoint's configuration names the CI secret
@@ -187,7 +189,8 @@ sequenceDiagram
      the Bridge, until it has ended.
   5. Each job's answer appears in the conversation as it ends, with what it wrote, as its record lists it: a change of
      requirements as an open entry of a SPEC change queue, a use case or an architecture file committed as open, an
-     edit of another document or a change of code as a pull request; a piece that was not handed over or not run, with
+     edit of another document or a change of code as a pull request, a regrouping, which no job writes (`A REGROUPING
+     IS COMMITTED DIRECTLY`), as the conversation's draft, which the author saves as in 4a.1; a piece that was not handed over or not run, with
      why and what it requires to run — "register the person as a source", "accept the change of requirements of 1" —,
      so that the author can supply it and ask again. In most cases that ends the conversation.
 - **4b. The tab is closed or loses its connection** while the endpoint or CLI session works. The conversation is gone. A
