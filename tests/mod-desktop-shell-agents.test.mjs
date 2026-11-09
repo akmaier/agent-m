@@ -184,8 +184,10 @@ const click = async (root, label, index = 0) => {
 // guards: UC-044; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: the production Bridge window entry with two installed agents, one selected folder, one missing supported agent and a constructed folder-dialog result
 // input: the Agents view is rendered, the selected agent's folder is chosen, agents are saved, and Test access returns one refused repository
-// expect: the selected agent and chosen folder are saved, the unticked installed agent is not offered, the missing agent shows an install link, and the refused repository is shown with git's reason
+// expect: the selected agent and chosen folder are saved with its declaration, the unticked installed agent is not offered, the missing agent shows an install link, and the refused repository is shown with git's reason
 // Planted fault: omitting the Agents route leaves no Save agents control and this case fails before any save.
+// A kept agent's declaration: the place, the capabilities ticked and each model with its context.
+const DECLARED = { place: "this machine", capabilities: ["draft text"], models: [{ model: "claude-opus-5-5", context: 200000 }] };
 test("TST-407002: window Agents view keeps chosen folders and shows missing installation and access refusals", async () => {
   const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
   document.head = document.createElement("head");
@@ -202,7 +204,9 @@ test("TST-407002: window Agents view keeps chosen folders and shows missing inst
     async state(action, value) {
       if (action === "agents") return {
         platform: "linux",
-        selected: [{ name: "claude", folder: "/tmp/old-claude" }],
+        // Each kept agent with its declaration as a connection (MOD-desktop-shell, Data: agents), and the capabilities a declaration may tick.
+        selected: [{ name: "claude", folder: "/tmp/old-claude", ...DECLARED }],
+        capabilities: ["draft text", "use tools"],
         agents: [
           { name: "claude", installed: true, version: "2.1.300", loggedIn: true, install: { linux: "https://claude.ai/code" } },
           { name: "codex", installed: true, version: "1.2.3", loggedIn: true, install: { linux: "https://developers.openai.com/codex" } },
@@ -238,8 +242,8 @@ test("TST-407002: window Agents view keeps chosen folders and shows missing inst
 
   await click(document.body, "Choose folder");
   await click(document.body, "Save agents");
-  assert.deepEqual(saved, [{ name: "claude", folder: chosen }],
-    "failure node: only the ticked installed agent is saved with the folder chosen through the window bridge");
+  assert.deepEqual(saved, [{ name: "claude", folder: chosen, ...DECLARED }],
+    "failure node: only the ticked installed agent is saved with the folder chosen through the window bridge, and with its declaration");
 
   await click(document.body, "Test access");
   assert.match(document.body.textContent, /shell-owner\/refused.*permission denied/s,
