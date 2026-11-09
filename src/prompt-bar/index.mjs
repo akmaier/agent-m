@@ -11,7 +11,7 @@
 
 export { currentJob, dropDraft, followJob, latestDraft, namedProduct, startPromptBar } from "./bar.mjs";
 export { recordingOf, recordingSchema } from "./record.mjs";
-export { endpointLacks, endpointsOffered } from "./offer.mjs";
+export { endpointLacks, endpointsOffered, sessionsOffered, throughActions } from "./offer.mjs";
 
 // The hand-over's strategy sets and spawnEndpointJob, imported when first asked for: a page that draws the bar loads none of their modules.
 export const loadHandOverStrategies = async () => (await import("./hand-over.mjs")).handOverStrategies;

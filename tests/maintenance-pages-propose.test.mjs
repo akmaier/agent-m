@@ -56,10 +56,11 @@ const proposals = (request, { one: one_, two }) => ({ draft: { proposals: [
   { mail: two.id, product: PRODUCT_URL, kind: "change", title: "Add a dark theme", text: "The reporter erika@example.invalid asks for a dark theme.", duplicates: [] },
 ] }, answers: [] });
 
-async function setup({ rows = ROWS, places, answer, product, withAttachments = true, only = null } = {}) {
+async function setup({ rows = ROWS, places, answer, product, withAttachments = true, only = null, settings = {} } = {}) {
   const one_ = await mailOf("one", { subject: "Export fails", text: "The export fails with error E42.", attachments: withAttachments ? [{ name: "log.txt", type: "text/plain", size: 60, text: LOG }, { name: "shot.png", type: "image/png", size: 9, text: null }] : [] });
   const two = await mailOf("two", { subject: "Dark theme", text: "Please add a dark theme." });
   const w = world({ mails: [one_, two], reading: only ? [one_, two].filter((mail) => only.includes(mail.id)) : [one_, two], issues: [issueRecord(3, "open", [])], rows, places, answer: (request) => (answer ?? proposals)(request, { one: one_, two }), product });
+  for (const [key, value] of Object.entries(settings)) writeSetting(w.context.store, key, value);
   const target = await opened(w, {}, "mail");
   await mailRead(target);
   // A mail's review is shown once its line is clicked (MOD-maintenance-pages, `mail`: "The mail clicked shows its details").
@@ -360,4 +361,23 @@ test("Where this browser manages a product, Propose is shown and no notice of a 
   assert.equal(byClass(f.target, "mail-step-propose").length, 1);
   assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3"]);
   assert.equal(byClass(f.target, "mail-no-products").length, 0);
+});
+
+// TST-964020 · level: component · module: MOD-maintenance-pages
+// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-038
+// given: the register of five; this browser's endpoint GPT-OSS-120B at this machine and its endpoint far-llm in the USA, both declaring a place, a context and a model; a mailbox that allows this machine and the USA
+// input: the mail route drawn and the mailbox read
+// expect: Propose offers the register's five and, after them, the two endpoints the prompt bar offers, far-llm named as not compliant; with a mailbox that allows only this machine, GPT-OSS-120B and not far-llm; counter-proof: with the register's participants only, as before, neither endpoint is offered and the case fails
+test("Propose offers the endpoints the prompt bar offers from this browser, at the places the mailbox allows", async () => {
+  const settings = {
+    "endpoint:GPT-OSS-120B": { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "gpt-oss-120b", key: "k1", place: "this machine", context: 131072 },
+    "endpoint:far-llm": { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "far-model", key: "k2", place: "a provider in the USA", context: 131072 },
+  };
+  const f = await setup({ places: USA, settings });
+  assert.deepEqual(participants(f.target), ["local-llm", "check-1", "check-2", "check-3", "cloud-llm", "GPT-OSS-120B", "far-llm"]);
+  const marked = walk(f.target, (node) => node.getAttribute?.("data-participant")).filter((node) => byClass(node, "not-compliant").length > 0).map((node) => node.getAttribute("data-participant"));
+  assert.deepEqual(marked, ["cloud-llm", "far-llm"]);
+  restoreWorld();
+  const g = await setup({ settings });
+  assert.deepEqual(participants(g.target), ["local-llm", "check-1", "check-2", "check-3", "GPT-OSS-120B"]);
 });

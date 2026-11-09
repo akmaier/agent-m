@@ -593,3 +593,31 @@ test("mailbox — the connected mailbox's Processing places show I have read thi
   await tick(usa, false);
   assert.equal(shownReadLines(panel).length, 0);
 });
+
+// TST-472790 · level: unit · module: MOD-settings-pages
+// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037
+// given: the register's three places; this browser's endpoint GPT-OSS-120B at NHR, Erlangen, Germany, its endpoint nemotron run through GitHub Actions at Nvidia, United States, an endpoint without a place, and the CLI session laptop:claude its Bridge laptop offers, declared at Laptop, Germany
+// input: the mailbox page drawn, and the connected mailbox's Processing places opened
+// expect: both lists offer, beside the register's places, the place of every endpoint and CLI session the prompt bar offers from this browser — NHR, Erlangen, Germany; Nvidia, United States; Laptop, Germany — once each, and not the endpoint that declares no place; ticking Nvidia, United States shows the notice that it does not comply; counter-proof: with the places of the register only, as before, the three are missing and the case fails
+test("mailbox — the places of the endpoints and CLI sessions the prompt bar offers are offered with the register's", async (t) => {
+  const bridgeAnswer = (url) => (url.endsWith("/v1/agents") ? Response.json({ agents: [{ name: "claude", ready: true }] })
+    : url.endsWith("/v1/pair") ? Response.json({ bridge: { name: "laptop" } }) : Response.json(TESTED));
+  const b = browser(t, { bridgeAnswer });
+  writeSetting(b.store, "endpoint:GPT-OSS-120B", { url: "https://hub.nhr.example/v1", kind: "openai-compatible", model: "gpt-oss-120b", place: "NHR, Erlangen, Germany", context: 131072 });
+  writeSetting(b.store, "endpoint:nemotron", { url: "https://integrate.api.nvidia.example/v1", kind: "openai-compatible", model: "nvidia/nemotron-3-ultra-550b-a55b", place: "Nvidia, United States", context: 262144, secret: "NEMOTRON_API_KEY" });
+  writeSetting(b.store, "endpoint:unplaced", { url: "https://unplaced.example/v1", kind: "openai-compatible", model: "m", context: 1000 });
+  writeSetting(b.store, "session:laptop:claude", { place: "Laptop, Germany", context: 200000, model: "claude-opus-5-5", capabilities: ["draft text", "read the repository", "write to the repository"] });
+  const expected = ["Anthropic, a provider in the USA", "FAU data centre (EU)", "Laptop, Germany", "NHR, Erlangen, Germany", "Nvidia, United States", "this machine"];
+  const page = await b.page();
+  assert.deepEqual(byClass(page, "mailbox-place").map((place) => place.getAttribute("data-place")).sort(), expected);
+  await tick(byClass(page, "mailbox-place").find((box) => box.getAttribute("data-place") === "Nvidia, United States"));
+  assert.equal(one(page, "mailbox-place-notice").hidden, false, "Nvidia, United States is named as not compliant");
+  writeSetting(b.store, "mailbox", { address: "reports@example.test", route: "imap", folders: ["INBOX"], places: [{ place: "this machine", outsideEu: false }],
+    imap: { bridge: "laptop", jumpHostNoted: false, imap: { host: "imap.example.test", port: 993, security: "tls" }, smtp: { host: "smtp.example.test", port: 587, security: "starttls" },
+      account: "reports@example.test", password: PASSWORD } });
+  document.body.replaceChildren();
+  const connected = await b.page();
+  await click(one(connected, "mailbox-places-change"));
+  await settle();
+  assert.deepEqual(byClass(one(connected, "mailbox-places-panel"), "mailbox-line-place").map((box) => box.getAttribute("data-place")).sort(), expected);
+});

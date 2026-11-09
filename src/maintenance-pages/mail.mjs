@@ -35,6 +35,7 @@ import { prepareJob } from "../job-runner/index.mjs";
 import { mailbox, signIn } from "../mail-routes/index.mjs";
 import { decideMail, readNewMail } from "../mail-handling/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { endpointsOffered, sessionsOffered, throughActions } from "../prompt-bar/index.mjs";
 import { checkersFor, personHits, pseudonymisationOf, settingsSchemas } from "../personal-data/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
@@ -119,14 +120,23 @@ export function connectionsOf(participants, store) {
 
 export const failed = (failure) => `${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`;
 
-// What the page reads once per reading to offer participants: the instance's register, and the places the mailbox allows.
+// The participants a page of mail offers: the instance's register, then the endpoints and CLI sessions the prompt bar offers from this browser, read with the
+// bar's own endpointsOffered and sessionsOffered (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE). One whose name the register holds
+// already is left out, and so is an endpoint that runs through GitHub Actions, since the pages of mail run their jobs in this tab. The page replies has the same need.
+export async function offeredWith(participants, store) {
+  const named = new Set(participants.map((each) => each.name));
+  const browser = [...endpointsOffered(store), ...await sessionsOffered(store)].filter((each) => !named.has(each.name) && !throughActions(each, store));
+  return [...participants, ...browser];
+}
+
+// What the page reads once per reading to offer participants: the instance's register with this browser's endpoints and CLI sessions, and the places the mailbox allows.
 async function sessionOf(context, have, products) {
   const instanceHost = context.instance?.host;
   if (!instanceHost || products.size === 0) return null;
   const info = await instanceHost.repositoryInfo();
   const instanceSnapshot = await instanceHost.readSnapshot(info.defaultBranch);
   const register = await instanceSnapshot.read(REGISTER);
-  const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document);
+  const participants = await offeredWith(register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document), context.store);
   return { instanceHost, instanceSnapshot, participants, places: have.connection.places ?? [], allowed: (have.connection.places ?? []).map((each) => each.place), products, store: context.store, box: have.box };
 }
 

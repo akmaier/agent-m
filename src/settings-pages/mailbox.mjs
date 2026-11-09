@@ -25,6 +25,7 @@ import { readRegister } from "../documents/index.mjs";
 import { mailbox, providerLinks, routeFor, signIn } from "../mail-routes/index.mjs";
 import { pagesAddress } from "../identifiers/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
+import { endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { heads } from "./routes.mjs";
 
@@ -59,14 +60,21 @@ function bridgesOf(store) {
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// The processing places the instance's participants declare, once each, in the order they stand.
-async function placesOf(host) {
-  const { defaultBranch } = await host.repositoryInfo();
-  const text = await (await host.readSnapshot(defaultBranch)).read("docs/participants.md");
-  if (text === null || text === undefined) return [];
-  const places = readRegister(participantSchema(), "docs/participants.md", text).rows.map(({ cells }) => String(cells["Processing place"] ?? "").trim())
-    .filter((place) => place && place !== "—");
-  return [...new Set(places)];
+// The processing places the participants declare, once each, in the order they stand: the instance's register, then the endpoints and CLI sessions the
+// prompt bar offers from this browser (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE), read with the bar's own endpointsOffered
+// and sessionsOffered. Without an instance host only this browser's. A register that cannot be read throws.
+async function placesOf(context) {
+  const places = [];
+  const host = context.instance?.host;
+  if (host) {
+    const { defaultBranch } = await host.repositoryInfo();
+    const text = await (await host.readSnapshot(defaultBranch)).read("docs/participants.md");
+    if (text !== null && text !== undefined) {
+      places.push(...readRegister(participantSchema(), "docs/participants.md", text).rows.map(({ cells }) => String(cells["Processing place"] ?? "").trim()));
+    }
+  }
+  places.push(...[...endpointsOffered(context.store), ...await sessionsOffered(context.store)].map((participant) => participant.place));
+  return [...new Set(places.filter((place) => place && place !== "—"))];
 }
 
 const SCOPES = ["Mail.ReadWrite", "Mail.Send", "offline_access"];
@@ -190,9 +198,7 @@ export function mailboxLine(context, { changed = () => {} } = {}) {
     const ticked = new Set(stored.places.map((each) => each.place));
     const noted = new Set(stored.places.filter((each) => each.notCompliantNoted).map((each) => each.place));
     let offered = [];
-    if (context.instance?.host) {
-      try { offered = await placesOf(context.instance.host); } catch (error) { panel.replaceChildren(el("p", null, `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`)); return; }
-    }
+    try { offered = await placesOf(context); } catch (error) { panel.replaceChildren(el("p", null, `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`)); return; }
     const places = [...offered, ...stored.places.map((each) => each.place).filter((place) => !offered.includes(place))];
     const boxes = places.map((place) => {
       const box = el("input", "mailbox-line-place");
@@ -362,19 +368,17 @@ export const route = {
       placeNotice.hidden = !outside; placeReadLine.hidden = placeNotice.hidden;
       if (!outside) placeRead.checked = false;
     };
-    if (context.instance?.host) {
-      try {
-        for (const place of await placesOf(context.instance.host)) {
-          const box = el("input", "mailbox-place");
-          box.type = "checkbox";
-          box.setAttribute("data-place", place);
-          box.addEventListener("change", showPlaceNotice);
-          placeBoxes.push({ box, place });
-          placesBox.append(el("p", null, el("label", null, box, " ", place)));
-        }
-      } catch (error) {
-        placesResult.textContent = `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`;
+    try {
+      for (const place of await placesOf(context)) {
+        const box = el("input", "mailbox-place");
+        box.type = "checkbox";
+        box.setAttribute("data-place", place);
+        box.addEventListener("change", showPlaceNotice);
+        placeBoxes.push({ box, place });
+        placesBox.append(el("p", null, el("label", null, box, " ", place)));
       }
+    } catch (error) {
+      placesResult.textContent = `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`;
     }
 
     const showConnected = line.refresh;

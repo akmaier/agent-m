@@ -34,7 +34,7 @@ import { readRegister } from "../documents/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { confirmDecision, runPanel } from "../site-frame/index.mjs";
 import { peopleIn } from "../personal-data/index.mjs";
-import { connectionsOf, mailboxOf, mailSubject, productsOf } from "./mail.mjs";
+import { connectionsOf, mailboxOf, mailSubject, offeredWith, productsOf } from "./mail.mjs";
 import { heads } from "./routes.mjs";
 
 const REGISTER = "docs/participants.md";
@@ -235,7 +235,7 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
     const info = await instanceHost.repositoryInfo();
     const instanceSnapshot = await instanceHost.readSnapshot(info.defaultBranch);
     const register = await instanceSnapshot.read(REGISTER);
-    const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document);
+    const participants = await offeredWith(register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document), context.store);
     const allowed = (connection.places ?? []).map((each) => each.place);
     const admitted = eligible(participants, { capabilities: definition.needs, places: [{ from: "the mailbox", allowed }] }).eligible;
     const host = products.get(due.product)?.host;

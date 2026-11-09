@@ -229,7 +229,8 @@ test("Disconnect on the Microsoft route removes the sign-in token and links the 
   assert.equal(link.getAttribute("target"), "_blank");
   assert.match(link.getAttribute("rel"), /noopener/);
   assert.match(one(shown, "mailbox-disconnected").textContent, /nothing is stored/i);
-  assert.deepEqual(b.requests, [], "no request is made");
+  // The page asks each Bridge which CLI sessions it offers (GET /v1/pair, /v1/agents), whose places the mailbox's places list holds (MOD-prompt-bar's sessionsOffered); nothing else is requested.
+  assert.deepEqual(b.requests.filter((request) => !/\/v1\/(pair|agents)$/.test(new URL(request.url).pathname)), [], "no request but the Bridges' listing is made");
 });
 
 // TST-472769 · level: unit · module: MOD-settings-pages
