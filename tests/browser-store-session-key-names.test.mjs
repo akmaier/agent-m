@@ -1,7 +1,8 @@
-// MOD-browser-store writes a CLI session's key only with both its names: a non-empty Bridge name and a non-empty agent name (`session:<bridge>:<agent>`) (ITM-1313).
+// MOD-browser-store writes a coding agent on CI's key only with its name: `ci-agent:<name>`, the name non-empty (docs/architecture/MOD-browser-store.md, Data) (ITM-1313).
+// A CLI session's key `session:<bridge>:<agent>` is no key of the catalogue: the Bridge keeps its agents' declarations (MOD-bridge-http, GET and PUT /v1/agents).
 //
 // Module: MOD-browser-store
-// Guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; CONFIGURATION LIVES IN THE BROWSER
+// Guards: UC-049; UC-010; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; CONFIGURATION LIVES IN THE BROWSER
 // Level: unit
 //
 // Run: node --test tests/browser-store-session-key-names.test.mjs
@@ -14,8 +15,9 @@ import { StoreError, listSettings, openStore, readSetting, writeSetting } from "
 
 const INSTANCE = "akmaier/agent-m";
 const PREFIX = `agent-m:${INSTANCE}:`;
-const SESSION = "session:lab:claude";
-const SESSION_VALUE = { place: "this computer", context: 200000, model: "claude-opus-5", capabilities: ["read the repository"] };
+const CI_AGENT = "ci-agent:hosted-claude";
+const CI_AGENT_VALUE = { agent: "claude", runner: "hosted", secret: "ANTHROPIC_API_KEY", place: "Anthropic, USA", capabilities: ["read the repository"],
+  models: [{ model: "claude-opus-5", context: 200000 }] };
 
 function memoryStorage() {
   const values = new Map();
@@ -35,20 +37,20 @@ function install(storage) {
 
 // TST-1313001 · level: unit · module: MOD-browser-store
 // guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; CONFIGURATION LIVES IN THE BROWSER
-// given: an instance store that holds the setting products and the session lab:claude
-// input: writeSetting(store, key, declaration) for session:lab (no agent), session:lab: (an empty agent) and session::claude (an empty Bridge)
+// given: an instance store that holds the setting products and the coding agent on CI hosted-claude
+// input: writeSetting(store, key, value) for ci-agent (no name), ci-agent: (an empty name), and the CLI session keys session:lab:claude, session:lab and session::claude
 // expect: each throws a StoreError named UnknownSetting whose key is the key written, and localStorage is, entry for entry, what it was before
-test("TST-1313001: a session key lacking its Bridge name or its agent name is refused and writes nothing", () => {
+test("TST-1313001: a coding agent's key lacking its name, and every CLI session key, is refused and writes nothing", () => {
   const storage = memoryStorage();
   install(storage);
   const store = openStore(INSTANCE);
   writeSetting(store, "products", []);
-  writeSetting(store, SESSION, SESSION_VALUE);
+  writeSetting(store, CI_AGENT, CI_AGENT_VALUE);
   const before = JSON.stringify(storage.snapshot());
 
-  for (const key of ["session:lab", "session:lab:", "session::claude"]) {
+  for (const key of ["ci-agent", "ci-agent:", "session:lab:claude", "session:lab", "session::claude"]) {
     assert.throws(
-      () => writeSetting(store, key, SESSION_VALUE),
+      () => writeSetting(store, key, CI_AGENT_VALUE),
       (error) => error instanceof StoreError && error.name === "UnknownSetting" && error.key === key,
       JSON.stringify(key),
     );
@@ -58,18 +60,22 @@ test("TST-1313001: a session key lacking its Bridge name or its agent name is re
 });
 
 // TST-1313002 · level: unit · module: MOD-browser-store
-// guards: UC-049; CONFIGURATION LIVES IN THE BROWSER
-// given: an empty instance store (counter-proof of TST-1313001: the refusal does not take the key with both names)
-// input: writeSetting(store, "session:lab:claude", declaration), then readSetting and listSettings on a store opened again
-// expect: the write is accepted and stands in localStorage under the instance's prefix; the declaration is read back whole; the setting is listed as "CLI session: lab:claude"
-test("TST-1313002: a session key with both its names is kept, read back whole and listed", () => {
+// guards: UC-049; UC-010; CONFIGURATION LIVES IN THE BROWSER
+// given: an empty instance store (counter-proof of TST-1313001: the refusal does not take the key with its name)
+// input: writeSetting(store, "ci-agent:hosted-claude", value), then readSetting and listSettings on a store opened again
+// expect: the write is accepted and stands in localStorage under the instance's prefix; the value is read back whole; the setting is listed as "Coding agent on CI: hosted-claude", not secret, set up in "endpoints"
+test("TST-1313002: a coding agent's key with its name is kept, read back whole and listed", () => {
   const storage = memoryStorage();
   install(storage);
 
-  writeSetting(openStore(INSTANCE), SESSION, SESSION_VALUE);
+  writeSetting(openStore(INSTANCE), CI_AGENT, CI_AGENT_VALUE);
 
   const reopened = openStore(INSTANCE);
-  assert.deepEqual(JSON.parse(storage.getItem(PREFIX + SESSION)), SESSION_VALUE);
-  assert.deepEqual(readSetting(reopened, SESSION), SESSION_VALUE);
-  assert.ok(listSettings(reopened).some((setting) => setting.key === SESSION && setting.label === "CLI session: lab:claude"));
+  assert.deepEqual(JSON.parse(storage.getItem(PREFIX + CI_AGENT)), CI_AGENT_VALUE);
+  assert.deepEqual(readSetting(reopened, CI_AGENT), CI_AGENT_VALUE);
+  const info = listSettings(reopened).find((setting) => setting.key === CI_AGENT);
+  assert.ok(info, "the coding agent is listed");
+  assert.equal(info.label, "Coding agent on CI: hosted-claude");
+  assert.equal(info.secret, false);
+  assert.equal(info.setUpIn, "endpoints");
 });

@@ -66,7 +66,7 @@ const CLOUD = "| cloud-llm | agent | model-b |";
 const NO_DRAFTER = "| checker | agent | model-c |";
 /** An agent whose model fixture-llm the CLI session claude of the Bridge lab-pc-4 offers (FIXER_SESSIONS): it can write to the repository and run code and tests. */
 const FIXER = "| dev-cli | agent | fixture-llm |";
-/** The CLI session claude of the Bridge lab-pc-4, as the Bridge page declares it under `session:lab-pc-4:claude`: every capability, at this machine, the model fixture-llm. */
+/** The CLI session claude of the Bridge lab-pc-4, with the declaration the Bridge keeps for it (MOD-bridge-http, GET /v1/agents): every capability, at this machine, the model fixture-llm. */
 const FIXER_SESSIONS = { claude: { place: "this machine", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests"], models: [{ model: "fixture-llm", context: 100000 }] } };
 
 const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) => ({ number, title: `Issue ${number}`, body: withMailIds(`Issue ${number}.`, mails.map((mail) => mail.id)), state, labels, comments });
@@ -74,7 +74,7 @@ const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) 
 /**
  * The world: the mails of the mailbox (`mails`, found by `find`), the drafts in Drafts (`drafts`: { ref, inReplyTo, mail }), GitHub's issues of alice/product, the participants' register and the places the mailbox allows.
  * Returns what the fakes kept: the operations the Bridge received, the requests GitHub received, the texts the endpoint returned.
- * `sessions` ({ agent: declaration }) are the CLI sessions the Bridge lab-pc-4 declares in this browser (`session:lab-pc-4:<agent>`), which its /v1/pair and /v1/agents then list ready; none by default.
+ * `sessions` ({ agent: declaration }) are the CLI sessions of the Bridge lab-pc-4, which its /v1/pair and /v1/agents then list ready, each with the declaration the Bridge keeps; none by default.
  * For the route `mail` (ITM-964): `reading` is what the Bridge's operation `read` returns; `answer(request)` is the answer of a model endpoint or of an agent on the Bridge to a request ({ origin, body }), a draft object that is wrapped as the endpoint answers; `product` adds files to the product's repository, `instance` to the instance's.
  */
 function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, createStatus = null, reading = null, stateDelay = 0, answer = null, product = {}, instance = {}, sessions = {} }) {
@@ -91,7 +91,6 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
     imap: { bridge: "lab-pc-4", jumpHostNoted: false, imap: { host: "imap.example.org", port: 993, security: "tls" }, smtp: { host: "smtp.example.org", port: 587, security: "starttls" }, account: "reports@example.org", password: "mail-password-966" } });
   writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1", place: "this machine", context: 200000 });
   writeSetting(context.store, "endpoint:ep2", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k2", place: "a provider in the USA", context: 200000 });
-  for (const [agent, declared] of Object.entries(sessions)) writeSetting(context.store, `session:lab-pc-4:${agent}`, declared);
   const asked = new Map();
   const kept = { bridge: [], github: [], endpoint: [], ask: [], drafts: [...drafts], issues: issues.map((issue) => ({ ...issue })), send, commentStatus, createStatus, created: [] };
   let nextUid = 100;
@@ -135,7 +134,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
     }
     // testBridge's two requests, which sessionsOffered sends: the Bridge names itself and lists the agents of `sessions` ready.
     if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/pair" && method === "GET") return json({ bridge: { name: "lab-pc-4", version: "1.0.0", platform: "linux" }, origin: "https://alice.github.io" });
-    if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/agents" && method === "GET") return json({ agents: Object.keys(sessions).map((name) => ({ name, version: "1.0.0", ready: true, loggedIn: true })), missing: [] });
+    if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/agents" && method === "GET") return json({ agents: Object.entries(sessions).map(([name, declared]) => ({ name, version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] });
     if (url.origin === BRIDGE && url.pathname === "/v1/ask" && method === "POST") {
       const request = { origin: url.origin, body: JSON.parse(init.body) };
       kept.ask.push(request);

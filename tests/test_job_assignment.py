@@ -178,9 +178,9 @@ class TestJobAssignment(unittest.TestCase):
 
     # TST-20261109602 · level: release · module: MOD-participant-list
     # guards: A ROLE NAMES THE CAPABILITIES IT NEEDS
-    # given: the case capability: the agent dev-c of model-z, which two connections offer — the endpoint ep1 with draft text and read the repository, and the coding agent claude of the Bridge lab with run code and tests among its capabilities —; and the case capability-removed, the same without the Bridge's session
+    # given: the case capability: the agent dev-c of model-z, which two connections offer — the endpoint ep1 with draft text and read the repository, and the coding agent claude of the Bridge lab with run code and tests among its capabilities —; and the case capability-removed, the same with the Bridge's claude listed without a declaration
     # input: a job of the role Developers, which needs read the repository, write to the repository and run code and tests, handed to dev-c, judged by eligible; the coding agent started by agentDriver on the connection that takes it
-    # expect: the job is sent only to bridge lab agent claude, started with --model model-z, the endpoint left out for the capabilities it lacks, run code and tests among them; counter-proof: without the session the job is sent nowhere and the missing capabilities are named
+    # expect: the job is sent only to bridge lab agent claude, started with --model model-z, the endpoint left out for the capabilities it lacks, run code and tests among them; counter-proof: without the declaration the job is sent nowhere and the missing capabilities are named
     def test_a_job_of_a_role_goes_only_to_a_connection_with_every_capability_the_role_needs(self):
         for group in ("capability", "capability-removed"):
             loaded = of_group(group)

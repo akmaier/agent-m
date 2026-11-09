@@ -10,7 +10,7 @@
 // The real MOD-job-ledger, MOD-runtimes, MOD-progress-measures, MOD-work-plans, MOD-product-process, MOD-repository-hosts, MOD-browser-store and MOD-site-frame run as they are; only `fetch` is faked: by tests/main-page-home-harness.mjs (the fake
 // GitHub) and, over it, by this file, which serves the instance's commit that the product's declaration names, and the product's head commit, as the commit of the repository's `main`, and answers the writes of one commit to alice/product (the ref, the tree, the commit and
 // the move of the ref), keeping what it was given. The product follows the scrum model (a sprint of team1 selecting ITM-0900; the role assignment of team1: Developers are dev-cli and dev-two); the instance's participants are dev-cli and dev-two (agents of the
-// models model-x and model-y, which the CLI sessions claude and codex this browser declares on the Bridge lab-pc-4 offer). No request leaves the fixtures; nothing sleeps.
+// models model-x and model-y, which the CLI sessions claude and codex of the Bridge lab-pc-4 offer, as the Bridge declares them). No request leaves the fixtures; nothing sleeps.
 //
 // Readings the module file leaves open, which the tests state (the pull request names them):
 //   - The page: <div class="job-retry"> holds, for a job whose state is failed, cancelled or ended without record, <select class="retry-participant"> (the participants for which startable admits every item the job works on; the job's own
@@ -24,7 +24,6 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/main-page/index.mjs";
 import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
-import { writeSetting } from "../src/browser-store/index.mjs";
 import { INSTANCE, PRODUCT, browser, byClass, draw, headOf, network, smallProduct, timers, withEnd } from "./main-page-home-harness.mjs";
 
 const job = view.routes.find((candidate) => candidate.name === "job");
@@ -51,10 +50,10 @@ const REGISTER = ["# Participants of this instance", "", "**REGISTER**", "", "Th
   "| alice | person | — |",
   "| dev-cli | agent | model-x |",
   "| dev-two | agent | model-y |", ""].join("\n");
-// The CLI sessions this browser declares on the Bridge lab-pc-4 (MOD-browser-store, `session:<bridge>:<agent>`): claude offers model-x, codex model-y.
+// The CLI sessions of the Bridge lab-pc-4, each with the declaration the Bridge keeps and lists with it (MOD-bridge-http, GET /v1/agents): claude offers model-x, codex model-y.
 const CAPABILITIES = ["read the repository", "write to the repository", "run code and tests"];
-const SESSIONS = { "session:lab-pc-4:claude": { place: "lab-pc-4", capabilities: CAPABILITIES, models: [{ model: "model-x", context: 200000 }] },
-  "session:lab-pc-4:codex": { place: "lab-pc-4", capabilities: CAPABILITIES, models: [{ model: "model-y", context: 200000 }] } };
+const SESSIONS = [{ name: "claude", version: "1", ready: true, loggedIn: true, place: "lab-pc-4", capabilities: CAPABILITIES, models: [{ model: "model-x", context: 200000 }] },
+  { name: "codex", version: "1", ready: true, loggedIn: true, place: "lab-pc-4", capabilities: CAPABILITIES, models: [{ model: "model-y", context: 200000 }] }];
 
 /** The job (dev-cli, ITM-0900) in the state given: failed, cancelled, ended without record (taken, no end, not listed by the Bridge), running (listed), done; `route` and `task` as the record writes them. */
 function jobIn(state, { route = "bridge lab-pc-4", task = "in parameters" } = {}) {
@@ -75,9 +74,9 @@ function world(given, { listed = false, assignment = ASSIGNMENT, declaration = D
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
     const method = String(init.method ?? "GET").toUpperCase();
-    // The Bridge lab-pc-4 pairs and lists claude and codex ready, as MOD-prompt-bar's sessionsOffered asks it.
+    // The Bridge lab-pc-4 pairs and lists claude and codex ready, with their declarations, as MOD-prompt-bar's sessionsOffered asks it.
     if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/pair") return json({ bridge: { name: "lab-pc-4", version: "1", platform: "linux" }, origin: "https://alice.github.io" });
-    if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/agents") return json({ agents: [{ name: "claude", version: "1", ready: true, loggedIn: true }, { name: "codex", version: "1", ready: true, loggedIn: true }], missing: [] });
+    if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/agents") return json({ agents: SESSIONS, missing: [] });
     if (url.host === "api.github.com" && url.pathname === `/repos/${PRODUCT}/commits/${headOf(PRODUCT)}`) return inner(new URL(`https://api.github.com/repos/${PRODUCT}/commits/main`), init);
     if (url.host === "api.github.com" && url.pathname === `/repos/${INSTANCE}/commits/${MODEL}`) return inner(new URL(`https://api.github.com/repos/${INSTANCE}/commits/main`), init);
     if (url.host === "api.github.com" && url.pathname.startsWith(`/repos/${PRODUCT}/git/`) && !url.pathname.includes("/git/trees/")) {
@@ -90,7 +89,6 @@ function world(given, { listed = false, assignment = ASSIGNMENT, declaration = D
     return inner(input, init);
   };
   const context = browser();
-  for (const [key, value] of Object.entries(SESSIONS)) writeSetting(context.store, key, value);
   return { seen, context };
 }
 const drawJob = async (context) => draw(job, context, { id: ID });

@@ -26,9 +26,9 @@ afterEach(restoreWorld);
 const [M1, M2, M3] = [await mailOf("m1"), await mailOf("m2"), await mailOf("m3")];
 const ADA = "Ada Reporter <ada@example.invalid>";
 const CLOSED_WITH = "Closed with pull request https://github.com/alice/product/pull/9.";
-// The agent agent-cli, whose model-c the CLI session claude of the Bridge lab-pc-4 offers at this machine (CLI_SESSION, as the Bridge page declares it in this browser).
+// The agent agent-cli, whose model-c the CLI session claude of the Bridge lab-pc-4 offers at this machine (CLAUDE, the agent the Bridge lists with the declaration it keeps, MOD-bridge-http GET /v1/agents).
 const CLI = "| agent-cli | agent | model-c |";
-const CLI_SESSION = { "session:lab-pc-4:claude": { place: "this machine", capabilities: ["draft text"], models: [{ model: "model-c", context: 200000 }] } };
+const CLAUDE = { name: "claude", place: "this machine", capabilities: ["draft text"], models: [{ model: "model-c", context: 200000 }] };
 const day = /\d{4}-\d{2}-\d{2}/.source;
 
 // The issue 4 as the standard fixture's: closed, listing the mails given.
@@ -261,7 +261,7 @@ test("alternative 3a: a reply written without a participant opens an empty draft
 // expect: agent-cli is offered with its place, after local-llm and before the connections themselves (ep1, lab-pc-4:claude), and the run panel names it; the Bridge receives one ask for the agent claude whose input holds the issue, what solved it and the mail, and nothing that sends; the texts it returns are stored as drafts in Drafts; no send request reaches Graph and no mail operation of sending is asked of the Bridge — nothing is sent without the confirmation of step 5 (flow: UC-039 alternative 3b)
 test("alternative 3b: a CLI agent receives the job through its Bridge, returns the texts, and nothing is sent", async () => {
   const texts = [];
-  const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])], rows: [CLOUD, LOCAL, CLI], texts, settings: CLI_SESSION, agents: ["claude"] });
+  const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])], rows: [CLOUD, LOCAL, CLI], texts, agents: [CLAUDE] });
   await lastly(p, async () => {
     await openIssueAfterReading(p, 4);
     await waitFor(() => byClass(p.main(), "participant").length > 0);

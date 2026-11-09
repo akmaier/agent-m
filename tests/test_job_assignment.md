@@ -9,7 +9,7 @@ The data of tests/test_job_assignment.py. The product is the fixture of the para
 The cases of the groups `model`, `capability` and `capability-removed` hand a job of a role to an agent and follow it to the connection it is sent to and the model its coding agent is started with:
 
 - `register` is the instance's docs/participants.md, each row `[Name, Type, Model]`.
-- `settings` are this browser's settings (MOD-browser-store), from which MOD-prompt-bar's `endpointsOffered` and `sessionsOffered` give the connections; `bridgeAgents` the coding agents the fixture Bridge at `http://127.0.0.1:9418` lists ready.
+- `settings` are this browser's settings (MOD-browser-store), from which MOD-prompt-bar's `endpointsOffered` and `sessionsOffered` give the connections; `bridgeAgents` the coding agents the fixture Bridge at `http://127.0.0.1:9418` lists ready, each a name, listed without a declaration, or `{ name, place, capabilities, models }`, listed with the declaration the Bridge keeps for it (MOD-bridge-http, GET /v1/agents).
 - `role` is the role of the fixture's process (tests/fixtures/parallel-sprints/product.md, `## Roles`) whose capabilities the job needs; `jobs` names, for each job, the agent it is handed to.
 - `expected` is, for each job: `connections`, the routes of the connections MOD-participant-list's `eligible` sends it to; `startedWith`, the model after `--model` with which MOD-agent-processes' `agentDriver` starts a fixture `claude` on the first of them, or null where there is none; `reasons`, every reason `eligible` names for each connection, or agent, left out.
 
@@ -90,10 +90,9 @@ The cases of the groups `model`, `capability` and `capability-removed` hand a jo
   "group": "model",
   "register": [["alice", "person", "—"], ["dev-a", "agent", "model-x"], ["dev-b", "agent", "model-y"]],
   "settings": {
-    "bridge:lab": { "address": "http://127.0.0.1:9418", "token": "pairing-token" },
-    "session:lab:claude": { "place": "this machine", "capabilities": ["read the repository", "write to the repository", "run code and tests", "use tools"], "models": [{ "model": "model-x", "context": 200000 }] }
+    "bridge:lab": { "address": "http://127.0.0.1:9418", "token": "pairing-token" }
   },
-  "bridgeAgents": ["claude"],
+  "bridgeAgents": [{ "name": "claude", "place": "this machine", "capabilities": ["read the repository", "write to the repository", "run code and tests", "use tools"], "models": [{ "model": "model-x", "context": 200000 }] }],
   "role": "Developers",
   "jobs": ["dev-a", "dev-b"],
   "expected": [
@@ -113,10 +112,9 @@ The cases of the groups `model`, `capability` and `capability-removed` hand a jo
   "register": [["dev-c", "agent", "model-z"]],
   "settings": {
     "endpoint:ep1": { "kind": "openai-compatible", "url": "https://models.example/v1", "model": "model-z", "key": "k", "place": "this machine", "context": 200000 },
-    "bridge:lab": { "address": "http://127.0.0.1:9418", "token": "pairing-token" },
-    "session:lab:claude": { "place": "this machine", "capabilities": ["read the repository", "write to the repository", "run code and tests", "use tools"], "models": [{ "model": "model-z", "context": 200000 }] }
+    "bridge:lab": { "address": "http://127.0.0.1:9418", "token": "pairing-token" }
   },
-  "bridgeAgents": ["claude"],
+  "bridgeAgents": [{ "name": "claude", "place": "this machine", "capabilities": ["read the repository", "write to the repository", "run code and tests", "use tools"], "models": [{ "model": "model-z", "context": 200000 }] }],
   "role": "Developers",
   "jobs": ["dev-c"],
   "expected": [
