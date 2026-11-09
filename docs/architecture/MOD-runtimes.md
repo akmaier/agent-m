@@ -154,7 +154,7 @@ read as this browser's.
 | a start from the server's own page, with a job's identifier (UC-010, UC-024), or from a hand-over, with the identifier of the job it queued and the task (UC-049 4a) | `onDispatch` |
 
 Its start from a page or a hand-over takes the inputs `job`, the job's identifier, and, for a hand-over, `task`, the
-task in the participant's words, `endpoint`, the address and model of a model endpoint, `secret`, the name of the CI
+task in the participant's words, `endpoint`, the address, model and context of a model endpoint, `secret`, the name of the CI
 secret of that endpoint's key, and `test`, set for the test job of that endpoint (UC-003, step 4); the task is given to
 the job and written to no file, and the run's answer, and an endpoint's test, are left in the run's own log and summary,
 never in the job's record. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
@@ -248,7 +248,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   "internal", jobWorkflow: boolean }, needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route, its connection's (MOD-participant-list): a model endpoint in the
   tab, called directly or through the Bridge its configuration names, and, where its route names the CI secret of its
   key, on the server's runners too, where Agent M's own loop calls that endpoint (MOD-workflow-entries); a CLI agent
-  through the Bridge its route names; a participant without a route, none. A self-hosted runner is offered only for a repository whose server reports
+  through the Bridge its route names; a coding agent on CI on the server's runners or the self-hosted runner its route
+  names; a participant without a route, none. A self-hosted runner is offered only for a repository whose server reports
   it private, and refused with the reason otherwise (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE
   REPOSITORY`). A job that needs no resource reached only by a Bridge or a runner is offered on the server's own runners
   whenever a CI agent can take it (`AGENT M WORKS WITHOUT A LOCAL INSTALLATION`); one that needs such a resource is offered
@@ -338,8 +339,10 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   not retried here, since its record holds no task: the list offers to hand it over again from the prompt bar, where the
   person writes the task anew. Fails with `TaskNotInRecord` for such a job.
 - `jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string,
-  keys: string[] }, runners: string[], gitlabCi?: string | null) -> { path: string, text: string }[]` — the files of the job
-  workflow described under Data, for the caller to commit on a person's click: for each route, the plan, an agent's job
+  keys: string[] }, runners: string[], gitlabCi?: string | null, agents?: object[]) -> { path: string, text: string }[]` —
+  the files of the job workflow described under Data, for the caller to commit on a person's click, `agents` — this
+  browser's coding agents on CI, each `{ name, agent, runner, secret, place, capabilities, models }` as MOD-browser-store
+  keeps it under `ci-agent:<name>` — named in the file as `AGENT_M_CI_AGENTS`, for the jobs of the route `any` (MOD-workflow-entries): for each route, the plan, an agent's job
   for no key and one for each of `secrets.keys` in their order, and the job that writes — on GitHub the agent's job of a
   key naming the secret of that key alone and the job that writes naming `secrets.token` and every key; on GitLab the
   agent's job of a key of the environment `agent-m-key-<its name>`, the job that writes of `agent-m-write`, reading the
@@ -364,7 +367,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   prompt bar learn it. `tokenKey` is the key of the product's own token in `store`, which the caller hands, since this module reads no
   rule of the frame. It reads the instance's default branch — its repository and commit — and the product's:
   `named` is what the job workflow reads, `token` `AGENT_M_TOKEN` and `keys`, in their order without a name twice, the
-  `secret` each `endpoint:*` setting of `store` names; the runners are the server's own. It compares `jobWorkflowFiles` for them — on GitLab with
+  `secret` each `endpoint:*` and `ci-agent:*` setting of `store` names; the runners are the server's own and the label of
+  each `ci-agent:*` setting on a self-hosted runner, and the coding agents those `ci-agent:*` settings. It compares `jobWorkflowFiles` for them — on GitLab with
   the product's `.gitlab-ci.yml` at that head — with the product's default branch: `missing.workflow` is true where a
   file is absent, `outdated` names each file that stands with another text. `pins.instance` is the instance commit
   `jobWorkflowFiles` is given, `pins.product` the instance commit the product's job workflow file pins — the one a job

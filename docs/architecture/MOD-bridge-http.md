@@ -51,7 +51,8 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 | Method and path | Request | Answer | Handler |
 |---|---|---|---|
 | `GET /v1/pair` | — | `{ bridge: { name, version, platform }, origin }` | the server itself |
-| `GET /v1/agents` | — | `{ agents: [{ name, version, ready, loggedIn }], missing: [{ name }] }` — the agents the Bridge offers, and the supported agents missing on its computer | jobs |
+| `GET /v1/agents` | — | `{ agents: [{ name, version, ready, loggedIn, place, capabilities, models }], missing: [{ name }] }` — the agents the Bridge offers, each with its declaration as the Bridge's settings keep it (`models` each `{ model, context }`), and the supported agents missing on its computer | jobs |
+| `PUT /v1/agents/{agent}` | `{ place, capabilities, models }` — the declaration of an agent the Bridge offers | `{ declared }` — `true` once the Bridge's settings keep it | settings |
 | `POST /v1/jobs` | `{ product, record, commit, task? }` — a job handed over: the product's address, the path of its start record and the commit that holds it, and, for a job whose task travels with the hand-over, that task | `{ accepted }` — the job's identifier | jobs |
 | `GET /v1/jobs` | — | `{ jobs: [{ id, product, kind, agent, state, started, usage }] }` | jobs |
 | `GET /v1/jobs/{id}/log?from={line}` | — | `{ lines, next, ended }` — the log from that line on | jobs |
@@ -78,7 +79,7 @@ server's or the agent's own message; `paused` (503).
 
 - `bridgeApi` — the protocol above, as data: its default port, its routes with their methods, request and answer fields,
   the token's header, and the errors with their codes.
-- `BridgeHandlers` — `{ jobs: RouteHandlers, mail: RouteHandlers, tunnels: RouteHandlers }`, where `RouteHandlers` maps a
+- `BridgeHandlers` — `{ jobs: RouteHandlers, mail: RouteHandlers, tunnels: RouteHandlers, settings: RouteHandlers }`, where `RouteHandlers` maps a
   route of `bridgeApi` to `(request: { params: object, body: object }) -> Promise<object>`; a handler throws an error of
   `bridgeApi` by its code.
 - `serveBridge(config: { host: string, port: number, origin: string, dataFolder: string, paused: () => boolean,

@@ -19,7 +19,7 @@ realises:
 **Goal.** The author lists, once, the team that works on the instance's products — its people, and its agents each with
 the model it works with — so that any product can assign them to roles (UC-048). How an agent's model is reached, what
 it can do and where the data given to it goes belongs to the connection that offers the model, configured in this
-browser: a model endpoint (UC-003) or a coding agent that a Bridge offers (UC-044).
+browser: a model endpoint (UC-003), a coding agent that a Bridge offers (UC-044), or a coding agent on CI (UC-010).
 
 | Type | Example | Names |
 |---|---|---|
@@ -34,8 +34,8 @@ browser: a model endpoint (UC-003) or a coding agent that a Bridge offers (UC-04
 ## Precondition
 
 - The author has an instance with its token stored in this browser (UC-014).
-- For an agent, this browser keeps at least one connection that offers a model: an endpoint (UC-003) or a coding agent
-  of a Bridge (UC-044).
+- For an agent, this browser keeps at least one connection that offers a model: an endpoint (UC-003), a coding agent
+  of a Bridge (UC-044), or a coding agent on CI (UC-010).
 
 ## Main flow
 
@@ -44,7 +44,7 @@ browser: a model endpoint (UC-003) or a coding agent that a Bridge offers (UC-04
    and context are those of the connection its job runs on, which this list does not hold.
 3. The author names the participant — a person by their account — and, for an agent, selects its **model** among the
    models this browser's connections offer: the model of each endpoint (UC-003), and each model a Bridge's coding agent
-   can run (UC-044), each shown with the connections that offer it and the place where each processes data. A person
+   (UC-044) or a coding agent on CI (UC-010) can run, each shown with the connections that offer it and the place where each processes data. A person
    names none.
 4. The author presses **Save** — one click. Agent M commits the participant to `docs/participants.md` of the instance:
    name, type and, for an agent, model — no key, and nothing of a connection.

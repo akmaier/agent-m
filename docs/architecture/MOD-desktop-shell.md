@@ -91,7 +91,9 @@ Bridge's per-user data folder, written only by this module.
 
 ```json
 { "agent-m-bridge-settings": 1, "name": "lab-pc", "port": 4711,
-  "agents": [{ "name": "claude", "folder": "/home/alice/agent-m-work/claude" }],
+  "agents": [{ "name": "claude", "folder": "/home/alice/agent-m-work/claude", "place": "this machine",
+    "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools",
+    "reach the web"], "models": [{ "model": "claude-opus-5-5", "context": 200000 }] }],
   "products": ["https://github.com/alice/example-product"], "every": 300, "paused": false,
   "jumpHost": { "hostname": "jump.example.org", "user": "alice", "sshPort": 22 },
   "tunnels": [{ "direction": "reverse", "jumpHost": "jump.example.org", "user": "alice", "sshPort": 22,
@@ -104,8 +106,10 @@ Bridge's per-user data folder, written only by this module.
 - `port` — the port on loopback the API listens on; by default the one `bridgeApi` names.
 - `agents` — the agents the Bridge offers, each a supported agent installed on this computer and chosen by the person in
   the window, with its working folder, chosen there too, in which MOD-bridge-jobs keeps that agent's clones (`THE BRIDGE
-  FINDS THE INSTALLED AGENTS`, `THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`); an agent no longer installed
-  stays listed and is shown as missing.
+  FINDS THE INSTALLED AGENTS`, `THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`), and its declaration as a
+  connection (UC-044 step 5): `place`, where it processes data, *this machine* preset; `capabilities`, every one preset;
+  and `models`, each model it can run with its context in tokens — set in the window or from the settings page through
+  the API (MOD-bridge-http, `PUT /v1/agents/{agent}`); an agent no longer installed stays listed and is shown as missing.
 - `products` — the addresses of the product repositories whose queued jobs and runs this Bridge serves.
 - `every` — the seconds between two readings of the served products; by default 300.
 - `paused` — whether the Bridge was paused when it last ran; it starts paused again.
@@ -158,7 +162,8 @@ The rest of its surface faces the person, not another module:
   through MOD-tunnels the key pair (`THE BRIDGE CREATES ITS OWN SSH KEY`); registers with the job runner the strategies of
   every kind a Bridge may run; starts the server on `127.0.0.1` at the settings' port, for the instance's origin, with
   the name of the settings in force and the version of `build.json`, `null` for a start without it, and with the
-  handlers of MOD-bridge-jobs, MOD-mail-protocols and MOD-tunnels (`THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY`); opens
+  handlers of MOD-bridge-jobs, MOD-mail-protocols and MOD-tunnels, and its own for `PUT /v1/agents/{agent}`, which keeps
+  an agent's declaration in the settings (`THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY`); opens
   the tunnels (`THE BRIDGE OPENS ITS TUNNELS ITSELF`); and, unless paused, starts watching the served products, so that
   their runs go on while no tab is open (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). A port in use is shown with
   a field for another; a data folder that cannot be written is shown with its path.
@@ -170,7 +175,8 @@ The rest of its surface faces the person, not another module:
   - *Agents* — every supported agent with its version, ready and logged in, installed but not logged in with its own
     login step (`Agent.login`), or missing with its vendor's installation page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
     INSTALLATION OF A MISSING AGENT`); a tick for each installed agent the Bridge is to offer, and the working folder of
-    each ticked one, chosen with the system's folder dialog; *Test access*, through MOD-bridge-jobs' `testAccess`,
+    each ticked one, chosen with the system's folder dialog, and its declaration — place, capabilities, models with their
+    context —; *Test access*, through MOD-bridge-jobs' `testAccess`,
     which names each repository this computer's own git login does not reach, with the reason. For each offered agent,
     its enclosure (ARC-054): whether it works on this computer, else its reason and its one-time step, with *Set up*
     where the Bridge can take that step itself — on Windows, through Windows' elevation prompt —; and whether the agent is

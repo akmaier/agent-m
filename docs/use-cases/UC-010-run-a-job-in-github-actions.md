@@ -5,7 +5,7 @@ area: runtime
 actors:
   - Author
   - GitHub Actions
-  - CI agent
+  - Coding agent on CI
 realises:
   - ONE DEFINITION, THREE DRIVERS
   - A RUNTIME IS INTERCHANGEABLE
@@ -17,6 +17,7 @@ realises:
   - AGENT M WORKS WITHOUT A LOCAL INSTALLATION
   - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
   - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+  - A CONNECTION NAMES THE MODELS IT OFFERS
 ---
 # UC-010 Run a job in GitHub Actions
 
@@ -27,10 +28,15 @@ endpoint does not accept browser calls.
 
 - **Author** — starts the run.
 - **GitHub Actions** — executes the job with a repository secret.
-- **CI agent** — the participant (UC-017) whose workflow runs the job, calling its model endpoint.
+- **Coding agent on CI** — a connection this browser's settings declare: Claude Code, Codex or opencode on the server's
+  runners or on a self-hosted runner by its label, its key in a CI secret; or a model endpoint whose key is a CI secret
+  (UC-003). The job's participant (UC-017) runs on it with its model.
 
 ## Precondition
 
+- A coding agent on CI is declared in this browser's settings, as an endpoint is (UC-003): the agent, its runner — the
+  server's own, or a self-hosted runner's label —, the name of the CI secret of its key, the place where it processes
+  data, its capabilities — every one preset —, and each model it can run with its context.
 - The product repository holds the agent's or endpoint's key as an Actions secret, not in any file.
 - The product repository also holds the person's Agent M token as an Actions secret, so that the job's
   pushes and pull requests start CI like the person's own (GitHub starts no run, or waits for approval,
@@ -51,9 +57,10 @@ where the author adds it.
 
 1. The author starts the job from the dashboard or from GitHub's Actions page. The start writes the
    job's record `docs/jobs/JOB-<id>.md` in the product repository — from the dashboard as part of the
-   author's click.
+   author's click. A start from the Actions page names the connection in the run's inputs — the endpoint with its model
+   and context, and the CI secret of its key —, and its record declares that connection.
 2. The workflow reads the job definition and prompt — the same files the browser uses.
-3. The workflow calls the endpoint with the secret.
+3. The workflow calls the endpoint, or runs the coding agent with the participant's model, with the secret.
 4. The workflow commits the resulting artifacts to the default branch, where they are open, together
    with the job's end record.
 5. The author reviews them on the dashboard, as in UC-006 or UC-008.

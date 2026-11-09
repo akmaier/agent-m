@@ -80,6 +80,7 @@ uses:
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.sessionsOffered
+  - MOD-prompt-bar.ciAgentsOffered
 provides:
   - view
 ---
@@ -177,7 +178,7 @@ instance's participants.
   the dialog of every send, and the form of a backlog item.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
 - MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
-  MOD-prompt-bar.sessionsOffered — this browser's connections, which `participantsOf` joins with the instance's
+  MOD-prompt-bar.sessionsOffered, MOD-prompt-bar.ciAgentsOffered — this browser's connections, which `participantsOf` joins with the instance's
   participants.
 - MOD-browser-store.readSetting — the mailbox connection and its last test, the endpoints' configurations and the
   Bridges' settings;

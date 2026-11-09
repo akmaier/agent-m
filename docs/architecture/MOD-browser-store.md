@@ -32,7 +32,7 @@ provides:
 ## Responsibility
 
 It belongs to Access (ARC-047). It keeps everything that belongs to one person on one browser — tokens with their
-expiry, the list of products, endpoints and their keys, the declarations of the agents the Bridges offer, each Bridge under its name with its address or its port on the
+expiry, the list of products, endpoints and their keys, the coding agents on CI, each Bridge under its name with its address or its port on the
 jump host and its token, the mailbox connection, the jump host, the mails marked *not an issue*, the notifications of what waits for acceptance and what they
 notified — in that browser's `localStorage` and nowhere else
 (`CONFIGURATION LIVES IN THE BROWSER`, `CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE`); it knows every key it
@@ -69,7 +69,7 @@ instances in one browser never share an entry. Each value is JSON. The settings 
 | `gitlab-token:<server>/<project>` | `{ value, name, expires, stored }` — the project access token of one GitLab product | yes |
 | `products` | the addresses of the products this browser manages (`THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER`) | no |
 | `endpoint:<name>` | `{ url, kind, model, key?, bridge?, place, context, secret? }` — a model endpoint, a connection that offers one model; `bridge` names the Bridge that calls it, where the browser cannot, and is left out where the browser calls it directly; `place` the place where it processes data, `context` the model's context in tokens; `secret` the name of the CI secret that holds its key, for work handed to CI | the key |
-| `session:<bridge>:<agent>` | `{ place, capabilities, models }` — the connection the Bridge `<bridge>` offers for its agent `<agent>`: the place where it processes data, its capabilities, and `models`, each model the agent can run as `{ model, context }`, with its context in tokens | no |
+| `ci-agent:<name>` | `{ agent, runner, secret, place, capabilities, models }` — a coding agent on CI: `agent` the supported coding agent (MOD-agent-processes) it runs, `runner` `hosted` or a self-hosted runner's label, `secret` the name of the CI secret of its key, `place` the place where it processes data, its capabilities, and `models`, each model it can run as `{ model, context }`, with its context in tokens | no |
 | `bridge:<name>` | `{ address, token }` — a Bridge reached directly, on this computer's loopback or at an SSH forward's address — or `{ port, token }` — a Bridge reached through the jump host, at its port of the jump host's range (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`); `<name>` is the Bridge's name, which its own settings and its connections' routes carry | the token |
 | `jump-host` | `{ hostname, user, sshPort, portRange, httpsAddress?, login? }` (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`) | the login |
 | `mailbox` | the connection's fields as MOD-mail-routes defines them — route, address, folders, allowed places, the client identifier of the app registration, or servers and password | the password |

@@ -75,6 +75,7 @@ uses:
   - MOD-runtimes.routeStrategies
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.sessionsOffered
+  - MOD-prompt-bar.ciAgentsOffered
 provides:
   - view
 ---
@@ -217,7 +218,7 @@ the result records on the branch `test-results`, the product's resources and the
 - MOD-text-tools.blobSha — the blob SHA of the text of the release report that the route shows, which `acceptAndRelease`
   takes as the report's `blob`; `releaseReport` gives the text only.
 - MOD-participant-list.participantsOf, MOD-participant-list.eligible — the instance's participants on this browser's
-  connections (MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered), and who can write or run tests;
+  connections (MOD-prompt-bar.endpointsOffered, MOD-prompt-bar.sessionsOffered, MOD-prompt-bar.ciAgentsOffered), and who can write or run tests;
   MOD-job-ledger.listJobs — the implementer of a behaviour,
   left out for its release tests, and the cases a job of `propose-tests` on CI recorded.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-ledger.newJobId,

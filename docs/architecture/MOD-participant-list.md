@@ -28,8 +28,8 @@ It belongs to Participants and jobs (ARC-046). It defines the register of the pe
 instance's products — the instance's `docs/participants.md` (`PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE`): each a
 name, a person or an agent, and an agent's model (`A PARTICIPANT IS A PERSON OR AN AGENT`, `A PARTICIPANT BASED ON A
 LANGUAGE MODEL NAMES ITS MODEL`). It joins each agent with the connections that offer its model — the model endpoints and
-the coding agents of Bridges that a browser's settings keep, each with its place, its capabilities and the context of
-each model it offers (`A CONNECTION NAMES THE MODELS IT OFFERS`, `A CONNECTION DECLARES ITS CAPABILITIES`,
+coding agents on CI that a browser's settings keep and the coding agents of Bridges, each with its place, its
+capabilities and the context of each model it offers (`A CONNECTION NAMES THE MODELS IT OFFERS`, `A CONNECTION DECLARES ITS CAPABILITIES`,
 `A CONNECTION DECLARES WHERE IT PROCESSES DATA`) —, so that a job runs on a connection that offers its participant's
 model (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`); and it decides which of them may do a given
 job: the capabilities the job or role needs (`A ROLE NAMES THE CAPABILITIES IT NEEDS`), the places its data may go
@@ -37,7 +37,7 @@ job: the capabilities the job or role needs (`A ROLE NAMES THE CAPABILITIES IT N
 context it must hold, and that a reviewer is neither the drafter nor uses the drafter's model (`NO REVIEWER IS
 THE DRAFTER`). It runs unchanged in a browser and in Node; it keeps no state and performs
 no input or output: the register's text is read by its callers through MOD-documents with the schema this module gives,
-the connections are read by MOD-prompt-bar's `endpointsOffered` and `sessionsOffered` from the browser's settings, and
+the connections are read by MOD-prompt-bar's `endpointsOffered`, `sessionsOffered` and `ciAgentsOffered`, and
 `participantsOf` joins what they read.
 
 ## Parts
@@ -70,15 +70,16 @@ accepts a person's row without one. An example:
 
 ## Interfaces
 
-- `Connection` — `{ name: string, type: "model endpoint" | "CLI agent", model: string, context: number, capabilities:
-  Capability[], place: string, route: string }`: one
-  model that one connection offers, as a browser's settings declare it — a model endpoint offers one, a coding agent of a
-  Bridge one for each model it can run (MOD-browser-store, `endpoint:<name>` and `session:<bridge>:<agent>`). `name` is
-  the connection's — `<endpoint>` or `<bridge>:<agent>` —; `route` how Agent M reaches it, `endpoint <name>`, with
-  ` secret <NAME>` where its settings name the CI secret of its key, or `bridge <bridge> agent <agent>`. MOD-prompt-bar's
-  `endpointsOffered` and `sessionsOffered` read them; a connection the prompt bar offers is handed to the job runner as
+- `Connection` — `{ name: string, type: "model endpoint" | "CLI agent" | "CI agent", model: string, context: number,
+  capabilities: Capability[], place: string, route: string }`: one model that one connection offers, as it is declared —
+  a model endpoint offers one, a coding agent of a Bridge or on CI one for each model it can run (MOD-browser-store,
+  `endpoint:<name>` and `ci-agent:<name>`; a Bridge keeps the declarations of its own agents, MOD-desktop-shell).
+  `name` is the connection's — `<endpoint>`, `<bridge>:<agent>` or `<name>` of a coding agent on CI —; `route` how
+  Agent M reaches it, `endpoint <name>`, with ` secret <NAME>` where its settings name the CI secret of its key,
+  `bridge <bridge> agent <agent>`, or `ci hosted agent <agent> secret <NAME>` or `ci runner:<label> agent <agent> secret
+  <NAME>`. MOD-prompt-bar's `endpointsOffered`, `sessionsOffered` and `ciAgentsOffered` read them; a connection the prompt bar offers is handed to the job runner as
   it is, as a participant (`THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE`).
-- `Participant` — `{ name: string, type: "person" | "agent" | "model endpoint" | "CLI agent", model: string | null, context: number
+- `Participant` — `{ name: string, type: "person" | "agent" | "model endpoint" | "CLI agent" | "CI agent", model: string | null, context: number
   | null, capabilities: Capability[], place: string | null, route: string | null }`: who does a job and where it runs — a person of the register; an agent of the register on
   one connection that offers its model, with the agent's `name` and `model` and the connection's `type`, `context`,
   `capabilities`, `place` and `route`; or a connection the prompt bar offers, which has this shape already. A
