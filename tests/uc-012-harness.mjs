@@ -74,7 +74,7 @@ export const issueOf = (number, body, { title = `Export loses pages ${number}`, 
 export const isAnalysis = (request) => JSON.stringify(request.body).includes("Propose its `class`");
 
 /**
- * The world with the product chosen. `analysis` is the participant's answer to an analysis (a draft { class, reasoning, wrong? }), `change` its answer to a change (a draft { candidates }); `pulls(branch)` the pull request of the branch
+ * The world with the product chosen. `analysis` is the participant's answer to an analysis (a draft { class, reasoning, wrong? }), `change` its answer to a change (a draft { sections, proposals, groups, why }: the new text of what it changes, UC-019 step 6); `pulls(branch)` the pull request of the branch
  * of a fix job, named after the job's identifier, as MOD-repository-hosts' PullRequest or null, and `facts(number)` its facts. Every other key is the world's (tests/maintenance-pages-world.mjs).
  */
 export function start({ analysis = null, change = { candidates: [] }, pulls = null, facts = null, product = {}, instance = {}, rows = [LOCAL, CI_AGENT], ...over } = {}) {
@@ -129,12 +129,12 @@ export async function decided(detail, cls) {
 export const changeOf = (detail) => byClass(detail, "issue-change")[0];
 export const fixOf = (detail) => byClass(detail, "issue-fix")[0];
 
-/** Step 6: the change drafted by `name` and its candidates waited for. */
+/** Step 6: the change drafted by `name` and its changed texts waited for. */
 export async function drafted(detail, name = "local-llm") {
   await waitFor(() => changeOf(detail) !== undefined);
   const panel = await choose(changeOf(detail), "change-participant", "change-person", name);
   await trusted(buttonsOf(panel, "Run")[0]);
-  await waitFor(() => byClass(changeOf(detail), "candidate").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
+  await waitFor(() => byClass(changeOf(detail), "changed-text").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
   assert.equal(byClass(changeOf(detail), "issue-problem").length, 0, textOf(changeOf(detail)));
   return detail;
 }

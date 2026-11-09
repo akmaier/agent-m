@@ -56,25 +56,29 @@ const FLOW_EVIDENCE = {
     uc: "the use case, every requirement it realises, and every other use case",
     evidence: [["tests/approvals-strategies.test.mjs", "TST-472023"], [SELF, "TST-377004"]],
   },
-  "main-4-hierarchy": {
-    uc: "with its requirement hierarchy from `docs/groups/requirements.md`",
-    evidence: [["tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"]],
+  "main-4-requirements-context": {
+    uc: "the sections of the SPEC that hold the requirements to change, the proposal of each open entry that proposes one of them, and the requirement hierarchy from `docs/groups/requirements.md`",
+    evidence: [["tests/spec-changes-spec-edits.test.mjs", "TST-2026110909"], ["tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"], [RELEASE_REQUIREMENTS, "TST-418106"], [RELEASE_REQUIREMENTS, "TST-418128"]],
   },
-  "main-6-place": {
-    uc: "A new requirement also names its place in the requirement hierarchy",
-    evidence: [["tests/job-catalogue-kinds-data.test.mjs", "TST-2026110878"]],
+  "main-6-new-texts": {
+    uc: "For requirements, that is the new text of each section it changes, of each open entry's proposal it changes",
+    evidence: [[DRAFT, "TST-2026110910"], [RELEASE_REQUIREMENTS, "TST-418103"], [RELEASE_REQUIREMENTS, "TST-418128"]],
   },
-  "main-7-place-finding": {
-    uc: "which the hierarchy does not hold [AN ITEM HAS ONE PLACE IN ITS HIERARCHY]",
-    evidence: [["tests/job-runner-candidate-places.test.mjs", "TST-2026110875"]],
+  "main-6-renamed": {
+    uc: "A renamed requirement stands under its new name.",
+    evidence: [[RELEASE_REQUIREMENTS, "TST-418109"], ["tests/job-runner-requirement-form.test.mjs", "TST-2026110903"]],
   },
-  "main-8-place": {
-    uc: "a new one with its place, which the author changes by a follow-up instruction",
-    evidence: [["tests/review-pages-conversation-draft.test.mjs", "TST-2026110896"]],
+  "main-7-person-source-finding": {
+    uc: "does not name github.com/akmaier among its sources [THE PERSON WHO PROMPTS IS A SOURCE]",
+    evidence: [[RELEASE_REQUIREMENTS, "TST-418129"]],
   },
-  "main-9-places": {
-    uc: "with the places of its new requirements beside its section",
-    evidence: [["tests/review-pages-conversation-draft.test.mjs", "TST-2026110896"], ["tests/spec-changes-places.test.mjs", "TST-2026110880"]],
+  "main-9-entries-and-group-file": {
+    uc: "each changed section is written as an entry of its queue, each changed proposal is saved in its entry (UC-018 1a), and a changed `docs/groups/requirements.md` is committed as an arrangement is (UC-021)",
+    evidence: [[DRAFT, "TST-2026110911"], [RELEASE_REQUIREMENTS, "TST-418128"]],
+  },
+  "6b-group-file-as-pull-request": {
+    uc: "a changed `docs/groups/requirements.md` as a pull request",
+    evidence: [["tests/spec-changes-spec-edits.test.mjs", "TST-2026110906"]],
   },
   "main-5-send": {
     uc: "The author presses **Send**",

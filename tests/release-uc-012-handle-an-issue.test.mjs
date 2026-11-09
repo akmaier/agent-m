@@ -1,6 +1,7 @@
 // Release tests of UC-012 "Handle an issue: bug fix or specification change", on the issue's page: each requirement UC-012 realises, checked from what the author reads on the page and from the requests the fixture
 // servers received — evolution through the specification, the impact list of a changed requirement, the origin of every artifact, code only through a pull request, the participants and the capabilities the work
-// needs, the derivation seeing the existing requirements, a change under the existing name, one click per decision, and no mail and no personal data of a mail reaching a participant that writes or a repository.
+// needs, one click per decision, and no mail and no personal data of a mail reaching a participant that writes or a repository. The change is drafted as the new text of what it changes (UC-012 step 6, as in
+// UC-019 step 6) — the cases 585309 and 585310 check what it is given and how it is shown and saved; it has no candidate classes.
 // TST-585301 maps every requirement UC-012 realises to a release test that guards it.
 // Run: node --test tests/release-uc-012-handle-an-issue.test.mjs
 //
@@ -24,7 +25,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { withMailIds } from "../src/mail-records/index.mjs";
-import { ADDRESS, CI_AGENT, CI_NO_RUN, CI_NO_WRITE, ERIKA, LOCAL, PERSON, PRODUCT_URL, READER, SECRET, SOURCE, analysed, buttonsOf, byClass, changeOf, decided, drafted, everyWrite, fixOf, flush, issueNow, issueOf,
+import { ADDRESS, CI_AGENT, CI_NO_RUN, CI_NO_WRITE, ERIKA, LOCAL, PERSON, PRODUCT_URL, READER, SECRET, analysed, buttonsOf, byClass, changeOf, decided, drafted, everyWrite, fixOf, flush, issueNow, issueOf,
   issueWrites, jobFiles, mailOf, one, open, queueFiles, queued, restoreWorld, saved, start, textOf, trusted, waitFor, writtenFiles } from "./uc-012-harness.mjs";
 
 // The map reads files only and draws no page, so that there is no world to put back after it.
@@ -45,8 +46,6 @@ const EVIDENCE = {
   "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS": [[SELF, "TST-585306"]],
   "A ROLE NAMES THE CAPABILITIES IT NEEDS": [[SELF, "TST-585307"]],
   "A PARTICIPANT DECLARES ITS CAPABILITIES": [[SELF, "TST-585308"]],
-  "DERIVATION SEES THE EXISTING REQUIREMENTS": [[SELF, "TST-585309"]],
-  "A CHANGE IS PROPOSED UNDER THE EXISTING NAME": [[SELF, "TST-585310"]],
   "ONE CLICK PER DECISION": [[SELF, "TST-585311"]],
   "A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL": [[SELF, "TST-585312"]],
   "NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY": [[SELF, "TST-585313"]],
@@ -54,13 +53,13 @@ const EVIDENCE = {
 
 // TST-585301 · level: release · module: system
 // guards: UC-012
-// given: UC-012 as committed text, whose `realises` lists twelve requirements, and the release tests named in EVIDENCE
+// given: UC-012 as committed text, whose `realises` lists ten requirements, and the release tests named in EVIDENCE
 // input: read UC-012's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-012 realises these twelve requirements; each has at least one test named; each test named stands in its file with the level release and guards that requirement
+// expect: known positive — UC-012 realises these ten requirements; each has at least one test named; each test named stands in its file with the level release and guards that requirement
 test("TST-585301: UC-012 every requirement it realises has a release test that guards it", () => {
   const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
-  assert.equal(realised.length, 12, "known positive: UC-012 realises twelve requirements");
+  assert.equal(realised.length, 10, "known positive: UC-012 realises ten requirements");
   assert.deepEqual([...realised].sort(), Object.keys(EVIDENCE).sort(), "the map holds exactly the requirements UC-012 realises");
   for (const [requirement, tests] of Object.entries(EVIDENCE)) {
     assert.ok(tests.length > 0, `${requirement}: a test is named`);
@@ -77,8 +76,14 @@ test("TST-585301: UC-012 every requirement it realises has a release test that g
 // ---------------------------------------------------------------- the fixtures of the cases
 
 const NAMING = "The export is cut off after the second page; FIRST RULE says nothing about page counts.";
-const NEW = { name: "EVERY EXPORT KEEPS ALL PAGES", rule: "An export holds every page of the document.", check: "tests/unit.test.mjs", constrains: "product", passage: "cut off after the second page", class: "new" };
-const CHANGED = { name: "FIRST RULE", rule: "The first rule holds for every page of an export.", check: "tests/unit.test.mjs", constrains: "product", passage: "cut off after the second page", class: "change", of: "FIRST RULE" };
+// The participant's drafts of the change (the kind change-requirements: the new text of each section it changes, with why; each requirement it adds or changes names the person's account
+// github.com/alice among its sources): NEW adds EVERY EXPORT KEEPS ALL PAGES to the section "1. Section", CHANGED changes FIRST RULE's rule there; SECOND RULE stands as it is in both.
+const SECOND = ["**SECOND RULE** *(Product Owner)*", "The second rule holds.", "*Check:* no automatic check; at review."].join("\n");
+const NEW_RULE = "An export holds every page of the document.", CHANGED_RULE = "The first rule holds for every page of an export.";
+const sectionOf = (...blocks) => `${["## 1. Section", "", blocks.join("\n\n")].join("\n")}\n`;
+const NEW = { sections: [sectionOf(["**FIRST RULE** *(Product Owner)*", "The first rule holds.", "*Check:* `tests/unit.test.mjs`"].join("\n"), SECOND,
+  ["**EVERY EXPORT KEEPS ALL PAGES** *(github.com/alice)*", NEW_RULE, "*Check:* `tests/unit.test.mjs`"].join("\n"))], why: "An export is cut off after the second page." };
+const CHANGED = { sections: [sectionOf(["**FIRST RULE** *(Product Owner; github.com/alice)*", CHANGED_RULE, "*Check:* `tests/unit.test.mjs`"].join("\n"), SECOND)], why: "The first rule says nothing about page counts." };
 const AS_CHANGE = { class: "change", reasoning: "The SPEC says nothing about page counts: a requirement is missing." };
 const AS_BUG = { class: "bug", reasoning: "FIRST RULE holds, and the code breaks it.", wrong: ["src/store/read.mjs"] };
 
@@ -97,7 +102,7 @@ async function confirmed(w, cls) {
 // input: the author confirms the class change, drafts the change and saves it; in a second world the author confirms the class bug
 // expect: for the change the page offers the change and no fix; Save writes files under docs/spec-freigaben/ and the job's record under docs/jobs/ only — no SPEC.md, no code, no test; for the bug the page offers the fix (the counter-proof: a fix is offered only where the SPEC is right)
 test("TST-585302: UC-012 an issue that changes behaviour becomes a specification change first, and no code change is offered for it", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [NEW] } });
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: NEW });
   const detail = await confirmed(w, "change");
   await waitFor(() => changeOf(detail) !== undefined);
   assert.equal(fixOf(detail), undefined, "no fix for a change");
@@ -122,7 +127,7 @@ test("TST-585302: UC-012 an issue that changes behaviour becomes a specification
 // input: the author drafts the change from the issue and saves it
 // expect: before Save no file of the queue is written; the saved queue's files name, for FIRST RULE, the artifacts that reference it — UC-001, UC-002 and TST-001 — as part of the proposal
 test("TST-585303: UC-012 a change of an existing requirement from an issue carries the list of the artifacts that reference it", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [CHANGED] } });
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: CHANGED });
   const detail = await drafted(await confirmed(w, "change"));
   assert.deepEqual(queueFiles(w), [], "nothing is written before Save");
   await saved(detail);
@@ -136,14 +141,14 @@ test("TST-585303: UC-012 a change of an existing requirement from an issue carri
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-012
 // given: the open issue 5; in one world it is confirmed as a change and the change saved; in another it is confirmed as a bug and its fix queued with ci-bot
 // input: Save of the change; Run of the fix
-// expect: the entry's rationale has the line "**Issue:** #5 of https://github.com/alice/product" (UC-012 step 6: each entry names the issue; MOD-spec-changes, Data: the rationale's line) and names the issue and the person's source SRC-alice; the fix's job record works on https://github.com/alice/product/issues/5
+// expect: the entry's rationale has the line "**Issue:** #5 of https://github.com/alice/product" (UC-012 step 6: each entry names the issue; MOD-spec-changes, Data: the rationale's line) and names the issue and the person's source, the account github.com/alice (the kind change-requirements: its parameter `source` is the account of the person who starts it); the fix's job record works on https://github.com/alice/product/issues/5
 test("TST-585304: UC-012 the change and the fix name the issue they came from", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [NEW] } });
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: NEW });
   await saved(await drafted(await confirmed(w, "change")));
   const files = queueFiles(w);
   const rationale = files.find((entry) => entry.path.endsWith(".begruendung.md"))?.content ?? "";
   assert.ok(rationale.split("\n").includes(`**Issue:** #5 of ${PRODUCT_URL}`), "the entry's rationale has the line Issue naming the issue and the product's address");
-  assert.ok(rationale.includes(`issue #5 of ${PRODUCT_URL}`) && rationale.includes(SOURCE), rationale);
+  assert.ok(rationale.includes(`issue #5 of ${PRODUCT_URL}`) && rationale.includes("github.com/alice"), rationale);
   restoreWorld();
 
   const bug = start({ issues: [issueOf(5, NAMING)], analysis: AS_BUG });
@@ -233,7 +238,7 @@ test("TST-585308: UC-012 what a participant declares decides whether the fix is 
   }
 });
 
-// ---------------------------------------------------------------- the derivation sees the existing requirements
+// ---------------------------------------------------------------- what the change is given
 
 const QUEUE = "docs/spec-freigaben/2026-10-01a_fixture";
 const OPEN_QUEUE = {
@@ -244,36 +249,51 @@ const OPEN_QUEUE = {
 };
 
 // TST-585309 · level: release · module: system
-// guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-012
-// given: the product's SPEC holds FIRST RULE and SECOND RULE; an open queue proposes THIRD RULE ("The third rule holds for an open queue."); the open issue 5 names FIRST RULE only, confirmed as a change
+// guards: UC-012
+// given: the product's SPEC holds FIRST RULE ("The first rule holds.") and SECOND RULE in its section "1. Section"; an open entry's proposal of that section holds FIRST RULE, SECOND RULE and THIRD RULE; the open issue 5 names FIRST RULE only, confirmed as a change
 // input: the author drafts the change from the issue with local-llm
-// expect: what the participant receives for the change holds every requirement of the product — "The first rule holds.", "The second rule holds." and the open queue's "The third rule holds for an open queue." — and the issue's text
-test("TST-585309: UC-012 the change drafted from an issue is derived against every requirement of the SPEC and of its open queues", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [NEW] }, product: OPEN_QUEUE });
+// expect: what the participant receives for the change holds the issue's text and the requirement it names, FIRST RULE with its rule "The first rule holds." (the kind's recipe issue-context: "the issue with what it touches")
+test("TST-585309: UC-012 the change drafted from an issue is given the issue and the requirement it names", async () => {
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: NEW, product: OPEN_QUEUE });
   await drafted(await confirmed(w, "change"));
   const sent = w.kept.endpoint.filter((request) => !JSON.stringify(request.body).includes("Propose its `class`")).map((request) => JSON.stringify(request.body));
   assert.ok(sent.length >= 1, "the change was asked for");
-  for (const wanted of ["The first rule holds.", "The second rule holds.", "The third rule holds for an open queue.", "cut off after the second page"]) assert.ok(sent[0].includes(wanted), `the change receives ${wanted}`);
+  for (const wanted of ["FIRST RULE", "The first rule holds.", "cut off after the second page"]) assert.ok(sent[0].includes(wanted), `the change receives ${wanted}`);
 });
 
-// ---------------------------------------------------------------- a change under the existing name
+// TST-585314 · level: release · module: system
+// guards: UC-012
+// given: as TST-585309
+// input: as TST-585309
+// expect: the change also receives the section that holds FIRST RULE — with "The second rule holds." — and the proposal of the open entry that proposes it — "The third rule holds for an open queue." —, as UC-019 step 4 gives a change of requirements its context and as the prompt asks the drafter for "each SPEC section you change, from its heading line, unchanged, to its end"
+test("TST-585314: UC-012 the change drafted from an issue is given the section of the requirement it names and the open entry that proposes it", { todo: "OPEN QUESTION UC012-Q1 - a change started from the issue page has the parameters issue and source only (changeSection in MOD-maintenance-pages' issues.mjs), so the recipe named-requirements gives no section and no open entry's proposal; the drafter receives FIRST RULE's rule from issue-context alone. UC-012 step 6 says the change is drafted \"as in UC-019, step 6\" and does not say whether UC-019 step 4's context applies" }, async () => {
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: NEW, product: OPEN_QUEUE });
+  await drafted(await confirmed(w, "change"));
+  const sent = w.kept.endpoint.filter((request) => !JSON.stringify(request.body).includes("Propose its `class`")).map((request) => JSON.stringify(request.body));
+  assert.ok(sent[0].includes("The first rule holds."), "known positive: the change receives FIRST RULE's rule");
+  for (const wanted of ["The second rule holds.", "The third rule holds for an open queue."]) assert.ok(sent[0].includes(wanted), `the change receives ${wanted}`);
+});
+
+// ---------------------------------------------------------------- a changed text against the text it replaces
 
 // TST-585310 · level: release · module: system
-// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-012
-// given: the open issue 5, confirmed as a change; the participant drafts a change of FIRST RULE ("The first rule holds for every page of an export.")
+// guards: UC-012; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: the open issue 5, confirmed as a change; the participant drafts the new text of the section "1. Section", in which FIRST RULE's rule is "The first rule holds for every page of an export."
 // input: the author drafts the change and saves it
-// expect: the page lists the candidate FIRST RULE as a change, beside FIRST RULE's current rule "The first rule holds."; the saved entry proposes the new rule under the name FIRST RULE and adds no requirement of another name
-test("TST-585310: UC-012 a change of an existing requirement is proposed under its name, beside its current text", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [CHANGED] } });
+// expect: the page shows the one changed text, the section "## 1. Section", with its difference against the current section — "The first rule holds." removed, the new rule added —, the draft's why, and no class of a candidate; the saved entry proposes the new rule under the name FIRST RULE and adds no requirement of another name
+test("TST-585310: UC-012 a changed section is shown against its current text and proposed under the requirement's name", async () => {
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: CHANGED });
   const detail = await drafted(await confirmed(w, "change"));
-  const candidate = byClass(changeOf(detail), "candidate")[0];
-  assert.equal(candidate.getAttribute("data-name"), "FIRST RULE");
-  assert.equal(candidate.getAttribute("data-class"), "change");
-  assert.equal(textOf(one(candidate, "candidate-refers")), "FIRST RULE: The first rule holds.");
+  const texts = byClass(changeOf(detail), "changed-text");
+  assert.equal(texts.length, 1, "one changed text");
+  assert.ok(textOf(texts[0]).startsWith("## 1. Section"), `the changed text is the section, by its heading: ${textOf(texts[0])}`);
+  assert.ok(textOf(texts[0]).includes("- The first rule holds.") && textOf(texts[0]).includes(`+ ${CHANGED_RULE}`), `the difference against the current section: ${textOf(texts[0])}`);
+  assert.match(textOf(one(changeOf(detail), "change-why")), /The first rule says nothing about page counts\./);
+  assert.equal(byClass(changeOf(detail), "candidate").length, 0, "no candidate with a class");
   await saved(detail);
   const entry = queueFiles(w).find((file) => /\/\d\d-[^/]*\.md$/.test(file.path) && !file.path.endsWith(".begruendung.md"));
   assert.ok(entry, `an entry is written: ${queueFiles(w).map((file) => file.path)}`);
-  assert.ok(entry.content.includes("**FIRST RULE**") && entry.content.includes(CHANGED.rule), entry.content);
+  assert.ok(entry.content.includes("**FIRST RULE**") && entry.content.includes(CHANGED_RULE), entry.content);
   assert.deepEqual([...entry.content.matchAll(/^\*\*([A-Z][A-Z' ,-]+)\*\*/gm)].map((match) => match[1]).filter((name) => !["FIRST RULE", "SECOND RULE"].includes(name)), [], "no requirement of another name");
 });
 
@@ -285,7 +305,7 @@ test("TST-585310: UC-012 a change of an existing requirement is proposed under i
 // input: one click on Confirm change; one click on Save; one click on Reject issue
 // expect: after the one click on Confirm change the issue carries the label change; after the one click on Save the queue is written in one commit; after the one click on Reject issue the issue 9 is closed with its reason; none of them asks for a further click
 test("TST-585311: UC-012 a class, a change and a rejection each take one click", async () => {
-  const w = start({ issues: [issueOf(5, NAMING), issueOf(9, NAMING)], analysis: AS_CHANGE, change: { candidates: [NEW] } });
+  const w = start({ issues: [issueOf(5, NAMING), issueOf(9, NAMING)], analysis: AS_CHANGE, change: NEW });
   const detail = await analysed(await open(w, 5));
   await decided(detail, "change");
   assert.deepEqual(issueNow(w, 5).labels, ["change"]);
@@ -342,7 +362,7 @@ test("TST-585312: UC-012 the fix of an issue from a mail is given the neutral is
 // expect: the queue, the fix's record and the rejection's comment are written; no file, commit, comment or label the page sent to the product, in any of the three, holds the sender's name, address or the mail's text
 test("TST-585313: UC-012 nothing the page writes while handling an issue from a mail holds personal data of the mail", async () => {
   assert.deepEqual(holdsMail(`planted: ${ERIKA.address}`), [ERIKA.address], "known positive: the scan finds a planted address");
-  const change = await fromMail({ analysis: AS_CHANGE, change: { candidates: [NEW] } });
+  const change = await fromMail({ analysis: AS_CHANGE, change: NEW });
   await saved(await drafted(await confirmed(change.w, "change")));
   assert.ok(queueFiles(change.w).length > 0, "the queue is written");
   assert.deepEqual(holdsMail(everyWrite(change.w)), []);

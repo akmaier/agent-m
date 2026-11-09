@@ -35,10 +35,8 @@ const DRAFT = "tests/review-pages-conversation-draft.test.mjs";
 // The requirements UC-019 realises, as the test states them.
 const REALISED = [
   "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT", "A CI AGENT'S DRAFT ENTERS AS OPEN", "A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT",
-  "A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES", "THE PERSON WHO PROMPTS IS A SOURCE", "A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS",
-  "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY", "DERIVATION SEES THE EXISTING REQUIREMENTS", "NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY",
-  "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT", "EXACT DUPLICATES ARE FOUND WITHOUT A MODEL", "A CHANGE IS PROPOSED UNDER THE EXISTING NAME",
-  "A CONFLICT IS DECIDED BY A PERSON", "A SPEC EDIT IS SAVED AS A PROPOSAL", "A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE", "A REFUSED SAVE KEEPS THE EDIT",
+  "THE PERSON WHO PROMPTS IS A SOURCE", "A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS", "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY",
+  "A REQUIREMENT HAS FOUR FIELDS", "EVERY ARTIFACT HAS AN IDENTIFIER", "A REGROUPING IS COMMITTED DIRECTLY", "A SPEC EDIT IS SAVED AS A PROPOSAL", "A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE", "A REFUSED SAVE KEEPS THE EDIT",
   "AN EDITED FILE KEEPS ITS IDENTIFIER", "A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED", "A GENERATED ARTIFACT IS A PROPOSAL", "THE PAGE NAMES WHERE IT SENDS",
   "A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON", "AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT", "ONE DEFINITION, THREE DRIVERS",
   "A PARTICIPANT DECLARES ITS CAPABILITIES", "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA", "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION",
@@ -62,23 +60,33 @@ function ucRealises() {
 const ev = (file, id) => ({ file, id });
 
 const COVERED_BY_RELEASE = {
-  // UC-019 realises both as accepted: step 4 gives the drafter "its requirement hierarchy from `docs/groups/requirements.md`", step 6 has a new requirement name "its place
-  // in the requirement hierarchy — a group the hierarchy holds, or a new group with the group it stands in", step 7 sends back a place the hierarchy does not hold, and
-  // step 9 writes "the places of its new requirements beside its section".
+  // UC-019 as accepted: step 4 gives the drafter "the requirement hierarchy from `docs/groups/requirements.md`", step 6 has it return the new text of that file "where it
+  // moves a requirement or names a group", and step 9 commits a changed group file "as an arrangement is (UC-021)"; through GitHub Actions it is a pull request (6b).
   "ARTIFACTS ARE ARRANGED IN NESTED GROUPS": [
     ev(RELEASE_REQUIREMENTS, "TST-418128"),
     ev("tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"),
-    ev("tests/spec-changes-places.test.mjs", "TST-2026110880"),
   ],
   "AN ITEM HAS ONE PLACE IN ITS HIERARCHY": [
     ev(RELEASE_REQUIREMENTS, "TST-418128"),
-    ev("tests/job-runner-candidate-places.test.mjs", "TST-2026110875"),
-    ev(DRAFT, "TST-2026110896"),
-    ev("tests/spec-changes-places.test.mjs", "TST-2026110880"),
+    ev("tests/artifact-edits-group-file.test.mjs", "TST-722001"),
+  ],
+  "A REGROUPING IS COMMITTED DIRECTLY": [
+    ev(RELEASE_REQUIREMENTS, "TST-418128"),
+    ev("tests/artifact-edits-group-file.test.mjs", "TST-722001"),
+    ev("tests/spec-changes-spec-edits.test.mjs", "TST-2026110906"),
+  ],
+  "A REQUIREMENT HAS FOUR FIELDS": [
+    ev(RELEASE_REQUIREMENTS, "TST-418113"),
+    ev("tests/job-runner-requirement-form.test.mjs", "TST-472350"),
+  ],
+  "EVERY ARTIFACT HAS AN IDENTIFIER": [
+    ev(RELEASE_REQUIREMENTS, "TST-418108"),
+    ev(DRAFT, "TST-507021"),
   ],
   "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT": [
     ev(DRAFT, "TST-507020"),
     ev(RELEASE_REQUIREMENTS, "TST-418109"),
+    ev(RELEASE_REQUIREMENTS, "TST-418103"),
     ev(SYSTEM_REQUIREMENTS, "TST-418007"),
     ev("tests/markdown-render-release-20.test.mjs", "TST-342009"),
   ],
@@ -86,13 +94,10 @@ const COVERED_BY_RELEASE = {
     ev("tests/review-pages-architecture.test.mjs", "TST-472608"),
     ev("tests/markdown-render-release-20.test.mjs", "TST-342009"),
   ],
-  "A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES": [
-    ev("tests/test_derivation_context.py", "TST-414100"),
-    ev("tests/spec-changes-requirement-recipes.test.mjs", "TST-473014"),
-  ],
   "THE PERSON WHO PROMPTS IS A SOURCE": [
     ev("tests/test_prompted_source.py", "TST-416100"),
     ev(RELEASE_REQUIREMENTS, "TST-418101"),
+    ev(RELEASE_REQUIREMENTS, "TST-418129"),
     ev(SYSTEM_REQUIREMENTS, "TST-418008"),
     ev("tests/trace-pages-subject.test.mjs", "TST-600155"),
   ],
@@ -100,35 +105,10 @@ const COVERED_BY_RELEASE = {
     ev(SYSTEM, "TST-377004"),
     ev("tests/approvals-strategies.test.mjs", "TST-472023"),
   ],
-  "DERIVATION SEES THE EXISTING REQUIREMENTS": [
-    ev("tests/test_derivation_context.py", "TST-414100"),
-    ev(RELEASE_REQUIREMENTS, "TST-418106"),
-  ],
-  "NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY": [
-    ev("tests/test_derivation_context.py", "TST-414101"),
-    ev(RELEASE_REQUIREMENTS, "TST-418107"),
-    ev("tests/job-runner-left-out.test.mjs", "TST-472332"),
-  ],
-  "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT": [
-    ev("tests/test_derivation_classes.py", "TST-415100"),
-    ev(RELEASE_REQUIREMENTS, "TST-418108"),
-  ],
-  "EXACT DUPLICATES ARE FOUND WITHOUT A MODEL": [
-    ev("tests/test_derivation_classes.py", "TST-415100"),
-    ev("tests/documents-rule-decides.test.mjs", "TST-472180"),
-  ],
-  "A CHANGE IS PROPOSED UNDER THE EXISTING NAME": [
-    ev("tests/spec-changes-sections.test.mjs", "TST-473031"),
-    ev(RELEASE_REQUIREMENTS, "TST-418109"),
-  ],
-  "A CONFLICT IS DECIDED BY A PERSON": [
-    ev("tests/spec-changes-sections.test.mjs", "TST-473035"),
-    ev(SYSTEM_REQUIREMENTS, "TST-418005"),
-    ev(RELEASE_REQUIREMENTS, "TST-418112"),
-  ],
   "A SPEC EDIT IS SAVED AS A PROPOSAL": [
     ev("tests/review-pages-edit-requirement.test.mjs", "TST-472628"),
     ev(SYSTEM_REQUIREMENTS, "TST-418002"),
+    ev(SYSTEM_REQUIREMENTS, "TST-418005"),
   ],
   "A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE": [
     ev(DRAFT, "TST-507023"),
@@ -147,6 +127,7 @@ const COVERED_BY_RELEASE = {
   ],
   "A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED": [
     ev(RELEASE_REQUIREMENTS, "TST-418118"),
+    ev(RELEASE_REQUIREMENTS, "TST-418109"),
     ev("tests/spec-document-sections.test.mjs", "TST-473073"),
     ev("tests/spec-changes-propose-section.test.mjs", "TST-472988"),
   ],
@@ -254,10 +235,10 @@ const FINDINGS = {
 // guards: UC-019
 // given: UC-019's realised requirements as committed, REALISED, COVERED_BY_RELEASE and FINDINGS in this release test
 // input: compare the realised requirements with REALISED and with the keys of COVERED_BY_RELEASE
-// expect: UC-019 realises exactly the 37 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
+// expect: UC-019 realises exactly the 33 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
 test("TST-377101: UC-019 release coverage names every realised requirement and its executable evidence", () => {
   const realised = ucRealises();
-  assert.equal(REALISED.length, 37);
+  assert.equal(REALISED.length, 33);
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
   assert.deepEqual(realised.toSorted(), REALISED.toSorted());
   assert.deepEqual(Object.keys(COVERED_BY_RELEASE).sort(), REALISED.toSorted());
