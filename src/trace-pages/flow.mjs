@@ -655,8 +655,8 @@ function waitingSection(waiting, product) {
       cell("Section", String(entry.anchor ?? "").replace(/^#+\s*/, "")), cell("Status", el("span", `badge ${WAITING_BADGE[entry.state] ?? "b-open"}`, entry.state)));
   });
   const head = el("thead", null, el("tr", null, el("th", null, "Proposal"), el("th", null, "Section"), el("th", null, "Status")));
-  // Headed by the link to the review pages' list of the SPEC change entries (the bare route `spec-entry`), where the waiting entries are accepted together.
-  const list = el("p", "spec-waiting-links", reviewLink("spec-entries-link", `SPEC changes (${waiting.length} waiting)`, "spec-entry", {}, product));
+  // Headed by the link to the review pages' page of all waiting SPEC change entries (`spec-entry/all`), where they are shown and accepted together.
+  const list = el("p", "spec-waiting-links", reviewLink("spec-entries-link", `Review all ${waiting.length} waiting`, "spec-entry", { id: "all" }, product));
   return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), list, el("table", "list", head, el("tbody", null, ...rows)));
 }
 
