@@ -263,7 +263,7 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
         ...(item.placesBlob ? { places: item.placesBlob } : {}) } }));
     }
     rows.set(folder, [...(rows.get(folder) ?? []), decisionRow(entry.number, recordFile, now)]);
-    headings.set(folder, entry.anchor);
+    if (!headings.has(folder)) headings.set(folder, entry.anchor);
     applied.push({ item, id: `spec-${folder.split("/").pop()}-${pad2(entry.number)}` });
   }
   for (const [folder, added] of [...rows].sort(([a], [b]) => (a < b ? -1 : 1))) {
