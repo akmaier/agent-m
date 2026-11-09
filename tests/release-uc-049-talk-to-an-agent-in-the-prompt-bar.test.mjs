@@ -351,12 +351,14 @@ test("TST-513210: the message carries the chapters of the book for the kind of w
 
 // TST-513211 · level: release · module: MOD-prompt-bar · MOD-participant-list
 // guards: UC-049; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
-// given: this browser declares the endpoint drafter (draft text), the endpoint handy that names a CI secret, and the CLI session release-bridge:observer (read the repository only), which the Bridge lists ready
+// given: this browser declares the endpoint drafter (draft text), the endpoint handy that names a CI secret, and the CLI session release-bridge:observer (read the repository only), which the Bridge lists ready with the declaration it keeps
 // input: the page opened and a hand-over proposed
 // expect: only the participant that declares the capability the kind needs is chosen among — observer, which cannot draft text, is not offered —; each is named with the place it declares; the bar carries a folded explanation, and the hand-over, once proposed, carries one beside its decision
 test("TST-513211: participants are offered by their declared capabilities and places, and each step explains itself", async () => {
   const s = await scenario({ ...register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
-  assert.deepEqual(readSetting(s.store, "session:release-bridge:observer").capabilities, ["read the repository"], "known positive: the observer session is declared, and reads the repository only");
+  const listed = await (await fetch("http://127.0.0.1:9418/v1/agents", { method: "GET" })).json();
+  assert.deepEqual(listed.agents.find((agent) => agent.name === "observer" && agent.ready)?.capabilities, ["read the repository"],
+    "known positive: the Bridge lists the observer session ready, its declaration reading the repository only");
   const w = watch(s, { script: [answer("Handing on.", { handOver: [{ kind: "converse", works_on: [LOAN], task: "Run the tests", after: [] }] })] });
   const text = barText(s);
   assert.ok(text.includes("drafter · drafter-model — this machine") && text.includes("handy · handy-model — GitHub Actions in the USA"));

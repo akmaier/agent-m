@@ -34,19 +34,19 @@ async function openReplies(options) {
 
 afterEach(restoreWorld);
 
-// What this browser declares for the bar to offer (UC-049 1); the bar reads no participant list, and the instance's list here is empty.
+// What this browser declares, and the Bridge lab-pc-4 keeps, for the bar to offer (UC-049 1); the bar reads no participant list, and the instance's list here is empty.
 // - local-llm and cloud-llm: endpoints at "this machine" and "a provider in the USA", which draft text;
 // - local-tools: an endpoint at "this machine" whose last test found that it uses tools;
-// - lab-pc-4:writer: the CLI session the Bridge lab-pc-4 offers for its agent writer, at "this machine", which drafts text and writes to the repository.
+// - lab-pc-4:writer: the CLI session the Bridge lab-pc-4 offers for its agent writer, with the declaration it keeps: at "this machine", drafting text and writing to the repository.
 const endpoint = (url, model, key, place) => ({ kind: "openai-compatible", url, model, key, place, context: 200000 });
 const DECLARED = {
   "endpoint:local-llm": endpoint("https://ep1.example.test/v1", "model-a", "k1", "this machine"),
   "endpoint:cloud-llm": endpoint("https://ep2.example.test/v1", "model-b", "k2", "a provider in the USA"),
   "endpoint:local-tools": endpoint("https://ep1.example.test/v1", "model-t", "k1", "this machine"),
   "last-test:endpoint:local-tools": { at: "2026-10-19T12:00:00Z", outcome: "ok", tools: true },
-  "session:lab-pc-4:writer": { place: "this machine", capabilities: ["draft text", "write to the repository"], models: [{ model: "model-w", context: 200000 }] },
 };
-const OFFER = { rows: [], settings: DECLARED, agents: ["writer"] };
+const WRITER = { name: "writer", place: "this machine", capabilities: ["draft text", "write to the repository"], models: [{ model: "model-w", context: 200000 }] };
+const OFFER = { rows: [], settings: DECLARED, agents: [WRITER] };
 const mailPage = async (extra = {}) => {
   const p = await openReplies({ inbox: [rawMail("n1", { subject: "Help with the export", body: "My export of the thesis fails.\r\nKind regards\r\nErika Mustermann" })],
     fragment: "#mail", views: [maintenance, settings], ...OFFER, ...extra });
@@ -74,7 +74,7 @@ const sentBody = (request) => request.body.messages.map((message) => message.con
 
 // TST-513020 · level: system · module: MOD-prompt-bar · MOD-maintenance-pages · MOD-participant-list
 // guards: UC-049; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; THE PAGE NAMES WHERE IT SENDS
-// given: the page of mail shows one mail from Erika Mustermann with the subject "Help with the export"; the mailbox allows "this machine"; this browser declares the endpoints local-llm (this machine, draft text) and cloud-llm (a provider in the USA, draft text) and the CLI session lab-pc-4:writer (this machine, draft text and write to the repository)
+// given: the page of mail shows one mail from Erika Mustermann with the subject "Help with the export"; the mailbox allows "this machine"; this browser declares the endpoints local-llm (this machine, draft text) and cloud-llm (a provider in the USA, draft text), and the Bridge lab-pc-4 lists the CLI session lab-pc-4:writer with the declaration it keeps (this machine, draft text and write to the repository)
 // input: the same question sent to local-llm, to lab-pc-4:writer and to cloud-llm
 // expect: the text of the mail (sender, subject and text) is given only to local-llm — an endpoint whose place the mailbox allows and that does not write to the repository; lab-pc-4:writer and cloud-llm are given the mail's MAIL- identifier only and nothing of the mail (flow: UC-049 alternative 3b)
 test("alternative 3b: the text of a mail is given only to a participant the mailbox allows that does not write to the repository", async () => {

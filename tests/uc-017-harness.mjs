@@ -87,16 +87,17 @@ export function computer() {
 }
 
 /**
- * startBridge(t, machine, { name }) -> { name, address, token } — a real Bridge (serveBridge over jobHandlers) on `machine`: it offers claude with its working folder and answers only the instance's Pages origin
- * with its pairing token. The PATH of the process is the machine's for the length of the test `t`.
+ * startBridge(t, machine, { name, declares }) -> { name, address, token } — a real Bridge (serveBridge over jobHandlers) on `machine`: it offers claude with its working folder — and with the declaration
+ * `declares` ({ place, capabilities, models }) its settings keep for it, where given, which its GET /v1/agents lists (MOD-bridge-http) — and answers only the instance's Pages origin with its pairing
+ * token. The PATH of the process is the machine's for the length of the test `t`.
  */
-export async function startBridge(t, machine, { name = "laptop" } = {}) {
+export async function startBridge(t, machine, { name = "laptop", declares = {} } = {}) {
   const { serveBridge } = await import("../src/bridge-http/index.mjs");
   const { jobHandlers } = await import("../src/bridge-jobs/index.mjs");
   const prior = process.env.PATH, info = console.info;
   process.env.PATH = machine.bin;
   console.info = () => {};
-  const handlers = jobHandlers({ enclosures: openEnclosures(), agents: [{ name: "claude", folder: machine.folder }] });
+  const handlers = jobHandlers({ enclosures: openEnclosures(), agents: [{ name: "claude", folder: machine.folder, ...declares }] });
   const server = await serveBridge({ name: () => name, host: "127.0.0.1", port: 0, origin: ORIGIN, dataFolder: join(machine.root, "data"), paused: () => false }, { jobs: handlers, mail: {}, tunnels: {} });
   t.after(async () => { process.env.PATH = prior; console.info = info; await server.close(); rmSync(machine.root, { recursive: true, force: true }); });
   return { name, address: server.address, token: server.token };

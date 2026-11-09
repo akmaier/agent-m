@@ -1,20 +1,23 @@
-// Release tests of ITM-1186 — UC-049 and UC-044: a CLI session a Bridge offers is declared on the dashboard's page of the Bridge, in this browser, with its place, capabilities and models (docs/architecture/MOD-settings-pages.md, `bridge`: "for each CLI
-// session a Bridge offers (MOD-bridge-client's `testBridge`), the place where it processes data, preset to *this machine* for a Bridge on this computer, its capabilities, preset to every capability, and each model it can run, with its context
-// in tokens (UC-044 step 5), kept under `session:<bridge>:<agent>`, and one lacking a place, a model or a model's context named as not offered (UC-049 1b)"), and the settings page says that the prompt bar appears once an endpoint is configured or a
-// Bridge offers a CLI session (UC-049 1a).
+// Release tests of ITM-1186 — UC-049 and UC-044: a CLI session a Bridge offers is declared on the dashboard's page of the Bridge, with its place, capabilities and models, and kept by the Bridge (docs/architecture/MOD-settings-pages.md, `bridge`:
+// "for each CLI session a Bridge offers (MOD-bridge-client's `testBridge`), the place where it processes data, preset to *this machine* for a Bridge on this computer, its capabilities, preset to every capability, and each model it can run, with
+// its context in tokens (UC-044 step 5), as the Bridge keeps them, saved to the Bridge with MOD-bridge-client's `declareAgent`, and one lacking a place, a model or a model's context named as not offered (UC-049 1b)"; UC-044 step 5: "The Bridge
+// keeps the declaration, and its list of agents gives it to the dashboard"), and the settings page says that the prompt bar appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a).
 // Run: node --test tests/release-itm-1186-bridge-sessions.test.mjs
 //
 // Module: MOD-settings-pages
 // Module: MOD-bridge-client
-// Guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; CONFIGURATION LIVES IN THE BROWSER; EVERY STEP EXPLAINS ITSELF; UC-049; UC-044
+// Guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; EVERY STEP EXPLAINS ITSELF; UC-049; UC-044
 // Level: release
 //
 // Written for the release testing of sprint 126 by developer-sonnet-l, who implemented none of ITM-1186 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER). The world is the real dashboard (tests/app-harness.mjs: src/site-frame/dashboard-app.mjs over a counting fake
 // GitHub) opened on the route `bridge`, with this browser keeping one paired Bridge, `lab`, which is a real controlled Bridge server on a loopback port (src/bridge-http, as tests/release-itm-280-dashboard-bridge-setup.test.mjs serves one) whose `/v1/agents` lists the
-// agent claude ready and the agent codex not ready. Every request to that Bridge is kept. Readings the texts leave open, which the cases state:
+// agent claude ready and the agent codex not ready, each with the declaration it keeps — none at first —, and whose `PUT /v1/agents/{agent}` keeps the declaration it is sent, as a Bridge's settings do
+// (MOD-bridge-http). Every request to that Bridge is kept, with its method and body. Readings the texts leave open, which the cases state:
 //   - "Test" is the button of the Bridge's line; "Save session" the button of an agent's form; the form of an agent is the controls `.bridge-session-place`, `.bridge-session-capability` and, in each row `.bridge-session-model-row`, `.bridge-session-model`
 //     and `.bridge-session-context`.
 //   - The Bridge lab is reached at a loopback address, so it is a Bridge on this computer: its place is preset to *this machine*; every capability is preset; the one row of a model is empty (the person declares the models).
+//   - A declaration that lacks something for the prompt bar is not sent to the Bridge (src/settings-pages/bridge.mjs, sessionForm), since the Bridge keeps only a declaration whose every model names its context (MOD-bridge-http,
+//     `PUT /v1/agents/{agent}`: `models: [{ model, context: number }]`).
 //   - "not offered in the prompt bar" is read as a line of the form that says the prompt bar does not offer the agent and names what it lacks.
 //   - What the Bridge sees of a drawn page is the requests it receives: the prompt bar of the page tests each Bridge this browser keeps when it is drawn (MOD-prompt-bar: MOD-bridge-client's testBridge, `GET /v1/pair` and `GET /v1/agents`), so a page that
 //     is drawn sends those two and the route itself sends none besides.
@@ -33,28 +36,30 @@ const key = (name) => `agent-m:${INSTANCE}:${name}`;
 const PRESET = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"];
 // app-harness replaces global fetch for every dashboard; Node's own is kept, so that the dashboard's requests to the loopback Bridge reach it.
 const nativeFetch = globalThis.fetch;
-const AGENTS = { agents: [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true }, { name: "codex", version: "1.0.0", ready: false, loggedIn: false }], missing: [{ name: "opencode" }] };
+const AGENTS = [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true }, { name: "codex", version: "1.0.0", ready: false, loggedIn: false }];
 
 async function dashboard(t, hash = "#bridge") {
   const folder = await mkdtemp(join(tmpdir(), "agent-m-1186-release-"));
   const seen = [];
+  // The declarations the Bridge keeps, by agent: none at first.
+  const kept = {};
+  const listed = () => ({ agents: AGENTS.map((agent) => ({ ...agent, place: null, capabilities: [], models: [], ...(kept[agent.name] ?? {}) })), missing: [{ name: "opencode" }] });
+  const declare = async ({ params, body }) => { kept[decodeURIComponent(params.agent)] = body; return { declared: true }; };
   const bridge = await serveBridge({ name: () => "lab-pc", host: "127.0.0.1", port: 0, origin: ORIGIN, dataFolder: folder, paused: () => false },
-    { jobs: { "GET /v1/agents": async () => AGENTS }, mail: {}, tunnels: {} });
+    { settings: { "PUT /v1/agents/{agent}": declare }, jobs: { "GET /v1/agents": async () => listed() }, mail: {}, tunnels: {} });
   t.after(async () => bridge.close());
   const server = await repoServer({ files: {}, handlers: [async (url, init) => {
     if (url.hostname !== "127.0.0.1") return null;
-    seen.push({ path: url.pathname, token: init.headers?.["x-agent-m-bridge-token"] ?? null });
+    seen.push({ method: init.method ?? "GET", path: url.pathname, token: init.headers?.["x-agent-m-bridge-token"] ?? null, body: init.body ? JSON.parse(init.body) : null });
     return nativeFetch(url.href, { ...init, headers: { ...init.headers, Origin: ORIGIN } });
   }] });
   const page = await openDashboard({ server, hash, entries: { [key("bridge:lab")]: JSON.stringify({ address: bridge.address, token: bridge.token }) } });
   const dom = richDocument();
   await page.go(hash);
-  return { bridge, seen, page, server, main: dom.byId("main") };
+  return { bridge, seen, kept, page, server, main: dom.byId("main") };
 }
 const one = (main, selector) => { const found = main.querySelector(selector); assert.ok(found, `the page has ${selector}`); return found; };
 const all = (main, selector) => main.querySelectorAll(selector);
-const sessionKey = "session:lab:claude";
-const stored = (name) => { const raw = globalThis.localStorage.getItem(key(name)); return raw === null ? null : JSON.parse(raw); };
 const declare = (main, { place, context, model }) => { one(main, ".bridge-session-place").value = place; one(main, ".bridge-session-context").value = context; one(main, ".bridge-session-model").value = model; };
 
 // TST-1186301 · level: release · module: MOD-settings-pages
@@ -77,29 +82,37 @@ test("TST-1186301: Test of a Bridge lists the CLI sessions it offers, a form for
 });
 
 // TST-1186302 · level: release · module: MOD-settings-pages
-// guards: CONFIGURATION LIVES IN THE BROWSER; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049
+// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049; UC-044
 // given: the tested Bridge lab with the form of claude, and nothing kept for it
 // input: the person writes place "this machine", context "200000", model "claude-opus-5-5" and presses Save session; then writes the context "12.5" and presses Save session
-// expect: the first save keeps, in this browser's localStorage under session:lab:claude, { place: "this machine", capabilities: every one, models: [{ model: "claude-opus-5-5", context: 200000 }] }, the context a number; the second keeps the model with no context, since a number of tokens is whole; no other session key is written; the Bridge received no request but the two of the prompt bar's test when the page was drawn and the two of Test
-test("TST-1186302: Save session keeps the declaration under session:<bridge>:<agent>, the context only as a whole number", async (t) => {
-  const { seen, server, main } = await dashboard(t);
+// expect: the first save sends the Bridge one request, PUT /v1/agents/claude with the Bridge's token, whose body is { place: "this machine", capabilities: every one, models: [{ model: "claude-opus-5-5", context: 200000 }] }, the context a number, and the Bridge keeps it — its list of agents gives claude that declaration —; the second sends nothing, since a number of tokens is whole and the model then lacks its context, and the form names the context in tokens of claude-opus-5-5 as lacking, while the Bridge keeps the first declaration; this browser's localStorage holds no session key; the Bridge received no request but the two of the prompt bar's test when the page was drawn, the two of Test and the one PUT
+test("TST-1186302: Save session sends the declaration to the Bridge, which keeps it, the context only as a whole number", async (t) => {
+  const { seen, kept, server, main } = await dashboard(t);
   await press(server, one(main, ".bridge-kept-test"));
   declare(main, { place: "this machine", context: "200000", model: "claude-opus-5-5" });
   await press(server, one(main, ".bridge-session-save"));
-  assert.deepEqual(stored(sessionKey), { place: "this machine", capabilities: PRESET, models: [{ model: "claude-opus-5-5", context: 200000 }] });
+  const declaration = { place: "this machine", capabilities: PRESET, models: [{ model: "claude-opus-5-5", context: 200000 }] };
+  const puts = seen.filter((request) => request.method === "PUT");
+  assert.deepEqual(puts.map(({ path, body }) => ({ path, body })), [{ path: "/v1/agents/claude", body: declaration }], "Save session sends the declaration to the Bridge");
+  assert.ok(typeof puts[0].token === "string" && puts[0].token.length > 0, "with the Bridge's token");
+  assert.deepEqual(kept, { claude: declaration }, "the Bridge keeps it");
   declare(main, { place: "this machine", context: "12.5", model: "claude-opus-5-5" });
   await press(server, one(main, ".bridge-session-save"));
-  assert.deepEqual(stored(sessionKey), { place: "this machine", capabilities: PRESET, models: [{ model: "claude-opus-5-5" }] });
-  const keys = Array.from({ length: globalThis.localStorage.length }, (_, at) => globalThis.localStorage.key(at)).filter((name) => name.includes(":session:"));
-  assert.deepEqual(keys, [key(sessionKey)], "no other session is written");
-  assert.deepEqual(seen.map((request) => request.path), ["/v1/pair", "/v1/agents", "/v1/pair", "/v1/agents"], "the prompt bar's two when the page was drawn, then the two of Test");
+  assert.equal(seen.filter((request) => request.method === "PUT").length, 1, "a model without a whole number of tokens is not sent");
+  assert.ok(all(main, ".bridge-session-lacks").map((node) => node.textContent).join(" ").includes("the context in tokens of claude-opus-5-5"), "the form names what it lacks");
+  assert.deepEqual(kept, { claude: declaration }, "the Bridge keeps the first declaration");
+  const names = Array.from({ length: globalThis.localStorage.length }, (_, at) => globalThis.localStorage.key(at));
+  assert.ok(names.includes(key("bridge:lab")), "known positive: the keys read are this browser's, which keep the Bridge lab");
+  assert.deepEqual(names.filter((name) => name.includes(":session:")), [], "this browser keeps no session");
+  assert.deepEqual(seen.map((request) => `${request.method} ${request.path}`), ["GET /v1/pair", "GET /v1/agents", "GET /v1/pair", "GET /v1/agents", "PUT /v1/agents/claude"],
+    "the prompt bar's two when the page was drawn, then the two of Test, then the one save");
 });
 
 // TST-1186303 · level: release · module: MOD-settings-pages
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049
 // given: the tested Bridge lab with the form of claude, nothing kept for it
 // input: the form as drawn; Save session with a place and a model and no context; Save session with a place and a model with its context
-// expect: the form says the prompt bar does not offer claude and names what it lacks — the place where it processes data and a model, nothing being kept; after the first save only the context in tokens of claude-opus-5-5; after the second (counter-proof) it names nothing as lacking
+// expect: the form says the prompt bar does not offer claude and names what it lacks — the place where it processes data and a model, the Bridge keeping nothing for it; after the first save only the context in tokens of claude-opus-5-5; after the second (counter-proof) it names nothing as lacking
 test("TST-1186303: a session lacking a place, a model or a model's context is named as not offered in the prompt bar; a complete one is not", async (t) => {
   const { server, main } = await dashboard(t);
   await press(server, one(main, ".bridge-kept-test"));
