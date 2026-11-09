@@ -41,23 +41,6 @@ export async function placesOf(instanceSnapshot, address) {
  * repository, or null without one: a product's own, never the instance's; the instance's for the page of the instance, and for a product whose repository is the
  * instance's own, whose own token the instance's is.
  */
-/**
- * withIssues(instruction: string, host: Host) -> Promise<string> — the message with the issues it names (`issue #2`, `#2`) of the page's repository, read with `host`:
- * each issue's title and text added below the message, so that the participant knows what an issue asks for, whatever page the message is sent from. A number the
- * repository holds no issue for, or one the host cannot read, adds nothing; a message that names none is returned as it is.
- */
-export async function withIssues(instruction, host) {
-  const numbers = [...new Set([...String(instruction).matchAll(/#(\d+)\b/g)].map((match) => Number(match[1])))];
-  const read = [];
-  for (const number of numbers) {
-    try {
-      const issue = await host.readIssue(number);
-      read.push(`Issue #${number}: ${issue.title}\n${issue.body ?? ""}`.trim());
-    } catch { /* no such issue, or none readable: the message stands as it is */ }
-  }
-  return read.length ? `${instruction}\n\nThe issues this message names, as the product's tracker holds them:\n\n${read.join("\n\n")}` : instruction;
-}
-
 export function personOf(store, snapshot, ofProduct, instanceSnapshot = null) {
   const { server, origin, path } = snapshot.repository;
   const instanceItself = instanceSnapshot !== null && instanceSnapshot.repository.server === server && instanceSnapshot.repository.path === path;
