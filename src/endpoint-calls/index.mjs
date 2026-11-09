@@ -79,7 +79,7 @@ function anthropicMessages(messages) {
 
 // One request in the endpoint's own form. `maxTokens` is the most the answer may hold — 1024 on Anthropic and none on an OpenAI-compatible endpoint where
 // the caller names none —; `system` is sent as the endpoint's system prompt.
-function providerRequest(config, prompt, { maxTokens = config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null, signal, messages, tools = [], system = null } = {}) {
+function providerRequest(config, prompt, { maxTokens = config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null, signal, messages, tools = [], system = null, stream = false } = {}) {
   if (config.kind === "anthropic") {
     const headers = {
       "content-type": "application/json",
@@ -100,14 +100,46 @@ function providerRequest(config, prompt, { maxTokens = config.kind === "anthropi
 
   const headers = { "content-type": "application/json", ...keyHeaders(config.kind, config.key) };
   const history = [...(system ? [{ role: "system", content: system }] : []), ...(messages ? openaiMessages(messages) : [{ role: "user", content: prompt }])];
-  // stream: false asks for the one JSON answer every caller reads; an endpoint whose stream defaults to true would otherwise answer in server-sent events.
-  const body = maxTokens === null ? { model: config.model, messages: history, stream: false } : { model: config.model, messages: history, max_tokens: maxTokens, stream: false };
+  // stream: false asks for the one JSON answer; an endpoint whose stream defaults to true would otherwise answer in server-sent events. `stream` asks for
+  // those events, which answerBody joins into the same JSON answer, with the usage in the last of them.
+  const body = { model: config.model, ...(maxTokens === null ? {} : { max_tokens: maxTokens }), messages: history, stream,
+    ...(stream ? { stream_options: { include_usage: true } } : {}) };
   if (tools.length) body.tools = tools.map((tool) => ({ type: "function", function: { name: tool.name, description: tool.description, parameters: tool.input } }));
   return {
     url: endpointUrl(config.baseUrl, "/chat/completions"),
     init: { method: "POST", headers, signal,
       body: JSON.stringify(body) },
   };
+}
+
+// In Node, fetch gives up on an answer whose headers take longer than five minutes, which a long draft of a large model does without streaming: there, an
+// OpenAI-compatible request is streamed, so that its first event comes at once.
+const streamed = (config, where) => where === "node" && config.kind !== "anthropic";
+
+// The JSON answer of a response: its body, or, for server-sent events, the events joined into the one answer an OpenAI-compatible endpoint gives
+// without streaming — the text, the tool calls by their index, the finish reason and the usage.
+async function answerBody(response) {
+  if (!/text\/event-stream/.test(response.headers?.get?.("content-type") ?? "")) return response.json();
+  let content = "", finish = null, usage = null;
+  const calls = [];
+  for (const line of (await response.text()).split("\n")) {
+    const data = line.startsWith("data:") ? line.slice(5).trim() : "";
+    if (!data || data === "[DONE]") continue;
+    const chunk = JSON.parse(data);
+    if (chunk.usage) usage = chunk.usage;
+    const choice = chunk.choices?.[0];
+    if (!choice) continue;
+    if (choice.finish_reason) finish = choice.finish_reason;
+    if (typeof choice.delta?.content === "string") content += choice.delta.content;
+    for (const call of choice.delta?.tool_calls ?? []) {
+      const at = (calls[call.index ?? calls.length] ??= { id: null, type: "function", function: { name: "", arguments: "" } });
+      if (call.id) at.id = call.id;
+      at.function.name += call.function?.name ?? "";
+      at.function.arguments += call.function?.arguments ?? "";
+    }
+  }
+  const message = { role: "assistant", content, ...(calls.length ? { tool_calls: calls.filter(Boolean) } : {}) };
+  return { choices: [{ message, finish_reason: finish }], ...(usage ? { usage } : {}) };
 }
 
 async function responseMessage(response) {
@@ -119,8 +151,8 @@ async function responseMessage(response) {
   }
 }
 
-function driverRequest(config, prompt, signal) {
-  return providerRequest(config, prompt, { signal });
+function driverRequest(config, prompt, signal, stream = false) {
+  return providerRequest(config, prompt, { signal, stream });
 }
 
 function usageOf(usage) {
@@ -177,10 +209,10 @@ async function sentWithRetries(config, { url, init }, where, signal) {
 export async function endpointExchange(config, exchange, { signal } = {}) {
   const where = typeof window === "undefined" ? "node" : "browser";
   const request = providerRequest(config, null, { messages: exchange.messages, tools: exchange.tools, system: exchange.system ?? null,
-    ...(exchange.maxTokens ? { maxTokens: exchange.maxTokens } : {}) });
+    ...(exchange.maxTokens ? { maxTokens: exchange.maxTokens } : {}), stream: streamed(config, where) });
   const response = await sentWithRetries(config, request, where, signal);
   try {
-    return exchangeAnswer(await response.json(), config.kind);
+    return exchangeAnswer(await answerBody(response), config.kind);
   } catch (error) {
     throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message: error.message }, config, where));
   }
@@ -197,8 +229,8 @@ export function endpointDriver(config, participant, exchange = endpointExchange,
         context: Number.isInteger(participant?.context) ? participant.context : null });
     }
     const where = typeof window === "undefined" ? "node" : "browser";
-    const response = await sentWithRetries(config, driverRequest(config, driverPrompt(input), options.signal), where, options.signal);
-    const body = await response.json();
+    const response = await sentWithRetries(config, driverRequest(config, driverPrompt(input), options.signal, streamed(config, where)), where, options.signal);
+    const body = await answerBody(response);
     const { text } = exchangeAnswer(body, config.kind);
     return { text, usage: usageOf(body?.usage) };
   } };
