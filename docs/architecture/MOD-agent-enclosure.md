@@ -22,7 +22,8 @@ login, nothing to write but the agent's own home, the job's checkout and tempora
 (`NO MODEL READS A CREDENTIAL`). It builds the command that starts a CLI inside the enclosure — a Seatbelt profile on
 macOS, bubblewrap's arguments on Linux, the Bridge's own account on Windows — and the environment the CLI receives; it
 says whether the enclosure works on this computer and, where it does not, names the one-time step that makes it work;
-and it opens a terminal in the enclosure for the agent's own login step. It implements MOD-agent-processes' `Enclosure`.
+it opens a terminal in the enclosure for the agent's own login step, and keeps in the agent's home the login that step
+prints where the agent cannot keep it itself (ARC-054). It implements MOD-agent-processes' `Enclosure`.
 It runs in Node, in the Bridge's main process, and keeps nothing but what it writes into the agent's home.
 
 ## Parts
@@ -31,6 +32,7 @@ It runs in Node, in the Bridge's main process, and keeps nothing but what it wri
 - `holders.mjs` — the places that hold credentials, and the environment an agent receives.
 - `seatbelt.mjs` — macOS: the profile.
 - `bubblewrap.mjs` — Linux: the arguments.
+- `logins.mjs` — the login a login step printed: taken from the record of its terminal, kept in the home.
 - `account.mjs` — Windows: the account, its one-time setup, its start through the launcher, its grants.
 - `launcher.ps1` — Windows: starts one program as the account, with its standard streams relayed and its processes ended
   with the launcher.
@@ -52,15 +54,19 @@ It runs in Node, in the Bridge's main process, and keeps nothing but what it wri
 
 **The agent's home**: `home/` in the agent's working folder, with `tmp/`, `.config/`, `.local/share/`, `.cache/` and
 `.local/state/` below it; on Windows the account's own profile, `C:\Users\<account>`. The agent keeps its configuration
-and its login there.
+and its login there. Where its login step prints a login the agent cannot keep itself, `.agent-m/` in the home, readable
+by its owner only, holds the record of that step's terminal until the login is taken from it (`login.log`), what to take
+(`login.json`: the variable and the pattern of its value), and the logins taken (`kept.json`: each variable with its
+value).
 
 **The environment** an agent receives, chosen rather than inherited: from the Bridge's environment only `PATH`, `LANG`,
 `LC_ALL`, `LC_CTYPE`, `LC_MESSAGES`, `TERM`, `TZ`, `SHELL`, `USER`, `LOGNAME`, and on Windows `SystemRoot`,
 `SystemDrive`, `windir`, `ComSpec`, `PATHEXT`, `OS`, `PROCESSOR_ARCHITECTURE`, `NUMBER_OF_PROCESSORS`, `ProgramFiles`,
 `ProgramFiles(x86)`, `ProgramW6432`, `ProgramData`, `CommonProgramFiles`; set: `HOME` and the XDG folders below the home
 (on Windows `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `HOMEDRIVE`, `HOMEPATH`), `TMPDIR` (on Windows `TEMP` and `TMP`) in
-the home, `GIT_TERMINAL_PROMPT=0`, and `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
-from the computer's git configuration (`user.name`, `user.email`), where it names them.
+the home, `GIT_TERMINAL_PROMPT=0`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
+from the computer's git configuration (`user.name`, `user.email`), where it names them, and every variable `kept.json`
+of the home keeps — Claude Code's `CLAUDE_CODE_OAUTH_TOKEN` on macOS.
 
 **The Windows account**: `agentm-` followed by the first twelve hexadecimal digits of the SHA-256 of the Bridge's data
 folder's path — twenty characters, the most a local account's name may have, one account per Bridge of an instance —,
@@ -85,15 +91,20 @@ hidden from the sign-in screen.
     Windows the account made — the password written first into the data folder, then `setup.ps1` run through Windows'
     elevation prompt, which an administrator confirms —; elsewhere `{ done: false }` with the step the person's
     administrator takes.
-  - `openTerminal(command: string, args: string[]) -> Promise<void>` — the system's terminal opened with the command
-    running in the enclosure, its home and its environment, so that the person runs the agent's own login step there
-    (UC-044 3b): on macOS a `.command` file in the home opened with `open`; on Linux `x-terminal-emulator -e`; on Windows
-    a console started as the account.
+  - `openTerminal(command: string, args: string[], keeps?: { variable: string, pattern: string } | null) ->
+    Promise<void>` — the system's terminal opened with the command running in the enclosure, its home and its
+    environment, so that the person runs the agent's own login step there (UC-044 3b): on macOS a `.command` file in the
+    home opened with `open`; on Linux `x-terminal-emulator -e`; on Windows a console started as the account. With
+    `keeps`, MOD-agent-processes' `Agent.keeps`, the terminal records what the step prints into `login.log` with
+    `/usr/bin/script`, at a width that wraps none of its lines, and `login.json` names what to take; only macOS records,
+    and elsewhere `keeps` throws `NotEnclosed` before anything is opened.
 - `agentEnclosure({ dataFolder: string, folder: string, platform?: string, env?: Record<string, string | undefined>,
-  personHome?: string, identity?: { name: string | null, email: string | null } }) -> AgentEnclosure` — the enclosure of
-  the agent whose working folder is `folder`, for a Bridge whose data folder is `dataFolder`; the platform, the Bridge's
-  environment, the person's home and the git identity default to those of the running process and the computer's git
-  configuration. Pure until a function of the result is called.
+  personHome?: string, identity?: { name: string | null, email: string | null }, terminal?: (command: string, args:
+  string[]) => void }) -> AgentEnclosure` — the enclosure of the agent whose working folder is `folder`, for a Bridge
+  whose data folder is `dataFolder`; the platform, the Bridge's environment, the person's home and the git identity
+  default to those of the running process and the computer's git configuration, and `terminal`, the start of the program
+  that opens the system's terminal for `openTerminal`, to one started detached. Pure until a function of the result is
+  called.
 
 MOD-agent-processes' `Enclosure.wrap(command, args, at: { workdir, writable })` returns, for macOS,
 `/usr/bin/sandbox-exec -p <profile> <command> <args>`; for Linux, `bwrap <arguments> -- <command> <args>`; for Windows,
@@ -101,14 +112,18 @@ MOD-agent-processes' `Enclosure.wrap(command, args, at: { workdir, writable })` 
 `launcher.ps1` followed by `Invoke-Launch -Account <name> -Directory <workdir> -Program <command> -ArgumentLine <the
 arguments as one Windows command line, in base64>` — the text is carried in the command, since the Bridge's files lie in
 its app archive, which PowerShell cannot read —, with `input`, the password's line the launcher reads first, before the
-agent's own input; the password stands in no argument, not in the script and in no variable. Every path in a profile or an argument is resolved through its links first, since the system
+agent's own input; the password stands in no argument, not in the script and in no variable. Before it builds the
+environment, `wrap` takes the login of a recorded login step, where `login.json` names one: the last value in `login.log`
+that matches its pattern — joined with the lines below it that hold nothing but letters, digits, `_` and `-`, where a
+terminal wrapped it — is written to `kept.json` and the record removed; a record that holds none yet is left, since its
+step may still run. Every path in a profile or an argument is resolved through its links first, since the system
 matches resolved paths. A path the enclosure must hide that does not exist is left out, since bubblewrap can mount over
 existing paths only; one made later is hidden from the next start on.
 
 ## Files
 
 Reads the computer's git configuration for the identity. Writes the agent's home and its folders, on macOS a `.command`
-file there for the login step, and on Windows `agent-account.json` in the Bridge's data folder and the grants of the
+file there for the login step and the files of `.agent-m/`, and on Windows `agent-account.json` in the Bridge's data folder and the grants of the
 folders it is given. Reads its own `launcher.ps1` and `setup.ps1`.
 
 ## Uses

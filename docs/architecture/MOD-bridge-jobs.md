@@ -84,10 +84,24 @@ process.
 ## Data
 
 It keeps no state of a job beyond its record: in memory, the jobs it runs with their logs and the asks in flight; on
-disk, in the working folder of each agent it offers, a clone of the instance, one clone per served product, and one
-working clone per running job of that agent with its outbox, both removed when the job ends, and the agent's home
-(MOD-agent-enclosure). Before an agent starts a job, the job's working clone holds the product's branch, and the
-instance's clone the commit of the instance the job's record names (`agent_m`, MOD-job-ledger).
+disk, the working folder of each agent it offers, laid out as a local clone of Agent M is:
+
+- **the working folder is a clone of the instance**, made in the folder itself, so that an agent started there — an ask
+  of the prompt bar, or the person in a terminal — works in Agent M's tree and finds Agent M's `AGENTS.md` at its root as
+  its guidance: Codex and opencode read `AGENTS.md`, Claude Code reads `CLAUDE.md`, which in Agent M's repository only
+  imports it (`@AGENTS.md`). What the folder already holds stays; git refuses the first checkout where a file of the
+  folder would be overwritten. A folder that holds a clone of another repository is refused, naming it;
+- **one clone per served product in `products/<name>/`**, `<name>` the repository's name, the folder `git clone` gives
+  it, which Agent M's `.gitignore` ignores (`A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER`). The Bridge clones
+  a served product there at its first reading, and a product a job connects to when the job connects to it; the agent,
+  which cannot write the folder, clones none. A product whose folder holds a clone of another repository of the same
+  name is refused, naming both;
+- **one working clone per running job of that agent in `jobs/<id>/`**, with its outbox, both removed when the job ends;
+- **the agent's home `home/`** (MOD-agent-enclosure).
+
+`home/` and `jobs/` are excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there
+sees them. Before an agent starts a job, the job's working clone holds the product's branch, and the instance's clone
+the commit of the instance the job's record names (`agent_m`, MOD-job-ledger).
 
 **The outbox.** The Bridge makes the job's working clone with the computer's own git login, then the outbox beside it —
 `jobs/<id>.out.git`, a bare repository cloned from the working clone — and sets the outbox as the working clone's push
