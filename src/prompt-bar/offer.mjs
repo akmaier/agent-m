@@ -80,7 +80,8 @@ export function endpointsOffered(store) {
     const tools = readSetting(store, `last-test:${key}`)?.tools === true;
     const secret = typeof setting.secret === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(setting.secret) ? setting.secret : null;
     offered.push({ name, type: "model endpoint", model, context, price: null, place,
-      capabilities: ["draft text", "read the repository", ...(tools ? ["use tools"] : [])],
+      // An endpoint whose work runs on GitHub Actions (it names a CI secret) and that uses tools reaches the web there: its job has the tool webfetch.
+      capabilities: ["draft text", "read the repository", ...(tools ? ["use tools"] : []), ...(tools && secret ? ["reach the web"] : [])],
       route: `endpoint ${name}${secret ? ` secret ${secret}` : ""}` });
   }
   return offered;

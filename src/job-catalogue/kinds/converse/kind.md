@@ -28,6 +28,7 @@ tools:
   - search-files
   - propose-edit
   - hand-over
+  - webfetch
 tool_limit: 30
 ---
 ## Purpose

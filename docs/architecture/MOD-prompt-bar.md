@@ -324,8 +324,9 @@ and sends nothing while the job does not
   one that lacks nothing; the settings page names the rest where the connection is configured.
 - `endpointsOffered(store: Store) -> Connection[]` — this browser's model endpoints (`endpoint:<name>`, in the store's
   order) that lack nothing, one `Connection` each: the type *model endpoint*, its model and context, its place, the
-  capabilities *draft text* and *read the repository*, and *use tools* where its last test found that the model calls
-  tools (`last-test:endpoint:<name>`) (`A CONNECTION DECLARES ITS CAPABILITIES`), and the route `endpoint <name>`, with
+  capabilities *draft text* and *read the repository*, *use tools* where its last test found that the model calls
+  tools (`last-test:endpoint:<name>`), and *reach the web* where it also names a CI secret, since its work then runs on
+  GitHub Actions, whose runner fetches web pages for it with the tool `webfetch` (`A CONNECTION DECLARES ITS CAPABILITIES`), and the route `endpoint <name>`, with
   ` secret <NAME>` where it names the CI secret of its key; none named through a Bridge this browser does not keep. The
   bar's offer; the settings page's test job of an endpoint, and its list of the models a participant may be given and of
   the places a mailbox may allow; and every page that joins the instance's participants with this browser's connections

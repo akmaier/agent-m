@@ -29,6 +29,7 @@ tools:
   - read-file
   - search-files
   - hand-over
+  - webfetch
 tool_limit: 30
 ---
 ## Purpose

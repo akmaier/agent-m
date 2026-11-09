@@ -152,6 +152,23 @@ test("currentJob — null while no message runs", () => {
   assert.equal(currentJob(), null);
 });
 
+// TST-1201002 · level: unit · module: MOD-prompt-bar
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; UC-049
+// given: an endpoint whose last test found that the model calls tools, one named with a CI secret — its work runs on GitHub Actions — and one without
+// input: endpointsOffered over a store holding both
+// expect: the endpoint with the CI secret is offered with *reach the web* beside *draft text*, *read the repository* and *use tools*, so that its job on GitHub Actions has the tool webfetch; the one without, whose work runs in this tab, is offered without it. Counter-proof: on the offer as it stood, neither had *reach the web*, and Nemotron could not read issue #2 on github.com.
+test("TST-1201002: an endpoint whose work runs on GitHub Actions and that uses tools reaches the web", () => {
+  const store = freshStore();
+  const base = { url: "https://example.invalid/v1", kind: "openai-compatible", model: "model-x", place: "Example, USA", context: 128000 };
+  writeSetting(store, "endpoint:ci", { ...base, secret: "MODEL_KEY" });
+  writeSetting(store, "endpoint:tab", { ...base, key: "k" });
+  writeSetting(store, "last-test:endpoint:ci", { at: "2026-11-09T10:00:00Z", outcome: "working", tools: true });
+  writeSetting(store, "last-test:endpoint:tab", { at: "2026-11-09T10:00:00Z", outcome: "working", tools: true });
+  const byName = Object.fromEntries(promptBar.endpointsOffered(store).map((each) => [each.name, each.capabilities]));
+  assert.deepEqual(byName.ci, ["draft text", "read the repository", "use tools", "reach the web"]);
+  assert.deepEqual(byName.tab, ["draft text", "read the repository", "use tools"]);
+});
+
 // TST-1201001 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
 // given: an endpoint as an older Settings page stored it — address, kind, model and key, with no place and no context —, the same with a place and a context, and one with only a place

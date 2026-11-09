@@ -42,8 +42,9 @@ directly, or through the Bridge that reaches it.
 4. Agent M sends one short test request to the endpoint, which offers the model one tool and asks it to call it.
 5. The endpoint answers; Agent M shows the configuration as working, and whether the model called the tool — *can use
    tools* or *text only*. The endpoint is offered in the prompt bar with its place (UC-049, step 1), and a model that
-   can use tools works in its loop (UC-049, step 4). Its capabilities are *draft text* and *read the repository*, and
-   *use tools* where the model called the tool; its model is among those an agent of the instance's list may be given
+   can use tools works in its loop (UC-049, step 4). Its capabilities are *draft text* and *read the repository*,
+   *use tools* where the model called the tool, and, for work handed to CI, *reach the web*: there it may read web pages,
+   such as the product's issues; its model is among those an agent of the instance's list may be given
    (UC-017, step 3).
 
 ```mermaid
