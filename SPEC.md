@@ -270,8 +270,8 @@ queues — is part of the input the deriving participant receives.
 *Check:* `tests/test_derivation_context.py`
 
 **NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY** *(PO A. Maier)*
-If the existing requirements do not fit into the deriving participant's context, the run stops and
-says so before anything is sent.
+If the existing requirements do not fit into the context of the deriving participant's model on the connection it
+runs on, the run stops and says so before anything is sent.
 *Check:* `tests/test_derivation_context.py`
 
 **A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT** *(PO A. Maier)*
@@ -390,36 +390,49 @@ repository, and a product assigns its roles from that list.
 the product's role assignments against `docs/participants.md`. It checks that this is the instance's only participant
 list and that it holds every assigned name.
 
-**A PARTICIPANT HAS ONE OF FIVE TYPES** *(PO A. Maier)*
-A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
-agent in a virtual machine or container.
-*Check:* `tests/test_participants.py`
-
-**A PARTICIPANT DECLARES ITS CAPABILITIES** *(PO A. Maier)*
-Each participant states which of these it can do: draft text, read the repository, write to the
-repository, run code and tests, use tools, reach the web.
-*Check:* `tests/test_participants.py`
-
-**A ROLE NAMES THE CAPABILITIES IT NEEDS** *(PO A. Maier)*
-A role in a process model names the capabilities its holder must have, and only a participant with
-all of them can be assigned to it.
-*Check:* `tests/test_model_roles.py`
-
-**A PARTICIPANT DECLARES WHERE IT PROCESSES DATA** *(PO A. Maier)*
-Each participant that is not a person states where the data given to it is processed — for example
-"this machine", "NHR@FAU, Erlangen", "a provider in the USA".
-*Check:* `tests/test_participants.py`
+**A PARTICIPANT IS A PERSON OR AN AGENT** *(PO A. Maier)*
+A participant is a person or an agent.
+*Check:* `tests/test_participants.py` — validates fixture rows of `docs/participants.md` with the register's schema. It
+checks that a row of the type `person` and one of the type `agent` are accepted, and that a row of any other type is
+rejected.
 
 **A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL** *(PO A. Maier)*
-Each participant that works with a language model — a model endpoint, a CI agent, a CLI agent or a
-sandboxed agent — names the model it uses.
-*Check:* `tests/test_participants.py` — a CLI-agent entry without a model is rejected; counter-proof: the
-same entry naming its model is accepted, and a person needs none.
+Each participant that is an agent names the model it works with.
+*Check:* `tests/test_participants.py` — an agent's row without a model is rejected; counter-proof: the same row naming
+its model is accepted, and a person needs none.
+
+**A CONNECTION NAMES THE MODELS IT OFFERS** *(PO A. Maier)*
+Each connection to a language model that the browser's settings keep — a model endpoint, or a coding agent that a Bridge
+offers — names the models it offers, each with how many tokens its context holds.
+*Check:* `tests/prompt-bar-endpoints.test.mjs` — reads fixture settings of an endpoint naming one model and of a Bridge's
+coding agent naming two. It checks that the endpoint is offered with its model and the agent once with each of its two,
+each with its context; counter-proof: a model without its context is not offered.
+
+**A CONNECTION DECLARES ITS CAPABILITIES** *(PO A. Maier)*
+Each connection states which of these it can do: draft text, read the repository, write to the repository, run code and
+tests, use tools, reach the web.
+*Check:* `tests/prompt-bar-endpoints.test.mjs` — a coding agent of a Bridge is offered with the capabilities its settings
+declare, and an endpoint with *draft text* and *read the repository*, and *use tools* where its last test found that its
+model calls a tool; counter-proof: an endpoint whose test found none is offered without *use tools*.
+
+**A ROLE NAMES THE CAPABILITIES IT NEEDS** *(PO A. Maier)*
+A role in a process model names the capabilities its holder must have, and a job of the role runs only on a connection
+that has all of them.
+*Check:* `tests/test_model_roles.py`; `tests/test_job_assignment.py` — hands a job of a role that needs *run code and
+tests* to a fixture agent whose model two connections offer, one declaring that capability and one not. It checks that
+the job is sent only to the connection that declares it; counter-proof: with that connection removed, the job is sent
+nowhere and the missing capability is named.
+
+**A CONNECTION DECLARES WHERE IT PROCESSES DATA** *(PO A. Maier)*
+Each connection states where the data given to it is processed — for example "this machine", "NHR@FAU, Erlangen", "a
+provider in the USA".
+*Check:* `tests/prompt-bar-endpoints.test.mjs` — a connection whose settings name no place is not offered; counter-proof:
+the same connection naming one is offered with it.
 
 **THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE** *(PO A. Maier)*
-A model endpoint or a CLI session that the prompt bar offers from the browser's configuration declares its capabilities,
-the place where it processes data and its model, and counts as a participant for every rule of this specification,
-except that it is not listed in the instance's participant list and holds no role.
+A connection that the prompt bar offers from the browser's settings counts, with the model the person chooses, as a
+participant for every rule of this specification, except that it is not listed in the instance's participant list and
+holds no role.
 *Check:* `tests/prompt-bar-endpoints.test.mjs` — an endpoint or CLI session without a place or a model is not offered,
 the page names each with its place before a message is sent, a page of mail gives a CLI session the mail's `MAIL-`
 identifier only, and a restricted source's content is refused to an endpoint whose place its entry does not permit;
@@ -427,7 +440,7 @@ counter-proof: the same endpoint at a permitted place receives it, and with reco
 endpoint writes nothing to a repository.
 
 **RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS** *(PO A. Maier)*
-Content of a source whose licence is restricted is given only to participants whose processing place
+Content of a source whose licence is restricted is given only to connections whose processing place
 the source's register entry permits.
 *Check:* `tests/review-core.test.mjs`
 
@@ -725,11 +738,11 @@ instance and the products it manages.
 scope and why each part is needed.
 
 **THE PAGE NAMES WHERE IT SENDS** *(PO A. Maier)*
-Before Agent M sends anything, it names every destination it will contact — a participant with the place where that
-participant processes data.
+Before Agent M sends anything, it names every destination it will contact — a participant with the place where the
+connection it runs on processes data.
 *Check:* `tests/site-frame-run-panel.test.mjs` and `tests/prompt-bar.test.mjs` — before a run and before a message of a conversation is sent, the page
-names each destination, a participant with its processing place; counter-proof: a participant shown without its place
-fails.
+names each destination, a participant with the processing place of its connection; counter-proof: a participant shown
+without that place fails.
 
 **A CLEAR IS A REAL CLEAR** *(PO A. Maier)*
 Clearing the configuration removes the stored credentials from the browser, not only from the
@@ -1174,8 +1187,8 @@ realises and every other use case of the product.
 *Check:* `tests/test_prompted_change_context.py`
 
 **NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY** *(PO A. Maier)*
-If a use case, its requirements and the product's other use cases do not fit into the participant's
-context, nothing is sent and the dashboard says what does not fit.
+If a use case, its requirements and the product's other use cases do not fit into the context of the participant's
+model on the connection it runs on, nothing is sent and the dashboard says what does not fit.
 *Check:* `tests/test_prompted_change_context.py`
 
 **A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT** *(PO A. Maier)*
@@ -1358,8 +1371,8 @@ architecture.
 every requirement, every accepted use case and every file of the architecture.
 
 **NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY** *(PO A. Maier)*
-If the SPEC, the accepted use cases and the architecture do not fit into a participant's context, nothing is sent and
-the dashboard says what does not fit.
+If the SPEC, the accepted use cases and the architecture do not fit into the context of a participant's model on the
+connection it runs on, nothing is sent and the dashboard says what does not fit.
 *Check:* `tests/test_derivation_context.py`
 
 **ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS** *(PO A. Maier)*
@@ -1740,6 +1753,13 @@ A job is handed only to a participant that the job's role assignment assigns to 
 job's participant with the job's role assignment. It checks that every job goes to a holder of its role in that
 assignment.
 
+**A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL** *(PO A. Maier)*
+A job handed to an agent runs on a connection that offers the agent's model, with that model.
+*Check:* `tests/test_job_assignment.py` — hands jobs to fixture agents naming two models, while fixture connections offer
+one of them, and compares each job's connection and the model its agent was started with. It checks that a job goes only
+to a connection that offers its agent's model and that the coding agent is started with that model; counter-proof: a job
+of the agent whose model no connection offers is sent nowhere, and the model is named.
+
 **A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING** *(PO A. Maier)*
 The input Agent M sends with a job that writes or changes requirements or use cases gives chapter 8 of the book *Vibe
 Coding* in full.
@@ -1876,7 +1896,7 @@ implementation commit leaves the branch at the test commit.
 
 **NO COST IS GUESSED** *(PO A. Maier; Vibe Coding, ch. 15 §4)*
 A job shows a cost only when its runtime reports one, or when the runtime reports usage and the
-participant declares a price for it. In every other case the cost is shown as unknown.
+connection it runs on declares a price for its model. In every other case the cost is shown as unknown.
 *Check:* `tests/test_job_cost.py`. A job whose runtime reports neither cost nor usage shows
 "unknown", never zero.
 
@@ -2181,8 +2201,8 @@ A closed issue returns to open only by a person's click.
 
 **THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED** *(PO A. Maier)*
 Each mailbox connection names the processing places to which its mails may be given, and a
-participant that processes data elsewhere is never given them.
-*Check:* `tests/test_mail_privacy.py` — a mail is not sent to a participant whose processing place is
+connection that processes data elsewhere is never given them.
+*Check:* `tests/test_mail_privacy.py` — a mail is not sent to a connection whose processing place is
 not listed; counter-proof: it is sent to one whose place is.
 
 **A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT** *(PO A. Maier)*
@@ -2222,8 +2242,8 @@ version is measured as a rate on a fixed set of reports, reported, not gated.
 
 **A REWRITTEN TEXT IS CHECKED BY THREE LLMS** *(PO A. Maier)*
 A text that a participant rewrites from a mail is written only after three LLM participants with three
-different models, at places the mailbox allows, have each checked it for any mention of a person and none
-of them has found one.
+different models, each on a connection at a place the mailbox allows, have each checked it for any mention of a person
+and none of them has found one.
 *Check:* `tests/test_mail_privacy.py` — with three fixture checkers of which one reports a name, nothing is
 written and the finding goes back; counter-proof: when none reports one, the text is written. How often a
 person passes all three is measured as a rate on a fixed set of mails, reported, not gated.
