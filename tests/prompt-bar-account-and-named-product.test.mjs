@@ -177,13 +177,15 @@ const ABOUT = "About alice/AlienInvasion — named in your message.";
 // TST-2026110814 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the page of A LOAN HAS A DUE DATE of thesis-tool, whose subject gives no `source`; the instance alice/agent-m on GitHub; an endpoint that answers the
-//   conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE] } and the change of requirements with one candidate that changes it
+//   conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE] } and the change of requirements with the new text of the section that changes it, and why
 // input: Send "the loan should say when it is overdue"
 // expect: the conversation's request, then change-requirements'; the draft kept in the tab names the source github.com/alice — the account personAccount gives for the
 //   instance — though the subject gave none
 test("TST-2026110814: a hand-over run in the tab takes the person's account as its source, though the page's subject gives none", async () => {
-  const candidate = { name: LOAN, rule: "Every loan states its due date and says when it is overdue.", check: "`tests/loan.test.mjs`", constrains: "product", passage: "the instruction", class: "change", of: LOAN };
-  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { candidates: [candidate] });
+  // The draft of change-requirements (src/job-catalogue/kinds/change-requirements/answer.schema.json): the new text of the section "1. Lending", from its heading line to its end, and why.
+  const section = `## 1. Lending\n\n**${LOAN}** *(SRC-alice; ${ACCOUNT})*\nEvery loan states its due date and says when it is overdue.\n*Check:* \`tests/loan.test.mjs\`\n`;
+  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] },
+    { sections: [section], why: "The borrower must see when a loan is overdue." });
   const subject = loanPage();
   const it = page({ subject });
   await drawn(it);
@@ -202,7 +204,7 @@ test("TST-2026110814: a hand-over run in the tab takes the person's account as i
 // expect: one request only, the conversation's; the bar names the finding under THE PERSON WHO PROMPTS IS A SOURCE with what it requires — an instance repository whose
 //   address names its owner —; no draft is kept and nothing is written
 test("TST-2026110815: without an account the hand-over to change-requirements names what it requires and runs nothing", async () => {
-  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { candidates: [] });
+  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { sections: [], why: "none" });
   const it = page({ instancePath: "" });
   await drawn(it);
   await sends(it, "the loan should say when it is overdue");

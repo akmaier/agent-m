@@ -210,12 +210,14 @@ test("TST-1360001: the bar sends converse on the requirements page with nothing 
 
 // TST-1360002 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-019; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A SPEC EDIT IS SAVED AS A PROPOSAL
-// given: the requirements page with nothing open, the instance alice/agent-m, whose owner's account github.com/alice is the person's source; an endpoint that answers the conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE], task "say when it is overdue" }, and the change of requirements with one candidate that changes it
+// given: the requirements page with nothing open, the instance alice/agent-m, whose owner's account github.com/alice is the person's source; an endpoint that answers the conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE], task "say when it is overdue" }, and the change of requirements with the new text of the section "1. Lending" that changes it, and why
 // input: Send "the loan should say when it is overdue" — one click — and nothing else
-// expect: the conversation's request, then change-requirements' — as many rounds as its correction loop takes —, whose first text holds the task and the requirement —, with no button "Hand over" ever shown; a button "Review the draft"; pressing it goes to "draft/subject=<the subject's key, encoded>" and the tab keeps the draft of kind change-requirements, its parameters naming the requirement and the source github.com/alice, its draft the candidate; nothing was written but the piece's record (MOD-prompt-bar: "its record is queued on the tab's route with MOD-runtimes' `queueJob` … and it runs with `runOnTab` and that record, which gains its end … nothing else is written") — commits that change docs/jobs/JOB-….md alone, holding neither the task's words nor the candidate's rule —, and nothing to the instance
+// expect: the conversation's request, then change-requirements' — as many rounds as its correction loop takes —, whose first text holds the task and the requirement —, with no button "Hand over" ever shown; a button "Review the draft"; pressing it goes to "draft/subject=<the subject's key, encoded>" and the tab keeps the draft of kind change-requirements, its parameters naming the requirement and the source github.com/alice, its draft that section; nothing was written but the piece's record (MOD-prompt-bar: "its record is queued on the tab's route with MOD-runtimes' `queueJob` … and it runs with `runOnTab` and that record, which gains its end … nothing else is written") — commits that change docs/jobs/JOB-….md alone, holding neither the task's words nor the drafted rule —, and nothing to the instance
 test("TST-1360002: a hand-over to change-requirements runs in the tab without a further click, and its draft waits for the person's Save", async () => {
-  const candidate = { name: LOAN, rule: "Every loan states its due date and says when it is overdue.", check: "`tests/loan.test.mjs`", constrains: "product", passage: "the instruction", class: "change", of: LOAN };
-  endpointAnswers({ answer: "I hand this to the change of requirements.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { candidates: [candidate] });
+  // The draft of change-requirements (src/job-catalogue/kinds/change-requirements/answer.schema.json): the new text of the section "1. Lending", from its heading line to its end, and why.
+  const section = `## 1. Lending\n\n**${LOAN}** *(SRC-alice; ${PERSON})*\nEvery loan states its due date and says when it is overdue.\n*Check:* \`tests/loan.test.mjs\`\n\n**${SHELF}** *(SRC-alice)*\nEvery book stands on a shelf.\n*Check:* \`tests/shelf.test.mjs\`\n`;
+  endpointAnswers({ answer: "I hand this to the change of requirements.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] },
+    { sections: [section], why: "The borrower must see when a loan is overdue." });
   const subject = requirementsPage();
   const it = page(subject);
   await drawn(it);
@@ -231,7 +233,7 @@ test("TST-1360002: a hand-over to change-requirements runs in the tab without a 
   assert.equal(draft.kind, "change-requirements");
   assert.deepEqual(draft.params.requirements, [LOAN]);
   assert.equal(draft.params.source, PERSON);
-  assert.deepEqual(draft.result.draft.candidates.map((each) => each.name), [LOAN]);
+  assert.deepEqual(draft.result.draft.sections, [section]);
   assert.deepEqual(it.instance.attempts, [], "nothing is written to the instance");
   const written = it.product.attempts.flatMap((attempt) => attempt.files);
   assert.ok(written.length > 0 && written.every((file) => /^docs\/jobs\/JOB-[^/]+\.md$/.test(file.path)), `only the piece's record is written: ${written.map((file) => file.path)}`);
@@ -244,7 +246,7 @@ test("TST-1360002: a hand-over to change-requirements runs in the tab without a 
 // input: Send "the loan should say when it is overdue"
 // expect: one request only, the conversation's — its answer shown —; the page names the finding under THE PERSON WHO PROMPTS IS A SOURCE; no draft is kept and nothing is written
 test("TST-1360003: a hand-over to change-requirements without the person's account names the finding and runs nothing", async () => {
-  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { candidates: [] });
+  endpointAnswers({ answer: "I hand this on.", handOver: [{ kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue", after: [] }] }, { sections: [], why: "none" });
   const subject = requirementsPage();
   const it = page(subject, { instancePath: "" });
   await drawn(it);

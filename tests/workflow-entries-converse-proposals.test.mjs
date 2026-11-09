@@ -238,14 +238,14 @@ const endOfJob = (w, id) => fileAt(w, `docs/jobs/${id}.md`).split(/^## End$/m)[1
 
 // TST-1360101 · level: component · module: MOD-workflow-entries
 // guards: UC-049; A CI AGENT'S DRAFT ENTERS AS OPEN; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A SPEC EDIT IS SAVED AS A PROPOSAL; A RUN IS A JOB THAT NAMES ITS JOBS
-// given: a product with the requirement A LOAN HAS A DUE DATE, the person's source SRC-fixture-po linked, the job workflow, and a queued hosted job of `converse` whose parameters hold that source and the endpoint; the endpoint answers the conversation with the plan [{ change-requirements, [the requirement], "say the due date" }] and the change of requirements with one candidate that changes the requirement
+// given: a product with the requirement A LOAN HAS A DUE DATE, the person's source SRC-fixture-po linked, the job workflow, and a queued hosted job of `converse` whose parameters hold that source and the endpoint; the endpoint answers the conversation with the plan [{ change-requirements, [the requirement], "say the due date" }] and the change of requirements with the new text of the section Lending that changes the requirement, and why
 // input: onRecordsChanged; then onDispatch with the inputs of the start it made
-// expect: the first: outcome `done`; the prompt of change-requirements is not sent in this run; the job workflow is started once, with the inputs job (a new job), task "say the due date", the endpoint and secret FIXTURE_KEY; the new job's record names the conversation's job as started_by, and the conversation's end lists `handed over: change-requirements — <it>`. The second: outcome `done`; the prompt of change-requirements is sent once; one new queue under docs/spec-freigaben/ holds the entry — its rationale with an impact list naming UC-001 — and no approval record names it; SPEC.md is byte-identical; the piece's own end says `state: done` and lists the writer's commit and the queue's files; no approval record is written
+// expect: the first: outcome `done`; the prompt of change-requirements is not sent in this run; the job workflow is started once, with the inputs job (a new job), task "say the due date", the endpoint and secret FIXTURE_KEY; the new job's record names the conversation's job as started_by, and the conversation's end lists `handed over: change-requirements — <it>`. The second: outcome `done`; the prompt of change-requirements is sent once; one new queue under docs/spec-freigaben/ holds the entry — its rationale with an impact list naming UC-001 — and no approval record names it; SPEC.md is byte-identical; the piece's own end says `state: done` and lists the writer's commit and the entry's proposal; no approval record is written
 test("TST-1360101: a hosted converse job's piece of change-requirements is handed over as a job of its own, whose run ends in an open SPEC change entry", async () => {
   await withWorkspace({}, async (w) => {
     const world = fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }),
-      "change-requirements": { candidates: [{ name: RULE, rule: `${RULE_TEXT} The member is told the date.`, check: "`tests/loan.test.mjs`", constrains: "product", passage: "§2",
-        class: "change", of: RULE }] } }, w);
+      "change-requirements": { sections: [text("## Lending", "", `**${RULE}** *(SRC-fixture-po)*`, `${RULE_TEXT} The member is told the date.`, "*Check:* `tests/loan.test.mjs`")],
+        why: "The member must know the due date." } }, w);
     const status = await run(w);
     assert.equal(status.outcome, "done", status.summary);
     assert.equal(world.prompted("change-requirements"), 0, "the piece does not run in the conversation's run");
@@ -270,7 +270,9 @@ test("TST-1360101: a hosted converse job's piece of change-requirements is hande
     const writer = writerOf(w, "change-requirements");
     assert.equal(writer.length, 1, "one commit of the change's writer");
     assert.ok(end.includes(writer[0]), "the piece's end lists the writer's commit");
-    assert.ok(end.includes(rationale), "the piece's end lists the queue's files");
+    // The writer spec-edits lists of each section it writes the entry's proposal (TST-2026110905), not the rationale beside it.
+    const proposal = queued.find((path) => /\/\d\d-[^/]+\.md$/.test(path) && !path.endsWith(".begruendung.md") && !path.endsWith(".plaetze.md"));
+    assert.ok(end.includes(proposal), "the piece's end lists the entry's proposal");
   });
 });
 
@@ -281,7 +283,7 @@ test("TST-1360101: a hosted converse job's piece of change-requirements is hande
 // expect: outcome `done`; the prompt of change-requirements is never sent and the job workflow is not started; nothing under docs/spec-freigaben/ is written; the end lists a line `not run: change-requirements — ` naming THE PERSON WHO PROMPTS IS A SOURCE
 test("TST-1360102: a piece of change-requirements without the person's own source is not handed over, and the end says why", async () => {
   await withWorkspace({ source: undefined }, async (w) => {
-    const world = fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { candidates: [] } }, w);
+    const world = fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { sections: [], why: "none" } }, w);
     const status = await run(w);
     assert.equal(status.outcome, "done", status.summary);
     assert.equal(world.prompted("change-requirements"), 0);
@@ -300,7 +302,7 @@ test("TST-1360102: a piece of change-requirements without the person's own sourc
 //   and its fix, which names what the piece requires — the owner of the instance's repository —; the fix is not cut away
 test("TST-2026110813: a piece kept from starting by a finding lists the finding as <what> [<rule>] — <fix>", async () => {
   await withWorkspace({ source: undefined }, async (w) => {
-    fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { candidates: [] } }, w);
+    fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { sections: [], why: "none" } }, w);
     const status = await run(w);
     assert.equal(status.outcome, "done", status.summary);
     const line = endOf(w).split("\n").find((each) => each.includes("not run: change-requirements — ")) ?? "";
@@ -466,7 +468,7 @@ test("TST-2026271044: a hosted job whose answer has no draft ends failed, its re
 
 // TST-2026271045 · level: component · module: MOD-workflow-entries
 // guards: UC-049
-// given: a hosted converse job; the endpoint answers the conversation with the plan [{ change-requirements, [the requirement], "say the due date" }] and the change of requirements, in every round, with JSON whose envelope has no `draft`; known positive: the same piece answered with a candidate ends done (TST-1360101)
+// given: a hosted converse job; the endpoint answers the conversation with the plan [{ change-requirements, [the requirement], "say the due date" }] and the change of requirements, in every round, with JSON whose envelope has no `draft`; known positive: the same piece answered with a changed section ends done (TST-1360101)
 // input: onRecordsChanged; then onDispatch with the inputs of the start it made
 // expect: the conversation's end lists `handed over: change-requirements — <its job>`; the piece's run ends `failed`, its own end `state: failed` with the reason `the participant's answer could not be read: the answer has no draft` and no `no change`; nothing but the two records is written
 test("TST-2026271045: a piece whose answer has no draft ends failed in its own record, with why, not as no change", async () => {
@@ -492,19 +494,19 @@ const resultLines = (end) => (/^results: (.*)$/m.exec(end)?.[1] ?? "").split(", 
 
 // TST-2026111104 · level: component · module: MOD-workflow-entries · MOD-spec-changes
 // guards: UC-049; UC-019
-// given: a hosted converse job with the person's source; the endpoint answers the conversation with the plan of TST-2026271045 and the change of requirements with a draft that holds no candidate, `{ candidates: [] }`; known positive: the same piece answered with a candidate lists its writer's commit (TST-1360101)
+// given: a hosted converse job with the person's source; the endpoint answers the conversation with the plan of TST-2026271045 and the change of requirements with a draft that changes no text, `{ sections: [], why }`; known positive: the same piece answered with a changed section lists its writer's commit (TST-1360101)
 // input: onRecordsChanged; then onDispatch with the inputs of the start it made
-// expect: outcome `done` both times; the change of requirements ran once; the piece's own end lists `note: the draft holds no requirement; nothing is written.` — the writer's note — and no `no change`; nothing but the two records is written
+// expect: outcome `done` both times; the change of requirements ran once; the piece's own end lists `note: the draft changes nothing; nothing is written.` — the note of the writer spec-edits — and no `no change`; nothing but the two records is written
 test("TST-2026111104: a piece whose writer writes nothing lists the writer's note in its own end, not no change", async () => {
   await withWorkspace({}, async (w) => {
-    const world = fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { candidates: [] } }, w);
+    const world = fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { sections: [], why: "none" } }, w);
     assert.equal((await run(w)).outcome, "done");
     const inputs = handedOverStart(world);
     const status = await runPiece(w, inputs);
     assert.equal(status.outcome, "done", status.summary);
     assert.equal(world.prompted("change-requirements"), 1, "the change of requirements ran");
     const lines = resultLines(endOfJob(w, inputs.job));
-    assert.ok(lines.includes("note: the draft holds no requirement; nothing is written."), lines.join("\n"));
+    assert.ok(lines.includes("note: the draft changes nothing; nothing is written."), lines.join("\n"));
     assert.ok(!lines.includes("no change"), lines.join("\n"));
     assert.deepEqual(touched(w).sort(), [`docs/jobs/${JOB}.md`, `docs/jobs/${inputs.job}.md`].sort());
   });
