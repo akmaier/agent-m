@@ -297,7 +297,7 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
       if (decision.kind === "create" && decision.label === "change") {
         // Propose SPEC change puts the request into the prompt bar, for the person to send or change (UC-038 step 10, UC-049).
         const propose = button("propose-spec-change", "Propose SPEC change", () => globalThis.dispatchEvent?.(new CustomEvent("agent-m:prompt",
-          { detail: `In ${found?.name ?? "the product"}: change the requirements as issue #${issue} asks: ${decision.title}` })));
+          { detail: `In ${found?.name ?? "the product"}: change the requirements as issue #${issue} asks.\n\nIssue #${issue}: ${decision.title}\n${decision.text}` })));
         result.append(" ", propose);
       }
     } catch (failure) {

@@ -295,7 +295,8 @@ test("Create issue is disabled while the text names the mail's people, and one c
   globalThis.dispatchEvent = (event) => { if (event.type === "agent-m:prompt") prompts.push(event.detail); return true; };
   try { await trusted(byClass(item, "propose-spec-change")[0]); } finally { if (before) globalThis.dispatchEvent = before; else delete globalThis.dispatchEvent; }
   assert.equal(prompts.length, 1, "Propose SPEC change puts one prompt into the prompt bar");
-  assert.match(prompts[0], /change the requirements as issue #100 asks: /);
+  assert.match(prompts[0], /change the requirements as issue #100 asks\./);
+  assert.ok(prompts[0].includes(made.title) && prompts[0].includes(String(made.body).split("\n")[0]), "the prompt holds the issue's title and its text, so the participant sees what the issue asks for");
   assert.deepEqual(bold(target), [], "the decided mail leaves bold");
   assert.deepEqual(byClass(lineOf(target, mail.id), "issue-link").map((link) => link.getAttribute("href")), [fragmentOf("issue", { number: "100", product: PRODUCT_URL })]);
 });
