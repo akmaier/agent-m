@@ -33,6 +33,7 @@ import { repoServer, settle } from "./app-harness.mjs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { view as reviewPages } from "../src/review-pages/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { blobSha } from "../src/text-tools/index.mjs";
 
 const { startPage } = await import("../src/site-frame/index.mjs");
@@ -245,6 +246,8 @@ export async function scenario({ now = {}, remove = [], extra = {}, answers = []
 
 // The composition root registers the strategies of the views once, as src/site-frame/start.mjs does for the page's views.
 for (const strategies of reviewPages.strategies ?? []) registerStrategies("review-pages", strategies);
+// The check plan-works-on, which the kind converse names (MOD-runtimes' routeStrategies), as the hand-over sets of the bar give it to the page.
+registerStrategies("MOD-runtimes", { checks: routeStrategies.checks });
 
 // Until the servers have had nothing in flight for a while.
 export async function rest(s) { await settle(s.instance); }
