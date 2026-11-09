@@ -167,7 +167,9 @@ export function followJob({ id, address, host, store, show }) {
       }
       if (!live || live.reachable) await logOf(bridges); // a runtime that has just not answered is not asked again for the log
     } catch (failure) {
-      view.problem = `The job could not be followed. ${said(failure)}`;
+      // A record just committed may not be readable yet: GitHub serves the branch's new head a moment later. It is read again at the next poll.
+      view.problem = failure?.name === "NotFound" && record === null ? "Its record is not readable on the default branch yet; it is read again shortly."
+        : `The job could not be followed. ${said(failure)}`;
     } finally {
       busy = false;
     }
