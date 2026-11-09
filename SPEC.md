@@ -402,8 +402,8 @@ Each participant that is an agent names the model it works with.
 its model is accepted, and a person needs none.
 
 **A CONNECTION NAMES THE MODELS IT OFFERS** *(PO A. Maier)*
-Each connection to a language model that the browser's settings keep — a model endpoint, or a coding agent that a Bridge
-offers — names the models it offers, each with how many tokens its context holds.
+Each connection to a language model — a model endpoint, a coding agent that a Bridge offers, or a coding agent on CI —
+names the models it offers, each with how many tokens its context holds.
 *Check:* `tests/prompt-bar-endpoints.test.mjs` — reads fixture settings of an endpoint naming one model and of a Bridge's
 coding agent naming two. It checks that the endpoint is offered with its model and the agent once with each of its two,
 each with its context; counter-proof: a model without its context is not offered.
@@ -430,7 +430,7 @@ provider in the USA".
 the same connection naming one is offered with it.
 
 **THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE** *(PO A. Maier)*
-A connection that the prompt bar offers from the browser's settings counts, with the model the person chooses, as a
+A connection that the prompt bar offers counts, with the model the person chooses, as a
 participant for every rule of this specification, except that it is not listed in the instance's participant list and
 holds no role.
 *Check:* `tests/prompt-bar-endpoints.test.mjs` — an endpoint or CLI session without a place or a model is not offered,
@@ -1895,8 +1895,7 @@ After a person cancels a job, the job commits nothing further to any repository.
 implementation commit leaves the branch at the test commit.
 
 **NO COST IS GUESSED** *(PO A. Maier; Vibe Coding, ch. 15 §4)*
-A job shows a cost only when its runtime reports one, or when the runtime reports usage and the
-connection it runs on declares a price for its model. In every other case the cost is shown as unknown.
+A job shows a cost only when its runtime reports one. In every other case the cost is shown as unknown.
 *Check:* `tests/test_job_cost.py`. A job whose runtime reports neither cost nor usage shows
 "unknown", never zero.
 
@@ -2239,21 +2238,6 @@ repository only as a participant's rewriting that mentions no person and keeps t
 address and a home-directory path, rewritten by a fixture participant, contains none of them; counter-proof:
 a rewriting that keeps one is refused. How often a rewriting keeps the error message, stack trace and
 version is measured as a rate on a fixed set of reports, reported, not gated.
-
-**A REWRITTEN TEXT IS CHECKED BY THREE LLMS** *(PO A. Maier)*
-A text that a participant rewrites from a mail is written only after three LLM participants with three
-different models, each on a connection at a place the mailbox allows, have each checked it for any mention of a person
-and none of them has found one.
-*Check:* `tests/test_mail_privacy.py` — with three fixture checkers of which one reports a name, nothing is
-written and the finding goes back; counter-proof: when none reports one, the text is written. How often a
-person passes all three is measured as a rate on a fixed set of mails, reported, not gated.
-
-**NO CHECKER IS THE REWRITER** *(PO A. Maier)*
-None of the three participants that check a rewritten text is the participant that rewrote it or uses its
-model.
-*Check:* `tests/test_mail_privacy.py` — a set of checkers that includes the rewriter, or a checker with the
-rewriter's model, is refused before anything is sent; counter-proof: three checkers with three other models
-are accepted.
 
 **PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF** *(PO A. Maier)*
 Rewriting report data without persons applies to every product whose settings do not switch it off.

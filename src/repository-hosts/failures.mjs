@@ -41,13 +41,23 @@ function prepare(url, { method = "GET", headers = {}, body } = {}, gate) {
 // not answer, a server that does not allow the page's origin — fails with Unreachable, giving the browser's reason.
 export async function send(url, options, gate) {
   const [u, init] = prepare(url, options, gate);
-  let answer;
-  try { answer = await fetch(u, init); } catch (e) {
-    const reason = String(e?.message ?? e);
-    throw new HostError("Unreachable", { reason }, `${u.origin} could not be reached: ${reason}`);
+  const once = async () => {
+    try { return await fetch(u, init); } catch (e) {
+      const reason = String(e?.message ?? e);
+      throw new HostError("Unreachable", { reason }, `${u.origin} could not be reached: ${reason}`);
+    }
+  };
+  const answer = await once();
+  // A read the server limits for a moment — 403 or 429 with a Retry-After of at most a minute, as GitHub's short limit on bursts answers — is read once more after that wait;
+  // a longer wait is not taken, and the limit is named as before.
+  const after = Number(answer.headers?.get?.("retry-after"));
+  if ((answer.status === 403 || answer.status === 429) && init.method === "GET" && after > 0 && after <= BRIEF_WAIT) {
+    await new Promise((resolve) => setTimeout(resolve, after * 1000));
+    return once();
   }
   return answer;
 }
+const BRIEF_WAIT = 60;
 
 // The JSON of an answer; an answer that is no JSON did not come from the server's API.
 export async function json(answer, origin) {

@@ -7,7 +7,7 @@
 The cases live in tests/test_mail_import.md. This file only loads them and asks node to run the modules' public
 functions through jsrun: mailId, listedMailIds, undecided and threadMatch of MOD-mail-records, and readNewMail, decideMail
 and mailStrategies of MOD-mail-handling, the latter over a fake mailbox and a fake host of the accepted interface
-(MOD-repository-hosts: listIssues, createIssue, commentOnIssue, setIssueLabels, setIssueState, repositoryInfo) built
+(MOD-repository-hosts: listIssues, createIssue, commentOnIssue, setIssueLabels, setIssueState, repositoryInfo, readSnapshot) built
 from each case's data. INTAKE_WORLD is that adapter; tests/test_mail_privacy.py runs the same world.
 """
 import json
@@ -73,7 +73,8 @@ const comments = [];
 const labelCalls = [];
 const hostKnown = {
   listIssues: async (filter) => { hostCalls.push("listIssues"); return filter?.state === "open" ? issues.filter((i) => i.state === "open") : issues; },
-  repositoryInfo: async () => { hostCalls.push("repositoryInfo"); return { description: input.description ?? "A tool for writing a thesis." }; },
+  repositoryInfo: async () => { hostCalls.push("repositoryInfo"); return { description: input.description ?? "A tool for writing a thesis.", defaultBranch: "main" }; },
+  readSnapshot: async () => { hostCalls.push("readSnapshot"); return { read: async () => null }; },
   createIssue: async (issue) => {
     hostCalls.push("createIssue"); created.push({ title: issue.title, body: issue.body, labels: issue.labels });
     written.push({ via: "createIssue", text: [issue.title, issue.body, ...issue.labels].join("\n") });
@@ -159,7 +160,7 @@ for (const w of written) {
 const once = (list) => list.filter((x, i) => list.findIndex((y) => y.write === x.write && y.term === x.term) === i);
 return {
   results, created, comments, labelCalls, leaks, present: once(present),
-  writeCalls: hostCalls.filter((n) => n !== "listIssues" && n !== "repositoryInfo"),
+  writeCalls: hostCalls.filter((n) => n !== "listIssues" && n !== "repositoryInfo" && n !== "readSnapshot"),
   writtenVia: written.map((w) => w.via),
   mailboxCalls,
   readSince,

@@ -28,7 +28,8 @@
 //   - Each decision is made on a click the browser marks as a person's (isTrusted); a click a script makes does nothing. Create issue is disabled while a hit stands, and while the title or the text is empty.
 //   - After Create issue or Add to #n the mail keeps its review (7b: Create issue once per concern) and its line leaves bold with the issue; after Not an issue the line leaves bold with the mark and the details show the
 //     decision. The next reading names every mail an issue lists or the store marks as decided.
-//   - A created issue of the kind change is followed by <a class="issue-link"> to #issue/number=<n>/product=<address> (UC-038 step 10); one of the kind defect has none.
+//   - A created issue of the kind change is followed by <button class="propose-spec-change">, whose click dispatches the event agent-m:prompt with the request to change the
+//     requirements as the issue asks, which the prompt bar takes into its input (UC-038 step 10); one of the kind defect has none.
 //   - A refused token (HTTP 401) or a missing permission (403) on Create issue is named with the product, with <a class="token-step"> to the step that stores the token (#add-product); nothing is written.
 //   - Every step is folded with <details class="explain">: reading, the list, the review of a mail, the decisions.
 //   - The route gives the prompt bar a subject whose page holds the `MAIL-` identifiers of the proposable mails and no mail text, and which refuses propose-edit and hand-over.
@@ -288,7 +289,13 @@ test("Create issue is disabled while the text names the mail's people, and one c
   assert.ok(made.body.endsWith(`Mails: \`${mail.id}\``) || made.body.includes(mail.id), made.body);
   assert.equal(made.body.includes(SECRET_SENTENCE) || made.body.includes("Erika") || made.body.includes(ERIKA.address), false, "none of the mail's text, name or address");
   assert.match(textOf(byClass(item, "mail-result")[0]), /#100/);
-  assert.deepEqual(byClass(item, "issue-link").map((link) => link.getAttribute("href")), [fragmentOf("issue", { number: "100", product: PRODUCT_URL })]);
+  // The window the page dispatches the event on, standing in for the browser's (node's globalThis is no EventTarget).
+  const prompts = [];
+  const before = globalThis.dispatchEvent;
+  globalThis.dispatchEvent = (event) => { if (event.type === "agent-m:prompt") prompts.push(event.detail); return true; };
+  try { await trusted(byClass(item, "propose-spec-change")[0]); } finally { if (before) globalThis.dispatchEvent = before; else delete globalThis.dispatchEvent; }
+  assert.equal(prompts.length, 1, "Propose SPEC change puts one prompt into the prompt bar");
+  assert.match(prompts[0], /change the requirements as issue #100 asks: /);
   assert.deepEqual(bold(target), [], "the decided mail leaves bold");
   assert.deepEqual(byClass(lineOf(target, mail.id), "issue-link").map((link) => link.getAttribute("href")), [fragmentOf("issue", { number: "100", product: PRODUCT_URL })]);
 });
@@ -667,8 +674,8 @@ test("the link Propose SPEC change is the address the frame writes, and followin
   kind.value = "change";
   kind.dispatchEvent(new Event("change"));
   await trusted(byClass(item, "create-issue")[0]);
-  await waitFor(() => byClass(item, "issue-link").length > 0);
-  const href = byClass(item, "issue-link")[0].getAttribute("href");
+  await waitFor(() => byClass(lineOf(target, mail.id), "issue-link").length > 0);
+  const href = byClass(lineOf(target, mail.id), "issue-link")[0].getAttribute("href");
   assert.equal(href, fragmentOf("issue", { number: "100", product: PRODUCT_URL }));
   const page = await followed(w, href);
   await waitFor(() => /Issue #100/.test(textOf(page)) || byClass(page, "issue-problem").length > 0);

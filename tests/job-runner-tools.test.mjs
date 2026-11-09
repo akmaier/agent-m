@@ -416,6 +416,17 @@ test("TST-2026114904: hand-over refuses an after that names no earlier piece", a
   assert.deepEqual(result.draft.handOver, [{ kind: "change-requirements", works_on: [], task: "Add the rule", after: [] }]);
 });
 
+// TST-2026114905 · level: unit · module: MOD-job-runner
+// guards: UC-049
+// given: the real catalogue; the kind of TST-486001
+// input: hand-over of derive-architecture on UC-001 with the task "Derive it", twice with the same arguments
+// expect: the first is proposed; the second is answered "proposed already: piece 1" and holds nothing; the draft's plan is the one piece. Counter-proof: on the tool as it stood, the plan held the piece twice and two identical jobs were queued (JOB-20261109-1756-b09c and -fbe0 of akmaier/AlienInvasion).
+test("TST-2026114905: hand-over holds an identical piece only once", async () => {
+  const { answers, result } = await answersTo([handOver("derive-architecture", ["UC-001"], "Derive it"), handOver("derive-architecture", ["UC-001"], "Derive it")]);
+  assert.deepEqual(answers, ["proposed: a job of derive-architecture goes on once you have answered: what it drafts is a proposal for the person", "proposed already: piece 1"]);
+  assert.deepEqual(result.draft.handOver, [{ kind: "derive-architecture", works_on: ["UC-001"], task: "Derive it", after: [] }]);
+});
+
 // TST-486016 · level: unit · module: MOD-job-runner
 // guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
 // given: the real catalogue, whose index holds no kind "no-such-kind" and whose kind set-up-ci has no participant

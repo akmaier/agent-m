@@ -19,6 +19,7 @@
 // (PLANTED-TASK-9C2E), so that a record, a commit or a request that carries them is found. Readings of the module file that the tests state (the pull request names them): a hand-over has no start
 // rule of the product's process to meet and is checked by the job's own preconditions when it is handed over; the hand-over is checked against the product as it stands when the answer comes; the proposal's participant is the one the message went to. The counter-proofs are recorded in the pull request.
 
+import { EVERY } from "../src/prompt-bar/follow.mjs";
 import test, { afterEach, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -604,7 +605,7 @@ test("a handed-over job is followed every 15 seconds: waiting for GitHub Actions
   takes(it, RUN_URL);
   it.product.runs.push(ciRun("running"));
   const reads = readsOf(it);
-  await after(14999);
+  await after(EVERY - 1);
   assert.equal(readsOf(it), reads, "no read before the 15 seconds are over");
   await after(1);
   await until(() => following(it).includes("State: running"), "the second poll");
@@ -612,7 +613,7 @@ test("a handed-over job is followed every 15 seconds: waiting for GitHub Actions
   assert.ok(following(it).includes("waiting for GitHub Actions") && following(it).includes(RUN_URL), following(it));
   ends(it, "done", [COMMIT]);
   it.product.runs[0].state = "completed";
-  await after(15000);
+  await after(EVERY);
   await until(() => following(it).includes("Ended: done"), "the end is shown");
   assert.ok(following(it).includes("State: done") && following(it).includes(COMMIT), following(it));
   assert.ok(!following(it).includes("waiting for GitHub Actions"));
@@ -636,7 +637,7 @@ test("a job on a Bridge is waited for, then its log's lines are shown as they co
   takes(it, "lab-pc");
   it.net.bridge.jobs.push({ id, product: "alice/thesis-tool", kind: "implement", agent: "claude", state: "running", started: "2026-10-16T12:01:00Z", usage: null });
   it.net.bridge.log.push("first line", "second line");
-  await after(15000);
+  await after(EVERY);
   await until(() => following(it).includes("second line"), "the first lines");
   assert.ok(following(it).indexOf("first line") < following(it).indexOf("second line"));
   assert.ok(!following(it).includes("third line"));
@@ -646,7 +647,7 @@ test("a job on a Bridge is waited for, then its log's lines are shown as they co
   assert.ok(following(it).indexOf("second line") < following(it).indexOf("third line"));
   ends(it, "done", [COMMIT]);
   it.net.bridge.logEnded = true;
-  await after(15000);
+  await after(EVERY);
   await until(() => following(it).includes("Ended: done"), "the end is shown");
   assert.deepEqual(it.net.stray, []);
 });
@@ -662,7 +663,7 @@ test("Stop cancels the followed job and shows cancelled or cancelling as the run
   await handsOver(it);
   takes(it, RUN_URL);
   it.product.runs.push(ciRun("running"));
-  await after(15000);
+  await after(EVERY);
   await until(() => following(it).includes("State: running"), "the job runs");
   assert.equal(one(it.target, "stop").disabled, false, "Stop is enabled while a job is followed");
   one(it.target, "stop").dispatchEvent(scripted());
@@ -680,7 +681,7 @@ test("Stop cancels the followed job and shows cancelled or cancelling as the run
   takes(unconfirmed, RUN_URL);
   unconfirmed.product.runs.push(ciRun("running"));
   unconfirmed.product.cancelDoesNotWork();
-  await after(15000);
+  await after(EVERY);
   await until(() => following(unconfirmed).includes("State: running"), "the job runs");
   one(unconfirmed.target, "stop").dispatchEvent(scripted());
   await until(() => byClass(unconfirmed.target, "cancel").length > 0, "the answer is shown");
@@ -705,7 +706,7 @@ test("a job handed over on one page goes on being followed on the next page of t
   assert.ok(textOf(one(second, "following")).includes(id));
   assert.equal(it.product.attempts.length, 1, "nothing is queued again");
   ends(it, "done", [COMMIT]);
-  await after(15000);
+  await after(EVERY);
   await until(() => following(it).includes("Ended: done"), "the end is shown");
   assert.equal(readTabValue(it.store, "prompt-bar:job"), null);
   const third = document.createElement("div");
@@ -791,14 +792,14 @@ test("a refusal for another reason offers no setup and no link to settings", asy
 // TST-1037003 · level: component · module: MOD-prompt-bar
 // guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
 // given: dev-ci's hand-over to GitHub Actions of TST-505008; the server lists the started run as failed, and its log says `not run` for the missing secret KEY_A
-// input: the clock moves 15 000 ms
+// input: the clock moves one follow interval (EVERY)
 // expect: the followed job names the secret KEY_A and shows one link whose address is the product's page of CI secrets (the host's webLinks().secrets)
 test("a run that ended not run for a missing secret names the secret and links the server's page of the repository's secrets", async () => {
   const it = open();
   await ON_CI(it);
   await handsOver(it);
   endsNotRun(it, NOT_RUN);
-  await after(15000);
+  await after(EVERY);
   await until(() => byClass(one(it.target, "following"), "secrets-link").length > 0, "the link is shown");
   const links = byClass(one(it.target, "following"), "secrets-link");
   assert.equal(links.length, 1);
@@ -809,21 +810,21 @@ test("a run that ended not run for a missing secret names the secret and links t
 // TST-1037004 · level: component · module: MOD-prompt-bar
 // guards: UC-049
 // given: known positive TST-1037003; dev-ci's hand-over to GitHub Actions of TST-505008 whose run failed with a log that names no missing secret; and one whose run is still running while its log says `not run`
-// input: the clock moves 15 000 ms
+// input: the clock moves one follow interval (EVERY)
 // expect: no link to the page of secrets in either
 test("a run that failed for another reason, or is still running, shows no link to the page of secrets", async () => {
   const failed = open();
   await ON_CI(failed);
   await handsOver(failed);
   endsNotRun(failed, "onDispatch: failed — the model refused the request");
-  await after(15000);
+  await after(EVERY);
   assert.equal(byClass(one(failed.target, "following"), "secrets-link").length, 0);
   const running = open();
   await ON_CI(running);
   await handsOver(running);
   running.product.runs.push(ciRun("running"));
   running.product.logs.set("7", NOT_RUN);
-  await after(15000);
+  await after(EVERY);
   assert.equal(byClass(one(running.target, "following"), "secrets-link").length, 0);
 });
 
@@ -962,7 +963,7 @@ test("Spawn job hands the message to GitHub Actions with the endpoint and the na
   const id = /docs\/jobs\/(JOB-[^/]+)\.md$/.exec(it.product.jobPath())[1];
   it.product.logs.set("7", ANSWER_LOG(id));
   ends(it, "done", [], null, RUN_URL);
-  await after(15000);
+  await after(EVERY);
   await until(() => textOf(one(it.target, "conversation")).includes("PLANTED-ANSWER-NV7 ok"), "the answer joins the conversation");
   assert.equal(following(it).includes("PLANTED-ANSWER-NV7 ok"), false, "the answer stands once, in the conversation, not again under the run");
 });
@@ -1172,7 +1173,7 @@ test("TST-2026114908: for a job that is the endpoint's own, the bar follows each
   it.product.edit(path, (text) => appendToRecord(text, { part: "end", at: new Date("2026-10-16T12:09:00Z"), state: "done",
     results: [`handed over: implement — ${piece}`, `not run: change-use-case — waits for the acceptance of 1 (${piece})`], draft: null, rounds: [], usage: null,
     cost: { known: false, usage: null }, reason: null, log: RUN_URL }));
-  await after(15000);
+  await after(EVERY);
   await until(() => following(it).includes(`Handed over: ${piece}`), "the job handed over is followed");
   assert.ok(following(it).includes(`not run: change-use-case — waits for the acceptance of 1 (${piece})`), following(it));
   await until(() => /State: queued/.test(following(it).split(`Handed over: ${piece}`)[1] ?? ""), "the job handed over is shown queued");
@@ -1219,7 +1220,7 @@ test("a handed-over job of propose-groups that ends on CI leaves its moves as th
   it.product.edit(path, (text) => appendToRecord(appendToRecord(text, { part: "taken", at: new Date("2026-10-16T12:01:00Z"), by: RUN_URL }),
     { part: "end", at: new Date("2026-10-16T12:09:00Z"), state: "done", results: [`handed over: propose-groups — ${piece}`], draft: null, rounds: [], usage: null,
       cost: { known: false, usage: null }, reason: null, log: RUN_URL }));
-  await after(15000);
+  await after(EVERY);
   await until(() => following(it).includes(`Handed over: ${piece}`), "the piece is followed");
   await until(() => byClass(one(it.target, "following"), "review").length === 1, "Review the draft stands under the piece");
   const draft = readTabValue(it.store, "prompt-bar:draft");

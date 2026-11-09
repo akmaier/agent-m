@@ -53,20 +53,30 @@ async function readAgain(p, clicks) {
 }
 // A mail opened from the list: its details.
 const itemOf = (main, id) => openMail(main, id);
-async function chooseParticipant(p, name, person = "Anna Author") {
+// Propose works on the mail opened: the first mail still to decide is opened before the participant is chosen.
+const undecided = (p) => byClass(p.main(), "mail-line").filter((node) => node.className.split(" ").includes("undecided")).map((node) => node.getAttribute("data-line"));
+async function chooseParticipant(p, name) {
+  if (undecided(p).length) itemOf(p.main(), undecided(p)[0]);
   const select = one(p.main(), "participant");
   select.value = name;
   select.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(p.main(), "run-panel").length > 0 || byClass(p.main(), "mail-missing-checkers").length > 0);
 }
+// Propose for each mail still to decide, one after the other: the mail opened, the person's click on Propose (a click a script makes first, which sends nothing).
 async function propose(p, clicks) {
-  const run = buttonsOf(one(p.main(), "mail-stage"), "Propose")[0];
-  run.dispatchEvent(new Event("click"));
-  await flush();
-  const byScript = p.w.kept.endpoint.length;
-  clicks.push("Propose");
-  await click(run);
-  await waitFor(() => byClass(p.main(), "mail-proposed").length > 0);
+  let byScript = 0;
+  for (const id of undecided(p)) {
+    itemOf(p.main(), id);
+    await waitFor(() => buttonsOf(byClass(p.main(), "mail-stage")[0] ?? p.main(), "Propose").length > 0);
+    const run = buttonsOf(one(p.main(), "mail-stage"), "Propose")[0];
+    const before = p.w.kept.endpoint.length + p.w.kept.ask.length;
+    run.dispatchEvent(new Event("click"));
+    await flush();
+    byScript += p.w.kept.endpoint.length + p.w.kept.ask.length - before;
+    clicks.push("Propose");
+    await click(run);
+    await waitFor(() => byClass(p.main(), "mail-proposed").length > 0);
+  }
   return byScript;
 }
 const items = (p) => byClass(p.main(), "mail-line");
@@ -107,8 +117,8 @@ test("main flow, steps 1 to 3: the mailbox is read, decided mails are left out, 
 // guards: UC-038; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; ONE CLICK PER DECISION; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS
 // given: two new mails a and b; the participants local-llm and three checkers at this machine; the answer of local-llm: a neutral defect for a, a neutral change for b
 // input: Mail opened, which reads the mailbox; local-llm chosen and a name typed; a click a script makes on Propose, then the person's click; a click a script makes on Create issue, then the person's click, for a and for b
-// expect: the panel names where local-llm processes data; the script's clicks send and write nothing; one Propose sends one request for both mails; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Propose and one decision per mail (flow: UC-038 main flow, steps 4, 5, 7 and 8, and the postcondition)
-test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail, neutral issues with the label and the identifier, the mailbox untouched", async () => {
+// expect: the panel names where local-llm processes data; the script's clicks send and write nothing; one Propose per mail opened sends one request for that mail; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Propose and one decision per mail (flow: UC-038 main flow, steps 4, 5, 7 and 8, and the postcondition)
+test("main flow, steps 4 to 10: one Propose per mail opened, one decision per mail, neutral issues with the label and the identifier, the mailbox untouched", async () => {
   const p = await open();
   await lastly(p, async () => {
     const clicks = [];
@@ -117,8 +127,8 @@ test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail
     assert.match(textOf(one(p.main(), "run-panel")), /this machine/);
     assert.equal(await propose(p, clicks), 0, "a click a script makes sends nothing");
     const asked = p.w.kept.endpoint.filter((request) => JSON.stringify(request.body).includes("You turn mails into proposals"));
-    assert.equal(asked.length, 1, "one request for all listed mails");
-    assert.ok(JSON.stringify(asked[0].body).includes(A.id) && JSON.stringify(asked[0].body).includes(B.id));
+    assert.equal(asked.length, 2, "one request per mail opened");
+    assert.ok(JSON.stringify(asked[0].body).includes(A.id) !== JSON.stringify(asked[0].body).includes(B.id), "each request holds one mail");
     assert.deepEqual(created(p), [], "a proposal creates nothing");
     for (const [mail, label] of [[A, "defect"], [B, "change"]]) {
       const item = itemOf(p.main(), mail.id);
@@ -137,10 +147,10 @@ test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail
       const text = `${issue.title}\n${issue.body}`;
       for (const forbidden of ["Erika", "Mustermann", "erika@example.invalid", "Kind regards", "my thesis"]) assert.ok(!text.includes(forbidden), `${forbidden} is not in the issue`);
     }
-    assert.ok(byClass(itemOf(p.main(), B.id), "issue-link").length > 0, "a change offers the SPEC change");
-    assert.equal(byClass(itemOf(p.main(), A.id), "issue-link").length, 0, "a defect goes to implementation directly");
+    assert.ok(byClass(itemOf(p.main(), B.id), "propose-spec-change").length > 0, "a change offers the SPEC change");
+    assert.equal(byClass(itemOf(p.main(), A.id), "propose-spec-change").length, 0, "a defect goes to implementation directly");
     assert.deepEqual(graphWrites(p), [], "the mailbox saw no write");
-    assert.deepEqual(clicks, ["Propose", "Create issue defect", "Create issue change"]);
+    assert.deepEqual(clicks, ["Propose", "Propose", "Create issue defect", "Create issue change"]);
     assert.ok(!everyWrite(p).includes("Mustermann") && !everyWrite(p).includes("erika@example.invalid"), "no sender or name in any write");
   });
 });
@@ -229,6 +239,7 @@ test("alternative 4c: no participant at an allowed place is said, the mailbox's 
     place: "a provider in the USA", context: 200000 } } });
   await lastly(p, async () => {
     await mailboxRead(p);
+    itemOf(p.main(), A.id);
     assert.equal(byClass(p.main(), "mail-participant").length, 0);
     assert.ok(byClass(p.main(), "mail-no-participant").length > 0);
     assert.ok(byClass(p.main(), "places-link").length > 0 && byClass(p.main(), "places-link")[0].getAttribute("href") === "#mailbox");

@@ -158,7 +158,7 @@ export const tools = {
     context.exchange.held.edits.set(path, text);
     return `proposed: ${path} is held for the person, who may save it`;
   },
-  // Adds one piece to the plan the exchange holds, in the order of the calls, and queues nothing itself: the prompt bar, or the program that runs an unattended job,
+  // Adds one piece to the plan the exchange holds, in the order of the calls, an identical one once only, and queues nothing itself: the prompt bar, or the program that runs an unattended job,
   // carries the plan out (UC-049 4a, 4f). `after` names the earlier pieces, by their numbers from 1, whose accepted result this one rests on; a number that names no
   // earlier piece is refused.
   "hand-over": async ({ kind, works_on, task, after = [] }, context) => {
@@ -173,6 +173,9 @@ export const tools = {
       throw error;
     }
     if (definition.participant === "none") return refusal(`${kind} has no participant`);
+    // A piece the plan holds already — the same kind, works_on, task and after, as a later round or a repeated call gives it — is held once.
+    const same = pieces.findIndex((piece) => JSON.stringify([piece.kind, piece.works_on, piece.task, piece.after]) === JSON.stringify([kind, works_on, task, after]));
+    if (same !== -1) return `proposed already: piece ${same + 1}`;
     pieces.push({ kind, works_on, task, after });
     return `proposed: a job of ${kind} goes on once you have answered: what it drafts is a proposal for the person`;
   },

@@ -343,6 +343,22 @@ test("listCiRuns, cancelCiRun and ciRunLog name how they fail, on each server", 
   }
 });
 
+// TST-546020 · level: unit · module: MOD-repository-hosts
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: GitHub answers a read first with its short limit — 403, X-RateLimit-Remaining 0 and Retry-After 1 —, then as it documents; in a second round with Retry-After 3600
+// input: listCiRuns({}) on a GitHub host
+// expect: the first round waits the second GitHub names and reads again: one run comes back after two requests; the second round fails with RateLimited after one request, a wait that long is not taken. Counter-proof: on the host as it stood, the first round failed with RateLimited at once.
+test("TST-546020: a read GitHub limits for a moment is read again after the wait it names; a long wait is not taken", async () => {
+  let first = true;
+  const brief = (r) => { if (first) { first = false; return json(403, { message: "secondary rate limit" }, { "x-ratelimit-remaining": "0", "retry-after": "1" }); } return ghServer(r); };
+  const host = () => connect(GITHUB, { token: GH_TOKEN, tokenName: "Carol's token" });
+  const waited = await serving(brief, () => host().listCiRuns({}));
+  assert.equal(waited.result.length, 1);
+  assert.equal(waited.requests.length, 2, "read once more after the wait");
+  const long = await failure(serving(() => json(403, { message: "secondary rate limit" }, { "x-ratelimit-remaining": "0", "retry-after": "3600" }), () => host().listCiRuns({})));
+  assert.equal(long?.name, "RateLimited");
+});
+
 // TST-546014 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a run of two jobs "build" and "test"; the server lists the jobs and answers the log of "build" (a known positive), then answers the log of "test" with 401; 403; the used-up limit; 500; a network that throws; and, in another round, answers the first log 500 and the second one 200

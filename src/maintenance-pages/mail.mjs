@@ -303,7 +303,12 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
       if (decision.kind === "not-an-issue") { onMarked(mail.id); return; }
       onDecided(mail.id, { product: found?.address ?? null, issue: decision.kind === "create" ? issue : decision.issue });
       result.replaceChildren(decision.kind === "create" ? `Created issue #${issue} in ${which}.` : `Added to #${decision.issue} of ${which}.`);
-      if (decision.kind === "create" && decision.label === "change") result.append(" ", link(issueRoute(issue, found?.address), "issue-link", "Propose SPEC change"));
+      if (decision.kind === "create" && decision.label === "change") {
+        // Propose SPEC change puts the request into the prompt bar, for the person to send or change (UC-038 step 10, UC-049).
+        const propose = button("propose-spec-change", "Propose SPEC change", () => globalThis.dispatchEvent?.(new CustomEvent("agent-m:prompt",
+          { detail: `In ${found?.name ?? "the product"}: change the requirements as issue #${issue} asks: ${decision.title}` })));
+        result.append(" ", propose);
+      }
     } catch (failure) {
       if (failure?.name === "PersonFound") { result.textContent = `The text names the mail's people: ${(failure.hits ?? []).map((hit) => hit.value).join(", ")}. Nothing was written.`; return; }
       if (failure?.name === "TokenRefused" || failure?.name === "PermissionMissing") {
@@ -325,7 +330,7 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
   const decisions = el("section", "mail-step-decide", create, " ", el("label", null, "Issue number ", number), " ", add, " ", none, result, fold(STEP_TEXT.decide));
   const item = el("div", "mail", shown, decisions);
   item.setAttribute("data-mail", mail.id);
-  return { item, fill, ticked: () => [...ticks].filter(([, tick]) => tick.checked === true).map(([name]) => name) };
+  return { item, fill, product: () => chosen(), ticked: () => [...ticks].filter(([, tick]) => tick.checked === true).map(([name]) => name) };
 }
 
 // Propose: the participants the mailbox allows, the run panel and its *Propose*, one click for all proposable mails (UC-038 4, 4a, 4c); the author checks every text before it is written. `entries()` gives the proposable mails
@@ -359,7 +364,10 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
     const chosen = admitted.find((participant) => participant.name === select.value) ?? admitted[0];
     Object.assign(choice, { participant: chosen, person: name });
     try {
-      const params = { mails: entries().map(({ mail, people }) => ({ mail, people, ticked: reviews.get(mail.id)?.ticked() ?? [] })), products: [...session.products.values()].map(({ address, host }) => ({ address, host })) };
+      // The mail opened, and the product chosen for it, whose SPEC the participant reads (UC-038 step 4).
+      const products = entries().map(({ mail }) => reviews.get(mail.id)?.product()).filter(Boolean);
+      const params = { mails: entries().map(({ mail, people }) => ({ mail, people, ticked: reviews.get(mail.id)?.ticked() ?? [] })),
+        products: (products.length ? products : [...session.products.values()]).slice(0, 1).map(({ address, host }) => ({ address, host })) };
       const job = await jobOf(session, "propose-issues", params, { drafter: chosen, reviewers: [] }, name);
       if (mine !== turn) return;
       const result = el("div", "mail-propose-result");
@@ -369,8 +377,9 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
           const outcome = await runJobOf(session, job);
           const given = outcome.draft?.proposals ?? [];
           let shown = 0;
-          for (const proposal of given) if (reviews.has(proposal.mail)) { reviews.get(proposal.mail).fill(proposal); shown += 1; }
-          result.replaceChildren(el("p", "mail-proposed", `${shown} proposal${shown === 1 ? "" : "s"} shown with the mails. Nothing was created: open each mail and decide it with one click.`));
+          const sent = new Set(params.mails.map(({ mail }) => mail.id));
+          for (const proposal of given) if (sent.has(proposal.mail) && reviews.has(proposal.mail)) { reviews.get(proposal.mail).fill(proposal); shown += 1; }
+          result.replaceChildren(el("p", "mail-proposed", `${shown ? "The proposal is shown with the mail" : "No proposal came back"}. Nothing was created: decide the mail with one click.`));
         } catch (failure) {
           result.replaceChildren(el("p", "mail-propose-problem", `Nothing was proposed: ${failed(failure)}`));
         } finally {
@@ -435,6 +444,8 @@ async function render(target, context) {
   const choice = { participant: null, person: "" };
   const hooks = { changed: () => {}, running: false };
   const proposable = () => state.rows.filter((row) => row.kind === "proposable").map(({ mail, people }) => ({ mail, people }));
+  // Propose works on the mail opened, where it is still to decide (UC-038 step 4).
+  const opened = () => proposable().filter(({ mail }) => mail.id === state.open);
 
   function drawList() {
     const focused = globalThis.document?.activeElement?.getAttribute?.("data-open") ?? null;
@@ -480,6 +491,7 @@ async function render(target, context) {
     state.open = id;
     drawList();
     drawDetails();
+    redrawPropose();
     globalThis.document && details.querySelector?.(".mail-back")?.focus?.();
   }
   const onMarked = (id) => {
@@ -497,10 +509,10 @@ async function render(target, context) {
     drawList();
   };
 
-  // The run panel follows the proposable mails: drawn anew when they changed and no proposal runs (it keeps the participant chosen); the section is shown while there is a proposable mail.
-  // Where this browser manages no product, the place of Propose says so instead.
+  // The run panel follows the mail opened: drawn anew when another is opened and no proposal runs (it keeps the participant chosen); the section is shown while
+  // the mail opened is still to decide. Where this browser manages no product, the place of Propose says so instead.
   function redrawPropose() {
-    const now = proposable().map(({ mail }) => mail.id).join(" ");
+    const now = opened().map(({ mail }) => mail.id).join(" ");
     if (state.propose && now !== state.proposedFor && !hooks.running) { state.proposedFor = now; hooks.changed(); }
     proposeSlot.replaceChildren(...(state.noProduct ? [state.noProduct] : state.propose && now !== "" ? [state.propose] : []));
   }
@@ -544,8 +556,8 @@ async function render(target, context) {
     listed = proposable();
     if (!state.propose && state.session && found.proposable.length) {
       try {
-        state.propose = await proposeSection(state.session, proposable, state.reviews, choice, hooks);
-        state.proposedFor = proposable().map(({ mail }) => mail.id).join(" ");
+        state.propose = await proposeSection(state.session, opened, state.reviews, choice, hooks);
+        state.proposedFor = opened().map(({ mail }) => mail.id).join(" ");
       } catch (failure) { problemSlot.append(el("p", "mail-propose-problem", `No participant can be offered: ${failed(failure)}`)); }
     }
     redrawPropose();

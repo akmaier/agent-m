@@ -67,7 +67,10 @@ async function setup({ rows = ROWS, places, answer, product, withAttachments = t
   for (const [key, value] of Object.entries(settings)) writeSetting(w.context.store, key, value);
   const target = await opened(w, {}, "mail");
   await mailRead(target);
-  // A mail's review is shown once its line is clicked (MOD-maintenance-pages, `mail`: "The mail clicked shows its details").
+  // A mail's review is shown once its line is clicked (MOD-maintenance-pages, `mail`: "The mail clicked shows its details"); Propose works on the mail opened,
+  // which is the first mail here unless the mailbox lists only the other.
+  const first = only && !only.includes(one_.id) ? two : one_;
+  openMail(target, first.id);
   return { w, target, one: one_, two, item: (mail) => openMail(target, mail.id) };
 }
 const participants = (target) => walk(target, (node) => node.getAttribute?.("data-participant")).map((node) => node.getAttribute("data-participant"));
@@ -76,6 +79,15 @@ const choose = async (target, name, person = "Anna Author") => {
   select.value = name;
   select.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(target, "run-panel").length > 0 || byClass(target, "mail-missing-checkers").length > 0);
+};
+// Propose for each of the two mails: the first is opened already; then the second is opened and proposed too (Propose works on the mail opened).
+const proposeBoth = async (f) => {
+  await propose(f.target);
+  const before = requestsOf(f.w, PROPOSE).length + f.w.kept.ask.length;
+  f.item(f.two);
+  await waitFor(() => byClass(one(f.target, "mail-stage"), "run-panel").length > 0 && byClass(f.target, "mail-proposed").length === 0);
+  await trusted(buttonsOf(one(f.target, "mail-stage"), "Propose")[0]);
+  await waitFor(() => requestsOf(f.w, PROPOSE).length + f.w.kept.ask.length > before && byClass(f.target, "mail-proposed").length > 0);
 };
 const propose = async (target) => {
   await trusted(buttonsOf(one(target, "mail-stage"), "Propose")[0]);
@@ -102,17 +114,17 @@ test("Only participants at a place the mailbox allows are offered, and a place o
 
 // TST-964002 · level: component · module: MOD-maintenance-pages
 // guards: THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-038
-// given: two mails listed; the participant local-llm chosen and the name entered
+// given: two mails listed, the first opened; the participant local-llm chosen
 // input: nothing more
-// expect: the run panel names local-llm, where it processes data (this machine) and the parts it receives — each listed mail by its identifier, the products and their open issues —; no checker is listed for Propose, whose neutral texts the author checks; Propose is offered once; nothing was sent to any endpoint and nothing was written
+// expect: the run panel names local-llm, where it processes data (this machine) and the parts it receives — the mail opened by its identifier and not the other, the product chosen for it with its open issues and its SPEC —; no checker is listed for Propose, whose neutral texts the author checks; Propose is offered once; nothing was sent to any endpoint and nothing was written
 test("The run panel names the participant's place and what it receives; Propose lists no checker", async () => {
   const f = await setup();
   await choose(f.target, "local-llm");
   const panel = textOf(one(f.target, "run-panel"));
   assert.match(panel, /local-llm/);
   assert.match(panel, /this machine/);
-  assert.ok(panel.includes(`mail ${f.one.id}`) && panel.includes(`mail ${f.two.id}`), "each listed mail is a part");
-  assert.ok(panel.includes("products") && panel.includes("open issues"));
+  assert.ok(panel.includes(`mail ${f.one.id}`) && !panel.includes(`mail ${f.two.id}`), "only the mail opened is a part");
+  assert.ok(panel.includes("products") && panel.includes("open issues") && panel.includes(`SPEC of ${PRODUCT_URL}`));
   assert.equal(byClass(f.target, "mail-checker").length, 0, "the author checks the proposals' neutral texts");
   assert.equal(buttonsOf(one(f.target, "mail-stage"), "Propose").length, 1);
   assert.deepEqual(nothingSent(f.w), [0, 0, 0], "nothing is sent before the click");
@@ -120,10 +132,10 @@ test("The run panel names the participant's place and what it receives; Propose 
 
 // TST-964003 · level: component · module: MOD-maintenance-pages
 // guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; A GENERATED ARTIFACT IS A PROPOSAL; ONE CLICK PER DECISION; UC-038
-// given: two listed mails; local-llm chosen; its answer: a proposal for each, the first a defect with one possible duplicate
-// input: a click a script makes on Run; then the person's click on Run
-// expect: the script's click sends nothing; the person's click sends one request that holds both mails; each proposal is shown in its mail's review — product, kind, title, text — and the duplicate #3 with its reason beside the first; nothing was created in any tracker: Create issue is still the person's click
-test("One Propose sends all listed mails in one job, and each proposal is shown beside its mail", async () => {
+// given: two listed mails, the first opened; local-llm chosen; its answer: a proposal for each, the first a defect with one possible duplicate
+// input: a click a script makes on Propose; then the person's click on Propose
+// expect: the script's click sends nothing; the person's click sends one request that holds the mail opened and not the other; its proposal is shown in its review — product, kind, title, text — with the duplicate #3 and its reason; the other mail gets none; nothing was created in any tracker: Create issue is still the person's click
+test("Propose sends the mail opened, and its proposal is shown beside it", async () => {
   const f = await setup();
   await choose(f.target, "local-llm");
   const run = buttonsOf(one(f.target, "mail-stage"), "Propose")[0];
@@ -132,15 +144,14 @@ test("One Propose sends all listed mails in one job, and each proposal is shown 
   assert.equal(requestsOf(f.w, PROPOSE).length, 0, "a click a script makes does nothing");
   await propose(f.target);
   const sent = requestsOf(f.w, PROPOSE);
-  assert.equal(sent.length, 1, "one job for all listed mails");
-  assert.ok(promptOf(sent[0]).includes(f.one.id) && promptOf(sent[0]).includes(f.two.id));
+  assert.equal(sent.length, 1, "one job for the mail opened");
+  assert.ok(promptOf(sent[0]).includes(f.one.id) && !promptOf(sent[0]).includes(f.two.id));
   const first = f.item(f.one), second = f.item(f.two);
   assert.equal(one(first, "mail-title").value, "Export fails with E42");
   assert.match(one(first, "mail-body").value, /error E42 in version 1\.4/);
   assert.equal(one(first, "mail-kind").value, "defect");
   assert.equal(one(first, "mail-product").value, PRODUCT_URL);
-  assert.equal(one(second, "mail-title").value, "Add a dark theme");
-  assert.equal(one(second, "mail-kind").value, "change");
+  assert.equal(one(second, "mail-title").value, "", "the mail not opened gets no proposal");
   assert.match(textOf(one(first, "mail-duplicates")), /#3.*the same error/);
   assert.equal(byClass(second, "mail-duplicates").length === 0 || byClass(second, "mail-duplicates")[0].children.length === 0, true);
   assert.equal(f.w.kept.github.filter((request) => request.method === "POST" && /\/issues$/.test(request.path)).length, 0, "no issue is created by a proposal");
@@ -149,12 +160,12 @@ test("One Propose sends all listed mails in one job, and each proposal is shown 
 // TST-964004 · level: component · module: MOD-maintenance-pages
 // guards: A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; UC-038
 // given: the proposal for the second mail names the reporter's address in its text, the first does not
-// input: Propose
+// input: Propose for each mail opened
 // expect: the second mail shows a hit of the address and its Create issue is disabled; the first shows no hit and its Create issue is enabled
 test("A proposal whose text names a person of the mail is marked and cannot be created", async () => {
   const f = await setup();
   await choose(f.target, "local-llm");
-  await propose(f.target);
+  await proposeBoth(f);
   assert.ok(byClass(f.item(f.two), "mail-hit").length > 0);
   assert.equal(one(f.item(f.two), "create-issue").disabled, true);
   assert.equal(byClass(f.item(f.one), "mail-hit").length, 0);
@@ -187,7 +198,7 @@ test("An attachment reaches the participant only when ticked", async () => {
 // TST-964006 · level: component · module: MOD-maintenance-pages
 // guards: A GENERATED ARTIFACT IS A PROPOSAL; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; UC-038
 // given: the proposal for the first mail is of the kind `no issue`; the one for the second names a product that is not managed
-// input: Propose; then the person picks the managed product for the second mail
+// input: Propose for each mail opened; then the person picks the managed product for the second mail
 // expect: the first mail says no issue was found; the second says that no matching product was found and its Create issue is disabled although its title and text are filled; after the pick it is enabled
 test("A proposal without a managed product asks the person for it", async () => {
   const f = await setup({ answer: (request, { one: first, two }) => ({ draft: { proposals: [
@@ -195,7 +206,7 @@ test("A proposal without a managed product asks the person for it", async () => 
     { mail: two.id, product: "https://github.com/nobody/else", kind: "change", title: "Add a dark theme", text: "A dark theme is asked for.", duplicates: [] },
   ] }, answers: [] }) });
   await choose(f.target, "local-llm");
-  await propose(f.target);
+  await proposeBoth(f);
   assert.match(textOf(one(f.item(f.one), "mail-no-issue")), /no issue/i);
   const second = f.item(f.two);
   assert.match(textOf(one(second, "mail-no-product")), /no matching product/i);
@@ -266,7 +277,7 @@ test("With no participant at an allowed place nothing is sent and the mailbox's 
 // guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-038
 // given: the participant cli-agent, whose model the CLI session claude of the Bridge lab-pc-4 offers, at this machine
 // input: the agent chosen; Propose
-// expect: the run panel names the agent and this machine; the Bridge receives one ask for the agent claude holding both mails; no model endpoint is called for the proposals; the proposals are shown
+// expect: the run panel names the agent and this machine; the Bridge receives one ask for the agent claude holding the mail opened; no model endpoint is called for the proposals; the proposals are shown
 test("A CLI agent receives the job through the Bridge it names", async () => {
   const f = await setup({ rows: [AGENT, ...CHECKS], sessions: AGENT_SESSIONS });
   await choose(f.target, "cli-agent");
@@ -274,7 +285,7 @@ test("A CLI agent receives the job through the Bridge it names", async () => {
   await propose(f.target);
   assert.equal(f.w.kept.ask.length, 1);
   assert.equal(f.w.kept.ask[0].body.agent, "claude");
-  assert.ok(JSON.stringify(f.w.kept.ask[0].body).includes(f.one.id) && JSON.stringify(f.w.kept.ask[0].body).includes(f.two.id));
+  assert.ok(JSON.stringify(f.w.kept.ask[0].body).includes(f.one.id) && !JSON.stringify(f.w.kept.ask[0].body).includes(f.two.id));
   assert.equal(requestsOf(f.w, PROPOSE).length, 0);
   assert.equal(one(f.item(f.one), "mail-title").value, "Export fails with E42");
 });

@@ -754,6 +754,12 @@ export function startPromptBar(target, setup) {
   }
 
   // The label of the button for the one chosen now: *Spawn job* where it runs through GitHub Actions.
+  function prefill(event) {
+    if (state.stopped || typeof event?.detail !== "string") return;
+    input.value = event.detail;
+    input.focus?.();
+  }
+
   const relabel = () => {
     const label = offered.length > 0 && throughActions(chosen(), store) ? SPAWN : SEND;
     if (send.textContent !== label) send.replaceChildren(label);
@@ -822,6 +828,8 @@ export function startPromptBar(target, setup) {
     await judge();
     if (state.stopped) return;
     input.addEventListener("focus", () => judge().then(continuePlan).catch(() => {}));
+    // A page puts a prompt into the bar with the event `agent-m:prompt` (detail: the text): it stands in the input, focused, and nothing is sent until the person sends it.
+    globalThis.addEventListener?.("agent-m:prompt", prefill);
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
     // Clear conversation empties the tab's conversation and what the bar shows of the last message; while a message runs it does nothing — Stop ends that first.
@@ -886,6 +894,7 @@ export function startPromptBar(target, setup) {
 
   return {
     stop() {
+      globalThis.removeEventListener?.("agent-m:prompt", prefill);
       state.stopped = true;
       state.controller?.abort();
       for (const job of state.jobs.values()) job.follower?.stop();

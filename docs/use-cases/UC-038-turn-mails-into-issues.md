@@ -86,14 +86,13 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    decided: they get no proposal. A mail whose `In-Reply-To` or `References` names a listed mail is attached to that issue
    at once, without a participant — its identifier added to the issue — and shown there (UC-039).
 4. The mails are listed as a mail program lists its inbox — one line per mail with sender, subject and date,
-   the newest first, the undecided ones in bold —, visible only in this browser. The
-   author picks the participant for the proposals; Agent M offers only participants on a connection whose
+   the newest first, the undecided ones in bold —, visible only in this browser. The author opens an undecided mail
+   and picks the participant for its proposal; Agent M offers only participants on a connection whose
    processing place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
-   it receives: the mail text, the list of the instance's products with their one-line descriptions,
-   and the titles and numbers of their open issues. The author presses **Propose** — one
-   click for all undecided mails.
-5. For each undecided mail, the participant returns a proposal:
+   it receives: the text of the mail opened, the product chosen for it with its one-line description, its SPEC and
+   the titles and numbers of its open issues. The author presses **Propose** — one click for the mail opened.
+5. For the mail opened, the participant returns a proposal:
    - **product** — which managed product the mail concerns;
    - **kind** — *defect* (the product does not do what its SPEC says) or *change* (the reporter wants
      different behaviour), or *no issue* (a thank-you, an out-of-office reply, spam);
@@ -120,8 +119,9 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    labelled `defect` or `change`, listing the mail's `MAIL-` identifier; the issue names no reporter.
 9. On **Add to #n**, Agent M adds the mail's identifier to the list in issue #n. That reporter will also
    be answered when #n is closed (UC-039).
-10. For an issue of kind *change*, the dashboard offers **Propose SPEC change** (UC-012); a *defect*
-    goes to implementation directly.
+10. For an issue of kind *change*, the dashboard offers **Propose SPEC change**: one click puts the request to change
+    the requirements as the issue asks, with its number and title, into the prompt bar, where the author sends or changes
+    it (UC-049); a *defect* goes to implementation directly.
 
 ```mermaid
 sequenceDiagram
@@ -137,8 +137,8 @@ sequenceDiagram
     B-->>D: mails
     D->>I: read issues and the MAIL identifiers they list
     D->>I: attach replies in known threads
-    A->>D: choose participant, Propose
-    D->>P: mails, products, open issue titles
+    A->>D: open a mail, choose participant, Propose
+    D->>P: the mail, its product with its SPEC and open issue titles
     P-->>D: product, kind, neutral text, duplicates
     D->>D: search for this mail's people
     D->>P: rewrite report data without persons
