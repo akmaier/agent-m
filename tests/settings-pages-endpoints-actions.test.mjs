@@ -204,15 +204,17 @@ test("the job workflow's Set up GitHub Actions names the CI secret each of this 
 });
 
 // The instance's repository on GitHub, in memory, with Agent M's job workflow: a commit of a job's record is kept as the record of a job that has already run on CI and ended
-// `done`, its log the run RUN, whose log holds the answer "ok" between the answer's lines (MOD-workflow-entries). With `failing`, every read of the repository after the job's
-// workflow was started fails, as a server that gives no answer does.
+// `done`, its log the run RUN, whose log holds the answer "ok" between the answer's lines (MOD-workflow-entries) and, where `tested` is given, that endpoint's test as one
+// line of JSON between the test's lines. `starts` keeps the inputs of every started workflow. With `failing`, every read of the repository after the job's workflow was started
+// fails, as a server that gives no answer does.
 const RUN = "https://github.com/fixture/instance/actions/runs/77";
-function instanceWithJobWorkflow({ failing = false } = {}) {
+function instanceWithJobWorkflow({ failing = false, tested = null } = {}) {
   const repository = { server: "github", origin: "https://github.com", path: "fixture/instance", web: "https://github.com/fixture/instance" };
   const files = new Map([["docs/participants.md", PARTICIPANTS], ["SPEC.md", "# Spec\n"], ["AGENTS.md", "# Agents\n"], [".github/workflows/agent-m-jobs.yml", "name: agent-m-jobs\n"]]);
   let head = INSTANCE_COMMIT, made = 0, started = false, id = null;
+  const starts = [];
   const unreachable = () => { if (failing && started) throw new Error("Unreachable: the server gave no answer"); };
-  return { host: {
+  return { starts, host: {
     async repositoryInfo() { unreachable(); return { defaultBranch: "main", canWrite: true, visibility: "private", archived: false, description: "" }; },
     async readSnapshot(ref) { unreachable(); return { repository, ref, commit: head, paths: [...files.keys()], blob: (path) => (files.has(path) ? `${made}`.repeat(40).slice(0, 40) : null), async read(path) { return files.get(path) ?? null; }, async readMany() {} }; },
     async listPullRequests() { return []; },
@@ -228,9 +230,11 @@ function instanceWithJobWorkflow({ failing = false } = {}) {
       head = `${made}`.repeat(40).slice(0, 40);
       return { commit: head, url: `${repository.web}/commit/${head}` };
     },
-    async startWorkflow() { started = true; return null; },
+    async startWorkflow(workflow, ref, inputs) { started = true; starts.push(inputs); return null; },
     async listCiRuns() { unreachable(); return [{ id: 77, url: RUN, state: "done", started: null }]; },
-    async ciRunLog() { return `--- answer of ${id} ---\nok\n--- end of the answer of ${id} ---\n`; },
+    async ciRunLog() {
+      return `--- answer of ${id} ---\nok\n--- end of the answer of ${id} ---\n${tested ? `--- test of ${id} ---\n${JSON.stringify(tested)}\n--- end of the test of ${id} ---\n` : ""}`;
+    },
   } };
 }
 
@@ -244,12 +248,14 @@ function storeWithActionsEndpoint() {
   return store;
 }
 
+// What changed: the test job's run now sends MOD-endpoint-calls' testEndpoint and leaves its result in the log (MOD-settings-pages endpoints, as accepted): the last test is
+// recorded with `tools` from that test, false where the run left none — as this run, whose log holds no test, does —, where it was recorded with no `tools` before.
 // TST-1200205 · level: unit · module: MOD-settings-pages
 // guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
-// given: endpoint:nvidia, which runs through GitHub Actions, with a last test of 2026-01-01 that found it working and using tools; the instance's repository with the job workflow, where the test job runs and ends done with the answer "ok"; known positive: the line's status names the old test before Test
+// given: endpoint:nvidia, which runs through GitHub Actions, with a last test of 2026-01-01 that found it working and using tools; the instance's repository with the job workflow, where the test job runs and ends done with the answer "ok", its log holding no endpoint's test; known positive: the line's status names the old test before Test
 // input: Test on the endpoint's line of the Settings page
-// expect: once the test job has ended, the line on the page says "Works. Last successful test: <the new test's time>", not the old one, and its result names the answer; the last test kept is working with no `tools` — the test job offered the model no tool —, and neither the result nor the status says "text only"
-test("Test of an endpoint on GitHub Actions shows the new last test on its line once the test job has ended, and claims nothing of tools", async () => {
+// expect: once the test job has ended, the line on the page says "Works. Last successful test: <the new test's time>", not the old one, and its result names the answer and says "text only"; the last test kept is working with `tools` false — the run left no test —, and the result does not say "can use tools"
+test("Test of an endpoint on GitHub Actions shows the new last test on its line once the test job has ended, text only where the run left no test", async () => {
   const store = storeWithActionsEndpoint(), repo = instanceWithJobWorkflow();
   const page = document.createElement("div");
   await route("settings").render(page, { instance: { repository: "fixture/instance", host: repo.host }, product: null, store, go() {} }, {});
@@ -262,8 +268,53 @@ test("Test of an endpoint on GitHub Actions shows the new last test on its line 
   assert.equal(lastTest.outcome, "working");
   assert.equal(one(page, "settings-endpoint-status").textContent, `Runs through GitHub Actions with the CI secret NVIDIA_API_KEY. Works. Last successful test: ${lastTest.at}.`);
   assert.match(one(page, "settings-endpoint-result").textContent, /answered through GitHub Actions \(JOB-[^)]+\): ok/);
-  assert.equal("tools" in lastTest, false, `the test job reached no tool use: ${JSON.stringify(lastTest)}`);
-  for (const where of ["settings-endpoint-result", "settings-endpoint-status"]) assert.doesNotMatch(one(page, where).textContent, /text only/);
+  assert.equal(lastTest.tools, false, `the run left no test: ${JSON.stringify(lastTest)}`);
+  assert.match(one(page, "settings-endpoint-result").textContent, /text only/);
+  assert.doesNotMatch(one(page, "settings-endpoint-result").textContent, /can use tools/);
+});
+
+// The Settings page's endpoint line of storeWithActionsEndpoint, tested on the instance `repo`: the line's result once the test job has ended, and the last test kept.
+async function testedOnTheLine(repo) {
+  const store = storeWithActionsEndpoint();
+  const page = document.createElement("div");
+  await route("settings").render(page, { instance: { repository: "fixture/instance", host: repo.host }, product: null, store, go() {} }, {});
+  await click(one(page, "settings-endpoint-test"), true);
+  await until(() => readSetting(store, "last-test:endpoint:nvidia")?.at !== OLD_TEST.at, "the test job's end");
+  await until(() => true, "a turn");
+  return { result: one(page, "settings-endpoint-result"), lastTest: readSetting(store, "last-test:endpoint:nvidia") };
+}
+
+// TST-1200207 · level: unit · module: MOD-settings-pages
+// guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: endpoint:nvidia of TST-1200205, and its last test of 2026-01-01 cleared of tools by a run that left none (TST-1200205, the counter-proof); the instance's repository with the job workflow, whose test job's run leaves the answer "ok" and the test {"works":true,"model":"nvidia/nemotron-3-ultra-550b-a55b","tools":true,"toolMessage":null}
+// input: Test on the endpoint's line of the Settings page
+// expect: the test job's workflow is started with the input test "true"; the line's result names the answer and says "can use tools", not "text only"; the last test kept is working with `tools` true
+test("the test job of an endpoint on GitHub Actions is spawned with test, and the run's test says can use tools, recorded as its last test", async () => {
+  const repo = instanceWithJobWorkflow({ tested: { works: true, model: NVIDIA.model, tools: true, toolMessage: null } });
+  const { result, lastTest } = await testedOnTheLine(repo);
+  assert.equal(repo.starts.length, 1);
+  assert.equal(repo.starts[0].test, "true", JSON.stringify(repo.starts[0]));
+  assert.match(result.textContent, /answered through GitHub Actions \(JOB-[^)]+\): ok/);
+  assert.match(result.textContent, /can use tools/);
+  assert.doesNotMatch(result.textContent, /text only/);
+  assert.equal(lastTest.outcome, "working");
+  assert.equal(lastTest.tools, true);
+});
+
+// TST-1200208 · level: unit · module: MOD-settings-pages
+// guards: UC-003
+// given: endpoint:nvidia of TST-1200205; the instance's repository with the job workflow, whose test job's run leaves the answer "ok" and the test {"works":true,…,"tools":false,"toolMessage":"tools are not supported for this model"}
+// input: Test on the endpoint's line of the Settings page
+// expect: the line's result says "text only" and holds the endpoint's message folded — a details element whose text holds "tools are not supported for this model" —; the last test kept is working with `tools` false
+test("a run's test in which the model did not call the tool says text only, its message folded", async () => {
+  const repo = instanceWithJobWorkflow({ tested: { works: true, model: NVIDIA.model, tools: false, toolMessage: "tools are not supported for this model" } });
+  const { result, lastTest } = await testedOnTheLine(repo);
+  assert.match(result.textContent, /text only/);
+  const folded = descendants(result, (node) => node.localName === "details");
+  assert.equal(folded.length, 1, "the message is folded");
+  assert.match(folded[0].textContent, /tools are not supported for this model/);
+  assert.equal(lastTest.outcome, "working");
+  assert.equal(lastTest.tools, false);
 });
 
 // TST-1200206 · level: unit · module: MOD-settings-pages

@@ -118,10 +118,11 @@ export async function actionsLack({ participant, page, instance, store, snapshot
  * queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation }) -> Promise<{ id: string, path: string, commit: string, person: string }> — prepares the job of
  * the kind the participant named, with the task as its instruction, and hands it over on the route `assessment` found, as the person's commit on the head `assessment` read
  * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. `source` is the bar's source, the person's account, or undefined where it has none.
- * A piece of a plan (`piece`, the default) is prepared with `refuses` naming hand-over, so that its job hands nothing on; the endpoint's own job that Spawn job spawns is none. Throws NoToken when no token that writes to the page's repository is stored,
+ * A piece of a plan (`piece`, the default) is prepared with `refuses` naming hand-over, so that its job hands nothing on; the endpoint's own job that Spawn job spawns is none. `test` is handed to
+ * handOverJob as `target.test`, for the test job of an endpoint. Throws NoToken when no token that writes to the page's repository is stored,
  * what prepareJob throws, and what handOverJob throws — NotStartable { findings } among it, with nothing written.
  */
-export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source, piece = true }) {
+export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source, piece = true, test = false }) {
   const { snapshot, route, instanceSnapshot, participants } = assessment;
   const person = personOf(store, snapshot, ofProduct, instanceSnapshot);
   if (person === null) throw Object.assign(new Error("no token that writes to this repository is stored in this browser"), { name: "NoToken" });
@@ -145,25 +146,26 @@ export async function queue({ handOver, participant, assessment, store, instance
   const { endpoints, bridges } = connectionsOf(participant, store);
   const endpoint = endpoints[/^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1]]?.config ?? null;
   const target = { endpoint: route.kind === "ci" && endpoint ? { kind: endpoint.kind, baseUrl: endpoint.baseUrl, model: endpoint.model } : null,
-    bridge: route.kind === "bridge" ? bridges[route.bridge] ?? null : null };
+    bridge: route.kind === "bridge" ? bridges[route.bridge] ?? null : null, ...(test ? { test: true } : {}) };
   const queued = await handOverJob(prepared, route, start, page.host, assessment.head, handOver.task, target);
   return { id, ...queued, person };
 }
 
 /**
- * spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot? }) -> Promise<{ id, path, commit, person } | { refused: string,
+ * spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot?, test? }) -> Promise<{ id, path, commit, person } | { refused: string,
  * needsWorkflow: boolean }> — the job that is a model endpoint's own (UC-049 4a.1, "for any other kind, the job is the endpoint's own"), spawned on GitHub Actions on a person's click: the job of
  * `kind`, working on the page's repository, by the web address of the snapshot that was read, with `task` travelling in the workflow's inputs, assessed and queued as a proposed hand-over is (assess,
  * queue), on the server's own runners. None of the product's facts is read: of the product, only its default branch — its head, its paths, its visibility. `instanceSnapshot` is the instance's default branch where the caller read it already. `participant` is the endpoint as the bar offers it (offer.mjs endpointsOffered), its route naming the CI secret of its key. Where
  * no CI route can be taken — the product has no job workflow, or the endpoint names no CI secret — nothing is written and `refused` says why, `needsWorkflow` whether the
- * job workflow is what is missing (UC-049 4c). Throws what queue throws.
+ * job workflow is what is missing (UC-049 4c). With `test`, the settings page's test job of the endpoint, the workflow is started with the input `test` beside the others (MOD-runtimes'
+ * handOverJob). Throws what queue throws.
  */
-export async function spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation = null, source, instanceSnapshot = null }) {
+export async function spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation = null, source, instanceSnapshot = null, test = false }) {
   const assessment = await assess({ handOver: { kind, works_on: [], task }, participant, instance, page, instanceSnapshot });
   if (assessment.route === null || assessment.route.kind !== "ci") {
     return { refused: assessment.route === null ? assessment.routeText : "the endpoint's route is not GitHub Actions", needsWorkflow: assessment.needsWorkflow };
   }
   // It works on the repository the page is held on, by its web address as the snapshot that was read names it.
   const handOver = { kind, works_on: [assessment.snapshot.repository.web], task };
-  return queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source, piece: false });
+  return queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source, piece: false, test });
 }
