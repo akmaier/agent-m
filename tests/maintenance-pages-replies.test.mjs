@@ -27,6 +27,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { mailStrategies } from "../src/mail-handling/index.mjs";
+import { writeSetting } from "../src/browser-store/index.mjs";
 import { readFileSync } from "node:fs";
 import { BRIDGE, ERIKA, SECRET, PRODUCT_URL, buttonsOf, byClass, flush, itemOf, one, opened, pages, read, restoreNet, restoreWorld, route, standard, start, textOf, trusted, waitFor, walk, issuesIn, world } from "./maintenance-pages-world.mjs";
 
@@ -307,3 +308,18 @@ test("the replies page writes no address #replies/…: the frame writes it from 
   assert.equal(HAND_WRITTEN.test("link(`#replies/issue=${each.issue}`, \"issue-link\", \"Open\")"), true, "counter-proof: a source line that writes one is found");
 });
 
+
+// TST-966030 · level: unit · module: MOD-maintenance-pages
+// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-039
+// given: a mailbox that allows the place "this machine"; the register of the world; this browser's endpoint GPT-OSS-120B at this machine and its endpoint far-llm in the USA, each declaring a place, a context and a model
+// input: the issue 4 drawn
+// expect: Draft replies offers local-llm and GPT-OSS-120B, and not far-llm; counter-proof: with the register's participants only, as before, GPT-OSS-120B is missing and the case fails
+test("Draft replies offers the endpoints the prompt bar offers from this browser, at the places the mailbox allows", async () => {
+  const first = await start();
+  await read(first.target);
+  writeSetting(first.w.context.store, "endpoint:GPT-OSS-120B", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "gpt-oss-120b", key: "k1", place: "this machine", context: 131072 });
+  writeSetting(first.w.context.store, "endpoint:far-llm", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "far-model", key: "k2", place: "a provider in the USA", context: 131072 });
+  const detail = await opened(first.w, { issue: "4", product: PRODUCT_URL });
+  await waitFor(() => byClass(detail, "reply-participant").length > 0);
+  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm", "GPT-OSS-120B"]);
+});
