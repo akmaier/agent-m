@@ -16,19 +16,15 @@ recipes:
   - draft?
   - issue-context?
   - named-requirements
-  - spec-with-queues
   - requirement-hierarchy
   - chapters-for-requirements
 checks:
   - requirement-form
-  - candidate-classes
-  - candidate-places
 person_decides:
-  - A CONFLICT IS DECIDED BY A PERSON
 steps:
 gate_points:
 review: person
-writer: queue-entries
+writer: spec-edits
 limit: 5
 tools:
   - list-files
@@ -39,6 +35,5 @@ tool_limit: 30
 ---
 ## Purpose
 
-Changes the requirements a person names by their instruction, against every requirement of the product, each resulting
-requirement classed as new, a change, a duplicate or a conflict, under the same rules as a derivation. A job takes the parameter `source`: the account `<server>/<account>` of the
-person who starts it, which every requirement it returns names among its sources. A job started from an issue takes the parameter `issue`, that issue's number: its recipe `issue-context?` gives the issue with what it touches, and the queue it writes names the issue as its origin.
+Changes the requirements a person names by their instruction and returns the new text of what it changes, as a person writes it in the editor: each SPEC section, each open entry's proposal, and `docs/groups/requirements.md`, with why. A job takes the parameter `source`: the account `<server>/<account>` of the
+person who starts it, which every requirement it adds or changes names among its sources. A job started from an issue takes the parameter `issue`, that issue's number: its recipe `issue-context?` gives the issue with what it touches, and the queue it writes names the issue as its origin.

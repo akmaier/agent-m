@@ -1,14 +1,14 @@
 // Specification and design, its three modules together with the strategies that draft their artifacts (ITM-369) — the kinds `derive-use-cases`, `change-use-case` and
 // `change-requirements` of the catalogue, prepared and run through MOD-job-runner's prepareJob, runJob and writeResult with the strategies of MOD-approvals (use-cases,
-// use-case-with-neighbours, rests-on-accepted), MOD-spec-changes (chosen-requirements, named-requirements, spec-with-queues, the writer queue-entries) and MOD-artifact-edits
-// (identifier-kept, the writer open-files), MOD-source-register's chapter recipe and the runner's built-in checks (document-schema, graph-checks, requirement-form, candidate-classes),
+// use-case-with-neighbours, rests-on-accepted), MOD-spec-changes (chosen-requirements, named-requirements, the writer spec-edits) and MOD-artifact-edits
+// (identifier-kept, the writer open-files), MOD-source-register's chapter recipe and the runner's built-in checks (document-schema, graph-checks, requirement-form),
 // a fixture participant and a fixture repository host: from the parts each recipe gives, through the finding sent back and fixed, to the writer's commit with its provenance lines.
 // Run: node --test tests/specification-and-design-drafting-together.test.mjs
 //
 // Module: MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // Level: component
 // Guards: UC-007; UC-019; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A SPEC EDIT IS SAVED AS A PROPOSAL
-// Guards: A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
+// Guards: THE PERSON WHO PROMPTS IS A SOURCE; A CI AGENT'S DRAFT ENTERS AS OPEN
 //
 // Written from UC-007, UC-019, ARC-041 and the three module files, not from the code, and with the use cases' own example data: the requirement EXPORT IS A PDF, the unknown name
 // EXPORT AS PDF of UC-007 step 5 and UC-019 step 7, the instruction "add error handling to UC-007", the changed identifier UC-043, and the restated requirement classed new.
@@ -367,37 +367,30 @@ const QUEUED = { ...PRODUCT,
     "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", "| 01 | `SPEC.md` | ## 3. Export | — | — |"),
   [`${OPEN_QUEUE}/entscheidungen.md`]: text("# Decisions — queue 2026-10-10 pdf-a", "", "Append-only."),
   [`${OPEN_QUEUE}/01-export.md`]: OPEN_ENTRY, [`${OPEN_QUEUE}/01-export.begruendung.md`]: "# 3. Export: an archive export\n" };
-const candidate = (fields) => ({ name: EXPORT, rule: EXPORT_RULE, check: "`tests/export.test.mjs`", constrains: "product", passage: "§3 of the instruction", class: "new", of: null,
-  source: "SRC-alice", ...fields });
+// The section 3. Export as the drafter returns it: EXPORT IS A PDF's rule changed, `source` its sources, or the Product Owner alone.
+const drafted = (source) => SECTION.replace(`**${EXPORT}** *(Product Owner)*\n${EXPORT_RULE}`, `**${EXPORT}** *(Product Owner${source ? `; ${source}` : ""})*\nA report can be exported as one PDF file.`);
 
-// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
-// TST-476062 · level: component · module: MOD-spec-changes
-// guards: UC-019; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A SPEC EDIT IS SAVED AS A PROPOSAL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
-// given: the product with its SPEC and an open queue holding a proposal EXPORT IS A PDF/A; the instruction; the author's own source SRC-alice, which the product links; a drafter that first returns the requirement EXPORT IS A PDF restated word for word and classed new, then that class corrected to a duplicate of EXPORT IS A PDF
+// TST-476065 · level: component · module: MOD-spec-changes
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE; A SPEC EDIT IS SAVED AS A PROPOSAL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+// given: the product with its SPEC and an open queue proposing EXPORT IS A PDF/A; the instruction; the person's source SRC-alice; a drafter that first returns the section 3. Export with EXPORT IS A PDF's rule changed and without the source, then with it
 // input: prepareJob of change-requirements for EXPORT IS A PDF and A REPORT HAS A TITLE; runJob attended; then writeResult
-// expect: parts: the instruction, each named requirement with its whole section byte for byte, the SPEC with its open queue as one part carrying all three requirements as artifacts — the queue's with the state open —, chapter 8; the first round's finding that EXPORT IS A PDF restates the existing requirement but is classed new [EXACT DUPLICATES ARE FOUND WITHOUT A MODEL] with the fix class it as duplicate of EXPORT IS A PDF, sent back with the draft; passed in two rounds, the class a duplicate of EXPORT IS A PDF; nothing written until the click; the click writes one commit holding a new queue under docs/spec-freigaben/ — index, decisions, an entry for the section and its rationale — and no other file: SPEC.md byte-identical, the entry's section the SPEC's own with the source SRC-alice added to EXPORT IS A PDF and no new requirement; the message ending with the provenance lines with the instruction
-test("change-requirements — a restated requirement classed new is sent back, the duplicate adds a source in a queue entry, SPEC.md stays", async () => {
+// expect: parts: the instruction, each named requirement with its whole section byte for byte, chapter 8, and no part of spec-with-queues; the first round's finding that EXPORT IS A PDF does not name SRC-alice [THE PERSON WHO PROMPTS IS A SOURCE], sent back with the draft; passed in two rounds; nothing written until the click; the click writes one commit holding a new queue under docs/spec-freigaben/export/ whose entry is the drafted section byte for byte; SPEC.md byte-identical; the message ending with the provenance lines
+test("change-requirements — a drafted section that does not name the person's source is sent back, and the section is written as a queue entry", async () => {
   const fake = product(QUEUED);
   const { job, context } = await prepare("change-requirements", fake, { requirements: [EXPORT, TITLE], source: "SRC-alice", instruction: REQUIREMENTS_INSTRUCTION });
 
   assert.deepEqual(job.blocking, []);
-  assert.deepEqual(job.parts.map((part) => part.recipe), ["instruction", "named-requirements", "named-requirements", "spec-with-queues", "chapters-for-requirements"]);
+  assert.deepEqual(job.parts.map((part) => part.recipe), ["instruction", "named-requirements", "named-requirements", "chapters-for-requirements"]);
   assert.deepEqual(job.parts.filter((part) => part.recipe === "named-requirements").map((part) => [part.name, part.text]), [[EXPORT, SECTION], [TITLE, SECTION]]);
-  const [withQueues] = job.parts.filter((part) => part.recipe === "spec-with-queues");
-  assert.deepEqual(withQueues.artifacts.map((artifact) => artifact.id), [EXPORT, TITLE, "EXPORT IS A PDF/A"]);
-  assert.ok(withQueues.text.includes("State: open") && withQueues.text.includes("A report can be exported as a PDF/A file."), withQueues.text);
 
-  const drafter = driver([answer({ candidates: [candidate({})] }), answer({ candidates: [candidate({ class: "duplicate", of: EXPORT })] })]);
+  const drafter = driver([answer({ sections: [drafted(null)], why: REQUIREMENTS_INSTRUCTION }), answer({ sections: [drafted("SRC-alice")], why: REQUIREMENTS_INSTRUCTION })]);
   const result = await runJob(job, { drafter, reviewers: [] }, { attended: true, context });
 
   assert.equal(result.stoppedBecause, "passed");
-  const duplicate = result.rounds[0].findings.filter((f) => f.rule === "EXACT DUPLICATES ARE FOUND WITHOUT A MODEL");
-  assert.equal(duplicate.length, 1);
-  assert.ok(duplicate[0].what.includes(EXPORT) && duplicate[0].fix.includes(`class it as duplicate of ${EXPORT}`), lineOf(duplicate[0]));
-  assert.deepEqual(drafter.inputs[1].findings.map(lineOf), duplicate.map(lineOf));
-  assert.equal(JSON.parse(drafter.inputs[1].previous).candidates[0].class, "new", "with the draft it concerns");
+  const missing = result.rounds[0].findings.filter((f) => f.rule === "THE PERSON WHO PROMPTS IS A SOURCE");
+  assert.deepEqual(missing.map((f) => f.artifact), [EXPORT]);
+  assert.deepEqual(drafter.inputs[1].findings.map(lineOf), result.rounds[0].findings.map(lineOf));
   assert.deepEqual(result.rounds[1].findings, []);
-  assert.deepEqual(result.classes.map((each) => [each.refs[0], each.class, each.of]), [[EXPORT, "duplicate", EXPORT]]);
   assert.equal(fake.writes.length, 0, "nothing is written before the click");
 
   await writeResult(job, result.draft, { result, context });
@@ -405,55 +398,25 @@ test("change-requirements — a restated requirement classed new is sent back, t
   assert.equal(fake.writes.length, 1, "one commit");
   const files = Object.fromEntries(fake.writes[0].files.map((file) => [file.path, file.text]));
   assert.ok(Object.keys(files).every((path) => path.startsWith("docs/spec-freigaben/export/")), Object.keys(files).join(", "));
-  assert.ok(Object.keys(files).some((path) => path.endsWith("/index.md")) && Object.keys(files).some((path) => path.endsWith("/entscheidungen.md")));
   assert.equal(fake.files()["SPEC.md"], SPEC, "SPEC.md is byte-identical");
-  const proposal = Object.entries(files).find(([path]) => /\/01-[^/]*\.md$/.test(path) && !path.endsWith(".begruendung.md"))[1];
-  assert.ok(proposal.startsWith("## 3. Export\n"));
-  assert.ok(/\*\*EXPORT IS A PDF\*\* \*\(Product Owner[^)]*SRC-alice[^)]*\)\*/.test(proposal), `the source SRC-alice added to EXPORT IS A PDF:\n${proposal}`);
-  assert.equal(proposal.replace(/\*\*EXPORT IS A PDF\*\* \*\([^)]*\)\*/, `**${EXPORT}** *(Product Owner)*`), SECTION, "every other byte of the section as it was");
+  assert.equal(files["docs/spec-freigaben/export/01-export.md"], drafted("SRC-alice"));
   assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 2));
 });
 
-// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
-// TST-476063 · level: component · module: MOD-spec-changes
-// guards: UC-019; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A SPEC EDIT IS SAVED AS A PROPOSAL
-// given: the same job; a drafter that returns, at once, A REPORT HAS A TITLE with a new rule under its existing name, classed a change of A REPORT HAS A TITLE (the prompt asks for a change to "keep that name")
-// input: runJob attended; writeResult
-// expect: the loop passes in one round — a change keeps the name of the requirement it changes, so the name alone is no finding —; the click writes a queue entry whose section holds the new rule under the existing name; SPEC.md byte-identical
-test("change-requirements — a change under the existing name passes the loop and is written as a queue entry", { todo: "FINDING ITM-369-1 — classifyCandidates (src/documents/candidates.mjs) takes a name that equals an existing requirement's as an exact duplicate, whatever class was proposed: candidate-classes (src/job-runner/builtins.mjs) sends every change back with 'class it as duplicate of <its own name>', and the writer composes a duplicate (a source added) not the new rule, so no change under the existing name can pass the loop or be written; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL (name or rule) and A CHANGE IS PROPOSED UNDER THE EXISTING NAME cannot both hold" }, async () => {
-  const fake = product(QUEUED);
-  const { job, context } = await prepare("change-requirements", fake, { requirements: [TITLE], source: "SRC-alice", instruction: REQUIREMENTS_INSTRUCTION });
-  const change = candidate({ name: TITLE, rule: "Every report shows its title on the first page.", check: "no automatic check; at review", class: "change", of: TITLE });
-  const result = await runJob(job, { drafter: driver([1, 2, 3, 4, 5].map(() => answer({ candidates: [change] }))), reviewers: [] }, { attended: true, context });
-
-  assert.equal(result.stoppedBecause, "passed", JSON.stringify(result.rounds.map((round) => round.findings.map(lineOf))));
-  assert.equal(result.rounds.length, 1);
-  await writeResult(job, result.draft, { result, context });
-  assert.equal(fake.writes.length, 1);
-  const proposal = fake.writes[0].files.find((file) => /\/01-[^/]*\.md$/.test(file.path) && !file.path.endsWith(".begruendung.md")).text;
-  assert.ok(proposal.includes(`**${TITLE}**`) && proposal.includes("Every report shows its title on the first page."));
-  assert.ok(!proposal.includes(TITLE_RULE));
-  assert.equal(fake.files()["SPEC.md"], SPEC);
-});
-
-// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
-// TST-476064 · level: component · module: MOD-spec-changes
-// guards: UC-019; A CI AGENT'S DRAFT ENTERS AS OPEN; A SPEC EDIT IS SAVED AS A PROPOSAL; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
-// given: the same job run as a CI agent's — not attended — with a drafter that answers at once the duplicate of EXPORT IS A PDF with the author's source, and a new requirement that points to a source the product does not link
+// TST-476066 · level: component · module: MOD-spec-changes
+// guards: UC-019 6b; A CI AGENT'S DRAFT ENTERS AS OPEN; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: the same job run as a CI agent's — not attended — with a drafter that answers at once the section with the person's source
 // input: runJob
-// expect: the writer commits at once a new queue and nothing else, SPEC.md byte-identical; the new requirement that points to SRC-unlinked is not written and the outcome's notes name it with that source
-test("change-requirements — a CI agent's draft enters as a queue, and a candidate from a source the product does not link is not written", async () => {
+// expect: the writer commits at once one queue entry and nothing else; SPEC.md byte-identical; the provenance lines of one round
+test("change-requirements — a CI agent's drafted section enters as a queue entry", async () => {
   const fake = product(QUEUED);
   const { job, context } = await prepare("change-requirements", fake, { requirements: [EXPORT], source: "SRC-alice", instruction: REQUIREMENTS_INSTRUCTION });
-  const duplicate = candidate({ class: "duplicate", of: EXPORT });
-  const stranger = candidate({ name: "A REPORT HAS A FOOTER", rule: "Every report shows a footer.", check: "no automatic check; at review", source: "SRC-unlinked" });
-  const result = await runJob(job, { drafter: driver([answer({ candidates: [duplicate, stranger] })]), reviewers: [] }, { attended: false, context });
+  const result = await runJob(job, { drafter: driver([answer({ sections: [drafted("SRC-alice")], why: REQUIREMENTS_INSTRUCTION })]), reviewers: [] }, { attended: false, context });
 
   assert.equal(result.stoppedBecause, "passed");
   assert.equal(fake.writes.length, 1);
   assert.ok(fake.writes[0].files.every((file) => file.path.startsWith("docs/spec-freigaben/")));
   assert.equal(fake.files()["SPEC.md"], SPEC);
-  assert.ok(fake.writes[0].files.every((file) => !file.text.includes("A REPORT HAS A FOOTER")), "the stranger is not written");
-  assert.ok(result.written.notes.some((note) => note.includes("A REPORT HAS A FOOTER") && note.includes("SRC-unlinked")), result.written.notes.join("|"));
+  assert.deepEqual(result.written.notes, []);
   assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 1));
 });

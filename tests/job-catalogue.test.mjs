@@ -34,7 +34,7 @@ const ONE_DEFINITION = "ONE DEFINITION, THREE DRIVERS";
 // the draft it expects. A ~ stands where the module file writes a backtick.
 const TABLE_TEXT = `
 | ~derive-requirements~ | UC-005 | draft text | | ~instruction?~, ~source-excerpt~, ~spec-with-queues~, ~requirement-hierarchy~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~, ~candidate-places~ | | | ~person~ · ~queue-entries~ | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class, and, for a new one, its place |
-| ~change-requirements~ | UC-019, UC-012, UC-049 | draft text | ~person-source~ | ~instruction~, ~conversation~, ~draft?~, ~issue-context?~, ~named-requirements~, ~spec-with-queues~, ~requirement-hierarchy~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~, ~candidate-places~ | | | ~person~ · ~queue-entries~ | the same |
+| ~change-requirements~ | UC-019, UC-012, UC-049 | draft text | ~person-source~ | ~instruction~, ~conversation~, ~draft?~, ~issue-context?~, ~named-requirements~, ~requirement-hierarchy~, ~chapters-for-requirements~ | ~requirement-form~ | | | ~person~ · ~spec-edits~ | the texts it changes, with why |
 | ~derive-use-cases~ | UC-007 | draft text | ~rests-on-accepted~ | ~instruction?~, ~chosen-requirements~, ~use-cases~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | | | ~none~ · ~open-files~ | files |
 | ~change-use-case~ | UC-019, UC-049 | draft text | | ~instruction~, ~conversation~, ~draft?~, ~use-case-with-neighbours~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~identifier-kept~ | | | ~person~ · ~open-files~ | files |
 | ~derive-architecture~ | UC-022 | draft text | ~architecture-ready~ | ~instruction?~, ~whole-spec~, ~accepted-use-cases~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
@@ -83,7 +83,7 @@ const TABLE = TABLE_TEXT.trim().split("\n").map((line) => {
 const PRODUCT_RESOURCES = ["implement", "refactor", "fix-bug", "write-tests", "run-tests"];
 const MERGE_AND_QUESTION = ["implement", "refactor", "fix-bug"];
 const MERGE_ONLY = ["write-tests"];
-const PERSON_DECIDES = ["derive-requirements", "change-requirements", "derive-architecture", "change-architecture"];
+const PERSON_DECIDES = ["derive-requirements", "derive-architecture", "change-architecture"];
 
 // The kinds whose prompt holds the named place {{draft}}, stated here: the three change kinds take the conversation's draft as it
 // stands; review-architecture, write-tests and check-for-persons take the draft under review, the cases, the text to check.

@@ -7,7 +7,7 @@
 The cases live in tests/test_issue_to_spec.md. This file only loads them and asks node to open the real page of an issue (route `issue` of
 MOD-maintenance-pages, over MOD-issue-handling, MOD-job-runner, MOD-spec-changes and MOD-repository-hosts) in the world of
 tests/maintenance-pages-world.mjs: a fake GitHub holding the issues of the product alice/product and taking the git commits made to it, and a fake
-model endpoint that answers with the candidates of the case. A case's steps are the person's clicks (`class`: the class of the issue; `draft`: a
+model endpoint that answers with the draft of the case. A case's steps are the person's clicks (`class`: the class of the issue; `draft`: a
 participant, a name, Run, Save). The check then states what the product's repository holds and what the page offers: the writes made to the issue, the
 paths committed to the product, the files of a queue and the issue it names, the kinds of the jobs that were started, and which sections of the page
 are shown. A path committed outside docs/ is code, a test or SPEC.md itself.
@@ -38,7 +38,7 @@ GITLAB = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - on a GitLab server"
 GITLAB_QUEUE = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is written as a queue on a GitLab server"
 
 # The adapter. `input`: `server` (`gitlab` makes the product the project space/release-tool on a fake GitLab server, any other value the product alice/product on the fake GitHub; `issues` then holds the one issue), `issues` (the number and the labels of each issue of the product), `issue` (the number of the page opened), `steps` (`class`: a click on
-# Change or Bug; `draft`: the participant drafts the change and the person saves it), `candidates` (what the participant answers). The value is what the case may state:
+# Change or Bug; `draft`: the participant drafts the change and the person saves it), `draft` (what the participant answers: the texts it changes, with why). The value is what the case may state:
 # `labels` (the labels of the issue at the end), `state` (its state), `issueWrites` (the writes made to the issue, sorted), `committed` (the paths committed to the product,
 # sorted), `outsideDocs` (those that do not lie under docs/), `queueNames` (the issue named by the line `**Issue:** #<number> of <product address>` in the rationale of each entry under docs/spec-freigaben/, as MOD-spec-changes, Data, gives it), `queueHolds` (each of the
 # case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), `changeSection` and `fixSection` (whether the page shows the section that drafts the change
@@ -125,7 +125,7 @@ function gitlabServer(files, held) {
 }
 
 const issues = input.issues.map(({ number, labels }) => ({ number, title: `Export loses pages ${number}`, body: ISSUE_BODY, state: "open", labels, comments: [] }));
-const w = worldOf.world({ mails: [], issues, answer: () => ({ draft: { candidates: input.candidates }, answers: [] }),
+const w = worldOf.world({ mails: [], issues, answer: () => ({ draft: input.draft ?? { why: "no change" }, answers: [] }),
   product: { "docs/sources.md": LINKS }, instance: { ...BOOK, "SPEC.md": onDisk("SPEC.md"), [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE } });
 w.context.product = { address: harness.PRODUCT_URL, kind: "github", host: hosts.connect(hosts.parseAddress(harness.PRODUCT_URL), { token: PRODUCT_TOKEN }), tokenStored: true };
 const gitlab = input.server === "gitlab" ? gitlabServer({ ...harness.smallProduct(), "docs/sources.md": LINKS }, issues.find((each) => each.number === input.issue)) : null;
@@ -147,7 +147,7 @@ for (const step of input.steps) {
     radio.dispatchEvent(new Event("change"));
     await waitFor(() => byClass(change, "run-panel").length > 0 || byClass(change, "issue-problem").length > 0);
     await trusted(buttonsOf(one(change, "run-panel"), "Run")[0]);
-    await waitFor(() => byClass(change, "candidate").length > 0 || byClass(change, "issue-problem").length > 0);
+    await waitFor(() => byClass(change, "changed-text").length > 0 || byClass(change, "issue-problem").length > 0);
     await trusted(buttonsOf(change, "Save")[0]);
     await waitFor(() => byClass(change, "change-saved").length > 0 || byClass(change, "issue-problem").length > 0);
     if (byClass(change, "issue-problem").length) throw new Error("the change could not be drafted: " + textOf(change));

@@ -1,6 +1,6 @@
 // A change from an issue is drafted and saved as a queue naming the issue (ITM-584) — MOD-maintenance-pages' route `issue/<number>` over MOD-issue-handling's recipe `issue-context` and MOD-job-catalogue's kind `change-requirements`, as the accepted text of
-// docs/architecture/MOD-maintenance-pages.md (:117-126) states it: "for a change, the change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates shown by class beside the requirements they refer to and every conflict
-// decided by the person, then *Save*, which writes them as a change queue naming the issue — the job of `change-requirements` given the issue's number as its parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
+// docs/architecture/MOD-maintenance-pages.md states it: "for a change, the change of requirements drafted with the issue as its origin, run attended, each text it changes shown against the
+// text it replaces, then *Save*, which writes them as the kind's writer does, naming the issue — the job of `change-requirements` given the issue's number as its parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
 // instance's snapshot, or, where it gives none, what its precondition names as required"; UC-012 step 6 and its second postcondition.
 // Run: node --test tests/maintenance-pages-save-584.test.mjs
 //
@@ -13,7 +13,7 @@
 //   - The change is drafted and saved in a section of the issue's page, <section class="issue-change">, shown for an issue whose class is change — by its label, or by the person's click on Change — and for no other class. It has what the analysis has under its own class names: <input class="change-participant">
 //     (radio) for each participant that declares draft text, <input class="change-person">, and, once both are given, the run panel of the kind change-requirements; Run is the person's click.
 //   - The job's parameters are `issue` (the number) and `source` (the person's account, github.com/alice); the job's prompt carries the part of the issue-context recipe. The account needs no register entry and no link.
-//   - After Run the candidates are listed as <li class="candidate" data-class="new|change|duplicate|conflict"> and <button class="save-change"> "Save" is offered; Save is the person's click (`isTrusted`) and writes through the writer of the kind, MOD-job-runner's writeResult, as <p class="change-saved">.
+//   - After Run each text the draft changes is <section class="changed-text"> with its difference against the text it replaces, and <button class="save-change"> "Save" is offered; Save is the person's click (`isTrusted`) and writes through the writer of the kind, MOD-job-runner's writeResult, as <p class="change-saved">.
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -54,12 +54,15 @@ const WITH_SOURCE = { product: { "docs/sources.md": LINKS }, instance: { ...SPEC
 const WITHOUT_LINK = { instance: { ...SPEC, ...BOOK, ...PERSON } };
 const WITHOUT_ANY = { instance: { ...SPEC, ...BOOK } };
 
-const CANDIDATE = { name: "EVERY EXPORT KEEPS ALL PAGES", rule: "An export holds every page of the document.", check: "tests/unit.test.mjs", constrains: "product", passage: "the export is cut off after the second page", class: "new" };
-const CONFLICT = { name: "THE EXPORT MAY DROP PAGES", rule: "An export may drop pages.", check: "tests/unit.test.mjs", constrains: "product", passage: "the export is cut off", class: "conflict" };
+// The drafted section 1. Section of the product's SPEC (tests/main-page-home-harness.mjs), with a requirement added that names the person's account.
+const SECTION = lines("## 1. Section", "", "**FIRST RULE** *(Product Owner)*", "The first rule holds.", "*Check:* `tests/unit.test.mjs`", "",
+  "**SECOND RULE** *(Product Owner)*", "The second rule holds.", "*Check:* no automatic check; at review.", "",
+  "**EVERY EXPORT KEEPS ALL PAGES** *(github.com/alice)*", "An export holds every page of the document.", "*Check:* `tests/unit.test.mjs`");
+const DRAFT = { sections: [SECTION], why: "The export is cut off after the second page." };
 
 /** The world with the product chosen. */
 function start(over = {}) {
-  const w = world({ mails: [], issues: ISSUES, answer: () => ({ draft: { candidates: [CANDIDATE, CONFLICT] }, answers: [] }), ...over });
+  const w = world({ mails: [], issues: ISSUES, answer: () => ({ draft: DRAFT, answers: [] }), ...over });
   w.context.product = { address: PRODUCT_URL, kind: "github", host: connect(parseAddress(PRODUCT_URL), { token: PRODUCT_TOKEN }), tokenStored: true };
   return w;
 }
@@ -88,22 +91,23 @@ const queueFiles = (w) => writtenFiles(w).filter((entry) => entry.path.startsWit
 
 // TST-584101 · level: component · module: MOD-maintenance-pages, MOD-issue-handling, MOD-job-catalogue
 // guards: UC-012; EVERY ARTIFACT NAMES ITS ORIGIN; THE PERSON WHO PROMPTS IS A SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: known positive first — the issue 7 labelled change; the product links the source SRC-alice, whose register entry in the instance is of the account github.com/alice, the account of the instance's owner; the participant answers a new candidate
+// given: known positive first — the issue 7 labelled change; the product links the source SRC-alice, whose register entry in the instance is of the account github.com/alice, the account of the instance's owner; the participant answers the section 1. Section with a requirement added
 // input: the route issue 7; a participant and a name; Run by a person; Save by a script and then by a person
-// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; the candidate is listed by class, the new one; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source github.com/alice, the person's account
+// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; the drafted section is shown against the section it replaces, the added requirement marked; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source github.com/alice, the person's account
 test("issue — Save runs change-requirements with the issue and the person's source and writes a queue naming the issue", async () => {
-  const w = start({ ...WITH_SOURCE, answer: () => ({ draft: { candidates: [CANDIDATE] }, answers: [] }) });
+  const w = start({ ...WITH_SOURCE });
   const detail = await ready(w);
   const panel = one(changeOf(detail), "run-panel");
   assert.equal(byClass(panel, "blocking").length, 0, "nothing blocks the job");
   await trusted(buttonsOf(panel, "Run")[0]);
-  await waitFor(() => byClass(changeOf(detail), "candidate").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
+  await waitFor(() => byClass(changeOf(detail), "changed-text").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
   assert.equal(byClass(changeOf(detail), "issue-problem").length, 0, textOf(changeOf(detail)));
   assert.ok(w.kept.endpoint.length >= 1, "the participant was asked");
   const sent = JSON.stringify(w.kept.endpoint[0].body);
   assert.ok(sent.includes("Export loses pages 7") && sent.includes("the export is cut off after the second page"), "the prompt carries the issue's part");
-  assert.deepEqual(byClass(changeOf(detail), "candidate").map((node) => node.getAttribute("data-class")), ["new"]);
-  assert.ok(textOf(byClass(changeOf(detail), "candidate")[0]).includes(CANDIDATE.name));
+  const shown = byClass(changeOf(detail), "changed-text");
+  assert.equal(shown.length, 1);
+  assert.ok(textOf(shown[0]).includes("## 1. Section") && textOf(shown[0]).includes("EVERY EXPORT KEEPS ALL PAGES"), textOf(shown[0]));
   assert.deepEqual(queueFiles(w), [], "nothing is written before Save");
 
   const save = buttonsOf(changeOf(detail), "Save")[0];

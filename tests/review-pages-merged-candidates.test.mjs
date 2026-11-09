@@ -1,6 +1,6 @@
 // MOD-review-pages' panel of a derivation of requirements keeps candidates that state one rule as one. UC-005 step 6.1: "candidates of this run that state the same rule are merged into one, naming every
 // passage"; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES. The correction loop makes the merge (the class of the last round carries the `refs` of both candidates and their passages); the panel shows that
-// one candidate with every passage, and *Write proposals* writes one requirement. A draft of the conversation (candidates.mjs, candidateRows) is the same panel and keeps the merge the same way.
+// one candidate with every passage, and *Write proposals* writes one requirement.
 // Run: node --test tests/review-pages-merged-candidates.test.mjs
 //
 // Module: MOD-review-pages
@@ -17,7 +17,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { byClass, candidate, click, find, groupsOf, itemOf, LOAN, MAIN_FILE, restoreFetch, setClass, world, writtenFiles } from "./uc-005-harness.mjs";
 import { until } from "./review-pages-wait.mjs";
-import { candidateRows, editedResult } from "../src/review-pages/candidates.mjs";
 
 test.afterEach(() => restoreFetch());
 
@@ -102,20 +101,3 @@ test("spec-entry/draft - the class the author gives a merged candidate holds for
   assert.ok(!section.includes(`**${FINE}**`) && !section.includes(`**${COST}**`), "no merged candidate is written as a requirement");
 });
 
-// TST-1390005 · level: unit · module: MOD-review-pages
-// guards: UC-005; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
-// given: an outcome whose draft holds the candidates A FINE IS CHARGED (ch. 5), LATE LOANS COST A FINE (ch. 6) and A LOAN IS RETURNED (ch. 7), and whose classes hold one class for the first two (refs both, from ch. 5 and ch. 6, new) and one for the third (refs it, from ch. 7, new); candidateRows draws them, as the page of a draft of the conversation does
-// input: candidateRows on an empty list, then editedResult over the list and the outcome
-// expect: the list holds two items, A FINE IS CHARGED and A LOAN IS RETURNED; the edited draft holds those two candidates only; its classes are [{ refs: [A FINE IS CHARGED, LATE LOANS COST A FINE], from: [ch. 5, ch. 6], class: new, of: null }, { refs: [A LOAN IS RETURNED], from: [ch. 7], class: new, of: null }]
-test("candidateRows and editedResult - a class of two candidates keeps both refs and passages, and one item", () => {
-  const third = candidate(RETURN, { rule: RETURN_RULE, passage: "ch. 7" });
-  const outcome = { draft: { candidates: [FINE_5, COST_6, third] }, classes: [
-    { refs: [FINE, COST], from: ["ch. 5", "ch. 6"], class: "new", of: null }, { refs: [RETURN], from: ["ch. 7"], class: "new", of: null }] };
-  const list = document.createElement("ul");
-  candidateRows(list, outcome, { requirements: new Map() }, "SRC-policy", [], () => {});
-  assert.deepEqual(byClass(list, "li", "candidate").map((item) => item.getAttribute("data-name")), [FINE, RETURN]);
-  const edited = editedResult(list, outcome);
-  assert.deepEqual(edited.draft.candidates.map((each) => each.name), [FINE, RETURN]);
-  assert.deepEqual(edited.classes, [
-    { refs: [FINE, COST], from: ["ch. 5", "ch. 6"], class: "new", of: null }, { refs: [RETURN], from: ["ch. 7"], class: "new", of: null }]);
-});

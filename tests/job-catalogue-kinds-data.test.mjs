@@ -1,7 +1,7 @@
 // The kinds' data files follow the catalogue's table (ITM-396) — MOD-job-catalogue's table of kinds, column "Draft it expects", and the sentence
 // under it on `change-requirements`, as the accepted text of docs/architecture/MOD-job-catalogue.md states them, against the data files of
 // the three kinds: `derive-requirements`' candidates name, for a candidate, "the source of a rule it points to, where that is not the job's";
-// `change-requirements` has "the same" draft and "takes as its parameter `source` the account `<server>/<account>` of the person who starts it"; `propose-groups`
+// `change-requirements` drafts "the texts it changes, each whole, … with why", never a class, and "takes as its parameter `source` the account `<server>/<account>` of the person who starts it"; `propose-groups`
 // returns "moves, each a `GroupMove` of MOD-group-document". For UC-005 5a, UC-019 step 6, UC-021 1b.
 // Run: node --test tests/job-catalogue-kinds-data.test.mjs
 //
@@ -76,34 +76,43 @@ test("derive-requirements — a candidate may name the source of the rule it poi
   assert.match(fits({ candidates: [{ ...CANDIDATE, source: 7 }] }, answer), /source is not a text/);
 });
 
-// TST-472278 · level: unit · module: MOD-job-catalogue
+// TST-2026110901 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE PERSON WHO PROMPTS IS A SOURCE; UC-019
-// given: the table's cell "Draft it expects" of `change-requirements`, "the same, without a source passage"; and the sentence under the table, "A job of `change-requirements` takes as its parameter `source` the account `<server>/<account>` of the person who starts it"
-// input: the draft's schema of both kinds; the purpose of both kinds
-// expect: the two schemas equal but for the candidate's `passage`, which change-requirements neither holds nor requires; the purpose of `change-requirements` names the parameter `source` as the account `<server>/<account>` of the person who starts the job; the purpose of `derive-requirements` names no such parameter
-test("change-requirements — the same candidates as a derivation, without a source passage, and the parameter source is the account of the person who starts it", async () => {
-  assert.equal(expects("change-requirements"), "the same, without a source passage");
+// given: the table's cell "Draft it expects" of `change-requirements`, "the texts it changes, each whole, as a person writes them in the editor: each SPEC section, each open entry's proposal, and `docs/groups/requirements.md`, with why"; and the sentences under the table, "A job of `change-requirements` takes as its parameter `source` the account `<server>/<account>` of the person who starts it" and "Its draft is the new text of what it changes, never a class"
+// input: the draft's schema and the purpose of change-requirements; drafts with a section, an entry's proposal and the group file, with why alone, and without why; known positive: derive-requirements' schema holds candidates
+// expect: the schema holds `sections`, a list of texts, `proposals`, a list of { path, text }, `groups`, a text, and `why`, a text, the one required; no `candidates` and so no class; the first two drafts fit, the third is refused for want of why, a proposal without its path is refused; the purpose names the parameter `source` as the account `<server>/<account>` of the person who starts the job, and no class
+test("TST-2026110901: change-requirements — its draft is the new text of what it changes, with why, never a class; the parameter source is the person's account", async () => {
+  assert.equal(expects("change-requirements"), "the texts it changes, each whole, as a person writes them in the editor: each SPEC section, each open entry's proposal, and `docs/groups/requirements.md`, with why");
   assert.match(CATALOGUE, /A job of `change-requirements` takes as its parameter `source` the account `<server>\/<account>` of the person who\s+starts/);
+  assert.match(CATALOGUE, /Its draft is the new text\nof what it changes, never a class/);
   const [derive, change] = [await kindOf("derive-requirements"), await kindOf("change-requirements")];
-  const withoutPassage = structuredClone(derive.answer);
-  delete withoutPassage.properties.candidates.items.properties.passage;
-  withoutPassage.properties.candidates.items.required = withoutPassage.properties.candidates.items.required.filter((key) => key !== "passage");
-  assert.ok("passage" in derive.answer.properties.candidates.items.properties, "known positive: the derivation's candidate holds a passage");
-  assert.deepEqual(change.answer, withoutPassage);
+  assert.ok("candidates" in derive.answer.properties, "known positive: the derivation's draft holds candidates");
+  const { properties, required } = change.answer;
+  assert.deepEqual(Object.keys(properties).sort(), ["groups", "proposals", "sections", "why"]);
+  assert.deepEqual(required, ["why"]);
+  assert.deepEqual([properties.sections.type, properties.sections.items.type, properties.groups.type, properties.why.type], ["array", "string", "string", "string"]);
+  assert.deepEqual([properties.proposals.items.properties.path.type, properties.proposals.items.properties.text.type, properties.proposals.items.required], ["string", "string", ["path", "text"]]);
+  const whole = { sections: ["## 1. Lending\n\n**A LOAN HAS A DUE DATE** *(github.com/alice)*\nEvery loan has a due date.\n*Check:* no automatic check; at review\n"],
+    proposals: [{ path: "docs/spec-freigaben/lending/01-lending.md", text: "## 1. Lending\n" }], groups: "- 1. Lending\n  - A LOAN HAS A DUE DATE\n", why: "Loans need a due date." };
+  assert.equal(fits(whole, change.answer), null);
+  assert.equal(fits({ why: "Nothing to change." }, change.answer), null);
+  assert.equal(fits({ sections: whole.sections }, change.answer), "draft has no why");
+  assert.equal(fits({ ...whole, proposals: [{ text: "## 1. Lending\n" }] }, change.answer), "draft.proposals[0] has no path");
   assert.match(change.purpose, /parameter `source`/);
   assert.match(change.purpose, /the account `<server>\/<account>` of the\s+person who starts/);
+  assert.doesNotMatch(change.purpose, /\bclass(ed)?\b/, "the purpose names no class");
   assert.doesNotMatch(derive.purpose, /parameter `source`/);
 });
 
 // TST-2026110878 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-005; UC-019
-// given: the table's cell "Draft it expects" of `derive-requirements`, which ends "class, and, for a new one, its place", and the sentence under the table: a candidate classed `new` names its place as `place`, a MOD-group-document `Place` — `group`, a path of titles, `[]` for the top level, and `new`, the title of a new group standing in `group`, or `null` —; "their prompts ask for it, and for no place on a candidate of another class"
-// input: the draft's schema and the prompt of both kinds; candidates with a place in a group, in a new group, at the top level, without one, and with a group written as one text
+// given: the table's cell "Draft it expects" of `derive-requirements`, which ends "class, and, for a new one, its place", and the sentence under the table: a candidate of `derive-requirements` classed `new` names its place as `place`, a MOD-group-document `Place` — `group`, a path of titles, `[]` for the top level, and `new`, the title of a new group standing in `group`, or `null` —; "their prompts ask for it, and for no place on a candidate of another class"
+// input: the draft's schema and the prompt of the kind; candidates with a place in a group, in a new group, at the top level, without one, and with a group written as one text
 // expect: `place` is an object that requires `group`, a list of texts, beside `new`, a text that may be left out or be null; the first four fit, the last is refused as not a list; each prompt holds the place {{requirement-hierarchy}}, asks a `new` candidate for its `place` with `group` and `new`, and asks no place of a candidate of another class
-test("TST-2026110878: derive-requirements and change-requirements — a new candidate names its place in the requirement hierarchy", async () => {
+test("TST-2026110878: derive-requirements — a new candidate names its place in the requirement hierarchy", async () => {
   assert.match(expects("derive-requirements"), /class, and, for a new one, its place$/, "known positive: the table's cell is read");
   assert.match(CATALOGUE, /names its place in the requirement hierarchy\nthe recipe `requirement-hierarchy` shows, as `place`/);
-  for (const name of ["derive-requirements", "change-requirements"]) {
+  for (const name of ["derive-requirements"]) {
     const { answer, prompt } = await kindOf(name);
     const place = answer.properties.candidates.items.properties.place;
     assert.equal(place?.type, "object", `${name}: place is an object`);

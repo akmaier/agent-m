@@ -1,5 +1,5 @@
 # Module: MOD-spec-changes
-# Guards: DERIVATION SEES THE EXISTING REQUIREMENTS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
+# Guards: DERIVATION SEES THE EXISTING REQUIREMENTS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 # Level: release
 """SPEC section 8 - the check named tests/test_derivation_context.py.
 
@@ -251,10 +251,10 @@ def result(case: dict) -> dict:
 
 class TestDerivationContext(unittest.TestCase):
     # TST-414100 · level: release · module: system
-    # guards: DERIVATION SEES THE EXISTING REQUIREMENTS; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
+    # guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-019 step 4
     # given: Markdown fixture cases that state the SPEC, the open queue and the expected prepared input
-    # input: prepareJob for derive-requirements and change-requirements with MOD-spec-changes' real spec-with-queues recipe
-    # expect: every SPEC requirement and every open-queue requirement is in the job context, and prompted changes also get the named requirement section
+    # input: prepareJob for derive-requirements and change-requirements with MOD-spec-changes' real requirement recipes
+    # expect: a derivation gets every SPEC requirement and every open-queue requirement; a prompted change gets the named requirement's section and the proposal of the open entry that proposes it, and no spec-with-queues
     def test_requirements_jobs_receive_the_spec_and_open_queue_requirements(self):
         loaded = [item for item in cases() if item["case"]["input"]["case"] == "prepare"]
         self.assertEqual([item["case"]["input"]["kind"] for item in loaded], ["derive-requirements", "change-requirements"])

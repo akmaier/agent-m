@@ -35,7 +35,7 @@ const CHECK = "refine stand-in check";
 let checkFindings = () => [];
 const STAND_INS = {
   recipes: {
-    ...Object.fromEntries(["named-requirements", "spec-with-queues", "requirement-hierarchy", "chapters-for-requirements"].map((name) => [name,
+    ...Object.fromEntries(["named-requirements", "requirement-hierarchy", "chapters-for-requirements"].map((name) => [name,
       async () => [part(`${name} part`, `the text of ${name}`)]])),
     // The recipe issue-context (MOD-issue-handling) gives no part to a job without the parameter issue, as these jobs are.
     "issue-context": async () => [],
@@ -43,7 +43,7 @@ const STAND_INS = {
   checks: { [CHECK]: (draft) => checkFindings(draft) },
   // The kind's precondition person-source (MOD-spec-changes), which these tests do not concern: it finds nothing.
   preconditions: { "person-source": async () => null },
-  writers: { "queue-entries": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
+  writers: { "spec-edits": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
 };
 for (const [category, strategies] of Object.entries(STAND_INS)) {
   for (const [name, strategy] of Object.entries(strategies)) {
@@ -74,8 +74,7 @@ function driver(answers) {
     return { text: JSON.stringify(answers.shift()), usage: null };
   } };
 }
-const candidate = (name, rule) => ({ name, rule, check: "A test checks it.", constrains: "product", passage: "the instruction", class: "change" });
-const draftOf = (...rules) => ({ candidates: rules.map((rule, at) => candidate(`REQUIREMENT ${at + 1}`, rule)) });
+const draftOf = (...rules) => ({ sections: rules.map((rule, at) => `## ${at + 1}. Section\n\n**REQUIREMENT ${at + 1}** *(github.com/alice)*\n${rule}\n*Check:* A test checks it.\n`), why: "the instruction" });
 const answer = (draft, answers = []) => ({ draft, answers });
 const run = async (drafter, options) => {
   const { job, context } = await prepared();
@@ -123,7 +122,7 @@ test("runJob with refine — the follow-up instruction is among the parts of the
   const [input] = drafter.inputs;
   assert.deepEqual(input.parts.filter((each) => each.recipe === "instruction").map((each) => each.text), [INSTRUCTION]);
   assert.ok(input.prompt.includes(INSTRUCTION), "the prompt holds the instruction");
-  assert.ok(input.parts.some((each) => each.recipe === "spec-with-queues"), "beside the kind's other parts");
+  assert.ok(input.parts.some((each) => each.recipe === "named-requirements"), "beside the kind's other parts");
 });
 
 // TST-472348 · level: unit · module: MOD-job-runner
@@ -133,7 +132,7 @@ test("runJob with refine — the follow-up instruction is among the parts of the
 // expect: two exchanges; the second carries the finding and the refined draft as `previous`, not the draft that was refined; two rounds, the first with the finding answered fixed; the result's draft the corrected one, stopped because passed
 test("runJob with refine — the correction loop then runs on the refined draft as for any draft", async () => {
   const flaw = { artifact: "REQUIREMENT 2", line: 1, kind: "error", rule: "A REQUIREMENT IS ONE STATEMENT", what: "the rule says two things", fix: "say one" };
-  checkFindings = (draft) => (draft.candidates[1].rule.includes(" and ") ? [flaw] : []);
+  checkFindings = (draft) => (draft.sections[1].includes(" and ") ? [flaw] : []);
   const original = draftOf("A rule.", "A rule.");
   const refined = draftOf("A rule.", "It does this and that.");
   const corrected = draftOf("A rule.", "It does this.");

@@ -5,7 +5,7 @@
 
 The commit that writes a generated artifact names the Agent M version, the participant and the model that produced it, and the
 artifact's own text names none of them. The writers are asked through node (tests/jsrun.py) as a fixture CI agent's job calls
-them: `open-files` (MOD-artifact-edits) for a changed use case and `queue-entries` (MOD-spec-changes) for a changed requirement,
+them: `open-files` (MOD-artifact-edits) for a changed use case and `spec-edits` (MOD-spec-changes) for a changed requirement,
 over the fixture product and the fixture host of tests/test_prompted_change_context.py, whose helpers this file uses to run the
 two jobs. The job runs as Agent M version 2026.10.0 at commit abc123def456, job JOB-20261016-0900-a1b2, with the participant
 ci-drafter and its model ci-model-7; those values, and the commit message they must stand in, are stated below in this file.
@@ -70,7 +70,7 @@ class ArtifactProvenance(unittest.TestCase):
     # TST-519012 · level: system · module: system
     # guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
     # given: the same fixture CI agent
-    # input: its change-requirements job run unattended; the message of the commit the writer queue-entries made
+    # input: its change-requirements job run unattended; the message of the commit the writer spec-edits made
     # expect: the message ends with the six lines Agent-M-Version: 2026.10.0, commit abc123def456 / Agent-M-Job: JOB-20261016-0900-a1b2 / Agent-M-Kind: change-requirements / Agent-M-Participant: ci-drafter / Agent-M-Model: ci-model-7 / Agent-M-Rounds: 1
     def test_the_commit_of_a_written_queue_entry_names_the_version_the_participant_and_the_model(self):
         message = self.requirement["commits"][0]["message"]
@@ -90,8 +90,8 @@ class ArtifactProvenance(unittest.TestCase):
 
     # TST-519014 · level: system · module: system
     # guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-    # given: the commit the writer queue-entries made for the CI agent's changed requirement
-    # input: the detector over the text of every entry of that commit (the proposals, one per section the candidates touch)
+    # given: the commit the writer spec-edits made for the CI agent's changed requirement
+    # input: the detector over the text of every entry of that commit (the proposals, one per section the draft changes)
     # expect: the commit holds one entry, the section ## Lending as proposed, and the detector finds nothing in its text
     def test_the_text_of_a_written_queue_entry_names_none_of_them(self):
         entries = entries_of(self.requirement["commits"][0])

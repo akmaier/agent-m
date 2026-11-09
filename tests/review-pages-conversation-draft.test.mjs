@@ -1,15 +1,15 @@
 // MOD-review-pages' route `draft` shows the conversation's draft (ITM-507), as the accepted text of docs/architecture/MOD-review-pages.md, UC-049 (steps 5, 6) and UC-019
 // (steps 7, 8, 9 and the alternative flows 7a, 8a, 8b, 8c, 9a) state it: "`draft` — the draft of the conversation: MOD-prompt-bar's `latestDraft` for the subject the person came from,
 // shown against the current text before anything can be saved — files each in the editor as their difference, a use case with a changed identifier the loop left restored first with
-// `keptIdentifier` (UC-019 7a); requirements as the sections `entrySections` composes from the draft and its classes as the author leaves them, each requirement beside the one it
-// refers to with its class, a conflict undecided kept out of what is saved (UC-019 8a); an architecture file with its rounds, the due diligence …. *Save* saves the draft as an edit
-// of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b), each section with `proposeSection` as an entry of the person's open queue of the day —, only on the
+// `keptIdentifier` (UC-019 7a); requirements as each text the draft changes — a SPEC section, an open entry's proposal, `docs/groups/requirements.md` — in the editor as its
+// difference against the text it replaces, with the draft's `why` in the *Why* field; an architecture file with its rounds, the due diligence …. *Save* saves the draft as an edit
+// of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b), each section with `proposeSection` as an entry of its queue, each proposal of an open entry with `saveEntry`, the group file with `saveFile` —, only on the
 // text the job read, with GitHub's pages without a token, and with the job's provenance lines, which name no message of the conversation (UC-019 step 9, 9a); *Discard* drops the
 // draft. … A draft of the kind `converse` … is shown and saved the same way, each file with `saveFile` after its owner's schema found no error."
 // Run: node --test tests/review-pages-conversation-draft.test.mjs
 //
 // Module: MOD-review-pages
-// Guards: UC-049; UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A SPEC EDIT IS SAVED AS A PROPOSAL; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; AN EDITED FILE KEEPS ITS IDENTIFIER; A CONFLICT IS DECIDED BY A PERSON; THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; THE ROUNDS ARE COUNTED AND SHOWN
+// Guards: UC-049; UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A SPEC EDIT IS SAVED AS A PROPOSAL; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; AN EDITED FILE KEEPS ITS IDENTIFIER; THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; THE ROUNDS ARE COUNTED AND SHOWN
 // Level: component
 //
 // The fixtures are tests/review-pages-draft-world.mjs'. The conversation's draft is kept in the tab as MOD-prompt-bar's `ConversationDraft` states it (subject, kind, participant, the
@@ -25,10 +25,9 @@
 //     rounds of its job) and <section class="due-diligence"> for a decision with such a section.
 //   - Each <li class="left"> is one finding in the one fixed text form `<artifact>:<line>: <kind>: <what> [<rule>] — <fix>.` (ITM-559; `A FINDING READS LIKE A COMPILER MESSAGE`), for a draft of
 //     files and of requirements alike.
-//   - Requirements are shown as the old requirement prompt page showed them: <ul class="candidates"> with <li class="candidate" data-name> for each candidate — <select class="class">, <input
-//     class="of">, <textarea class="candidate-rule">, <section class="current-requirement"> and <section class="candidate-difference"> —, <section class="composed-sections"> with a
-//     <section class="composed-section"> for each section that would be saved, <button class="save"> and <button class="discard">; a refused section is <div class="newer">, a saved one
-//     <p class="entry">.
+//   - Requirements: one <div class="draft" data-path> for each text — a section by its heading line, a proposal or the group file by its path — with the editor opened on the text it
+//     replaces and the draft shown against it, each editor's Save saving every text; <textarea class="why"> holding the draft's why; <button class="discard">; a text changed meanwhile
+//     is <div class="newer">, a save <p class="entry">.
 //   - "The text the job read" is, for the file or SPEC section the subject names, the `version` among the draft's parameters; for any other file or section, the text the page read.
 //   - A converse draft's file whose owner's schema (use case, decision, module file) finds an error opens with Save disabled, "Save is disabled: <the finding>".
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
@@ -279,196 +278,95 @@ test("draft — an architecture file is shown with its rounds and its due dilige
 
 // ---------------------------------------------------------------- requirements
 
-const candidate = (name, fields = {}) => ({ name, rule: `${name.toLowerCase()} rule.`, check: "`tests/fixture.test.mjs`", constrains: "product", passage: "the instruction", class: "new", ...fields });
+// The drafted section 1. Lending: A LOAN HAS A DUE DATE changed, naming the person's source, and A MEMBER CAN RENEW ONCE added.
 const OVERDUE = "Every loan states the date by which the book is returned, and says when it is overdue.";
-const REQUIREMENTS = { candidates: [candidate(LOAN, { class: "change", of: LOAN, rule: OVERDUE, passage: "overdue" }), candidate(RENEW, { passage: "renewal" }),
-  candidate(HIDE, { class: "conflict", of: LOAN, passage: "due date", rule: "Every loan may hide its due date." })] };
+const DRAFTED = LENDING.replace(`**${LOAN}** *(Product Owner)*\nEvery loan states the date by which the book is returned.`, `**${LOAN}** *(Product Owner; ${SOURCE})*\n${OVERDUE}`)
+  + `\n**${RENEW}** *(${SOURCE})*\nA member can renew a loan once.\n*Check:* \`tests/loan.test.mjs\`\n`;
+const REQUIREMENTS = { sections: [DRAFTED], why: "Members asked to renew." };
 const REQUIREMENTS_KEY = `requirement/name=${encodeURIComponent(LOAN)}/product=${PRODUCT}`;
 const requirementsParams = { requirements: [LOAN], source: SOURCE, version: blobOf(LENDING), instruction: "split this requirement" };
 const showRequirements = (fake, options = {}) => showDraft(fake, { key: REQUIREMENTS_KEY, kind: "change-requirements", params: requirementsParams,
   result: resultOf(REQUIREMENTS, { rounds: [ROUND_ONE] }), ...options });
-const candidateOf = (target, name) => byClass(target, "li", "candidate").find((item) => item.getAttribute("data-name") === name);
 const proposalsOf = (fake) => written(fake).flatMap((change) => change.files).filter((file) => /^docs\/spec-freigaben\/[^/]+\/\d\d-[^/]+\.md$/.test(file.path) && !file.path.endsWith(".begruendung.md"));
 
-// TST-507029 · level: component · module: MOD-review-pages
-// guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; THE ROUNDS ARE COUNTED AND SHOWN
-// given: the draft of a change of A LOAN HAS A DUE DATE: the requirement changed (class change, of itself), A MEMBER CAN RENEW ONCE (new) and THE DUE DATE MAY BE HIDDEN (a conflict with A LOAN HAS A DUE DATE); the person's source SRC-alice (authority informative); one round
+// TST-2026110910 · level: component · module: MOD-review-pages
+// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
+// given: the draft of a change of A LOAN HAS A DUE DATE: the section 1. Lending as drafted, with why "Members asked to renew."; one round
 // input: the route draft
-// expect: three candidates, each with its class — change, new, conflict —; the first beside the requirement it refers to, "Every loan states the date by which the book is returned." with the difference to the drafted rule; the conflict beside the same requirement with the source "SRC-alice (informative)"; the composed section "## 1. Lending" with the changed rule and the new requirement and without the conflict's rule; "Correction rounds: 1"; one Save and one Discard; nothing written
-test("draft — requirements are shown with their classes, beside the requirement each refers to, a conflict kept out of the composed section", async () => {
+// expect: one editor, for ## 1. Lending, holding the drafted section and its difference against the current section with the added requirement marked; the Why field holds the draft's why; "Correction rounds: 1"; a Save and a Discard; nothing written
+test("TST-2026110910: draft — each drafted text of requirements opens in the editor as its difference, with the draft's why", async () => {
   const fake = fakeProduct();
   const { target } = await showRequirements(fake);
-  assert.deepEqual(byClass(target, "li", "candidate").map((item) => item.getAttribute("data-name")), [LOAN, RENEW, HIDE]);
-  assert.deepEqual([LOAN, RENEW, HIDE].map((name) => byClass(candidateOf(target, name), "select", "class")[0].value), ["change", "new", "conflict"]);
-  const loan = candidateOf(target, LOAN);
-  assert.match(byClass(loan, "section", "current-requirement")[0].textContent, /Every loan states the date by which the book is returned\./);
-  assert.match(byClass(loan, "section", "candidate-difference")[0].textContent, /and says when it is overdue/);
-  const conflict = candidateOf(target, HIDE);
-  assert.match(byClass(conflict, "section", "current-requirement")[0].textContent, /Every loan states the date by which the book is returned\./);
-  assert.match(byClass(conflict, "p", "candidate-source")[0].textContent, /SRC-alice \(informative\)/);
-  const composed = byClass(target, "section", "composed-section");
-  assert.equal(composed.length, 1);
-  assert.match(composed[0].textContent, /## 1\. Lending/);
-  assert.match(composed[0].textContent, /and says when it is overdue/);
-  assert.match(composed[0].textContent, /a member can renew once rule\./);
-  assert.ok(!composed[0].textContent.includes("may hide its due date"), "the conflict stays out of the composed section");
+  const boxes = draftBoxes(target);
+  assert.deepEqual(boxes.map((box) => box.getAttribute("data-path")), ["## 1. Lending"]);
+  assert.equal(areaIn(boxes[0]).value, DRAFTED);
+  assert.match(byClass(boxes[0], "div", "newer")[0].textContent, /\+ \*\*A MEMBER CAN RENEW ONCE\*\*/);
+  assert.equal(byClass(target, "textarea", "why")[0].value, "Members asked to renew.");
   assert.equal(byClass(target, "p", "rounds")[0].textContent, "Correction rounds: 1");
-  assert.equal(buttonsNamed(target, "Save").length, 1);
+  assert.equal(buttonsNamed(boxes[0], "Save").length, 1);
   assert.equal(byClass(target, "button", "discard").length, 1);
   assert.equal(written(fake).length, 0);
 });
 
-// TST-507030 · level: component · module: MOD-review-pages
-// guards: UC-019; A SPEC EDIT IS SAVED AS A PROPOSAL; THE PERSON WHO PROMPTS IS A SOURCE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
-// given: the draft of TST-507029, the conflict undecided
+// TST-2026110911 · level: component · module: MOD-review-pages
+// guards: UC-019 step 9; A SPEC EDIT IS SAVED AS A PROPOSAL; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: the draft of TST-2026110910
 // input: a click on Save
-// expect: one commit in a change queue under docs/spec-freigaben/, SPEC.md byte-identical; the proposal holds the changed rule and the new requirement, both naming SRC-alice among their sources, and not the conflict; the commit's message holds Agent-M-Kind: change-requirements, Agent-M-Participant: drafter-a, Agent-M-Model: example-model, Agent-M-Rounds: 1, and no line that holds the instruction "split this requirement"; the page links the commit; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
-test("draft — Save writes the composed section as an entry of a queue, the conflict undecided and left out", async () => {
+// expect: one commit, an entry of the queue lending whose proposal is the drafted section byte for byte, SPEC.md byte-identical; its rationale's Why the draft's why; the message holds Agent-M-Kind: change-requirements, Agent-M-Participant: drafter-a, Agent-M-Rounds: 1 and no line with the instruction; the page links the commit; the draft is dropped
+test("TST-2026110911: draft — Save writes the drafted section as an entry of its queue, with the provenance lines", async () => {
   const fake = fakeProduct();
   const shown = await showRequirements(fake);
   const { target } = shown;
   kept(shown, REQUIREMENTS_KEY);
-  click(buttonsNamed(target, "Save")[0]);
+  click(buttonsNamed(draftBoxes(target)[0], "Save")[0]);
   await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
   assert.equal(fake.files()["SPEC.md"], SPEC, "SPEC.md byte-identical");
   assert.equal(written(fake).length, 1, "one commit");
   const [proposal] = proposalsOf(fake);
-  assert.ok(proposal, "an entry of a queue");
-  assert.match(proposal.text, /and says when it is overdue/);
-  assert.match(proposal.text, new RegExp(`\\*\\*${RENEW}\\*\\* \\*\\(${SOURCE}`));
-  assert.ok(!proposal.text.includes(HIDE), "the conflict is not in the proposal");
+  assert.equal(proposal.text, DRAFTED);
+  const rationale = written(fake)[0].files.find((file) => file.path.endsWith(".begruendung.md"));
+  assert.match(rationale.text, /\*\*Why\.\*\* Members asked to renew\./);
   const lines = messageLines(written(fake)[0]);
-  for (const wanted of ["Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter-a", "Agent-M-Model: example-model", "Agent-M-Rounds: 1"]) assert.ok(lines.includes(wanted), `${wanted} in ${lines.join("|")}`);
+  for (const wanted of ["Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter-a", "Agent-M-Rounds: 1"]) assert.ok(lines.includes(wanted), `${wanted} in ${lines.join("|")}`);
   assert.ok(lines.every((line) => !line.includes("split this requirement")), "no message of the conversation");
   await assertDropped(shown, REQUIREMENTS_KEY);
 });
 
-// TST-2026110896 · level: component · module: MOD-review-pages
-// guards: UC-019; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A SPEC EDIT IS SAVED AS A PROPOSAL
-// given: the draft of TST-507029 whose new candidate A MEMBER CAN RENEW ONCE names its place, a new group "Renewals" at the top level, and whose change names one too; known positive: the candidates are shown as in TST-507029
-// input: the route draft; then a click on Save
-// expect: UC-019 step 8: the new candidate stands with the line "Place: in a new group “Renewals” at the top level.", the change with none; step 9: the commit holds, beside the entry, its places file docs/spec-freigaben/lending/01-lending.plaetze.md with the one row "| A MEMBER CAN RENEW ONCE | — | Renewals |"; SPEC.md and docs/groups/requirements.md are not written
-test("TST-2026110896: draft — a new requirement stands with its place, and Save writes the places beside the entry", async () => {
-  const fake = fakeProduct();
-  const placed = { candidates: REQUIREMENTS.candidates.map((each) => (each.name === RENEW ? { ...each, place: { group: [], new: "Renewals" } } : each.name === LOAN ? { ...each, place: { group: ["Elsewhere"] } } : each)) };
-  const { target } = await showRequirements(fake, { result: resultOf(placed, { rounds: [ROUND_ONE] }) });
-  assert.deepEqual(byClass(target, "li", "candidate").map((item) => item.getAttribute("data-name")), [LOAN, RENEW, HIDE], "known positive: the candidates are shown");
-  assert.deepEqual(byClass(candidateOf(target, RENEW), "p", "candidate-place").map((node) => node.textContent), ["Place: in a new group “Renewals” at the top level."]);
-  assert.deepEqual(byClass(candidateOf(target, LOAN), "p", "candidate-place"), []);
-  click(buttonsNamed(target, "Save")[0]);
-  await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
-  const files = written(fake).flatMap((change) => change.files);
-  const places = files.find((file) => file.path === "docs/spec-freigaben/lending/01-lending.plaetze.md");
-  assert.ok(places, files.map((file) => file.path).join(", "));
-  assert.match(places.text, new RegExp(`^\\| ${RENEW} \\| — \\| Renewals \\|$`, "m"));
-  assert.ok(!files.some((file) => file.path === "SPEC.md" || file.path === "docs/groups/requirements.md"));
-});
-
-// TST-507031 · level: component · module: MOD-review-pages
-// guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-// given: the draft of TST-507029
-// input: the person sets the class of the conflict to new in its select, then clicks Save
-// expect: the composed section now holds the rule "Every loan may hide its due date."; the saved proposal holds it too, under the name THE DUE DATE MAY BE HIDDEN
-test("draft — a conflict the author decides is composed and saved", async () => {
-  const fake = fakeProduct();
-  const { target } = await showRequirements(fake);
-  const select = byClass(candidateOf(target, HIDE), "select", "class")[0];
-  select.value = "new";
-  select.dispatchEvent(new Event("change"));
-  assert.match(byClass(target, "section", "composed-section")[0].textContent, /Every loan may hide its due date\./);
-  click(buttonsNamed(target, "Save")[0]);
-  await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
-  const [proposal] = proposalsOf(fake);
-  assert.match(proposal.text, new RegExp(`\\*\\*${HIDE}\\*\\*`));
-  assert.match(proposal.text, /Every loan may hide its due date\./);
-});
-
-// TST-507032 · level: component · module: MOD-review-pages
-// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
-// given: the draft of TST-507029 drawn; then the SPEC section "## 1. Lending" changes on the default branch
-// input: a click on Save
-// expect: nothing written; the draft stays in the page; the section as it stands now is beside the composed section (<div class="newer">)
-test("draft — a SPEC section changed after the page was drawn refuses the save and the draft stays", async () => {
+// TST-2026110912 · level: component · module: MOD-review-pages
+// guards: UC-019 9a; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// given: the draft drawn; then the section 1. Lending changes on the default branch; and, apart, a draft whose job read an older section (its version the blob of "an older section")
+// input: a click on Save in each
+// expect: nothing written in either; the section as it stands now is beside the draft (<div class="newer"> naming the change), and the editor still holds the draft
+test("TST-2026110912: draft — a section changed meanwhile refuses the save, and the draft stays", async () => {
   const fake = fakeProduct();
   const { target } = await showRequirements(fake);
   fake.land({ "SPEC.md": SPEC.replace("Every book stands on a shelf.", "Every book stands on a shelf, tidily.") });
-  click(buttonsNamed(target, "Save")[0]);
-  await until(() => byClass(target, "div", "newer").length === 1 && byClass(target, "div", "newer")[0].textContent.includes("tidily"), "the newer section");
+  click(buttonsNamed(draftBoxes(target)[0], "Save")[0]);
+  await until(() => byClass(target, "div", "newer").some((node) => node.textContent.includes("tidily")), "the newer section");
   assert.equal(written(fake).length, 0, "nothing written");
-  assert.equal(byClass(target, "li", "candidate").length, 3, "the draft stays");
+  assert.equal(areaIn(draftBoxes(target)[0]).value, DRAFTED, "the draft stays");
+  const older = fakeProduct();
+  const second = await showRequirements(older, { params: { ...requirementsParams, version: blobOf("an older section\n") } });
+  click(buttonsNamed(draftBoxes(second.target)[0], "Save")[0]);
+  await until(() => byClass(second.target, "div", "newer").some((node) => node.textContent.includes("changed meanwhile")), "the newer section");
+  assert.equal(written(older).length, 0, "nothing written");
 });
 
-// TST-507033 · level: component · module: MOD-review-pages
-// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
-// given: the draft of TST-507029 whose job read an older section — the parameter version is the blob of "an older section" — than the SPEC holds now
-// input: a click on Save
-// expect: nothing written; the section as it stands now is beside the composed section
-test("draft — a SPEC section changed while the participant drafted refuses the save", async () => {
-  const fake = fakeProduct();
-  const { target } = await showRequirements(fake, { params: { ...requirementsParams, version: blobOf("an older section\n") } });
-  click(buttonsNamed(target, "Save")[0]);
-  await until(() => byClass(target, "div", "newer").length === 1 && byClass(target, "div", "newer")[0].textContent.includes("Every book stands on a shelf."), "the newer section");
-  assert.equal(written(fake).length, 0, "nothing written");
-});
-
-// TST-507034 · level: component · module: MOD-review-pages
-// guards: UC-019; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// TST-2026110913 · level: component · module: MOD-review-pages
+// guards: UC-019 8c; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the draft of requirements in the page
 // input: a click on Discard
-// expect: the candidates are gone and the page says the draft was discarded and nothing written; nothing written; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
-test("draft — Discard drops the requirements and writes nothing", async () => {
+// expect: the editors are gone and the page says the draft was discarded; nothing written; the draft is dropped
+test("TST-2026110913: draft — Discard drops the requirements and writes nothing", async () => {
   const fake = fakeProduct();
   const shown = await showRequirements(fake);
   const { target } = shown;
-  assert.equal(byClass(target, "li", "candidate").length, 3, "known positive: the candidates are there");
-  kept(shown, REQUIREMENTS_KEY);
+  assert.equal(draftBoxes(target).length, 1, "known positive: the editor is there");
   click(byClass(target, "button", "discard")[0]);
-  assert.equal(byClass(target, "li", "candidate").length, 0);
+  assert.equal(draftBoxes(target).length, 0);
   assert.match(target.textContent, /The draft was discarded\. Nothing was written\./);
   assert.equal(written(fake).length, 0);
   await assertDropped(shown, REQUIREMENTS_KEY);
-});
-
-// TST-636011 · level: component · module: MOD-review-pages
-// guards: UC-019; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A SPEC EDIT IS SAVED AS A PROPOSAL
-// given: the draft of a change of A LOAN HAS A DUE DATE with two candidates that change it: A LOAN HAS A DUE DATE (class change, of itself) and A MEMBER CAN RENEW ONCE (class change, of A LOAN HAS A DUE DATE)
-// input: the route draft; a click on Save; then the person sets the class of A MEMBER CAN RENEW ONCE to new and clicks Save
-// expect: the page shows no composed section and one problem reading "TwoChanges: A LOAN HAS A DUE DATE and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one."; after the first Save the same text is shown a second time, as the result of Save, the two candidates are still there and nothing is written; after the class is set to new the composed section is shown and the second Save writes one commit whose proposal holds the changed rule of A LOAN HAS A DUE DATE and the block A MEMBER CAN RENEW ONCE
-test("draft — two candidates that change one requirement are refused on the page and on Save, nothing written", async () => {
-  const fake = fakeProduct();
-  const refusal = `TwoChanges: ${LOAN} and ${RENEW} change ${LOAN}: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one.`;
-  const draft = { candidates: [candidate(LOAN, { class: "change", of: LOAN, rule: OVERDUE, passage: "overdue" }), candidate(RENEW, { class: "change", of: LOAN, passage: "renewal" })] };
-  const { target } = await showRequirements(fake, { result: resultOf(draft, { rounds: [ROUND_ONE] }) });
-  const problems = () => byClass(target, "p", "problem").map((node) => node.textContent);
-  assert.deepEqual(problems(), [refusal]);
-  assert.equal(byClass(target, "section", "composed-section").length, 0);
-  click(buttonsNamed(target, "Save")[0]);
-  await until(() => problems().length === 2, "the result of Save");
-  assert.deepEqual(problems(), [refusal, refusal]);
-  assert.equal(byClass(target, "li", "candidate").length, 2, "the draft stays");
-  assert.equal(written(fake).length, 0, "nothing written");
-  const select = byClass(candidateOf(target, RENEW), "select", "class")[0];
-  select.value = "new";
-  select.dispatchEvent(new Event("change"));
-  assert.equal(byClass(target, "section", "composed-section").length, 1);
-  click(buttonsNamed(target, "Save")[0]);
-  await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
-  assert.equal(written(fake).length, 1, "one commit");
-  const [proposal] = proposalsOf(fake);
-  assert.match(proposal.text, /and says when it is overdue/);
-  assert.match(proposal.text, new RegExp(`\\*\\*${RENEW}\\*\\*`));
-});
-
-// TST-066501 · level: component · module: MOD-review-pages
-// guards: UC-019; EVERY STEP EXPLAINS ITSELF
-// given: the draft of a change with one candidate of the class change of a requirement the SPEC does not hold
-// input: the route draft
-// expect: counter-proof — the page shows one problem reading "RequirementNotFound: the SPEC holds no requirement NO SUCH REQUIREMENT", which gives no advice on how to go on: the panel's words for two changes are for that refusal alone
-test("draft — a refusal other than two changes gets no advice on how to go on", async () => {
-  const fake = fakeProduct();
-  const draft = { candidates: [candidate(LOAN, { class: "change", of: "NO SUCH REQUIREMENT", rule: OVERDUE, passage: "overdue" })] };
-  const { target } = await showRequirements(fake, { result: resultOf(draft, { rounds: [ROUND_ONE] }) });
-  assert.deepEqual(byClass(target, "p", "problem").map((node) => node.textContent), ["RequirementNotFound: the SPEC holds no requirement NO SUCH REQUIREMENT"]);
 });
 
 // ---------------------------------------------------------------- leaving the draft (ITM-671)
