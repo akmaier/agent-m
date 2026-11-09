@@ -38,7 +38,7 @@ function fakeHost() {
   const main = commit({
     ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n",
     "docs/tests/schedule.md": ["---", "nightly: 02:00", "---", "## Levels", "", "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |",
-      "|---|---|---|---|---|---|---|", ...["unit", "component", "system", "paid", "release", "user"].map((level) => `| ${level} | ✓ | ✓ | ✓ | ✓ | ✓ | ${level === "release" || level === "user" ? "developer-sonnet-e" : ""} |`), ""].join("\n"),
+      "|---|---|---|---|---|---|---|", ...["unit", "component", "system", "paid", "release", "user"].map((level) => `| ${level} | ✓ | ✓ | ✓ | ✓ | ✓ | hosted |`), ""].join("\n"),
     "SPEC.md": ["# Fixture product — Specification", "", "## Section", "", "**A SAMPLE REQUIREMENT** *(Product Owner)*", "A sample rule.", "*Check:* `tests/sample.test.mjs`", ""].join("\n"),
     "CHANGELOG.md": "# Changelog\n",
     "tests/sample.test.mjs": ["// TST-001", "// level: unit", "// guards: A SAMPLE REQUIREMENT", ""].join("\n"),
