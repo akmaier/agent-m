@@ -4,7 +4,7 @@
 // Run: node --test tests/job-runner-tools-unregistered.test.mjs
 //
 // Module: MOD-job-runner
-// Guards: ONE DEFINITION, THREE DRIVERS; A PARTICIPANT DECLARES ITS CAPABILITIES
+// Guards: ONE DEFINITION, THREE DRIVERS; A CONNECTION DECLARES ITS CAPABILITIES
 // Level: unit
 //
 // The kind is converse as the catalogue gives it, its tools replaced by read-file — a built-in the runner registers itself — and bash — a tool of tools.md that only a program in
@@ -22,7 +22,7 @@ const snapshot = { commit: "c0ffee", paths: ["README.md"], read: async (path) =>
 const context = { params: {}, product: { snapshot }, places: { sources: {}, mailbox: null, contents: [] } };
 
 // TST-2026201 · level: unit · module: MOD-job-runner
-// guards: ONE DEFINITION, THREE DRIVERS; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: ONE DEFINITION, THREE DRIVERS; A CONNECTION DECLARES ITS CAPABILITIES
 // given: a kind that names read-file and bash, a model endpoint that declares use tools and the capabilities of both, and a program that registered no strategy `bash`
 // input: offerTools for that kind and drafter; then the offer's call of bash and of read-file; then, as the known positive, the same once a strategy bash is registered
 // expect: the offer holds read-file alone; its call of bash answers a refusal that bash is not offered, and throws nothing — no UnknownStrategy —; its call of read-file answers README.md's text; once bash is registered, the offer holds read-file and bash

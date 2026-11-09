@@ -93,14 +93,14 @@ const PARTICIPANTS_SCHEMA = {
   sections: [
     { heading: "# Participants of this instance", required: true, table: { columns: [
       { name: "Name", value: { type: "text", required: true } },
-      { name: "Type", value: { type: "enum", values: TYPES, required: true, rule: "A PARTICIPANT HAS ONE OF FIVE TYPES" } },
+      { name: "Type", value: { type: "enum", values: TYPES, required: true, rule: "A PARTICIPANT IS A PERSON OR AN AGENT" } },
       { name: "Model", value: { type: "text",
         requiredWhen: { field: "Type", notIn: ["person"], rule: "A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL" },
         forbiddenWhen: { field: "Type", in: ["person"] } } },
       { name: "Context", value: { type: "number" } },
       { name: "Capabilities", value: { type: "list", item: { type: "enum", values: CAPABILITIES }, required: true,
-        nonEmpty: true, rule: "A PARTICIPANT DECLARES ITS CAPABILITIES" } },
-      { name: "Processing place", value: { type: "text", rule: "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA",
+        nonEmpty: true, rule: "A CONNECTION DECLARES ITS CAPABILITIES" } },
+      { name: "Processing place", value: { type: "text", rule: "A CONNECTION DECLARES WHERE IT PROCESSES DATA",
         requiredWhen: { field: "Type", notIn: ["person"] }, forbiddenWhen: { field: "Type", in: ["person"] } } },
       { name: "Route", value: { type: "text", required: true } },
     ] } },
@@ -508,11 +508,11 @@ test("documentFindings — each row of a table, cell by cell: required or forbid
     "docs/participants.md:10: error: the column Context does not fit: \"many\" is not a number "
       + "[PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE] — correct the column Context of this row.",
     "docs/participants.md:10: error: the column Processing place is required where Type is not person, and left out "
-      + "[A PARTICIPANT DECLARES WHERE IT PROCESSES DATA] — fill in the column Processing place of this row.",
+      + "[A CONNECTION DECLARES WHERE IT PROCESSES DATA] — fill in the column Processing place of this row.",
     "docs/participants.md:11: error: the column Type does not fit: \"robot\" is not one of person, model endpoint, CI agent, "
-      + "CLI agent, sandboxed agent [A PARTICIPANT HAS ONE OF FIVE TYPES] — correct the column Type of this row.",
+      + "CLI agent, sandboxed agent [A PARTICIPANT IS A PERSON OR AN AGENT] — correct the column Type of this row.",
     "docs/participants.md:11: error: the column Capabilities is required, and left out "
-      + "[A PARTICIPANT DECLARES ITS CAPABILITIES] — fill in the column Capabilities of this row.",
+      + "[A CONNECTION DECLARES ITS CAPABILITIES] — fill in the column Capabilities of this row.",
     "docs/participants.md:11: error: the column Route is required, and left out "
       + "[PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE] — fill in the column Route of this row.",
     "docs/participants.md:12: error: the column Name is required, and left out "
@@ -532,7 +532,7 @@ test("documentFindings — a cell empty where nonEmpty", () => {
   register.sections[0].rows[1].cells.Capabilities = [];
   assert.deepEqual(documentFindings(schema, register).map(formatFinding), [
     "docs/participants.md:10: error: the column Capabilities does not fit: the list is empty, and it holds at least one item "
-      + "[A PARTICIPANT DECLARES ITS CAPABILITIES] — correct the column Capabilities of this row.",
+      + "[A CONNECTION DECLARES ITS CAPABILITIES] — correct the column Capabilities of this row.",
   ]);
 });
 

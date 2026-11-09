@@ -422,7 +422,7 @@ PERMITTED_CHANNELS = {
     ("src/endpoint-calls/index.mjs", "fetch"): (2, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
     # A reading taken, not a rule of NO SERVER's own: its check concerns the built site a browser runs (this file's docstring);
     # MOD-checkout-tools, MOD-job-catalogue and ARC-046 say webfetch runs in Node only, registered only by the Workflows — in CI —,
-    # never by the browser; and A PARTICIPANT DECLARES ITS CAPABILITIES grants a participant "reach the web". Its two fetches (the page, and
+    # never by the browser; and A CONNECTION DECLARES ITS CAPABILITIES grants a participant "reach the web". Its two fetches (the page, and
     # the page again with an honest user agent where Cloudflare challenged the first) are allowed while no module the site loads in a
     # browser imports src/checkout-tools/.
     ("src/checkout-tools/webfetch.mjs", "fetch"): (2, WEBFETCH, _webfetch_in_node_only),

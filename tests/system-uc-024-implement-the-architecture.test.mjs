@@ -281,7 +281,7 @@ test("TST-740207: UC-024 4 every step's job is given the product's coding standa
 // ---------------------------------------------------------------- step 5, 5a, 5b
 
 // TST-740208 · level: system · module: system
-// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA
 // given: the planned product, ITM-101 and ITM-103 ready; the role assignment gives Developer and Tester to dev-a and local-llm (which can only draft text); dev-b can write and run tests and holds no role; then the same product whose Developer and Tester are local-llm alone
 // input: the author opens Implement for each, and presses Start jobs in the second
 // expect: step 5: for ITM-101 dev-a alone is offered, with "dev-a processes data at this machine"; local-llm and dev-b are not offered; a folded What is this? stands on the page; 5a: in the second, ITM-101 says that no participant can write and run tests, links #participants and says a model endpoint can draft a decision, not implement it; Start jobs writes no start record

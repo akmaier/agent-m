@@ -106,7 +106,7 @@ test("UC-012 — a bug is confirmed, its fix is queued on the participant's rout
 });
 
 // TST-583402 · level: system · module: MOD-maintenance-pages
-// guards: UC-012; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-012; A CONNECTION DECLARES ITS CAPABILITIES
 // given: alternative flow 5b — the register lists only local-llm, offered on the model endpoint ep1, which can draft text; the issue 5 analysed as a bug and confirmed
 // input: the author opens the fix section after confirming the class
 // expect: the page says that no participant that can run code and tests is configured, and that a model endpoint may analyse but cannot fix; it offers the button UC-017 and no run panel; no job record is committed

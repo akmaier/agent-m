@@ -122,7 +122,7 @@ test("issue — Fix offers the participants that can run tests, shows their run 
 });
 
 // TST-583202 · level: component · module: MOD-maintenance-pages
-// guards: UC-012; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-012; A CONNECTION DECLARES ITS CAPABILITIES
 // given: known positive first (TST-583201's world offers dev-cli); a register that lists only local-llm, whose model endpoint ep1 can draft text
 // input: the route issue 6; the button UC-017 clicked
 // expect: the section says that no participant that can run code and tests is configured and that a model endpoint cannot fix; it offers no participant, no name field and no run panel; the click goes to Agent M's own use case UC-017 (the context's go with the empty product), and before it nothing goes; nothing is written

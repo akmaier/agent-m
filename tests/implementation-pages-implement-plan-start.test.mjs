@@ -5,7 +5,7 @@
 // Run: node --test tests/implementation-pages-implement-plan-start.test.mjs
 //
 // Module: MOD-implementation-pages
-// Guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A GATE NAMES WHO DECIDES IT
+// Guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA; A GATE NAMES WHO DECIDES IT
 // Guards: WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
 // Guards: A REFACTORING JOB BEGINS WITHOUT A FAILING TEST
 // Level: unit
@@ -161,7 +161,7 @@ const settle = async () => { for (let turn = 0; turn < 60; turn += 1) await new 
 const startRecords = (commits) => commits.flatMap((commit) => commit.files).filter((file) => /^docs\/jobs\/JOB-/.test(file.path));
 
 // TST-733001 · level: unit · module: MOD-implementation-pages
-// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A CONNECTION DECLARES ITS CAPABILITIES; A CONNECTION DECLARES WHERE IT PROCESSES DATA
 // given: the V-model fixture, ITM-012 and ITM-010 ticked; dev-a holds Developer and Tester with every capability, dev-c holds both but lacks run code and tests, dev-b has every capability and holds no role
 // input: the route implement's render
 // expect: for ITM-012 only dev-a is offered, with where it processes data (this machine); neither dev-c nor dev-b is offered; nothing is committed

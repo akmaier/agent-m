@@ -6,7 +6,7 @@
 // Module: MOD-job-runner
 // Guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // Guards: A RECORD IS EVIDENCE, NOT A PROPOSAL; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
-// Guards: A GENERATED ARTIFACT IS A PROPOSAL; A PARTICIPANT DECLARES ITS CAPABILITIES
+// Guards: A GENERATED ARTIFACT IS A PROPOSAL; A CONNECTION DECLARES ITS CAPABILITIES
 // Level: unit
 //
 // The tools are reached as a model endpoint's driver will reach them: a fixture drafter is handed `input.tools` by `runJob`, calls
@@ -97,7 +97,7 @@ const offeredIn = async (options) => {
 // ---------------------------------------------------------------- who gets a ToolUse
 
 // TST-486001 · level: unit · module: MOD-job-runner
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: A CONNECTION DECLARES ITS CAPABILITIES
 // given: a kind naming the five tools with a tool limit of 7; a model endpoint declaring draft text, read the repository and use tools
 // input: runJob with a fixture drafter that keeps the `tools` of its input
 // expect: a ToolUse whose definitions are, in the kind's order, list-files, read-file, search-files, propose-edit and hand-over, each with exactly the keys name, description and input, a description with text in it and an object schema as input; and whose limit is 7
@@ -115,7 +115,7 @@ test("a model endpoint that declares use tools gets the kind's five tools in its
 });
 
 // TST-1240102 · level: unit · module: MOD-job-runner
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: A CONNECTION DECLARES ITS CAPABILITIES
 // given: the kind of TST-486001 with a toolLimit of null; then the same kind with the toolLimit the real catalogue gives the code kind implement; a model endpoint declaring draft text, read the repository and use tools
 // input: runJob with a fixture drafter that keeps the `tools` of its input
 // expect: a ToolUse with the five definitions whose limit is null in both cases — not 200, not 0; known positive: with a toolLimit of 30, the limit is 30
@@ -129,7 +129,7 @@ test("TST-1240102: a kind without a tool limit gives a ToolUse whose limit is nu
 });
 
 // TST-486002 · level: unit · module: MOD-job-runner
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: A CONNECTION DECLARES ITS CAPABILITIES
 // given: the kind of TST-486001; then a model endpoint declaring draft text and read the repository but not use tools; a CLI agent and a sandboxed agent, each declaring use tools; a CI agent declaring use tools; the same endpoint with a kind that names no tools
 // input: runJob with a fixture drafter that keeps the `tools` of its input
 // expect: tools is null in every one of these cases; counter-proof: the endpoint that declares use tools, with the kind that names tools, gets a ToolUse
@@ -143,7 +143,7 @@ test("every other drafter gets null: without use tools, a coding agent, a CI age
 });
 
 // TST-486003 · level: unit · module: MOD-job-runner
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: A CONNECTION DECLARES ITS CAPABILITIES
 // given: the kind of TST-486001; a model endpoint declaring draft text and use tools but not read the repository
 // input: runJob with a fixture drafter that keeps the `tools` of its input
 // expect: the definitions are propose-edit and hand-over only, in that order; counter-proof: with read the repository declared as well, list-files, read-file and search-files are offered too
@@ -172,7 +172,7 @@ test("the tools the job's parameter refuses are left out and cannot be called", 
 // ---------------------------------------------------------------- a call's arguments
 
 // TST-486005 · level: unit · module: MOD-job-runner
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: A CONNECTION DECLARES ITS CAPABILITIES
 // given: the kind of TST-486001
 // input: calls of a tool that is not in the catalogue ("delete-everything"), of read-file with no path, of read-file with a path that is a number, of read-file with null as its arguments, of hand-over with works_on holding a number; and a call of read-file with a path of the snapshot
 // expect: "refused: delete-everything is not offered here"; "refused: the call has no path"; "refused: the call.path is not a text"; "refused: the call is not an object"; "refused: the call.works_on[0] is not a text"; and, for the last, the file's text

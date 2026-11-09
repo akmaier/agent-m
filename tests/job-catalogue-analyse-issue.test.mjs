@@ -66,13 +66,13 @@ test("analyse-issue — is prepared over the recipe issue-context: the issue and
 });
 
 // TST-582202 · level: component · module: MOD-job-runner
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-012
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; UC-012
 // given: a participant that declares read the repository and not draft text
 // input: prepareJob of analyse-issue for issue 5 with it as the drafter
-// expect: one error under A PARTICIPANT DECLARES ITS CAPABILITIES naming reader-b, which keeps the job from starting
+// expect: one error under A CONNECTION DECLARES ITS CAPABILITIES naming reader-b, which keeps the job from starting
 test("analyse-issue — a participant that cannot draft text is not eligible", async () => {
   const { job } = await prepared(READER);
-  assert.deepEqual(job.blocking.map((found) => [found.kind, found.rule]), [["error", "A PARTICIPANT DECLARES ITS CAPABILITIES"]]);
+  assert.deepEqual(job.blocking.map((found) => [found.kind, found.rule]), [["error", "A CONNECTION DECLARES ITS CAPABILITIES"]]);
   assert.ok(job.blocking[0].what.includes("reader-b"), job.blocking[0].what);
 });
 

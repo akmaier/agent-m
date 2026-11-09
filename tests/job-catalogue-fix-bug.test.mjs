@@ -3,7 +3,7 @@
 // Run: node --test tests/job-catalogue-fix-bug.test.mjs
 //
 // Module: MOD-job-catalogue; MOD-issue-handling; MOD-job-runner
-// Guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A TEST JOB RECEIVES THE CHAPTER ON TESTING; A PARTICIPANT DECLARES ITS CAPABILITIES; UC-012
+// Guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A TEST JOB RECEIVES THE CHAPTER ON TESTING; A CONNECTION DECLARES ITS CAPABILITIES; UC-012
 // Level: component
 //
 // The kind and its prompt are the catalogue's own, the recipes are those of MOD-issue-handling, MOD-run-planner, MOD-source-register, MOD-resource-list and MOD-runtimes (the writer) registered with the runner, the runner is the real one. The product is a fixture of this file, its host a fixture that lists
@@ -79,13 +79,13 @@ test("fix-bug — is prepared over the recipe fix-inputs: the issue, the confirm
 });
 
 // TST-583152 · level: component · module: MOD-job-catalogue
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-012
+// guards: A CONNECTION DECLARES ITS CAPABILITIES; UC-012
 // given: a participant that declares write to the repository and not run code and tests
 // input: prepareJob of fix-bug for issue 5 with it as the drafter
-// expect: one error under A PARTICIPANT DECLARES ITS CAPABILITIES naming writer-b, which keeps the job from starting; the known positive is TST-583151's
+// expect: one error under A CONNECTION DECLARES ITS CAPABILITIES naming writer-b, which keeps the job from starting; the known positive is TST-583151's
 test("fix-bug — a participant that cannot run code and tests is not eligible", async () => {
   const { job } = await prepared(WRITER);
-  assert.deepEqual(job.blocking.map((found) => [found.kind, found.rule]), [["error", "A PARTICIPANT DECLARES ITS CAPABILITIES"]]);
+  assert.deepEqual(job.blocking.map((found) => [found.kind, found.rule]), [["error", "A CONNECTION DECLARES ITS CAPABILITIES"]]);
   assert.ok(job.blocking[0].what.includes("writer-b"), job.blocking[0].what);
 });
 

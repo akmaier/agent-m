@@ -3,7 +3,7 @@
 // Run: node --test tests/job-catalogue-tools.test.mjs
 //
 // Module: MOD-job-catalogue
-// Guards: ONE DEFINITION, THREE DRIVERS; A PARTICIPANT DECLARES ITS CAPABILITIES
+// Guards: ONE DEFINITION, THREE DRIVERS; A CONNECTION DECLARES ITS CAPABILITIES
 // Level: unit
 //
 // The expected tools are stated in this file (name, capability, the required arguments of each); the catalogue is read as every
@@ -30,7 +30,7 @@ const NAMES = FIVE.map((tool) => tool.name);
 const READING = ["list-files", "read-file", "search-files"];
 
 // TST-484001 · level: unit · module: MOD-job-catalogue
-// guards: ONE DEFINITION, THREE DRIVERS; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: ONE DEFINITION, THREE DRIVERS; A CONNECTION DECLARES ITS CAPABILITIES
 // given: the catalogue as shipped; the five tools stated in this file
 // input: toolsOf of the five names, in the stated order
 // expect: five definitions in that order; each with the stated name and capability, a description with text in it, and an input schema describing an object whose required arguments are the stated ones, each among its properties
@@ -70,7 +70,7 @@ test("toolsOf — a name tools.md lacks is refused as UnknownTool, naming it", a
 });
 
 // TST-484004 · level: unit · module: MOD-job-catalogue
-// guards: ONE DEFINITION, THREE DRIVERS; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: ONE DEFINITION, THREE DRIVERS; A CONNECTION DECLARES ITS CAPABILITIES
 // given: the catalogue as shipped
 // input: kindOf("converse"), and kindOf of change-requirements, change-use-case and change-architecture
 // expect: converse has the five tools in the stated order and a toolLimit of 30; each of the other three has the three reading tools in the stated order and then hand-over, and a toolLimit that is a positive whole number

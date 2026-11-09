@@ -39,7 +39,7 @@ const SCHEMA_FILE = new URL("../src/participant-list/participants.schema.md", im
 const INSTANCE_REGISTER = new URL("../docs/participants.md", import.meta.url);
 const REGISTER_PATH = "docs/participants.md";
 
-// The six capabilities of A PARTICIPANT DECLARES ITS CAPABILITIES, in the module file's order.
+// The six capabilities of A CONNECTION DECLARES ITS CAPABILITIES, in the module file's order.
 const CAPABILITIES = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools",
   "reach the web"];
 

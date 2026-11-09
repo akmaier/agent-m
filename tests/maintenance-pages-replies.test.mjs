@@ -127,20 +127,20 @@ test("a reply written without a participant opens an empty draft with the origin
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-039
 // given: a mailbox that allows the place "this machine"; a register with local-llm (draft text, this machine), cloud-llm (draft text, a provider in the USA) and checker (no draft text, this machine)
 // input: the issue 4 drawn; and again with the mailbox also allowing the USA place, noted as outside the EU
-// expect: first only local-llm is offered; then local-llm and cloud-llm, cloud-llm with the mark not compliant and its place named, local-llm without; checker is offered in neither
+// expect: first only local-llm and ep1, the connection it runs on, are offered; then local-llm and cloud-llm with their connections ep1 and ep2, cloud-llm with the mark not compliant and its place named, local-llm without; checker is offered in neither
 test("Draft replies offers only participants that can draft at a place the mailbox allows", async () => {
   const first = await start();
   await read(first.target);
   const detail = await opened(first.w, { issue: "4", product: PRODUCT_URL });
   await waitFor(() => byClass(detail, "reply-participant").length > 0);
-  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm"]);
+  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
   document.body.replaceChildren();
   restoreNet();
   const second = await start({ places: [{ place: "this machine", outsideEu: false }, { place: "a provider in the USA", outsideEu: true, notCompliantNoted: true }] });
   await read(second.target);
   const both = await opened(second.w, { issue: "4", product: PRODUCT_URL });
   await waitFor(() => byClass(both, "reply-participant").length > 1);
-  assert.deepEqual(byClass(both, "participant").map((radio) => radio.value).sort(), ["cloud-llm", "local-llm"]);
+  assert.deepEqual(byClass(both, "participant").map((radio) => radio.value).sort(), ["cloud-llm", "ep1", "ep2", "local-llm"]);
   const cloud = walk(both, (node) => node.getAttribute?.("data-participant") === "cloud-llm")[0];
   assert.match(textOf(cloud), /a provider in the USA/);
   assert.equal(byClass(cloud, "not-compliant").length, 1);
@@ -313,7 +313,7 @@ test("the replies page writes no address #replies/…: the frame writes it from 
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-039
 // given: a mailbox that allows the place "this machine"; the register of the world; this browser's endpoint GPT-OSS-120B at this machine and its endpoint far-llm in the USA, each declaring a place, a context and a model
 // input: the issue 4 drawn
-// expect: Draft replies offers local-llm and GPT-OSS-120B, and not far-llm; counter-proof: with the register's participants only, as before, GPT-OSS-120B is missing and the case fails
+// expect: Draft replies offers local-llm, GPT-OSS-120B and ep1, and not far-llm; counter-proof: with the register's participants only, as before, GPT-OSS-120B is missing and the case fails
 test("Draft replies offers the endpoints the prompt bar offers from this browser, at the places the mailbox allows", async () => {
   const first = await start();
   await read(first.target);
@@ -321,5 +321,5 @@ test("Draft replies offers the endpoints the prompt bar offers from this browser
   writeSetting(first.w.context.store, "endpoint:far-llm", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "far-model", key: "k2", place: "a provider in the USA", context: 131072 });
   const detail = await opened(first.w, { issue: "4", product: PRODUCT_URL });
   await waitFor(() => byClass(detail, "reply-participant").length > 0);
-  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm", "GPT-OSS-120B"]);
+  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm", "GPT-OSS-120B", "ep1"]);
 });

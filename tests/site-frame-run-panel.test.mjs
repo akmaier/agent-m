@@ -184,7 +184,7 @@ test("runPanel — a part left out is shown with its reason, and does not keep t
 test("runPanel — a finding that keeps the job from starting is shown whole, and Run is not offered", () => {
   const blocking = [
     finding("error", "CI reviewer, the reviewer of this job, lacks the capability read the repository", "choose a participant that declares it",
-      "A PARTICIPANT DECLARES ITS CAPABILITIES"),
+      "A CONNECTION DECLARES ITS CAPABILITIES"),
     finding("error", "Erlangen endpoint may not receive SRC-standard", "choose a participant at a place SRC-standard permits",
       "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS")];
 
@@ -282,7 +282,7 @@ test("runPanel — the texts of the Prepared value are shown as text, never as m
   const bad = { ...drafter, name: hostile };
   const element = panel(prepared({ drafter: bad, parts: [part(hostile, 10)],
     destinations: [{ participant: bad, role: "drafter", place: hostile, parts: [hostile], size: 10 }], reviewers: [],
-    leftOut: [{ part: hostile, reason: hostile }], blocking: [finding("error", hostile, hostile, "A PARTICIPANT DECLARES ITS CAPABILITIES")] }));
+    leftOut: [{ part: hostile, reason: hostile }], blocking: [finding("error", hostile, hostile, "A CONNECTION DECLARES ITS CAPABILITIES")] }));
 
   assert.ok(said(element).includes(hostile), said(element));
   assert.equal(elements(element, (e) => ["b", "img", "script"].includes(e.localName)).length, 0);

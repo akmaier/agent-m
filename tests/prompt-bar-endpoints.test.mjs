@@ -166,7 +166,7 @@ async function sends(it, words) {
 }
 
 // TST-1187101 · level: component · module: MOD-prompt-bar
-// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; UC-049
+// guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A CONNECTION DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; UC-049
 // given: this browser declares the endpoints drafter (place "Anthropic, USA", context, model), no-place (no place) and no-model (no model), and keeps the Bridge mac, which lists the agents claude, codex, gemini and idle — the first three ready, idle not —, whose sessions declare: mac:claude a place "this machine" and the model claude-model with its context; mac:codex no place; mac:gemini no model; mac:idle everything; the instance's participant list holds alice and listed-agent, an agent of drafter's model
 // input: startPromptBar, until the bar is drawn
 // expect: the selector offers exactly "drafter · model-drafter — Anthropic, USA" and "mac:claude · claude-model — this machine", in that order: no endpoint or session lacking a place or a model, no agent that is not ready, and no participant of the list; drawing sent the Bridge mac testBridge's two requests, GET /v1/pair then GET /v1/agents, and nothing else; the instance's docs/participants.md was not read
