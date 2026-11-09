@@ -70,8 +70,8 @@ Its start: the front matter, the destinations and the parameters.
 | `kind` | the kind's name from MOD-job-catalogue, or `run` |
 | `works_on` | the identifiers it works on — requirements, use cases, decisions, modules, items, sources —, an issue's address or a commit |
 | `participant`, `model` | the participant's name and model, `—` for a kind without one |
-| `declares` | for a model endpoint the instance's list does not hold, which a hand-over of the prompt bar names (`THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE`), its `context` in tokens and its `capabilities`, as its configuration declares them; its place stands in `## Destinations`; absent otherwise |
-| `route` | `tab`, `ci hosted`, `ci runner:<label>` or `bridge <name>` |
+| `declares` | for a job of an agent — of the instance's list, or a connection a hand-over of the prompt bar names (`THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE`) —, what the connection it runs on declares for its model (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`): the model's `context` in tokens, the connection's `capabilities`, and the model's `price` per million input and output tokens where one is declared; its model is `model`, its place stands in `## Destinations`, so that no route reads them back from the list or a browser; absent for a kind without a participant |
+| `route` | where it runs, `tab`, `ci hosted` or `ci runner:<label>`, followed for a model endpoint's job by that connection's route, `endpoint <name>`, with ` secret <NAME>` where it names the CI secret of its key; or, for a coding agent a Bridge offers, its connection's route `bridge <name> agent <agent>` (MOD-participant-list's `Connection`) |
 | `run` | the run it belongs to, if any |
 | `retries` | the job it retries, if any |
 | `started_by` | the account whose click started it, or the run or the job that started it — a conversation's job that planned it (UC-049 4f) |
@@ -112,7 +112,13 @@ works_on:
   - EXPORT IS A PDF
 participant: drafter-a
 model: example-model
-route: tab
+declares:
+  context: 200000
+  capabilities:
+    - draft text
+    - read the repository
+  price:
+route: tab endpoint example-endpoint
 run:
 retries:
 started_by: alice
@@ -143,7 +149,8 @@ by: tab <identifier>
 - `JobStart` — `{ id: string, kind: string, worksOn: string[], participant: string | null, model: string | null, route:
   string, run: string | null, retries: string | null, startedBy: string, start: Date, agentM: { version: string, commit:
   string }, inputs: string[], limit: number, task: "in parameters" | "with the hand-over", conversation: string | null,
-  declares: { context: number, capabilities: string[] } | null, destinations: { participant: string, place: string,
+  declares: { context: number, capabilities: string[], price: { input: number, output: number, currency: string } | null }
+  | null, destinations: { participant: string, place: string,
   parts: string[] }[], params: Record<string, unknown> }`.
 - `RecordPart` — `{ part: "taken", at: Date, by: string } | { part: "gate reached", at: Date, gate: string, decider:
   string } | { part: "question", at: Date, question: string } | { part: "resumed", at: Date, gateRecord: string } | {
@@ -187,7 +194,7 @@ by: tab <identifier>
   read yet; the iteration fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
   `Unreachable`.
 - `jobCost(usage: Usage | null, participant: Participant) -> Cost` — the cost the runtime reported; otherwise the
-  reported tokens at the participant's declared price; otherwise unknown, with the usage — never zero, never an estimate.
+  reported tokens at the price the participant's connection declares for its model; otherwise unknown, with the usage — never zero, never an estimate.
 - `worksOnProblem(worksOn: string[]) -> string | null` — why a record would refuse `worksOn` as what its job works on: the
   reason `writeDocument` gives for the field `works_on` of `job.schema.md`, whose form the `works on:` of `## Job
   started` shares; `null` where the record takes it. The one rule of what a job's record names it works on, which

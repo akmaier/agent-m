@@ -79,6 +79,8 @@ uses:
   - MOD-runtimes.jobTrail
   - MOD-runtimes.routeStrategies
   - MOD-prompt-bar.Subject
+  - MOD-prompt-bar.endpointsOffered
+  - MOD-prompt-bar.sessionsOffered
 provides:
   - view
 ---
@@ -170,7 +172,9 @@ instance's participants.
   MOD-site-frame.runPanel, MOD-site-frame.confirmDecision, MOD-site-frame.schemaForm — the frame's parts, the run panels,
   the dialog of every send, and the form of a backlog item.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
-- MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
+- MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
+  MOD-prompt-bar.sessionsOffered — this browser's connections, which `participantsOf` joins with the instance's
+  participants.
 - MOD-browser-store.readSetting — the mailbox connection and its last test, the endpoints' configurations and the
   Bridges' settings;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
@@ -209,7 +213,7 @@ instance's participants.
   `backlogItemFrom` as `changed`, since an entry's anchor is the heading of a whole section, not a requirement's name.
 - MOD-source-register.personAccount — the person's account, the parameter `source` of a change.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
-  participants of the register, and who may analyse, fix, propose, rewrite, check or draft.
+  participants of the register on this browser's connections, and who may analyse, fix, propose, rewrite, check or draft.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-runner.writeResult — the drafted change
   written on the person's click; MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob,
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.

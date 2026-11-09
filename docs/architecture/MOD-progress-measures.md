@@ -43,6 +43,7 @@ uses:
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.reachableBy
   - MOD-participant-list.Participant
+  - MOD-participant-list.Connection
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-documents.Document
@@ -183,7 +184,7 @@ The six stages of the main page, each a share between 0 and 1:
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
 - `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date,
-  options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
+  options?: { scope: "all" | "work" | "build", connections?: Connection[] }) -> Promise<Facts>` — with the scope `build`, what
   `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the pull requests —; with the scope `work`, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
@@ -199,6 +200,9 @@ The six stages of the main page, each a share between 0 and 1:
   Considers:
   - `instance` is the instance as the caller reads it, for its participants, process models and `SPEC.md`: on a page
     its default branch; in CI the checkout of the instance at the commit of Agent M that runs (MOD-workflow-entries).
+  - `connections` are those `participantsOf` joins with the instance's participants for `participants`: on a page this
+    browser's (MOD-prompt-bar's `endpointsOffered`, `sessionsOffered`), in CI and on a Bridge the one the record of the
+    job that asks names (MOD-job-ledger); none where none are given, an agent then standing without a route.
   - `instanceAt` reads the instance at any commit, for the commit a declaration names. That is another commit than the
     one a CI job checks out, and the two are not related.
     - On a page, `instanceAt` reads through the frame's host of the instance.
@@ -395,7 +399,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.
 - MOD-runtimes.jobWorkflowFiles, ResourceNeed — the paths of the job workflow, and the type of a resource need.
 - MOD-resource-list.resourceSchema, reachableBy — the product's resources and the routes that reach them.
-- MOD-participant-list.Participant, participantSchema, participantsOf — the participants and their roles.
+- MOD-participant-list.Participant, Connection, participantSchema, participantsOf — the participants on the connections
+  given, and their roles.
 - MOD-documents.Document, readDocument, readRegister, artifactSchemas — the files by their schemas, the items and the
   module files among them.
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,

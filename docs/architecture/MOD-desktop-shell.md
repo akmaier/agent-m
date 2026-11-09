@@ -99,8 +99,8 @@ Bridge's per-user data folder, written only by this module.
 ```
 
 - `agent-m-bridge-settings` — the version of the format, `1`.
-- `name` — the Bridge's name, which the route of its participants carries in the instance's `docs/participants.md`
-  (`bridge <name> agent <agent>`); by default the computer's own name.
+- `name` — the Bridge's name, which the route of its connections in a browser's settings and of its jobs' records
+  carries (`bridge <name> agent <agent>`, MOD-participant-list, MOD-job-ledger); by default the computer's own name.
 - `port` — the port on loopback the API listens on; by default the one `bridgeApi` names.
 - `agents` — the agents the Bridge offers, each a supported agent installed on this computer and chosen by the person in
   the window, with its working folder, chosen there too, in which MOD-bridge-jobs keeps that agent's clones (`THE BRIDGE

@@ -100,7 +100,7 @@ it, so that the job's writer reads it there; the branch checked out in the clone
 origin refuses fails the job, naming the branch and what git said. The Bridge runs git in the working clone and the
 outbox only before the agent starts; afterwards it only fetches the outbox's objects from its own clone, which runs no
 command the outbox's configuration names: a hook or a command written there would run with the person's rights. Which agents it offers with their working folders, which products it serves, and the
-Bridge's name — the name the route of its participants carries in `docs/participants.md` —, come from the Bridge's
+Bridge's name — the name the route of its jobs' records carries, `bridge <name> agent <agent>` (MOD-job-ledger) —, come from the Bridge's
 settings (MOD-desktop-shell).
 
 ## Interfaces
@@ -143,9 +143,11 @@ settings (MOD-desktop-shell).
   }[], every: number, enclosures: (folder: string) -> AgentEnclosure }) -> void` — with the agents the Bridge offers,
   their working folders and their enclosures, starts reading every
   served product through Access's local clone with the computer's own git login, at the
-  given interval and after every hand-over: queued jobs whose participant's route names this Bridge and an agent it
-  offers are taken — a commit
-  only on the head that was read, so that no other route takes them too — and run, a run that MOD-job-runner's
+  given interval and after every hand-over: queued jobs whose record's route names this Bridge and an agent it
+  offers, `bridge <name> agent <agent>`, are taken — a commit
+  only on the head that was read, so that no other route takes them too — and run, the agent started with the record's
+  `model`, its participant the one its record names on the connection its route, `model`, `declares` and `##
+  Destinations` give (MOD-job-ledger), a run that MOD-job-runner's
   `failedBecause` fails ending its job `failed` with that reason; jobs of this Bridge waiting at a gate
   whose record now exists are resumed (`A JOB STOPS AT EVERY GATE`); a sprint whose close
   the product assigned to one of this Bridge's agents is closed by that agent, once,
@@ -206,8 +208,8 @@ clones. Nothing else.
   the commit a declaration or a job's record names, through its clone, which fetches the commit with that login; and the
   test of that login.
 - `MOD-documents.readDocument`, `MOD-documents.readRegister`, `MOD-participant-list.participantSchema`,
-  `MOD-participant-list.participantsOf`, `MOD-product-process.declarationSchema` — the participants of this Bridge and
-  the product's declaration.
+  `MOD-participant-list.participantsOf`, `MOD-product-process.declarationSchema` — the instance's participants, joined
+  with the one connection a job's record gives, and the product's declaration.
 - `MOD-agent-processes.installedAgents`, `agentDriver`, `testAgent` — the agents of this computer and their driver.
 - `MOD-endpoint-calls.EndpointConfig`, `testEndpoint`, `listModels`, `endpointDriver` — an endpoint's test, its models'
   listing and the requests of a job of the page to a model endpoint.

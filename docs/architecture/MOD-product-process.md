@@ -10,6 +10,7 @@ uses:
   - MOD-model-catalogue.Catalogue
   - MOD-model-catalogue.catalogue
   - MOD-model-catalogue.modelSchema
+  - MOD-participant-list.Connection
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
@@ -137,18 +138,22 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
     - a branch for a phase the model lacks;
     - a gate under `## Gates added by requirements` whose requirement the instance's SPEC, `instanceSpec`, does not hold.
 - `roleAssignmentSchema: Schema` — the role assignment's schema, for MOD-documents and for the form of UC-048.
-- `roleAssignmentFindings(assignments: Document[], workflow: Workflow, participants: Document, sources: Document[]) ->
-  Finding[]` — the findings of a product's role assignments, read together.
+- `roleAssignmentFindings(assignments: Document[], workflow: Workflow, participants: Document, connections:
+  Connection[], sources: Document[]) -> Finding[]` — the findings of a product's role assignments, read together, its
+  holders the participants `participantsOf` joins with `connections`, those of the browser that asks.
   - Each an error:
     - more than one role assignment where the model works without sprints (`A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE
       PER TEAM`);
     - a role the workflow does not have, or anything besides the roles table (`A ROLE ASSIGNMENT FILLS THE ROLES`);
     - more than one participant for a role that one participant fills (`A ROLE NAMES HOW MANY FILL IT`);
     - a name the instance's list does not hold (`PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE`);
-    - a role that needs a person and has none;
-    - a holder that lacks a capability its role needs, naming it (`A ROLE NAMES THE CAPABILITIES IT NEEDS`).
-  - A warning: a holder at a processing place a linked source does not permit, naming the source and the role. That
-    source's content is then never given to that holder (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
+    - a role that needs a person and has none.
+  - Each a warning, since the assignment stays possible (UC-048 3b, 3c):
+    - an agent holder no connection given for whose model has every capability its role needs, naming the capability;
+      no job of the role is sent to a connection that lacks it (`A ROLE NAMES THE CAPABILITIES IT NEEDS`);
+    - a connection that offers a holder's model at a processing place a linked source does not permit, naming the
+      source, the role and the connection. That source's content is then never given to that connection (`RESTRICTED
+      CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
   - The same participant in the role assignments of several teams is no finding (`A PARTICIPANT MAY SERVE SEVERAL
     TEAMS`).
 - `branchesOf(declaration: Document) -> Record<string, string>` — the declaration's `## Branches`, each phase or time
@@ -217,7 +222,8 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 - MOD-model-catalogue.Model, Catalogue — the declared model, and the catalogue at the commit the declaration names, with
   each model's findings and each practice's `fits`; MOD-model-catalogue.catalogue, modelSchema — that catalogue and
   its practices read, for `productWorkflow`.
-- MOD-participant-list.participantSchema, participantsOf, eligible — the holders' capabilities and processing places.
+- MOD-participant-list.Connection, participantSchema, participantsOf, eligible — the holders on the connections given,
+  with those connections' capabilities and processing places.
 - MOD-source-register.sourceSchemas, permittedPlaces — where the content of a linked source may go.
 - MOD-spec-document.parseSpec — the process requirements, which the instance's SPEC holds, and their sources.
 - MOD-test-document.testDeclarations — whether new tests name a requirement and a module, and whether a refactoring

@@ -70,8 +70,7 @@ schedule or the book's default.
    call a paid service; the explanation says why and points to recorded responses.
 3. The author sets the time of the nightly run, the command that runs the product's tests where
    they do not run with node's test runner, and, per row, where it runs: a hosted runner of the
-   server, or a self-hosted runner on a machine of a CLI or sandboxed agent participant. Agent M
-   offers only participants with *run code and tests*.
+   server, or a self-hosted runner, named by the label it carries.
 4. Agent M lists the secrets the scheduled tests need — for example the model endpoint key of the
    nightly rate tests — by name only, with a button that opens the server's secrets page for the
    product, and a folded explanation of how to add one there. It never asks for a secret's value.

@@ -94,7 +94,7 @@ designs:
 
 ## Context
 
-Most of Agent M's work is done by participants — people, model endpoints, CI agents, CLI agents and sandboxed agents —
+Most of Agent M's work is done by participants — people, and agents on the connections that offer their models: model endpoints and the coding agents of Bridges —
 in jobs: deriving requirements, drafting use cases or an architecture, reviewing it, planning, implementing, generating
 and running tests, analysing issues, proposing issues from mail, rewriting report data and checking it for persons,
 drafting replies, closing a sprint. Every such job has the same shape: check that it may start, assemble what the

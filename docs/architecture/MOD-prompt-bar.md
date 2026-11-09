@@ -276,9 +276,9 @@ and sends nothing while the job does not
   on which the job's record is committed, its paths — whether it holds the job workflow, and the records under
   `docs/jobs/`, against whose identifiers the job's identifier is new, without reading a record — and its visibility,
   for `routesFor`. It queues and starts each such job with
-  MOD-runtimes' `handOverJob` — for a job that is the endpoint's own, with a start whose `participant` and `model` name
-  the endpoint, whose destinations name its place, and whose `declares` holds its context and capabilities
-  (MOD-job-ledger) —, then follows each by its record and
+  MOD-runtimes' `handOverJob` — with a start whose `route` carries the route of the connection its participant runs on
+  and whose `declares` holds that connection's context, capabilities and price (MOD-job-ledger); for a job that is the
+  endpoint's own, whose `participant` and `model` name the endpoint and whose destinations name its place —, then follows each by its record and
   `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows,
   as each ends, its log's answer and every result its end record lists, a piece not run with why and what it requires
   among them (UC-049 4a.5); for a job whose kind leaves its result to a person and whose writer writes nothing — its
