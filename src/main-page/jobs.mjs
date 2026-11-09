@@ -21,7 +21,7 @@ import { cancelJob, liveState, liveStates, jobLog, jobTrail, retryJob, revertAft
 import { productFacts } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
 import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
-import { currentJob, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
+import { ciAgentsOffered, currentJob, endpointsOffered, sessionsOffered } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 import { bridgesOf, liveStatesOf, sourcesOf } from "./sources.mjs";
 import { waitingOf, waitsList } from "./waits.mjs";
@@ -343,7 +343,7 @@ async function retryControls(context, held, read) {
   try {
     const instanceHost = context.instance.host;
     const snapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
-    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store)];
+    const connections = [...endpointsOffered(context.store), ...await sessionsOffered(context.store), ...ciAgentsOffered(context.store)];
     facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work", connections });
     visibility = (await host.repositoryInfo()).visibility;
   } catch (failure) {
