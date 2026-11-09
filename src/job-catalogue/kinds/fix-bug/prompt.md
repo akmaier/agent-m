@@ -15,9 +15,9 @@ The task, where one is given, is the work asked for, within what the inputs belo
 
 {{fix-inputs}}
 
-## Chapter 13 of the book *Vibe Coding*, on testing
+## Chapters 9, 11, 12 and 13 of the book *Vibe Coding*: modeling, agentic design, implementation, testing
 
-{{chapters-for-tests}}
+{{chapters-for-implementation}}
 
 ## The product's resources, with their pinned states
 

@@ -325,10 +325,11 @@ and sends nothing while the job does not
   one that lacks nothing; the settings page names the rest where the endpoint is configured.
 - `endpointsOffered(store: Store) -> Participant[]` — this browser's endpoints the bar offers, as `startPromptBar` builds
   them; for the settings page's test job of an endpoint.
-- `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot?,
-  test? }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
+- `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, entry?,
+  instanceSnapshot?, test? }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
   endpoint's own, on GitHub Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the
-  repository of `page`, with `task` travelling in the workflow's inputs and `source` the bar's, on the server's own runners;
+  repository of `page`, with `task` travelling in the workflow's inputs, `source` the bar's and `entry` the key of the page's
+  menu entry among the job's parameters, for MOD-source-register's `chapters-for-page`, on the server's own runners;
   with `test`, the settings page's test job of the endpoint, the input `test` beside it (MOD-runtimes' `handOverJob`). It reads none of
   the product's facts: of the product, its default branch — its head, its
   paths, its visibility —, and of the instance its participant list and the restricted sources' places, which the job's

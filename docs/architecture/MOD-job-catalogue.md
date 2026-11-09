@@ -103,14 +103,14 @@ Agent M prepares no job of the kind.
 | `check-affected-modules` | UC-008 | draft text | `rests-on-accepted` | `use-case-with-neighbours`, `whole-architecture` | `backlog-checks` | | `leave-out-named-modules` | `none` · `backlog-items` | items, one for each module whose implementation the accepted use case's text changes, each realising the use case and naming that module |
 | `close-sprint` | UC-041 | draft text, read the repository, write to the repository | | `sprint-facts` | `sprint-record-checks` | | | `none` · `sprint-record` | the review, the retrospective, the proposed changes |
 | `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request |
-| `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the same |
+| `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the same |
 | `decide-gate` | UC-034, UC-036 | read the repository | | `gate-inputs` | | | | `none` · `gate-record` | the decision and its reasoning |
 | `set-up-ci` | UC-043, UC-027 | — | | | | | | `none` · `ci-configuration` | — |
 | `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `test-selection`, `chapters-for-tests` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
 | `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `draft`, `test-selection`, `chapters-for-tests`, `resource-pins` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
 | `run-tests` | UC-028, UC-013 | run code and tests | | `instruction?`, `commit-and-levels`, `resource-pins` | | | | `none` · `result-record` | the outcomes |
 | `analyse-issue` | UC-012 | draft text | | `issue-context` | | | | `none` · `return-draft` | the class and its reasoning |
-| `fix-bug` | UC-012 | write to the repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-tests`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report |
+| `fix-bug` | UC-012 | write to the repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report |
 | `propose-issues` | UC-038 | draft text | | `mail-batch` | `people-search` | | | `none` · `return-draft` | one proposal per mail |
 | `rewrite-without-persons` | UC-038 | draft text | | `report-data` | `people-search` | `check-for-persons` × 3 | | `none` · `return-draft` | the rewritten text |
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
@@ -187,7 +187,7 @@ draft further and its answer is the newer draft (UC-019 step 8). Without a draft
 A kind whose jobs write or change requirements or use cases, tests or the architecture, review the architecture, or
 implement, names among its recipes the one of MOD-source-register that gives the chapters of the book *Vibe Coding* for
 that kind of work. `fix-bug`
-names the one for tests: its job writes a regression test before it fixes anything (UC-012).
+and `refactor` change code and name the one for implementation, which holds the chapter on testing as well.
 
 **An example definition**, `kinds/derive-architecture/kind.md`:
 

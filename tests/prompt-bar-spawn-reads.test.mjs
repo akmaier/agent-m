@@ -125,6 +125,9 @@ function productFiles(extra = {}) {
 // The real sets of handOverStrategies, except the book's chapters: those recipes of the register's set give no part.
 const chaptersGiveNothing = Object.fromEntries(["chapters-for-requirements", "chapters-for-tests", "chapters-for-architecture", "chapters-for-implementation", "chapters-for-page"]
   .map((name) => [name, async () => []]));
+// The menu entry each job of the kind converse gave the recipe chapters-for-page, which gives no part here either.
+const pageEntries = [];
+chaptersGiveNothing["chapters-for-page"] = async (context, params) => { pageEntries.push(params?.entry); return []; };
 for (const set of handOverStrategies) {
   registerStrategies("tests/prompt-bar-spawn-reads.test.mjs", set === sourceStrategies
     ? { recipes: { "source-excerpt": sourceStrategies.recipes["source-excerpt"], ...chaptersGiveNothing } } : set);
@@ -254,4 +257,21 @@ test("the spawned job's identifier is new against the paths under docs/jobs/ of 
   assert.equal(spawned.id, "JOB-20261025-0726-c3d4");
   assert.equal(it.product.attempts[0].files[0].path, "docs/jobs/JOB-20261025-0726-c3d4.md");
   assert.deepEqual(readsOf(it.product.calls).filter((path) => path.startsWith("docs/jobs/")), [], "no record is read");
+});
+
+// TST-1300009 · level: unit · module: MOD-prompt-bar
+// guards: UC-049
+// given: the product of TST-1300001; the page's menu entry `requirements`, a key of the bar's menu; known positive: without an entry the recipe chapters-for-page is given none
+// input: spawnEndpointJob of a job of kind converse, once without an entry and once with `entry: "requirements"`
+// expect: the recipe chapters-for-page is given the entry `requirements`, and the job's record names it among its parameters; without it, no entry
+test("a spawned converse job carries the page's menu entry to the recipe of the page's chapters and into its record", async () => {
+  pageEntries.length = 0;
+  const without = await spawn(open());
+  assert.equal(without.refused, undefined, without.refused);
+  assert.deepEqual(pageEntries, [undefined], "known positive: without an entry the recipe is given none");
+  const it = open();
+  const spawned = await spawn(it, { entry: "requirements" });
+  assert.equal(spawned.refused, undefined, spawned.refused);
+  assert.deepEqual(pageEntries, [undefined, "requirements"]);
+  assert.match(it.product.attempts[0].files[0].text, /"entry": "requirements"/);
 });
