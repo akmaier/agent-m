@@ -98,7 +98,7 @@ types; a specification of type `list` may add `"unique": true`: no item stands i
 
 A value specification may add `describedIn`: each value must stand in the named section as a bullet that begins with
 the value in backticks — the rule by which a module's provided interfaces are described. It may name in `rule` the
-requirement that its key, field or column applies, for example `A PARTICIPANT HAS ONE OF FIVE TYPES` for a participant's
+requirement that its key, field or column applies, for example `A PARTICIPANT IS A PERSON OR AN AGENT` for a participant's
 `Type`.
 
 **Values that depend on other values.** A value specification may depend on other values of the same document, or of the

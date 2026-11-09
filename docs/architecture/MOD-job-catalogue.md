@@ -53,7 +53,7 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 | `name` | the kind's name, the folder's name | how jobs, records and runs name it |
 | `serves` | use-case identifiers | the use cases whose jobs it runs |
 | `participant` | `one` or `none` | `none` for a kind done without a participant, such as setting up CI |
-| `needs` | capabilities of `A PARTICIPANT DECLARES ITS CAPABILITIES` | what its participant must declare |
+| `needs` | capabilities of `A CONNECTION DECLARES ITS CAPABILITIES` | what the connection its participant runs on must declare |
 | `resources` | `none` or `product` | whether a job of the kind may need the product's resources, which then decide its routes (`A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE`) |
 | `preconditions` | strategy names | what must hold before it starts |
 | `recipes` | strategy names, a name ending in `?` for a part that may be left out with its reason | how its input is assembled |
