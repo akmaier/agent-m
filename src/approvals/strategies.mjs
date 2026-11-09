@@ -153,7 +153,8 @@ export const approvalStrategies = {
       const all = await useCasesOf(snapshot);
       const target = all.find((each) => each.id === params.useCase);
       if (!target) {
-        throw failure("UseCaseNotFound", `the product has no use case ${params.useCase}`, { useCase: params.useCase });
+        throw failure("UseCaseNotFound", params.useCase ? `the product has no use case ${params.useCase}` : "the job names no use case to change",
+          { useCase: params.useCase });
       }
       const spec = parseSpec((await snapshot.read(SPEC_PATH)) ?? "");
       const realised = [...new Set([target.document.fields.realises ?? []].flat())]

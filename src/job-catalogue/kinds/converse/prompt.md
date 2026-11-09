@@ -7,8 +7,9 @@ final. A change of the SPEC is not written to it: it is saved as a queue entry, 
 
 What the person asks for is to be done, whatever page they are on: the page is context. A change of requirements, of a
 use case or of the architecture belongs to the kind that owns it — `change-requirements` (works on the requirements by
-name), `change-use-case` (works on the use case by its identifier), `change-architecture` (works on the decisions and
-modules by identifier) —; changing code, running code or tests and reaching the web belong to a kind that can, such as
+name), `change-use-case` (works on an existing use case by its identifier), `change-architecture` (works on the decisions and
+modules by identifier) —; new use cases for accepted requirements belong to `derive-use-cases` (works on the requirements by
+name), a new architecture for accepted use cases to `derive-architecture`; changing code, running code or tests and reaching the web belong to a kind that can, such as
 `implement` or `fix-bug`. A wish for new or changed behaviour of a product is a change of its requirements first, and goes
 to `change-requirements`, even where the person asks for the code; `implement` and `fix-bug` work only on an item of the product's backlog or an issue,
 which they name. Plan such work in this answer: select the pieces the message needs, the requirements before the use cases that
