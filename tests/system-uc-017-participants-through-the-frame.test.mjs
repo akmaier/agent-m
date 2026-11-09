@@ -12,7 +12,7 @@
 // Level: system
 //
 // Readings the texts leave open, which the cases state:
-//   - "each model a Bridge's coding agent can run (UC-044)" (3) is read as each model the CLI session `session:<bridge>:<agent>` of this browser declares, for an agent the Bridge reports ready.
+//   - "each model a Bridge's coding agent can run (UC-044)" (3) is read as each model the declaration the Bridge keeps for its agent names, for an agent the Bridge reports ready (MOD-bridge-http, GET /v1/agents).
 //   - "The participant does the jobs ... each on a connection that offers its model" (postcondition) is read as MOD-participant-list's participantsOf joining the saved register with this browser's connections,
 //     and MOD-runtimes' routesFor giving the agent the route of each connection that offers its model and a person none.
 //   - "The prompt bar offers the connections this browser configures, not the participants of this list" (postcondition) is read as the bar under the page naming each connection `<name> · <model>` and
@@ -34,18 +34,19 @@ const { endpointsOffered, sessionsOffered } = await import("../src/prompt-bar/in
 const { routesFor } = await import("../src/runtimes/index.mjs");
 
 const CODING = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"];
-/** The settings of a Bridge `bridge` of this browser and the CLI session of its claude, declaring the models `models`. */
-const bridgeSettings = (bridge, models) => ({ [`bridge:${bridge.name}`]: { address: bridge.address, token: bridge.token },
-  [`session:${bridge.name}:claude`]: { place: "this machine", capabilities: CODING, models: models.map((model) => ({ model, context: 200000 })) } });
+/** The declaration a Bridge keeps for its claude: at this machine, every capability a coding agent needs, the models `models`, each with its context. */
+const declares = (models) => ({ place: "this machine", capabilities: CODING, models: models.map((model) => ({ model, context: 200000 })) });
+/** The setting of a Bridge `bridge` of this browser. */
+const bridgeSettings = (bridge) => ({ [`bridge:${bridge.name}`]: { address: bridge.address, token: bridge.token } });
 
 // TST-20261109205 · level: system · module: system
 // guards: UC-017; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; NO SECRET IN THE REPOSITORY; ONE CLICK PER DECISION
-// given: a real Bridge laptop on a computer with claude logged in, kept by this browser with its token, whose CLI session laptop:claude declares the models claude-opus-5-5 and claude-sonnet-5 at the place this machine; the endpoint hub offers claude-opus-5-5 at Anthropic, USA
+// given: a real Bridge laptop on a computer with claude logged in, kept by this browser with its token, which keeps for its CLI session laptop:claude the declaration of the models claude-opus-5-5 and claude-sonnet-5 at the place this machine; the endpoint hub offers claude-opus-5-5 at Anthropic, USA
 // input: the author adds an agent dev-l (1, 2), reads the models offered (3), chooses claude-sonnet-5 and presses Save (4)
 // expect: the model offers claude-opus-5-5 with hub (Anthropic, USA) and laptop:claude (this machine), and claude-sonnet-5 with laptop:claude (this machine) alone; one commit adds `| dev-l | agent | claude-sonnet-5 |`; the Bridge's token and its name are in no commit; the list names dev-l on laptop:claude
 test("TST-20261109205: UC-017 3 the models a Bridge's coding agent can run are offered beside the endpoints', each with its connections and places", async (t) => {
-  const bridge = await startBridge(t, computer(), { name: "laptop" });
-  const shown = await page(t, { settings: { "endpoint:hub": endpoint("claude-opus-5-5", "Anthropic, USA"), ...bridgeSettings(bridge, ["claude-opus-5-5", "claude-sonnet-5"]) } });
+  const bridge = await startBridge(t, computer(), { name: "laptop", declares: declares(["claude-opus-5-5", "claude-sonnet-5"]) });
+  const shown = await page(t, { settings: { "endpoint:hub": endpoint("claude-opus-5-5", "Anthropic, USA"), ...bridgeSettings(bridge) } });
   const main = shown.main();
   await addParticipant(main, "agent");
   await put(main, "participant-name", "dev-l");
@@ -62,13 +63,13 @@ test("TST-20261109205: UC-017 3 the models a Bridge's coding agent can run are o
 
 // TST-20261109206 · level: system · module: system
 // guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT IS A PERSON OR AN AGENT; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; NO SECRET IN THE REPOSITORY
-// given: the register holds alice (person); the endpoint hub offers claude-opus-5-5 at Anthropic, USA; the real Bridge laptop's session laptop:claude declares claude-opus-5-5 at this machine
+// given: the register holds alice (person); the endpoint hub offers claude-opus-5-5 at Anthropic, USA; the real Bridge laptop keeps for its session laptop:claude the declaration of claude-opus-5-5 at this machine
 // input: the author adds the agent dev-x of claude-opus-5-5 and presses Save; the saved register is joined with this browser's connections, each participant's routes are asked for a private product with a job workflow, and the prompt bar under the page is read
 // expect: the register lists alice as a person and dev-x as an agent of claude-opus-5-5, with no key or token; dev-x stands once for each connection that offers its model — on hub with the route endpoint hub, the tab, and on laptop:claude with the route bridge laptop agent claude, that Bridge —, alice with no route and no offer; the prompt bar names hub · claude-opus-5-5 and laptop:claude · claude-opus-5-5 and neither participant
 test("TST-20261109206: UC-017 postcondition the saved participant does its jobs on the connections that offer its model, and the prompt bar offers connections, not participants", async (t) => {
-  const bridge = await startBridge(t, computer(), { name: "laptop" });
+  const bridge = await startBridge(t, computer(), { name: "laptop", declares: declares(["claude-opus-5-5"]) });
   const shown = await page(t, { instance: instanceFiles(REGISTER("| alice | person | — |")),
-    settings: { "endpoint:hub": endpoint("claude-opus-5-5", "Anthropic, USA"), ...bridgeSettings(bridge, ["claude-opus-5-5"]) } });
+    settings: { "endpoint:hub": endpoint("claude-opus-5-5", "Anthropic, USA"), ...bridgeSettings(bridge) } });
   const main = shown.main();
   await addParticipant(main, "agent");
   await put(main, "participant-name", "dev-x");

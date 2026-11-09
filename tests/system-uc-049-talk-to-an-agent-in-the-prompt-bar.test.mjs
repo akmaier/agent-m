@@ -23,12 +23,12 @@ import { byClass, until } from "./review-pages-draft-world.mjs";
 // A person's click is made trusted by the document of the harness; a script's click is marked `scripted` (tests/review-pages-harness.mjs).
 globalThis.reviewPagesScriptedWithin = [];
 const scripted = (node) => node.dispatchEvent(Object.assign(new Event("click"), { scripted: true }));
-// What this browser declares for the bar to offer (UC-049 1); the bar reads no participant list. The instance's list is `listed(...)`, which the bar must not offer.
+// What this browser declares, and its Bridge keeps, for the bar to offer (UC-049 1); the bar reads no participant list. The instance's list is `listed(...)`, which the bar must not offer.
 const register = (...declarations) => declared(...declarations);
 const listed = (...rows) => ({ "docs/participants.md": registerOf(...rows) });
-// An endpoint that declares no place, and a CLI session of a Bridge this browser has not paired.
+// An endpoint that declares no place, and a CLI session a Bridge keeps whose Bridge this browser has not paired (the scenario's `keepBridge: false`).
 const PLACELESS_ENDPOINT = { settings: { "endpoint:nowhere": endpointOf("nowhere", "") } };
-const UNPAIRED_SESSION = { settings: { "session:nobridge:claude": { place: "this machine", capabilities: ["draft text"], models: [{ model: "far-model", context: 200000 }] } } };
+const UNPAIRED_SESSION = { agents: [{ name: "claude", place: "this machine", capabilities: ["draft text"], models: [{ model: "far-model", context: 200000 }] }] };
 const select = (s, name) => { assert.ok(all(barOf(s), "select", "participant")[0], `known positive: the bar offers a choice (${barText(s).slice(-200)})`); choose(s, name); };
 
 // TST-513001 · level: system · module: MOD-prompt-bar · MOD-site-frame · MOD-job-runner
@@ -124,7 +124,7 @@ test("main flow (4): a model endpoint without the capability use tools answers o
 
 // TST-513005 · level: system · module: MOD-prompt-bar · MOD-runtimes · MOD-bridge-client
 // guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A CONNECTION DECLARES WHERE IT PROCESSES DATA
-// given: release-bridge:claude, a CLI session of the paired Bridge release-bridge at "this machine", which the Bridge lists ready, declared in this browser
+// given: release-bridge:claude, a CLI session of the paired Bridge release-bridge at "this machine", which the Bridge lists ready with the declaration it keeps
 // input: a message sent to release-bridge:claude
 // expect: the Bridge receives the message as one ask of the agent claude, with the pairing token, whose input holds the person's words and the page; no request goes to a model endpoint; the answer appears in the conversation (flow: UC-049 main flow (4, CLI agent))
 test("main flow (4): a CLI agent receives the message through its Bridge", async () => {
@@ -145,7 +145,7 @@ test("main flow (4): a CLI agent receives the message through its Bridge", async
 
 // TST-513006 · level: system · module: MOD-prompt-bar · MOD-participant-list
 // guards: UC-049
-// given: this browser's configuration holds no endpoint that declares a place and no Bridge that offers a CLI session — an endpoint without a place, and a CLI session declared for a Bridge this browser has not paired —, and the instance's list holds a model endpoint that could draft text
+// given: this browser's configuration holds no endpoint that declares a place and no Bridge that offers a CLI session — an endpoint without a place, and a CLI session a Bridge keeps declared whose Bridge this browser has not paired —, and the instance's list holds a model endpoint that could draft text
 // input: the page opened
 // expect: the prompt bar is not shown — the footer holds no bar — and nothing was asked of any model; with the same configuration and the endpoint drafter declared (a known positive) the bar is shown (flow: UC-049 alternative 1a)
 const ROW_LISTED = "| listed | agent | listed-model |";
@@ -159,13 +159,12 @@ test("alternative 1a: with nothing offered the prompt bar is not shown", async (
 
 // TST-513007 · level: system · module: MOD-prompt-bar · MOD-participant-list
 // guards: UC-049; A CONNECTION DECLARES WHERE IT PROCESSES DATA
-// given: this browser declares the endpoint drafter and the CLI session release-bridge:claude, an endpoint with no place, a CLI session with no model and a CLI session whose model has no context; the instance's list holds listed-agent, an agent of drafter's model
+// given: this browser declares the endpoint drafter and an endpoint with no place, and the Bridge release-bridge lists ready, with the declarations it keeps, the CLI session release-bridge:claude, a CLI session with no model and a CLI session whose model has no context; the instance's list holds listed-agent, an agent of drafter's model
 // input: the page opened
 // expect: the bar offers drafter and release-bridge:claude, each with its model and its place, and neither the endpoint nor the sessions that lack a place, a model or a context, nor the agent of the instance's list, which the bar does not read (flow: UC-049 alternative 1b)
 test("alternative 1b: an endpoint or CLI session that lacks a place, a context or a model is not offered, and the instance's list is not", async () => {
-  const lacking = { agents: ["modelless", "contextless"], settings: { ...PLACELESS_ENDPOINT.settings,
-    "session:release-bridge:modelless": { place: "this machine", capabilities: ["draft text"], models: [] },
-    "session:release-bridge:contextless": { place: "this machine", capabilities: ["draft text"], models: [{ model: "contextless-model" }] } } };
+  const lacking = { settings: PLACELESS_ENDPOINT.settings, agents: [{ name: "modelless", place: "this machine", capabilities: ["draft text"], models: [] },
+    { name: "contextless", place: "this machine", capabilities: ["draft text"], models: [{ model: "contextless-model", context: null }] }] };
   const s = await scenario({ ...register(DRAFTER, AGENT, lacking), instanceFiles: listed(LISTED_AGENT) });
   const text = barText(s);
   assert.ok(text.includes("drafter · drafter-model — this machine") && text.includes("release-bridge:claude · agent-cli-model — this machine"), text);

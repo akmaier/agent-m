@@ -97,16 +97,20 @@ afterEach(() => { assert.deepEqual(outside.splice(0), [], "no request left the f
 // The scenario's pages share the global document; the storage of the last one is emptied before the next opens.
 function emptyStorage(storage) { while (storage.length > 0) storage.removeItem(storage.key(0)); }
 
+/** The agent observer of the Bridge release-bridge, with the declaration the Bridge keeps for it: read the repository only, at "Anthropic, USA", so that it cannot draft text. */
+export const OBSERVER = { name: "observer", place: "Anthropic, USA", capabilities: ["read the repository"], models: [{ model: "observer-model", context: 200000 }] };
+
 /**
  * scenario({ owner, linked, answers, context, bridge, extraFiles, recording, hash }) -> the open page and its servers. The instance is akmaier/agent-m (its Pages
  * address is the location), the product `<owner>/lending-tool` with the SPEC above, the person's source linked unless `linked` is false, and what this browser declares for the bar to offer: the endpoint `drafter` (draft text, at
  * "this machine", through the Bridge release-bridge where `bridge` is set, naming the CI secret `secret` where one is given, none where `drafting` is false) and the CLI session `release-bridge:observer`
- * (read the repository only, at "Anthropic, USA"), which the Bridge release-bridge lists ready. `keepBridge` false keeps no Bridge, `agents` are the names the Bridge lists ready, and `settings` are
- * further settings the store holds (further endpoints, CLI sessions, last tests); `bridgeFetch`, where given, answers the requests to the loopback Bridge in place of the fixture Bridge. The instance's list
+ * (OBSERVER: read the repository only, at "Anthropic, USA"), which the Bridge release-bridge lists ready with the declaration it keeps. `keepBridge` false keeps no Bridge; `agents` are the agents the
+ * Bridge lists ready, each a name — listed without a declaration — or { name, place, capabilities, models } — listed with the declaration the Bridge keeps for it (MOD-bridge-http, GET /v1/agents);
+ * and `settings` are further settings the store holds (further endpoints, last tests); `bridgeFetch`, where given, answers the requests to the loopback Bridge in place of the fixture Bridge. The instance's list
  * names the agent drafter of the endpoint drafter's model. `answers` are the drafting endpoint's replies in
  * turn (a value, or a function of the requests so far); `hash` is the fragment the page opens at, none for the specification browser.
  */
-export async function scenario({ owner = "akmaier", linked = true, answers = [draft()], context = 200000, bridge = false, secret = null, drafting = true, keepBridge = true, agents = ["observer"], settings = {}, bridgeFetch = null, extraFiles = {}, instanceFiles = {},
+export async function scenario({ owner = "akmaier", linked = true, answers = [draft()], context = 200000, bridge = false, secret = null, drafting = true, keepBridge = true, agents = [OBSERVER], settings = {}, bridgeFetch = null, extraFiles = {}, instanceFiles = {},
   recording = false, hash = null } = {}) {
   // `bridgeRequests` are the Bridge's asks and their polls; `testRequests` are the two of testBridge that drawing the bar sends to each Bridge the store keeps.
   const repo = `${owner}/lending-tool`, address = `https://github.com/${repo}`, endpointRequests = [], bridgeRequests = [], testRequests = [];
@@ -158,7 +162,8 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     }
     if (url.origin === "http://127.0.0.1:9418" && init.method === "GET" && url.pathname === "/v1/agents") {
       testRequests.push({ method: init.method, path: url.pathname });
-      return response({ agents: agents.map((name) => ({ name, version: "1.0.0", ready: true, loggedIn: true })), missing: [] });
+      return response({ agents: agents.map((each) => (typeof each === "string" ? { name: each } : each))
+        .map(({ name, place = null, capabilities = [], models = [] }) => ({ name, version: "1.0.0", ready: true, loggedIn: true, place, capabilities, models })), missing: [] });
     }
     if (url.origin === "http://127.0.0.1:9418") {
       bridgeRequests.push({ url: url.href, method: init.method, body: init.body && JSON.parse(init.body), headers: init.headers });
@@ -191,10 +196,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
   writeSetting(store, "products", [address]);
   if (drafting) writeSetting(store, "endpoint:drafter", { url: "https://fixture-endpoint.example.test/v1", kind: "openai-compatible", model: "fixture-model", place: "this machine", context,
     ...(bridge ? { bridge: "release-bridge" } : {}), ...(secret ? { secret } : {}) });
-  if (keepBridge) {
-    writeSetting(store, "bridge:release-bridge", { address: "http://127.0.0.1:9418", token: "fixture-pairing-token" });
-    writeSetting(store, "session:release-bridge:observer", { place: "Anthropic, USA", capabilities: ["read the repository"], models: [{ model: "observer-model", context: 200000 }] });
-  }
+  if (keepBridge) writeSetting(store, "bridge:release-bridge", { address: "http://127.0.0.1:9418", token: "fixture-pairing-token" });
   for (const [key, value] of Object.entries(settings)) writeSetting(store, key, value);
   const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS,
     "docs/sources.md": linked ? LINKS : LINKS.split("\n").filter((line) => !line.startsWith(`| ${SOURCE} |`)).join("\n"),

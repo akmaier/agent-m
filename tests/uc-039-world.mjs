@@ -290,9 +290,10 @@ function bridgeOver(inner, state, mailHandlers) {
         return reply({ error: error.code ?? "invalid-request", message: error.message }, BRIDGE_STATUS[error.code] ?? 400);
       }
     }
-    // testBridge's two requests, which the prompt bar sends when it is drawn: the Bridge names itself and lists the agents of `state.agents`, ready.
+    // testBridge's two requests, which the prompt bar sends when it is drawn: the Bridge names itself and lists the agents of `state.agents`, ready, each with the declaration it keeps.
     if (url.origin === BRIDGE && url.pathname === "/v1/pair" && method === "GET") return reply({ bridge: { name: "lab-pc-4", version: "1.0.0", platform: "linux" }, origin: "https://alice.github.io" });
-    if (url.origin === BRIDGE && url.pathname === "/v1/agents" && method === "GET") return reply({ agents: state.agents.map((name) => ({ name, version: "1.0.0", ready: true, loggedIn: true })), missing: [] });
+    if (url.origin === BRIDGE && url.pathname === "/v1/agents" && method === "GET") return reply({ agents: state.agents.map((each) => (typeof each === "string" ? { name: each } : each))
+      .map(({ name, place = null, capabilities = [], models = [] }) => ({ name, version: "1.0.0", ready: true, loggedIn: true, place, capabilities, models })), missing: [] });
     if (url.origin === BRIDGE && url.pathname === "/v1/ask" && method === "POST") {
       state.asks.push(JSON.parse(init.body));
       return reply({ ask: "ask-1" });
@@ -307,8 +308,9 @@ function bridgeOver(inner, state, mailHandlers) {
 /**
  * Starts the page of the route `replies` as a person opens it: the frame's startPage on the main page over the view of MOD-maintenance-pages, at the fragment of the route, over the mailbox of `route` ("imap": the
  * Bridge lab-pc-4 with the local IMAP and SMTP servers; "graph": the fixture of Microsoft Graph). `inbox` and `reports` name the mails the mailbox holds (raw texts), `drafts` and `sent` the folders of the same names;
- * `issues`, `places`, `rows` and `texts` are those of tests/maintenance-pages-world.mjs. `settings` are further settings the browser's store holds — the endpoints and CLI sessions the prompt bar offers (UC-049 1) — and `agents`
- * the names the Bridge lab-pc-4 lists ready. `folders` is the connection's list of folders to search. `down` pauses the Bridge's mail operations from the start. Returns the page's main element and what the fixtures kept;
+ * `issues`, `places`, `rows` and `texts` are those of tests/maintenance-pages-world.mjs. `settings` are further settings the browser's store holds — the endpoints the prompt bar offers (UC-049 1) — and `agents`
+ * the agents the Bridge lab-pc-4 lists ready, each a name — listed without a declaration — or { name, place, capabilities, models } — listed with the declaration the Bridge keeps
+ * for it, which makes it a CLI session the prompt bar offers (MOD-bridge-http, GET /v1/agents). `folders` is the connection's list of folders to search. `down` pauses the Bridge's mail operations from the start. Returns the page's main element and what the fixtures kept;
  * `stop()` closes the servers and must be called in a `finally`.
  */
 export async function openReplies({ route = "graph", inbox, reports = [], drafts = [], sent = [], issues, rows, places, texts = [], folders = ["INBOX"], refuseMail = false, refuseSend = false, fragment = "#replies", answer = null, createStatus = null, settings = {}, agents = [], down = false }) {

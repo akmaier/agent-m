@@ -71,13 +71,13 @@ const COLUMNS = "| Name | Type | Model |\n|---|---|---|";
 const row = (name, type = "agent") => `| ${name} | ${type} | ${type === "person" ? "—" : `model-${name}`} |`;
 const registerOf = (...rows) => `# Participants of this instance\n\n${COLUMNS}\n${rows.join("\n")}\n`;
 
-// What this browser declares: an endpoint `endpoint:<name>` with its place, context and model (UC-003), or a CLI session `session:mac:<agent>` of the
-// Bridge mac, which offers the agent ready (UC-044). drafter-a is called at https://models.example, drafter-b at https://local.example.
+// What is offered: an endpoint `endpoint:<name>` this browser declares with its place, context and model (UC-003), or a CLI session `mac:<agent>`, an agent
+// the Bridge mac lists ready with the declaration it keeps for it — its place, capabilities and model with its context (UC-044, MOD-bridge-http GET /v1/agents). drafter-a is called at https://models.example, drafter-b at https://local.example.
 const BRIDGE = "http://127.0.0.1:7777";
 const endpoint = (name, { context = 200000, place = "Anthropic, USA", url = name === "drafter-b" ? "https://local.example/v1" : "https://models.example/v1", ...more } = {}) =>
   ({ key: `endpoint:${name}`, value: { kind: "openai-compatible", url, model: `model-${name}`, key: name === "drafter-b" ? null : "sk-fixture", place, context, ...more } });
 const session = (agent, { capabilities = ["draft text"], place = "this machine", context = 200000 } = {}) =>
-  ({ key: `session:mac:${agent}`, agent, value: { place, capabilities, models: [{ model: `model-${agent}`, context }] } });
+  ({ agent: { name: agent, place, capabilities, models: [{ model: `model-${agent}`, context }] } });
 const DRAFTER = endpoint("drafter-a");
 const OTHER = endpoint("drafter-b", { place: "this machine" });
 // drafter-a called through the Bridge mac, naming the CI secret of its key: a message goes through the Bridge, and a hand-over may take GitHub Actions (UC-049 4a.2).
@@ -133,7 +133,7 @@ const seen = [];
 registerStrategies("tests/prompt-bar.test.mjs", { checks: routeStrategies.checks, recipes: { "chapters-for-page": async (context, params) => { seen.push(params); return []; } } });
 
 // The model endpoints behind the global fetch: they answer the drafts given in turn (the last again), and keep every request with what the page showed at that moment.
-// The Bridge mac at BRIDGE answers testBridge's two requests, listing the agents of the sessions the page declares ready, and an ask with the next draft; its requests
+// The Bridge mac at BRIDGE answers testBridge's two requests, listing the agents of the sessions the page offers ready, each with its declaration, and an ask with the next draft; its requests
 // are kept apart, in `bridgeCalls`.
 let requests = [], bridgeCalls = [], bridgeAgents = [], showing = () => "";
 const realFetch = globalThis.fetch;
@@ -142,7 +142,7 @@ function bridgeAnswer(url, init, next) {
   const { pathname } = new URL(url);
   bridgeCalls.push(`${init?.method ?? "GET"} ${pathname}`);
   if (pathname === "/v1/pair") return json({ bridge: { name: "mac", version: "1.0.0", platform: "darwin" }, origin: "https://alice.github.io" });
-  if (pathname === "/v1/agents") return json({ agents: bridgeAgents.map((name) => ({ name, version: "1.0.0", ready: true, loggedIn: true })), missing: [] });
+  if (pathname === "/v1/agents") return json({ agents: bridgeAgents.map((declared) => ({ version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] });
   if (pathname === "/v1/ask") { requests.push({ url: String(url), body: String(init?.body ?? ""), page: showing() }); return json({ ask: "ask-1" }); }
   if (pathname === "/v1/ask/ask-1") return json({ state: "done", text: next(), calls: [], usage: null });
   return new Response("{}", { status: 404 });
@@ -180,15 +180,15 @@ const subjectOf = (over = {}) => ({
   draftRoute: null, withhold: null, refuses: [], ...over,
 });
 
-// A page: the instance with its participant list (`listed`, empty unless given) and recording switch, a store declaring what `offer` names — and the Bridge mac
-// where a session or an endpoint needs it — and the instance's token, and the bar started on it. `product` is a repository when the page is a product's.
+// A page: the instance with its participant list (`listed`, empty unless given) and recording switch, a store declaring the endpoints `offer` names — and the
+// Bridge mac, which lists the sessions `offer` names with their declarations, where a session or an endpoint needs it — and the instance's token, and the bar started on it. `product` is a repository when the page is a product's.
 function page({ offer = [DRAFTER], listed = [], recording = false, product = null, token = true, subject = subjectOf(), instanceFiles = {}, tab = new Storage() } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: tab });
   const store = openStore("alice/agent-m");
-  for (const each of offer) writeSetting(store, each.key, each.value);
+  for (const each of offer) if (each.key) writeSetting(store, each.key, each.value);
   bridgeAgents = offer.filter((each) => each.agent).map((each) => each.agent);
-  if (offer.some((each) => each.agent || each.value.bridge === "mac")) writeSetting(store, "bridge:mac", { address: BRIDGE, token: "token-mac" });
+  if (offer.some((each) => each.agent || each.value?.bridge === "mac")) writeSetting(store, "bridge:mac", { address: BRIDGE, token: "token-mac" });
   if (token) writeSetting(store, product ? "github-token:alice/thesis-tool" : "github-token", { value: "github_pat_FIXTURE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   const instance = fakeRepo(INSTANCE_WEB, { "docs/participants.md": registerOf(...listed), ...(recording ? { "docs/conversation-recording.md": SWITCH_ON } : {}), ...instanceFiles });
   const productRepo = product ? fakeRepo(PRODUCT_WEB, product) : null;
@@ -566,7 +566,7 @@ test("Send — a message that is not sent names no limit of rounds", async () =>
 
 // TST-560003 · level: component · module: MOD-prompt-bar; MOD-participant-list
 // guards: UC-019; A CONNECTION DECLARES ITS CAPABILITIES; THE PAGE NAMES WHERE IT SENDS
-// given: this browser's endpoint drafter-a (draft text, "Anthropic, USA") and the CLI session mac:reader, which the Bridge mac offers and which declares read the repository only, "this machine"; the subject's kind converse, which needs draft text
+// given: this browser's endpoint drafter-a (draft text, "Anthropic, USA") and the CLI session mac:reader, which the Bridge mac lists ready with the declaration it keeps — read the repository only, "this machine"; the subject's kind converse, which needs draft text
 // input: startPromptBar; then Send "split this use case"
 // expect: the bar names "drafter-a · model-drafter-a — Anthropic, USA" and offers no <select> and no reader; Send makes one request, to https://models.example/v1/chat/completions, and the destinations are "drafter-a — Anthropic, USA" alone
 test("startPromptBar — of the participants reached it offers only each that can do the subject's kind", async () => {
@@ -584,7 +584,7 @@ test("startPromptBar — of the participants reached it offers only each that ca
 
 // TST-560004 · level: component · module: MOD-prompt-bar; MOD-participant-list
 // guards: UC-019; A CONNECTION DECLARES ITS CAPABILITIES
-// given: this browser's only offer, the CLI session mac:reader, which declares only "read the repository"; the subject's kind converse, which needs draft text
+// given: this browser's only offer, the CLI session mac:reader, whose declaration the Bridge mac keeps names only "read the repository"; the subject's kind converse, which needs draft text
 // input: startPromptBar; press the link; write "split this use case" and press Send
 // expect: the bar draws, names no participant, and says "No endpoint or CLI session of this browser can do converse: it needs draft text."; the link "Set up endpoints" calls go with the route "endpoints" once (UC-019 3a); Send sends nothing (no request) and says "Nothing was sent."
 test("startPromptBar — where nothing offered can do the kind it says so, names the capability and links the endpoints", async () => {
@@ -604,7 +604,7 @@ test("startPromptBar — where nothing offered can do the kind it says so, names
 
 // TST-560005 · level: component · module: MOD-prompt-bar; MOD-job-catalogue
 // guards: UC-019; A CONNECTION DECLARES ITS CAPABILITIES
-// given: this browser's endpoint drafter-a (draft text) and the CLI session mac:runner (draft text, run code and tests, "this machine"), which the Bridge mac offers; the bar's subject getter first gives one subject, then one that still names a kind of its own, run-tests (needs run code and tests)
+// given: this browser's endpoint drafter-a (draft text) and the CLI session mac:runner (draft text, run code and tests, "this machine"), which the Bridge mac lists ready with that declaration; the bar's subject getter first gives one subject, then one that still names a kind of its own, run-tests (needs run code and tests)
 // input: startPromptBar; the getter now gives the new subject; nothing is announced; the person puts the cursor in the input (focus)
 // expect: the selector offers "drafter-a · model-drafter-a — Anthropic, USA" and "mac:runner · model-runner — this machine", before and after the input takes focus: the offer is that of the bar's one kind, converse, and no subject narrows it (UC-049 step 3)
 test("startPromptBar — the offer is the bar's one kind's, whatever kind a subject names", async () => {

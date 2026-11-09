@@ -127,12 +127,12 @@ const WORKERS = "draft text, read the repository, write to the repository, run c
 const register = (...rows) => `# Participants of this instance\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n${COLUMNS}\n${rows.join("\n")}\n`;
 const ALICE = "| alice | person | — |";
 
-// What this browser declares, which the bar offers (UC-049 1); the instance's participant list holds alice only and is not read for the offer.
+// What this browser declares, and the Bridge lab-pc keeps, which the bar offers (UC-049 1); the instance's participant list holds alice only and is not read for the offer.
 // - dev-ci: the endpoint at https://models.example, called through the Bridge lab-pc and naming the CI secret KEY_A of its key, so that a message goes through the Bridge and a hand-over
 //   it can do takes GitHub Actions (UC-049 4a.2); an endpoint's capabilities are draft text and read the repository, so it hands on the conversation itself (`converse`), not `implement`.
 // - tab-only: the endpoint at https://models.example called by this tab, naming no CI secret, so that its only route is this tab.
-// - lab-pc:claude and lab-pc:codex: the CLI sessions the Bridge lab-pc offers for its agents claude and codex, declared with every capability `implement` needs, at "this machine" and at
-//   "Anthropic, USA"; a hand-over of theirs takes the Bridge.
+// - lab-pc:claude and lab-pc:codex: the CLI sessions the Bridge lab-pc offers for its agents claude and codex, each with the declaration the Bridge keeps and its GET /v1/agents lists —
+//   every capability `implement` needs, at "this machine" and at "Anthropic, USA"; a hand-over of theirs takes the Bridge.
 const DEV_BRIDGE = "lab-pc:claude", OUTSIDER = "lab-pc:codex";
 const ENDPOINTS = {
   "dev-ci": { kind: "openai-compatible", url: "https://models.example/v1", model: "model-ci", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000, secret: "KEY_A", bridge: "lab-pc" },
@@ -220,9 +220,9 @@ function network() {
     if (call.origin !== BRIDGE) { state.stray.push(call); return json({}, 404); }
     if (call.token !== BRIDGE_TOKEN) return json({ error: "token-refused", message: "pair again" }, 401);
     const bridge = state.bridge;
-    // testBridge's two requests, which drawing the bar sends: the Bridge names itself and lists the agents of its sessions, ready.
+    // testBridge's two requests, which drawing the bar sends: the Bridge names itself and lists the agents of its sessions, ready, each with the declaration it keeps.
     if (call.method === "GET" && call.path === "/v1/pair") return json({ bridge: { name: "lab-pc", version: "1.0.0", platform: "linux" }, origin: "https://alice.github.io" });
-    if (call.method === "GET" && call.path === "/v1/agents") return json({ agents: Object.keys(SESSIONS).map((name) => ({ name, version: "1.0.0", ready: true, loggedIn: true })), missing: [] });
+    if (call.method === "GET" && call.path === "/v1/agents") return json({ agents: Object.entries(SESSIONS).map(([name, declared]) => ({ name, version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] });
     if (call.method === "POST" && call.path === "/v1/ask") { state.lastAsk = call.body; return json({ ask: "ask-1" }); }
     if (call.method === "GET" && call.path === "/v1/ask/ask-1") return json({ state: "done", text: envelope(state.lastAsk), calls: [], usage: null });
     if (call.method === "POST" && call.path === "/v1/jobs") { bridge.handedOver.push(JSON.parse(call.body)); return json({ accepted: true }); }
@@ -274,15 +274,14 @@ function standingCurrent(files, commit, kept) {
   return { ...files, ...Object.fromEntries(current.filter(({ path }) => path in files).map(({ path, text }) => [path, text])) };
 }
 
-// A page of the product (or of the instance): the instance with its participant list, a store declaring the endpoints dev-ci and tab-only (and `endpoints`), the Bridge lab-pc and its
-// sessions, and the tokens, and the bar started on it.
+// A page of the product (or of the instance): the instance with its participant list, a store declaring the endpoints dev-ci and tab-only (and `endpoints`), the Bridge lab-pc — which
+// keeps its sessions' declarations —, and the tokens, and the bar started on it.
 function open({ files = scrumFiles(), recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf, endpoints = {}, products = () => [] } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   if (store === null) Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const kept = store ?? openStore("alice/agent-m");
   for (const [name, setting] of Object.entries({ ...ENDPOINTS, ...endpoints })) writeSetting(kept, `endpoint:${name}`, setting);
   writeSetting(kept, "bridge:lab-pc", { address: BRIDGE, token: BRIDGE_TOKEN });
-  for (const [agent, declared] of Object.entries(SESSIONS)) writeSetting(kept, `session:lab-pc:${agent}`, declared);
   writeSetting(kept, "github-token", { value: "github_pat_INSTANCE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   writeSetting(kept, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
   const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": register(ALICE),
