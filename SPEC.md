@@ -1168,13 +1168,6 @@ an open use case or as an entry of a SPEC change queue.
 use case or a queue entry and leaves `SPEC.md` byte-identical; counter-proof: neither is shown as
 accepted.
 
-**A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES** *(PO A. Maier)*
-A change to requirements that a participant drafts from a person's instruction is subject to
-`DERIVATION SEES THE EXISTING REQUIREMENTS`, `NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`,
-`A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT` and `EXACT DUPLICATES ARE FOUND WITHOUT A
-MODEL`, as a derivation from a source is.
-*Check:* `tests/test_derivation_context.py` · `tests/test_derivation_classes.py`
-
 **A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS** *(PO A. Maier)*
 A participant asked to change a use case receives, besides the use case, every requirement it
 realises and every other use case of the product.
