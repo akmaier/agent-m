@@ -3,20 +3,21 @@
 //
 // Module: MOD-participant-list
 //
-// eligible judges four things: the capabilities a role or a job needs, the processing places a restricted source or the
-// mailbox allows, whether a participant's context holds the size of the job, and whether it differs from the participants
-// it must differ from. Participant, Need and Eligibility are the types index.mjs states.
+// eligible judges five things: whether a connection offers an agent's model, the capabilities a role or a job needs, the
+// processing places a restricted source or the mailbox allows, whether a participant's context holds the size of the job,
+// and whether it differs from the participants it must differ from. The capabilities, the place and the context are those
+// of the connection a participant runs on. Participant, Need and Eligibility are the types index.mjs states.
 
 /**
  * eligible(participants: Participant[], need: Need) -> Eligibility — which participants may do the job or hold the role,
- * in the order they are given, and for each one left out every reason: first each capability of the need it lacks,
- * named; then each source or mailbox among the need's places that does not allow its processing place, naming the place
- * and the source or mailbox; then a context smaller than the need's size, or none declared, naming both; then each
- * participant of the need's notLike it does not differ from, naming it; then, for a subagent, `reached through itself`
- * when its starter is itself, or `reached through <name>, which is no CLI agent of the register` when its starter is
- * none of the participants given or is not of the type CLI agent. A participant that declares no processing place,
- * as a person does, is at no place a source allows. Every participant considered appears in exactly one of the two
- * lists, as the object it was given.
+ * in the order they are given, and for each one left out every reason: for an agent that no connection given offers its
+ * model — of the type `agent` —, that no connection offers its model, naming the model, and nothing of a connection it
+ * has none of; otherwise first each capability of the need its connection lacks, named; then each source or mailbox among
+ * the need's places that does not allow its connection's processing place, naming the place and the source or mailbox;
+ * then a context smaller than the need's size, or none declared, naming both. Then, for every participant, each
+ * participant of the need's notLike it does not differ from, naming it. A person runs on no connection: it has no
+ * capability and is at no place a source allows. Every participant considered appears in exactly one of the two lists, as
+ * the object it was given.
  * @param {Participant[]} participants
  * @param {Need} need
  * @returns {Eligibility}
@@ -25,15 +26,9 @@ export function eligible(participants, need) {
   const eligibility = { eligible: [], leftOut: [] };
   for (const participant of participants) {
     const reasons = [
-      ...need.capabilities.filter((capability) => !participant.capabilities.includes(capability))
-        .map((capability) => `lacks the capability "${capability}"`),
-      ...(need.places ?? []).filter(({ allowed }) => !allowed.includes(participant.place))
-        .map(({ from }) => (participant.place === null
-          ? `declares no processing place, so the content of ${from} may not go to it`
-          : `processes data at "${participant.place}", where the content of ${from} may not go`)),
-      ...sizeReasons(participant, need.size),
+      ...(participant.type === "agent" ? [`no connection offers its model ${participant.model}`]
+        : connectionReasons(participant, need)),
       ...(need.notLike ?? []).filter((other) => !differs(participant, other)).map((other) => sameReason(participant, other)),
-      ...throughReasons(participant, participants),
     ];
     if (reasons.length) eligibility.leftOut.push({ participant, reasons });
     else eligibility.eligible.push(participant);
@@ -41,28 +36,18 @@ export function eligible(participants, need) {
   return eligibility;
 }
 
-// Why a subagent cannot be reached: its starter is itself, or no CLI agent among the participants given. Any other
-// participant has none.
-function throughReasons(participant, participants) {
-  const starter = reachedThrough(participant);
-  if (starter === null) return [];
-  if (starter === participant.name) return ["reached through itself"];
-  return participants.some(({ name, type }) => name === starter && type === "CLI agent") ? []
-    : [`reached through ${starter}, which is no CLI agent of the register`];
-}
-
-// A subagent's route: the word `through`, one space and a participant's name.
-const THROUGH = /^through ([a-z0-9-]+)$/;
-
-/**
- * reachedThrough(participant: Participant) -> string | null — the name of the participant a subagent is reached through,
- * from a route that is the word `through`, one space and a participant's name (lower-case letters, digits and hyphens);
- * null for every other route.
- * @param {Participant} participant
- * @returns {string | null}
- */
-export function reachedThrough(participant) {
-  return THROUGH.exec(participant.route ?? "")?.[1] ?? null;
+// Why the connection a participant runs on cannot do the job: the capabilities it lacks, the places a source does not
+// allow, and a context that does not hold the job.
+function connectionReasons(participant, need) {
+  return [
+    ...need.capabilities.filter((capability) => !participant.capabilities.includes(capability))
+      .map((capability) => `lacks the capability "${capability}"`),
+    ...(need.places ?? []).filter(({ allowed }) => !allowed.includes(participant.place))
+      .map(({ from }) => (participant.place === null
+        ? `declares no processing place, so the content of ${from} may not go to it`
+        : `processes data at "${participant.place}", where the content of ${from} may not go`)),
+    ...sizeReasons(participant, need.size),
+  ];
 }
 
 // Why a participant's context does not hold a job of `size` tokens — none when the need names no size.
@@ -83,7 +68,7 @@ function sameReason(participant, other) {
 /**
  * differs(a: Participant, b: Participant) -> boolean — true when the two are different participants and name different
  * models; false when either names no model. A reviewer must differ from the drafter, and each of three checkers from the
- * rewriter and from each other.
+ * rewriter and from each other. Of one agent on two connections, neither differs from the other.
  * @param {Participant} a
  * @param {Participant} b
  * @returns {boolean}
