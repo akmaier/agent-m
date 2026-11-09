@@ -9,12 +9,14 @@
 //
 // Each test states its expected result in its own text; none reads it from a document. What the bar gives is fixed here by `works_on`'s shape alone, whatever the kind: a use case (UC-nnn) is `useCases`
 // and, when it is the only one, `useCase` as well; an item or step (ITM-nnn) is `steps` where the product's plan holds that step (a file docs/plan/ITM-nnn-….md) and `items` where it does not; any other
-// name is a requirement, `requirements`. The bar gives no `source`, `resource`, `kind`, `entry` or `part`, and no other key, whatever the kind. The real strategies of the eight sets of handOverStrategies
+// name is a requirement, `requirements`; where every entry is of one group kind — requirements, use cases, ARC-<n>, MOD-<n> — `kind` names it (`requirements`, `use-cases`, `architecture`,
+// `modules`). The bar gives no `source`, `resource`, `entry` or `part`, and no other key, whatever the kind. The real strategies of the eight sets of handOverStrategies
 // run as they are, except the four recipes that read the book's chapters (`chapters-for-…`), which give no part here; the repositories are fixtures in memory (default branch `trunk`) that keep every commit
 // attempt and every started workflow; the global `fetch` keeps every request, and none may be made. The kinds that a hand-over prepares today are the ten whose every strategy handOverStrategies or the
-// job runner holds: change-use-case, change-requirements, derive-requirements, derive-use-cases, derive-architecture, review-architecture, implement, refactor, check-resource and converse. The others
+// job runner holds: change-use-case, change-requirements, derive-requirements, derive-use-cases, derive-architecture, review-architecture, implement, refactor, check-resource, converse and
+// propose-groups. The others
 // (change-architecture, draft-plan, propose-items, close-sprint, decide-gate, set-up-ci, propose-tests, write-tests, run-tests, analyse-issue, fix-bug, propose-issues, rewrite-without-persons,
-// check-for-persons, draft-replies, propose-groups) name a strategy that no module builds yet and are not prepared. The counter-proof (a planted fault in src/prompt-bar/hand-over.mjs and the test's
+// check-for-persons, draft-replies) name a strategy that no module builds yet and are not prepared. The counter-proof (a planted fault in src/prompt-bar/hand-over.mjs and the test's
 // failing result) is recorded in the pull request.
 
 import test, { afterEach, beforeEach } from "node:test";
@@ -185,7 +187,7 @@ function paramsOfRecord(it) {
   assert.deepEqual(refuses, ["hand-over"], "the piece's job hands nothing on");
   return params;
 }
-const NEVER_GIVEN = ["source", "resource", "kind", "entry", "part"];
+const NEVER_GIVEN = ["source", "resource", "entry", "part"];
 const NOTHING_WRITTEN = "no commit was attempted and no workflow was started";
 const nothingWritten = (it) => assert.equal(it.product.attempts.length + it.product.starts.length + it.instance.attempts.length, 0, NOTHING_WRITTEN);
 const neverGiven = (params) => { for (const key of NEVER_GIVEN) assert.ok(!(key in params), `the bar gives no ${key}: ${JSON.stringify(params)}`); };
@@ -196,13 +198,13 @@ const neverGiven = (params) => { for (const key of NEVER_GIVEN) assert.ok(!(key 
 // guards: UC-019
 // given: the Scrum product, whose use cases UC-001 and UC-002 are accepted and realise EXPORT IS A PDF; dev-ci, a Developer of team1 with the CI secret KEY_A, route ci hosted; known positive: a hand-over of implement on ITM-004 is queued
 // input: queue of the hand-over { kind: "change-use-case", works_on: ["UC-001"], task }
-// expect: the job is queued (one commit, one started workflow) and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" } — `useCase` is what MOD-approvals' recipe use-case-with-neighbours reads —, with none of source, resource, kind, entry and part; no request was made
+// expect: the job is queued (one commit, one started workflow) and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" } — `useCase` is what MOD-approvals' recipe use-case-with-neighbours reads —, with none of source, resource, entry and part; no request was made
 test("a hand-over of change-use-case on one use case is queued with the parameter useCase beside useCases", async () => {
   const positive = await handsOver({ kind: "implement", works_on: ["ITM-004"] });
   assert.equal(positive.refusal, undefined, "known positive: ITM-004 is queued");
   const it = await handsOver({ kind: "change-use-case", works_on: ["UC-001"] });
   assert.equal(it.refusal, undefined, it.refusal?.message);
-  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001" });
+  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" });
   neverGiven(paramsOfRecord(it));
   assert.equal(it.product.starts.length, 1);
   assert.deepEqual(requests, []);
@@ -255,7 +257,7 @@ test("a hand-over of derive-requirements, which needs a source works_on cannot g
 // guards: UC-019
 // given: the product of TST-626001
 // input: queue of derive-use-cases on the requirement EXPORT IS A PDF and the use case UC-001
-// expect: the job is queued and its record's parameters are exactly { requirements: ["EXPORT IS A PDF"], useCases: ["UC-001"], useCase: "UC-001" } — requirements and useCases are what MOD-approvals' precondition rests-on-accepted and MOD-spec-changes' recipe chosen-requirements read — with none of source, resource, kind, entry and part
+// expect: the job is queued and its record's parameters are exactly { requirements: ["EXPORT IS A PDF"], useCases: ["UC-001"], useCase: "UC-001" } — requirements and useCases are what MOD-approvals' precondition rests-on-accepted and MOD-spec-changes' recipe chosen-requirements read — with none of source, resource, entry and part
 test("a hand-over of derive-use-cases is queued with the parameters requirements and useCases", async () => {
   const it = await handsOver({ kind: "derive-use-cases", works_on: [REQUIREMENT, "UC-001"] });
   assert.equal(it.refusal, undefined, it.refusal?.message);
@@ -267,11 +269,11 @@ test("a hand-over of derive-use-cases is queued with the parameters requirements
 // guards: UC-019
 // given: the Scrum product before it has an architecture (no module file); its use cases are accepted
 // input: queue of derive-architecture on the use case UC-001
-// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies (architecture-ready, whole-spec, accepted-use-cases) read none of them, and need none of source, resource, kind, entry and part, which the record lacks
+// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" }; the kind's strategies (architecture-ready, whole-spec, accepted-use-cases) read none of them, and need none of source, resource, entry and part, which the record lacks
 test("a hand-over of derive-architecture is queued: its strategies read no parameter", async () => {
   const it = await handsOver({ kind: "derive-architecture", works_on: ["UC-001"] }, scrumFilesWithoutArchitecture());
   assert.equal(it.refusal, undefined, it.refusal?.message);
-  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001" });
+  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" });
   neverGiven(paramsOfRecord(it));
 });
 
@@ -279,11 +281,11 @@ test("a hand-over of derive-architecture is queued: its strategies read no param
 // guards: UC-019
 // given: the product of TST-626001
 // input: queue of review-architecture on the use case UC-001
-// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies read only the draft, which the bar does not give
+// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" }; the kind's strategies read only the draft, which the bar does not give
 test("a hand-over of review-architecture is queued: its strategies read no parameter the bar gives", async () => {
   const it = await handsOver({ kind: "review-architecture", works_on: ["UC-001"] });
   assert.equal(it.refusal, undefined, it.refusal?.message);
-  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001" });
+  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" });
   neverGiven(paramsOfRecord(it));
   assert.ok(!("draft" in paramsOfRecord(it)));
 });
@@ -292,7 +294,7 @@ test("a hand-over of review-architecture is queued: its strategies read no param
 // guards: UC-019
 // given: the Scrum product, whose backlog holds ITM-004 (no docs/plan); it realises UC-001
 // input: queue of implement, and of refactor, on the item ITM-004
-// expect: both are queued and their records' parameters are exactly { items: ["ITM-004"] } — what MOD-run-planner's recipe implementation-inputs reads for a backlog item —, with no steps and none of source, resource, kind, entry and part
+// expect: both are queued and their records' parameters are exactly { items: ["ITM-004"] } — what MOD-run-planner's recipe implementation-inputs reads for a backlog item —, with no steps and none of source, resource, entry and part
 test("a hand-over of implement or refactor on a backlog item is queued with the parameter items", async () => {
   for (const kind of ["implement", "refactor"]) {
     const it = await handsOver({ kind, works_on: ["ITM-004"] });
@@ -306,7 +308,7 @@ test("a hand-over of implement or refactor on a backlog item is queued with the 
 // guards: UC-019
 // given: a V-model product whose plan holds the step ITM-007 (docs/plan/ITM-007-store.md) and no backlog
 // input: queue of implement, and of refactor, on the step ITM-007
-// expect: both are queued and their records' parameters are exactly { steps: ["ITM-007"] } — what MOD-run-planner's recipe implementation-inputs and MOD-runtimes' writer branch-and-pull-request read for a plan step —, with no items and none of source, resource, kind, entry and part
+// expect: both are queued and their records' parameters are exactly { steps: ["ITM-007"] } — what MOD-run-planner's recipe implementation-inputs and MOD-runtimes' writer branch-and-pull-request read for a plan step —, with no items and none of source, resource, entry and part
 test("a hand-over of implement or refactor on a plan step is queued with the parameter steps", async () => {
   for (const kind of ["implement", "refactor"]) {
     const it = await handsOver({ kind, works_on: ["ITM-007"] }, vModelFiles());
@@ -346,11 +348,26 @@ test("a hand-over of check-resource, which needs a resource works_on cannot give
 // guards: UC-019; UC-049
 // given: the product of TST-626001
 // input: queue of converse on the use case UC-001
-// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies read `page` and `entry`, which the bar does not give, and the record lacks them; the job is queued all the same, since a missing page or entry is no error of a recipe
+// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" }; the kind's strategies read `page` and `entry`, which the bar does not give, and the record lacks them; the job is queued all the same, since a missing page or entry is no error of a recipe
 test("a hand-over of converse is queued without the page and the entry its strategies read", async () => {
   const it = await handsOver({ kind: "converse", works_on: ["UC-001"] });
   assert.equal(it.refusal, undefined, it.refusal?.message);
-  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001" });
+  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001", kind: "use-cases" });
   assert.ok(!("page" in paramsOfRecord(it)));
   neverGiven(paramsOfRecord(it));
+});
+
+// TST-626013 · level: unit · module: MOD-prompt-bar
+// guards: UC-049; UC-021
+// given: the product of TST-626001, whose SPEC holds EXPORT IS A PDF and which has no group file of requirements; propose-groups takes `instruction?` (MOD-job-catalogue)
+// input: queue of the hand-over of converse's plan { kind: "propose-groups", works_on: ["EXPORT IS A PDF"], task }
+// expect: the job is queued — not refused by taskRefusal, since the kind takes the task —, and its record's parameters are exactly { requirements: ["EXPORT IS A PDF"], kind: "requirements" }:
+//   `kind`, the group kind items-of-kind and group-rules read, from MOD-job-runner's handOverParams; no request was made
+test("a hand-over of propose-groups on requirements is queued with the parameter kind requirements, and its task is not refused", async () => {
+  const it = await handsOver({ kind: "propose-groups", works_on: [REQUIREMENT] });
+  assert.equal(it.refusal, undefined, it.refusal?.message);
+  assert.deepEqual(paramsOfRecord(it), { requirements: [REQUIREMENT], kind: "requirements" });
+  neverGiven(paramsOfRecord(it));
+  assert.equal(it.product.starts.length, 1);
+  assert.deepEqual(requests, []);
 });

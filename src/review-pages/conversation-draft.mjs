@@ -15,7 +15,8 @@ import { provenanceLines } from "../job-runner/index.mjs";
 import { dropDraft, latestDraft } from "../prompt-bar/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { formatFinding } from "../text-tools/index.mjs";
-import { el, handedPlace, link, readPlace } from "./common.mjs";
+import { arrangement, isGroupKind } from "./arrange.mjs";
+import { button, el, handedPlace, link, readPlace } from "./common.mjs";
 import { fileDrafts } from "./file-drafts.mjs";
 import { loadStage } from "./jobs.mjs";
 import { requirementsDraft } from "./requirements-draft.mjs";
@@ -77,6 +78,27 @@ async function showFiles(where, draft, trailers, target, drop, hold) {
   hold(leave);
 }
 
+// A draft of propose-groups: its moves, for the group kind its parameter `kind` names, as the pending changes of that kind's arrangement (arrange.mjs), saved as *Save arrangement* saves —
+// the group file only, committed directly (A REGROUPING IS COMMITTED DIRECTLY) —, on the blob this page read; Discard drops the draft. The commit carries no provenance lines: what is saved
+// is the person's own arrangement, as on the Arrange page.
+async function showMoves(where, draft, drop) {
+  const { target } = where;
+  const kind = draft.params.kind;
+  if (!isGroupKind(kind)) {
+    target.append(el("p", "problem", `The draft arranges no group file this page knows: its parameter kind is ${JSON.stringify(kind ?? null)}. Nothing was written.`));
+    return;
+  }
+  const { adopt } = await arrangement(where, kind, { onSaved: drop });
+  adopt(Array.isArray(draft.result.draft.moves) ? draft.result.draft.moves : []);
+  const discard = button("btn discard", "Discard");
+  const said = el("p", "discarded");
+  discard.addEventListener("click", () => {
+    drop();
+    said.replaceChildren("The draft was discarded. Nothing was written.");
+  });
+  target.append(el("div", "actions", discard), said);
+}
+
 async function show(where, params, hold) {
   const { target, context } = where;
   target.append(el("h2", null, "The draft of the conversation"));
@@ -98,6 +120,9 @@ async function show(where, params, hold) {
   const trailers = provenanceLines({ agentM: { version: commit, commit }, jobId: null, kind: draft.kind, participant, rounds: draft.result.rounds.length });
   if (draft.kind === "change-requirements") {
     target.append(...roundsAndLeft(draft.result), await requirementsDraft({ ...where, draft, trailers, drop }));
+  } else if (draft.kind === "propose-groups") {
+    target.append(...roundsAndLeft(draft.result));
+    await showMoves(where, draft, drop);
   } else {
     await showFiles(where, draft, trailers, target, drop, hold);
   }

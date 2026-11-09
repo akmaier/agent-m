@@ -477,3 +477,24 @@ test("handOverParams — an entry with lowercase letters, such as a section, nam
   assert.deepEqual(handOverParams(["NO SERVER", "SPEC.md section 16 Usability", "UC-007", "https://example.test/x"], snapshot),
     { requirements: ["NO SERVER"], useCases: ["UC-007"], useCase: "UC-007" });
 });
+
+// TST-1360202 · level: unit · module: MOD-job-runner
+// guards: UC-049; UC-021
+// given: a snapshot with no plan; known positive: works_on of requirement names alone
+// input: handOverParams of works_on of requirements alone, of use cases alone, of ARC-<n> alone, of MOD-<n> alone, and of a requirement beside a use case, a place beside a requirement,
+//   a decision beside a module, and none
+// expect: `kind` "requirements", "use-cases", "architecture", "modules" for the four of one group kind each — the parameter by which items-of-kind and group-rules read the kind
+//   propose-groups arranges —; no `kind` for the mixed ones and for none
+test("handOverParams — `kind` names the group kind where every entry of works_on is of that one kind", async () => {
+  const { handOverParams } = await import("../src/job-runner/index.mjs");
+  const snapshot = { paths: ["SPEC.md"] };
+  assert.deepEqual(handOverParams(["NO SERVER", "A GROUP CARRIES NO IDENTIFIER"], snapshot),
+    { requirements: ["NO SERVER", "A GROUP CARRIES NO IDENTIFIER"], kind: "requirements" }, "known positive: requirements");
+  assert.equal(handOverParams(["UC-007", "UC-008"], snapshot).kind, "use-cases");
+  assert.equal(handOverParams(["UC-007"], snapshot).kind, "use-cases");
+  assert.equal(handOverParams(["ARC-001", "ARC-038"], snapshot).kind, "architecture");
+  assert.equal(handOverParams(["MOD-prompt-bar", "MOD-review-pages"], snapshot).kind, "modules");
+  for (const mixed of [["NO SERVER", "UC-007"], ["NO SERVER", "SPEC.md section 16 Usability"], ["ARC-001", "MOD-prompt-bar"], []]) {
+    assert.ok(!("kind" in handOverParams(mixed, snapshot)), JSON.stringify(mixed));
+  }
+});

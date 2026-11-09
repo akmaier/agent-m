@@ -24,7 +24,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { listSettings, openStore, readSetting, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { approvalStrategies } from "../src/approvals/index.mjs";
-import { appendToRecord } from "../src/job-ledger/index.mjs";
+import { appendToRecord, startRecord } from "../src/job-ledger/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { routeStrategies } from "../src/runtimes/index.mjs";
 import { dropDraft, startPromptBar } from "../src/prompt-bar/index.mjs";
@@ -1167,4 +1167,58 @@ test("TST-2026114908: for a job that is the endpoint's own, the bar follows each
   assert.ok(following(it).includes(`not run: change-use-case — waits for the acceptance of 1 (${piece})`), following(it));
   await until(() => /State: queued/.test(following(it).split(`Handed over: ${piece}`)[1] ?? ""), "the job handed over is shown queued");
   assert.deepEqual(all(one(it.target, "following"), (node) => node.localName === "details"), [], "no answer handed on is folded");
+});
+
+// ---------------------------------------------------------------- a regrouping handed over to CI: its moves become the conversation's draft
+
+// The moves the job of propose-groups drafted, as its run leaves them in its log: the draft JSON MOD-workflow-entries' answer gives of a draft without an `answer`.
+const MOVES = [{ op: "create", title: "Review", in: [] }, { op: "move", item: "UC-002", to: ["Review"] }];
+const MOVES_LOG = (id) => ["Agent M jobs on hosted", `2026-10-16T12:18:00.0000000Z --- answer of ${id} ---`,
+  ...JSON.stringify({ moves: MOVES }, null, 2).split("\n").map((line) => `2026-10-16T12:18:00.0000000Z ${line}`), `2026-10-16T12:18:00.0000000Z --- end of the answer of ${id} ---`, ""].join("\n");
+const RUN_8 = "https://github.com/alice/thesis-tool/actions/runs/8";
+
+// TST-2026110901 · level: component · module: MOD-prompt-bar
+// guards: UC-049; UC-021; A REGROUPING IS COMMITTED DIRECTLY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the page of TST-1200002, nvidia chosen; Spawn job with the message TASK, whose job — the endpoint's own — ends done listing `handed over: propose-groups — <piece>`; the
+//   piece's record — kind propose-groups, participant nvidia, route ci hosted, its task with the hand-over, its parameters { useCases: [UC-001, UC-002], kind: "use-cases",
+//   refuses: [hand-over] } — taken by the run 8, which left the moves of MOVES as its answer in its log, and ended done with that run's address; 15 seconds pass
+// input: then a click on Review the draft under the piece
+// expect: the tab keeps the conversation's draft { subject: the page's key, kind: propose-groups, participant: nvidia, params: the piece's parameters, result whose draft is
+//   { moves: MOVES } } — the answer read by the kind's schema of its draft —; under the piece stands Review the draft, whose click goes to draft/subject=<the key, encoded>;
+//   nothing more was written than the spawned job's record and what the fixture wrote
+test("a handed-over job of propose-groups that ends on CI leaves its moves as the conversation's draft, which Review the draft leads to", async () => {
+  const it = open({ endpoints: ON_ACTIONS });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  choose(it, "nvidia");
+  one(it.target, "instruction").value = TASK;
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => following(it).includes("State:"), "the spawned job is followed");
+  const writes = it.product.attempts.length;
+  const path = it.product.jobPath();
+  const piece = "JOB-20261016-1210-c0c0";
+  const params = { useCases: ["UC-001", "UC-002"], kind: "use-cases", refuses: ["hand-over"] };
+  it.product.edit(`docs/jobs/${piece}.md`, () => {
+    const { text } = startRecord({ id: piece, kind: "propose-groups", worksOn: ["UC-001", "UC-002"], participant: "nvidia", model: NVIDIA_MODEL, route: "ci hosted", run: null, retries: null,
+      startedBy: "alice", start: new Date("2026-10-16T12:10:00Z"), agentM: { version: "unreleased", commit: "c0" }, inputs: [], limit: 5, task: "with the hand-over", conversation: null,
+      destinations: [], params });
+    return appendToRecord(appendToRecord(text, { part: "taken", at: new Date("2026-10-16T12:11:00Z"), by: RUN_8 }),
+      { part: "end", at: new Date("2026-10-16T12:19:00Z"), state: "done", results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: null, log: RUN_8 });
+  });
+  it.product.runs.push(ciRun("succeeded"), { ...ciRun("succeeded"), id: "8", url: RUN_8 });
+  it.product.logs.set("8", MOVES_LOG(piece));
+  it.product.edit(path, (text) => appendToRecord(appendToRecord(text, { part: "taken", at: new Date("2026-10-16T12:01:00Z"), by: RUN_URL }),
+    { part: "end", at: new Date("2026-10-16T12:09:00Z"), state: "done", results: [`handed over: propose-groups — ${piece}`], draft: null, rounds: [], usage: null,
+      cost: { known: false, usage: null }, reason: null, log: RUN_URL }));
+  await after(15000);
+  await until(() => following(it).includes(`Handed over: ${piece}`), "the piece is followed");
+  await until(() => byClass(one(it.target, "following"), "review").length === 1, "Review the draft stands under the piece");
+  const draft = readTabValue(it.store, "prompt-bar:draft");
+  assert.equal(draft.subject, subjectOf().key);
+  assert.equal(draft.kind, "propose-groups");
+  assert.equal(draft.participant, "nvidia");
+  assert.deepEqual(draft.params, params);
+  assert.deepEqual(draft.result.draft, { moves: MOVES });
+  one(one(it.target, "following"), "review").dispatchEvent(personal());
+  assert.deepEqual(it.went.at(-1), [`draft/subject=${encodeURIComponent(subjectOf().key)}`]);
+  assert.equal(it.product.attempts.length, writes, "the bar wrote nothing more");
 });
