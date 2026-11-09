@@ -64,10 +64,12 @@ const promptBarSend = await import(url("src/prompt-bar/send.mjs"));
 const answer = JSON.stringify({ draft: { answer: "Done." }, answers: [] });
 const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 const asks = [];
+// The agent claude of the Bridge lab, with the declaration the Bridge keeps for it and lists with it (MOD-bridge-http, GET /v1/agents): the model model-t.
+const CLAUDE = { version: "1.0.0", ready: true, loggedIn: true, ...fixture.agent("claude", [["model-t", 200000]], { capabilities: ["draft text", "read the repository"] }) };
 globalThis.fetch = async (address, init = {}) => {
   const where = new URL(String(address));
   if (where.origin === "http://127.0.0.1:4711" && where.pathname === "/v1/pair") return json({ bridge: { name: "lab", version: "1.0.0", platform: "linux" }, origin: "https://acme.github.io" });
-  if (where.origin === "http://127.0.0.1:4711" && where.pathname === "/v1/agents") return json({ agents: [{ name: "claude", version: "1.0.0", ready: true, loggedIn: true }], missing: [] });
+  if (where.origin === "http://127.0.0.1:4711" && where.pathname === "/v1/agents") return json({ agents: [CLAUDE], missing: [] });
   if (where.origin === "http://127.0.0.1:4711" && where.pathname === "/v1/ask" && init.method === "POST") { asks.push(JSON.parse(init.body)); return json({ ask: "ask-1" }); }
   if (where.origin === "http://127.0.0.1:4711" && where.pathname === "/v1/ask/ask-1") {
     return json({ state: "done", text: answer, usage: input.usage || input.cost ? { inputTokens: input.usage?.inputTokens ?? null, outputTokens: input.usage?.outputTokens ?? null, minutes: null, cost: input.cost ?? null } : null });
@@ -79,8 +81,7 @@ globalThis.fetch = async (address, init = {}) => {
 };
 // This browser's one connection of the model model-t, as MOD-prompt-bar offers it: an endpoint called from the tab, or the agent claude of the Bridge lab.
 const store = bridge
-  ? fixture.storeWith({ "bridge:lab": { address: "http://127.0.0.1:4711", token: "pairing-token" },
-      "session:lab:claude": fixture.session([["model-t", 200000]], { capabilities: ["draft text", "read the repository"] }) })
+  ? fixture.storeWith({ "bridge:lab": { address: "http://127.0.0.1:4711", token: "pairing-token" } })
   : fixture.storeWith({ "endpoint:ep1": { kind: "openai-compatible", url: "https://models.example/v1", model: "model-t", key: "k", place: "this machine", context: 200000 } });
 const offered = [...promptBar.endpointsOffered(store), ...await promptBar.sessionsOffered(store)];
 const participants = participantList.participantsOf(documents.readDocument(participantList.participantSchema(), "docs/participants.md", REGISTER), offered);

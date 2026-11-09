@@ -37,16 +37,17 @@ afterEach(restoreWorld);
 // What this browser declares for the bar to offer (UC-049 1); the bar reads no participant list, and the instance's list here is empty.
 // - local-llm and cloud-llm: endpoints at "this machine" and "a provider in the USA", which draft text;
 // - local-tools: an endpoint at "this machine" whose last test found that it uses tools;
-// - lab-pc-4:writer: the CLI session the Bridge lab-pc-4 offers for its agent writer, at "this machine", which drafts text and writes to the repository.
+// - lab-pc-4:writer: the CLI session the Bridge lab-pc-4 offers for its agent writer, at "this machine", which drafts text and writes to the repository — the declaration the Bridge keeps and lists with
+//   the agent (MOD-bridge-http, GET /v1/agents).
 const endpoint = (url, model, key, place) => ({ kind: "openai-compatible", url, model, key, place, context: 200000 });
 const DECLARED = {
   "endpoint:local-llm": endpoint("https://ep1.example.test/v1", "model-a", "k1", "this machine"),
   "endpoint:cloud-llm": endpoint("https://ep2.example.test/v1", "model-b", "k2", "a provider in the USA"),
   "endpoint:local-tools": endpoint("https://ep1.example.test/v1", "model-t", "k1", "this machine"),
   "last-test:endpoint:local-tools": { at: "2026-10-19T12:00:00Z", outcome: "ok", tools: true },
-  "session:lab-pc-4:writer": { place: "this machine", capabilities: ["draft text", "write to the repository"], models: [{ model: "model-w", context: 200000 }] },
 };
-const OFFER = { rows: [], settings: DECLARED, agents: ["writer"] };
+const WRITER = { name: "writer", place: "this machine", capabilities: ["draft text", "write to the repository"], models: [{ model: "model-w", context: 200000 }] };
+const OFFER = { rows: [], settings: DECLARED, agents: [WRITER] };
 const mailPage = async (extra = {}) => {
   const p = await openReplies({ inbox: [rawMail("n1", { subject: "Help with the export", body: "My export of the thesis fails.\r\nKind regards\r\nErika Mustermann" })],
     fragment: "#mail", views: [maintenance, settings], ...OFFER, ...extra });

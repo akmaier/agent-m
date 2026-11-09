@@ -56,7 +56,7 @@ PLACES = {
     "github-token": "GitHub token", "products": "Products", "notifications": "Notifications", "notified": "Notifications",
     "bridge": "Bridge", "jump-host": "Jump host", "mailbox": "Mailbox", "browser": "Browser identifier", "not-an-issue": "Mails marked not an issue",
     "github-token:sample": "GitHub token: sample", "gitlab-token:sample": "GitLab token: sample", "endpoint:sample": "Endpoint: sample",
-    "bridge:sample": "Bridge: sample", "remote-session:sample": "Remote session: sample", "session:sample:sample": "CLI session: sample:sample",
+    "bridge:sample": "Bridge: sample", "remote-session:sample": "Remote session: sample", "ci-agent:sample": "Coding agents on CI",
     "last-test:sample": "GitHub token", "acknowledged:sample": "GitHub token", "resource-key:sample": "Resource key: sample",
 }
 STORED = {
@@ -66,7 +66,8 @@ STORED = {
     "github-token:sample": TOKEN, "gitlab-token:sample": TOKEN,
     "endpoint:sample": {"url": "https://m.example/v1", "kind": "openai-compatible", "model": "m", "key": "k", "throughBridge": False},
     "bridge:sample": {"address": "http://localhost:8765", "token": "labtok"}, "remote-session:sample": {"port": 20001, "token": BRIDGE_SECRET},
-    "session:sample:sample": {"place": "this computer", "context": 200000, "model": "claude-opus-5", "capabilities": ["read the repository"]},
+    "ci-agent:sample": {"agent": "claude", "runner": "hosted", "secret": "CLAUDE_KEY", "place": "Anthropic, USA", "capabilities": ["read the repository"],
+                        "models": [{"model": "claude-opus-5", "context": 200000}]},
     "last-test:sample": {"at": "2026-09-29T10:00:00.000Z", "outcome": "working"}, "acknowledged:sample": "2026-09-01",
     "resource-key:sample": {"value": "hub_KEY0123456789", "stored": "2026-09-01T00:00:00.000Z"},
 }
@@ -138,11 +139,12 @@ class TestedAndCleared(unittest.TestCase):
         r = live("const t = await render(); return lines(t).map((l) => [l.title, l.buttons]);", STORED)
         buttons = {title: b for title, b in r}
         clears = ("Clear", "Disconnect", "Switch off")
+        # A coding agent on CI is cleared on its line of the panel Coding agents on CI (MOD-settings-pages, `endpoints`: "kept under `ci-agent:<name>`; … *Clear*").
         for title in ("GitHub token", "Products", "GitHub token: sample", "GitLab token: sample", "Jump host", "Remote session: sample",
-                      "Bridge: sample", "Endpoint: sample", "CLI session: sample:sample", "Mailbox", "Notifications"):
+                      "Bridge: sample", "Endpoint: sample", "Coding agents on CI", "Mailbox", "Notifications"):
             self.assertTrue(any(c in buttons[title] for c in clears), f"{title} can be cleared")
         for title in ("GitHub token", "GitHub token: sample", "GitLab token: sample", "Jump host", "Remote session: sample",
-                      "Bridge: sample", "Endpoint: sample", "CLI session: sample:sample", "Mailbox", "Notifications"):
+                      "Bridge: sample", "Endpoint: sample", "Mailbox", "Notifications"):
             self.assertIn("Test", buttons[title], f"{title} can be tested")
         self.assertIn("Test", buttons["Managed products"], "each product address is tested where the list is shown")
 
@@ -167,6 +169,46 @@ class TestedAndCleared(unittest.TestCase):
     def test_counter_proof_a_line_without_clear_is_seen(self):
         lines_ = {"Test only": ["Test"], "Test and Clear": ["Test", "Clear"]}
         self.assertEqual([t for t, b in lines_.items() if "Clear" not in b], ["Test only"])
+
+
+# The panel Coding agents on CI of the tab Endpoints & Agents (src/settings-pages/ci-agents.mjs, ciAgentsPanel): its form, filled as a person fills it.
+# The harness's DOM has no querySelector; the body adds it for a selector of one class, as a browser answers it.
+CI_FORM = """
+{ const { Element } = globalThis.window;
+  Element.prototype.querySelectorAll = function (selector) { return byClass(this, /^\\.([\\w-]+)$/.exec(selector)[1]); };
+  Element.prototype.querySelector = function (selector) { return this.querySelectorAll(selector)[0] ?? null; }; }
+const t = await render();
+const panel = lines(t).find((l) => l.title === "Coding agents on CI").node;
+const fill = (name, text) => { byClass(panel, "ci-agent-form-" + name)[0].value = text; };
+const save = async (given) => { for (const [name, text] of Object.entries(given)) fill(name, text); await pressed(byClass(panel, "ci-agent-form-save")[0]); };
+const lacks = () => byClass(panel, "ci-agent-lacks").map((e) => e.textContent).join(" ");
+"""
+
+
+class CodingAgentsOnCi(unittest.TestCase):
+    # TST-20261109701 · level: component · module: MOD-settings-pages
+    # guards: UC-010; UC-049; EVERY SETTING IS REACHED FROM ONE PAGE; A CONNECTION DECLARES WHERE IT PROCESSES DATA
+    # given: an empty browser; the tab Endpoints & Agents of the Settings page, with its panel Coding agents on CI
+    # input: the form saved with the name hosted-claude, the agent claude, the runner hosted, the CI secret CLAUDE_KEY, no place and the model m without its context; then again with the place Anthropic, USA and the context 200000
+    # expect: the first save keeps ci-agent:hosted-claude = { agent, runner, secret, place: "", capabilities: all six, models: [{ model: "m" }] } and its line names that it is not offered, lacking the place where it
+    #   processes data and the context in tokens of m; the second keeps the place and { model: "m", context: 200000 } and its line names nothing as lacking
+    # Planted fault: keeping the agent under another key, keeping the context as typed, or naming nothing on the first line fails it.
+    def test_a_coding_agent_on_ci_is_kept_under_its_name_and_what_it_lacks_is_named(self):
+        r = live(CI_FORM + """
+await save({ name: "hosted-claude", agent: "claude", runner: "hosted", secret: "CLAUDE_KEY", place: "", model: "m", context: "" });
+const first = { kept: bs.readSetting(store, "ci-agent:hosted-claude"), lacks: lacks() };
+await save({ place: "Anthropic, USA", context: "200000" });
+return { first, second: { kept: bs.readSetting(store, "ci-agent:hosted-claude"), lacks: lacks() } };
+""")
+        all_six = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"]
+        self.assertEqual(r["first"]["kept"], {"agent": "claude", "runner": "hosted", "secret": "CLAUDE_KEY", "place": "", "capabilities": all_six,
+                                              "models": [{"model": "m"}]})
+        self.assertIn("Not offered", r["first"]["lacks"])
+        self.assertIn("the place where it processes data", r["first"]["lacks"])
+        self.assertIn("the context in tokens of m", r["first"]["lacks"])
+        self.assertEqual(r["second"]["kept"]["place"], "Anthropic, USA")
+        self.assertEqual(r["second"]["kept"]["models"], [{"model": "m", "context": 200000}])
+        self.assertEqual(r["second"]["lacks"], "", "known positive above: a coding agent that lacks nothing is named as lacking nothing")
 
 
 class SecretHiddenUntilShown(unittest.TestCase):
