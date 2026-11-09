@@ -19,14 +19,36 @@ import { RuntimeError, commitStart } from "./ci.mjs";
  * MOD-job-ledger's worksOnProblem, an error on the answer naming the piece by its number from 1 and the reason, so that the drafter corrects in the round what handOverJob
  * could not record (UC-049 4a, 4f). A draft without a plan has none.
  */
-export const planWorksOn = (draft) => (Array.isArray(draft?.handOver) ? draft.handOver : []).flatMap((piece, at) => {
-  const worksOn = [piece?.works_on].flat().filter(Boolean).map(String);
-  const why = worksOn.length ? worksOnProblem(worksOn) : null;
-  return why ? [finding({ artifact: "answer", line: 1, kind: "error", rule: "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY",
-    what: `piece ${at + 1} of the plan works on what its job's record refuses: ${why}`,
-    fix: "name each entry of its works_on in one of the forms that reason names, or leave works_on empty for something new, whose place the task names — "
-      + "the job of such a piece works on the repository, by its address" })] : [];
-});
+export const planWorksOn = (draft, context) => {
+  const plan = Array.isArray(draft?.handOver) ? draft.handOver : [];
+  const found = plan.flatMap((piece, at) => {
+    const worksOn = [piece?.works_on].flat().filter(Boolean).map(String);
+    const why = worksOn.length ? worksOnProblem(worksOn) : null;
+    return why ? [finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
+      what: `piece ${at + 1} of the plan works on what its job's record refuses: ${why}`,
+      fix: "name each entry of its works_on in one of the forms that reason names, or leave works_on empty for something new, whose place the task names — "
+        + "the job of such a piece works on the repository, by its address" })] : [];
+  });
+  const snapshot = context?.product?.snapshot;
+  return snapshot && found.length === 0 ? unknownRequirements(plan, snapshot) : found;
+};
+
+const RECORDED = "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY";
+const REQUIREMENT = /\*\*([A-Z0-9][A-Z0-9 ,'’.\-]*?)\*\*/g;
+
+// The requirement names of the plan's pieces that neither the product's SPEC.md nor a proposal under docs/spec-freigaben/ holds, one error each on its piece, so that the planner
+// names the requirements a change stands beside — a requirement it adds is named in the task — while it can still correct its plan, not after its piece is refused.
+async function unknownRequirements(plan, snapshot) {
+  const named = plan.flatMap((piece, at) => [piece?.works_on].flat().filter(Boolean).map(String).filter((each) => !/^(UC|ARC|MOD|TST|ITM)-|:\/\//.test(each))
+    .map((name) => ({ at, name })));
+  if (named.length === 0) return [];
+  const texts = await Promise.all(["SPEC.md", ...snapshot.paths.filter((path) => path.startsWith("docs/spec-freigaben/") && /\/\d+-[^/]+\.md$/.test(path)
+    && !path.endsWith(".begruendung.md"))].map((path) => snapshot.read(path)));
+  const held = new Set(texts.flatMap((text) => [...String(text ?? "").matchAll(REQUIREMENT)].map((match) => match[1].trim())));
+  return named.filter(({ name }) => !held.has(name)).map(({ at, name }) => finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
+    what: `piece ${at + 1} of the plan works on ${name}, which is no requirement of the product's SPEC or of an open proposal`,
+    fix: "a requirement the change adds is named in the task; works_on names the requirements of the SPEC it stands beside or changes, or is empty" }));
+}
 
 // The findings that keep a prepared job from being handed over: those of its preconditions and eligibility, one for each participant it does not fit, and one for a kind whose
 // gate points hold before-write, since such a job would wait for its task at the gate; and MOD-job-runner's taskRefusal for a kind that takes no instruction,

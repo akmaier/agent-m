@@ -54,3 +54,22 @@ test("TST-2026110952: plan-works-on — no plan, or a plan its records take, has
     assert.deepEqual(check(draft), [], JSON.stringify(draft));
   }
 });
+
+// TST-2026110953 · level: unit · module: MOD-runtimes
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-049
+// given: a product whose SPEC.md holds PLAYER MOVEMENT KEYS, and an open entry under docs/spec-freigaben/ that proposes SCORE BONUS
+// input: the check plan-works-on of a plan whose piece of change-requirements works on SHIP TYPE SLOW — a requirement the change would add —, then of one that works on PLAYER MOVEMENT KEYS and SCORE BONUS
+// expect: the first gives one error on the answer naming piece 1 and SHIP TYPE SLOW as no requirement the product holds, its fix saying that a new requirement is named in the task and works_on names the requirements it stands beside, or none; the second gives none. Counter-proof: on the check as it stood, the first passed, and the piece was "not run: the SPEC holds no requirement SHIP TYPE SELECTION; SHIP TYPE REGULAR; SHIP TYPE SLOW" after the conversation had ended (akmaier/AlienInvasion, JOB-20261109-2231-b6ba).
+test("TST-2026110953: plan-works-on — a requirement the product does not hold goes back while the planner can still correct it", async () => {
+  const files = { "SPEC.md": "# P — Specification\n\n## Requirements\n\n**PLAYER MOVEMENT KEYS** *(github.com/akmaier)*\nThe ship moves.\n*Check:* no automatic check; at review\n",
+    "docs/spec-freigaben/requirements/02-requirements.md": "## Requirements\n\n**SCORE BONUS** *(github.com/akmaier)*\nA bonus is scored.\n*Check:* no automatic check; at review\n" };
+  const context = { params: {}, product: { snapshot: { paths: Object.keys(files), read: async (path) => files[path] ?? null } } };
+  const asks = (works_on) => routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [{ kind: "change-requirements", works_on, task: "add the slow ship", after: [] }] }, context);
+  const found = await asks(["SHIP TYPE SLOW"]);
+  assert.equal(found.length, 1);
+  assert.deepEqual([found[0].artifact, found[0].kind, found[0].rule], ["answer", "error", RULE]);
+  assert.match(found[0].what, /piece 1/);
+  assert.match(found[0].what, /SHIP TYPE SLOW/);
+  assert.match(found[0].fix, /task/);
+  assert.deepEqual(await asks(["PLAYER MOVEMENT KEYS", "SCORE BONUS"]), []);
+});
