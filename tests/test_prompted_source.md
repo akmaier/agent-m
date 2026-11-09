@@ -1,6 +1,6 @@
 # Prompted Source Cases
 
-## the account, neither registered nor linked, enters drafted requirements
+## the account, neither registered nor linked, enters the drafted requirements
 
 ### Case
 
@@ -12,40 +12,15 @@
   ],
   "linked": ["SRC-bob"],
   "spec": "# Fixture product - Specification\n\n## One\n\n**A HELD RULE** *(Fixture Source)*\nOld rule.\n*Check:* no automatic check; at review\n",
-  "candidates": [
-    {
-      "name": "A BETTER RULE",
-      "rule": "Changed rule.",
-      "check": "no automatic check; at review",
-      "constrains": "product",
-      "passage": "prompt",
-      "class": "change",
-      "of": "A HELD RULE"
-    },
-    {
-      "name": "A NEW PROMPTED RULE",
-      "rule": "New rule.",
-      "check": "no automatic check; at review",
-      "constrains": "product",
-      "passage": "prompt",
-      "class": "new",
-      "of": "A HELD RULE"
-    }
-  ],
-  "classes": [
-    { "refs": ["A BETTER RULE"], "from": ["prompt"], "class": "change", "of": "A HELD RULE", "decidedBy": "participant" },
-    { "refs": ["A NEW PROMPTED RULE"], "from": ["prompt"], "class": "new", "of": "A HELD RULE", "decidedBy": "participant" }
+  "sections": [
+    "## One\n\n**A HELD RULE** *(Fixture Source; <account>)*\nChanged rule.\n*Check:* no automatic check; at review\n\n**A NEW PROMPTED RULE** *(<account>)*\nNew rule.\n*Check:* no automatic check; at review\n"
   ],
   "expected": {
     "source": "github.com/alice",
     "sections": [
-      {
-        "anchor": "## One",
-        "until": null,
-        "text": "## One\n\n**A HELD RULE** *(Fixture Source; github.com/alice)*\nChanged rule.\n*Check:* no automatic check; at review\n\n**A NEW PROMPTED RULE** *(github.com/alice)*\nNew rule.\n*Check:* no automatic check; at review\n",
-        "places": []
-      }
+      "## One\n\n**A HELD RULE** *(Fixture Source; github.com/alice)*\nChanged rule.\n*Check:* no automatic check; at review\n\n**A NEW PROMPTED RULE** *(github.com/alice)*\nNew rule.\n*Check:* no automatic check; at review\n"
     ],
+    "form": [],
     "findings": []
   }
 }
@@ -64,33 +39,15 @@
   ],
   "linked": ["SRC-bob"],
   "spec": "# Fixture product - Specification\n\n## One\n\n**A HELD RULE** *(Fixture Source)*\nOld rule.\n*Check:* no automatic check; at review\n",
-  "candidates": [
-    {
-      "name": "A BETTER RULE",
-      "rule": "Changed rule.",
-      "check": "no automatic check; at review",
-      "constrains": "product",
-      "passage": "prompt",
-      "class": "change",
-      "of": "A HELD RULE"
-    },
-    {
-      "name": "A NEW PROMPTED RULE",
-      "rule": "New rule.",
-      "check": "no automatic check; at review",
-      "constrains": "product",
-      "passage": "prompt",
-      "class": "new",
-      "of": "A HELD RULE"
-    }
-  ],
-  "classes": [
-    { "refs": ["A BETTER RULE"], "from": ["prompt"], "class": "change", "of": "A HELD RULE", "decidedBy": "participant" },
-    { "refs": ["A NEW PROMPTED RULE"], "from": ["prompt"], "class": "new", "of": "A HELD RULE", "decidedBy": "participant" }
+  "sections": [
+    "## One\n\n**A HELD RULE** *(Fixture Source; <account>)*\nChanged rule.\n*Check:* no automatic check; at review\n\n**A NEW PROMPTED RULE** *(<account>)*\nNew rule.\n*Check:* no automatic check; at review\n"
   ],
   "expected": {
     "source": "github.com/alice",
-    "sections": [],
+    "sections": [
+      "## One\n\n**A HELD RULE** *(Fixture Source; Unlinked Source)*\nChanged rule.\n*Check:* no automatic check; at review\n\n**A NEW PROMPTED RULE** *(Unlinked Source)*\nNew rule.\n*Check:* no automatic check; at review\n"
+    ],
+    "form": [["A HELD RULE", "THE PERSON WHO PROMPTS IS A SOURCE"], ["A NEW PROMPTED RULE", "THE PERSON WHO PROMPTS IS A SOURCE"]],
     "findings": ["A REQUIREMENT HAS A REGISTERED SOURCE", "A REQUIREMENT HAS A REGISTERED SOURCE"]
   }
 }

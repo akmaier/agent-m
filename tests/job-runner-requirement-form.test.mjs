@@ -122,3 +122,62 @@ test("requirement-form — a rule with \"and\" goes back as a warning, and a one
   assert.deepEqual([result.draft, result.stoppedBecause, result.remaining], [both, "passed", []]);
   result.rounds[0].findings.forEach(sayItInOneLine);
 });
+
+// ---------------------------------------------------------------- the drafted texts of a change of requirements (UC-019 step 6, 7)
+//
+// MOD-job-runner, Data, `requirement-form`: "drafted texts — a SPEC section, an entry's proposal — each read with `parseSpec`, judged on every requirement the text adds or changes against
+// the text it replaces in the product's snapshot — a name `renamedRequirements` gives as added, or one whose source, rule or check differs —, with an error under `THE PERSON WHO PROMPTS IS A
+// SOURCE` for such a requirement whose sources do not name the job's `source`, its `fix` asking to add that account; a requirement a text leaves as it stands is not judged". The draft is
+// change-requirements' own: `sections`, each a whole section beginning with its heading line, `proposals`, each { path, text }, and `why`. Readings this file takes: the text a section
+// replaces is the SPEC's section under that heading line; the text a proposal replaces is the file at its path. The check is called as the loop calls it, with the draft and the job's context.
+
+const ALICE = "github.com/alice";
+const LENDING = ["## 1. Lending", "", "**A LOAN HAS A DUE DATE** *(PO)*", "Every loan has a due date.", "*Check:* no automatic check; at review", "",
+  "**A LOAN IS RECORDED** *(PO)*", "Every loan is recorded.", "", ""].join("\n");
+const PRODUCT_SPEC = `# Fixture — Specification\n\n${LENDING}## 2. Returning\n\n**A RETURN IS RECORDED** *(PO)*\nEvery return is recorded.\n*Check:* no automatic check; at review\n`;
+const PROPOSAL_PATH = "docs/spec-freigaben/returning/01-returning.md";
+const PROPOSAL = "## 2. Returning\n\n**A RETURN IS RECORDED** *(PO)*\nEvery return is recorded.\n*Check:* no automatic check; at review\n\n**A LATE RETURN IS FINED** *(github.com/alice)*\nA late return is fined.\n*Check:* no automatic check; at review\n";
+const FILES = { "SPEC.md": PRODUCT_SPEC, [PROPOSAL_PATH]: PROPOSAL };
+const textsContext = { ...CONTEXT, params: { source: ALICE }, product: { ...CONTEXT.product, snapshot: { commit: "h".repeat(40), paths: Object.keys(FILES),
+  read: async (path) => FILES[path] ?? null, blob: () => null } } };
+const { builtins } = await import("../src/job-runner/builtins.mjs");
+const formOf = (draft) => builtins.checks["requirement-form"](draft, textsContext);
+const PERSON = "THE PERSON WHO PROMPTS IS A SOURCE";
+
+// TST-2026110902 · level: unit · module: MOD-job-runner
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS FOUR FIELDS; UC-019
+// given: the SPEC's section 1. Lending, whose A LOAN IS RECORDED has no check; a drafted section that changes the rule of A LOAN HAS A DUE DATE and names github.com/alice beside PO, and leaves A LOAN IS RECORDED as it stands; then, as the known positive that the check judges it, the same text with A LOAN IS RECORDED's rule changed too
+// input: requirement-form on each draft, for a job whose source is github.com/alice
+// expect: no finding on the first — the changed requirement is whole and names the account, the one the text leaves as it stands is not judged; on the second, A LOAN IS RECORDED's missing check an error under A REQUIREMENT HAS FOUR FIELDS and its want of the account an error under THE PERSON WHO PROMPTS IS A SOURCE whose fix asks to add github.com/alice, each in one line
+test("TST-2026110902: requirement-form — a drafted section is judged on what it changes, a requirement it leaves as it stands is not", async () => {
+  const changed = LENDING.replace("**A LOAN HAS A DUE DATE** *(PO)*\nEvery loan has a due date.", "**A LOAN HAS A DUE DATE** *(PO; github.com/alice)*\nEvery loan has a due date with a reminder.");
+  assert.deepEqual(await formOf({ sections: [changed], why: "reminders" }), []);
+  const both = changed.replace("Every loan is recorded.", "Every loan is recorded at once.");
+  const found = await formOf({ sections: [both], why: "reminders" });
+  assert.deepEqual(brief(found), [["A LOAN IS RECORDED", "error", "A REQUIREMENT HAS FOUR FIELDS"], ["A LOAN IS RECORDED", "error", PERSON]]);
+  assert.match(found.find((each) => each.rule === PERSON).fix, /github\.com\/alice/);
+  found.forEach(sayItInOneLine);
+});
+
+// TST-2026110903 · level: unit · module: MOD-job-runner
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; UC-019
+// given: a drafted section 2. Returning that renames A RETURN IS RECORDED to A RETURN IS LOGGED and keeps its source PO, rule and check; then the same rename with the account added
+// input: requirement-form on each draft, for a job whose source is github.com/alice
+// expect: the renamed requirement is judged as added: without the account one error under THE PERSON WHO PROMPTS IS A SOURCE naming A RETURN IS LOGGED, and no finding on the rename itself; with the account, no finding
+test("TST-2026110903: requirement-form — a renamed requirement is judged as added, and the rename is no finding", async () => {
+  const renamed = PRODUCT_SPEC.slice(PRODUCT_SPEC.indexOf("## 2. Returning")).replace("A RETURN IS RECORDED", "A RETURN IS LOGGED");
+  assert.deepEqual(brief(await formOf({ sections: [renamed], why: "logged" })), [["A RETURN IS LOGGED", "error", PERSON]]);
+  assert.deepEqual(await formOf({ sections: [renamed.replace("*(PO)*", "*(PO; github.com/alice)*")], why: "logged" }), []);
+});
+
+// TST-2026110904 · level: unit · module: MOD-job-runner
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-019
+// given: the open entry's proposal at docs/spec-freigaben/returning/01-returning.md, which adds A LATE RETURN IS FINED with the account; a drafted proposal that changes the fine's rule and keeps the account, and one that adds A LOST BOOK IS PAID without it
+// input: requirement-form on each draft, for a job whose source is github.com/alice
+// expect: the first passes, judged against the entry's proposal — A RETURN IS RECORDED, unchanged there, is not judged —; the second has one error under THE PERSON WHO PROMPTS IS A SOURCE naming A LOST BOOK IS PAID
+test("TST-2026110904: requirement-form — an open entry's drafted proposal is judged against the proposal it replaces", async () => {
+  const finer = PROPOSAL.replace("A late return is fined.", "A late return is fined by the day.");
+  assert.deepEqual(await formOf({ proposals: [{ path: PROPOSAL_PATH, text: finer }], why: "by the day" }), []);
+  const lost = `${PROPOSAL}\n**A LOST BOOK IS PAID** *(PO)*\nA lost book is paid.\n*Check:* no automatic check; at review\n`;
+  assert.deepEqual(brief(await formOf({ proposals: [{ path: PROPOSAL_PATH, text: lost }], why: "lost books" })), [["A LOST BOOK IS PAID", "error", PERSON]]);
+});

@@ -103,7 +103,7 @@ const SETTINGS_FILES = ["docs/settings.md", "docs/collaborators.md", "docs/conve
 
 /** refusedEdit(path: string) -> string | null — why `propose-edit` refuses a document, naming where it is changed; null for one it holds (MOD-job-runner). */
 export function refusedEdit(path) {
-  if (path === "SPEC.md") return refusal("SPEC.md is changed by a job of change-requirements, from the requirements page");
+  if (path === "SPEC.md") return refusal("SPEC.md is changed as a proposal, an entry of its section's queue, by a job of change-requirements, from the requirements page");
   if (!path.startsWith("docs/") || path.split("/").includes("..")) return outside(path);
   if (path.startsWith("docs/use-cases/")) return refusal(`${path} is a use case, changed by a job of change-use-case, from the use case's page`);
   if (path.startsWith("docs/architecture/")) {

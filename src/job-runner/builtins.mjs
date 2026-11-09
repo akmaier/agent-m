@@ -7,7 +7,7 @@
 
 import { artifactSchemaOf, classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
 import { applyMoves, hierarchy, parseGroupFile, placeItems } from "../group-document/index.mjs";
-import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
+import { parseSpec, renamedRequirements, requirementFindings, sectionText } from "../spec-document/index.mjs";
 import { isTestFile, testDeclarations, testFindings } from "../test-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { provenanceLines } from "./provenance.mjs";
@@ -124,6 +124,25 @@ function notHeld(found, held) {
   });
 }
 
+// The texts a draft of change-requirements holds: its sections, each a text, and its proposals, each { path, text }.
+const draftedTexts = (draft) => ({ sections: Array.isArray(draft?.sections) ? draft.sections.filter((text) => typeof text === "string") : [],
+  proposals: Array.isArray(draft?.proposals) ? draft.proposals.filter((each) => typeof each?.path === "string" && typeof each?.text === "string") : [] });
+
+// The findings of a drafted text against the text it replaces: requirementFindings, and an error under THE PERSON WHO PROMPTS IS A SOURCE for a requirement
+// whose sources do not name the job's source, each on the requirements the text adds — the names renamedRequirements gives as added — or changes — its
+// source, rule or check differs —; a requirement the text leaves as it stands is not judged.
+const PERSON_SOURCE = "THE PERSON WHO PROMPTS IS A SOURCE";
+function textFindings(text, before, source) {
+  const was = parseSpec(before).requirements, is = parseSpec(text);
+  const { added } = renamedRequirements(before, text);
+  const differs = (now, then) => !then || now.source !== then.source || now.rule !== then.rule || now.check !== then.check;
+  const judged = [...is.requirements.values()].filter((each) => added.includes(each.name) || differs(each, was.get(each.name)));
+  const names = new Set(judged.map((each) => each.name));
+  return [...requirementFindings(is).filter((each) => names.has(each.artifact)),
+    ...judged.filter((each) => !each.sources.includes(source)).map((each) => finding({ artifact: each.name, line: each.line, kind: "error", rule: PERSON_SOURCE,
+      what: `"${each.name}" does not name ${source} among its sources`, fix: `add the account ${source} to its source` }))];
+}
+
 // The rule a refused task cites: no requirement of the SPEC states it, so it is UC-049 4a's wording — the hand-over names the task in its words, and the job
 // starts with the task as its input.
 const TASK_RULE = "THE HAND-OVER NAMES THE TASK IN ITS WORDS";
@@ -166,13 +185,24 @@ export const builtins = {
       const schema = artifactSchemaOf(path);
       return schema ? documentFindings(schema, readDocument(schema, path, text)) : [];
     }),
-    // MOD-spec-document's requirementFindings on every drafted requirement: the candidates of a draft written as one section
-    // of a SPEC, each with the source the job names (its parameter `source`, as MOD-source-register's source-excerpt reads
-    // it), and read by parseSpec. A finding's line is that of its candidate's head line in that text.
-    "requirement-form": (draft, context) => {
+    // MOD-spec-document's requirementFindings on every drafted requirement. The candidates of a draft written as one section of a SPEC, each with the
+    // source the job names (its parameter `source`), and read by parseSpec; a finding's line is that of its candidate's head line in that text. The
+    // drafted texts of a change of requirements — its `sections`, each read against the SPEC's section under its heading line, and its `proposals`,
+    // each against the file at its path in the product's snapshot — are judged on the requirements each adds or changes (textFindings).
+    "requirement-form": async (draft, context) => {
       const source = folded(context.params.source);
-      return requirementFindings(parseSpec(["## Candidates", ...draft.candidates.map((candidate) => written(candidate, source))]
-        .join("\n\n")));
+      const found = Array.isArray(draft?.candidates)
+        ? requirementFindings(parseSpec(["## Candidates", ...draft.candidates.map((candidate) => written(candidate, source))].join("\n\n"))) : [];
+      const { sections, proposals } = draftedTexts(draft);
+      if (sections.length === 0 && proposals.length === 0) return found;
+      const { snapshot } = context.product;
+      const spec = (await snapshot.read("SPEC.md")) ?? "";
+      for (const text of sections) {
+        const heading = parseSpec(text).sections[0]?.heading;
+        found.push(...textFindings(text, (heading && sectionText(spec, heading)) ?? "", source));
+      }
+      for (const { path, text } of proposals) found.push(...textFindings(text, (await snapshot.read(path)) ?? "", source));
+      return found;
     },
     // MOD-test-document's testFindings on every declaration in the files that the branch the coding participant reports adds
     // or changes, and an error for a file the branch adds that isTestFile calls a test file, that holds a test case — told by its language's form of one — and that declares none: an added test, not a file. The branch

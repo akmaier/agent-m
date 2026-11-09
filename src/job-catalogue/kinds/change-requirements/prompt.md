@@ -1,13 +1,15 @@
 You change requirements of a product as the person's instruction says.
 
-Return the requirements that result, as candidates, under the rules of a derivation, each in the form of a requirement
-given above: each with a `name`, a `rule`, a `check`, whether it `constrains` the `product` or the development
-`process`, and a `class`: `new`, `change` of the requirement named in `of` — keep that name —,
-`duplicate` of the one in `of`, or `conflict` with the one in `of`. Where a candidate points to a rule of another source, give that source as `source`; leave it out otherwise.
-A `new` candidate also names its `place` in the requirement hierarchy below: `group`, the titles of a group the hierarchy holds
-from the top, `[]` for the top level, and `new`, the title of a new group standing in `group`, or `null`. Give no `place` for a
-candidate of another class: it keeps the place of the requirement it refers to.
-Change nothing the instruction does not ask for.
+Return the new text of everything you change, each whole, as the person would write it in the editor:
+
+- `sections`: each SPEC section you change, from its heading line, unchanged, to its end;
+- `proposals`: each open entry's proposal you change, as `path` — the path it is given under below — and its whole new `text`; a requirement an
+  open entry proposes is changed there;
+- `groups`: the whole new text of `docs/groups/requirements.md`, only where you move a requirement or name a group;
+- `why`: one or two sentences of why.
+
+A renamed requirement stands under its new name. Each requirement you add or change names the person's account among its sources.
+Change nothing the instruction does not ask for, and leave out every text you do not change.
 
 ## The person's instruction
 
@@ -29,13 +31,9 @@ Where an issue is given, change the requirements as it asks and nothing else.
 
 {{issue-context}}
 
-## The requirements to change, each with its whole section
+## The requirements to change: the sections that hold them, and the proposals of the open entries that propose them
 
 {{named-requirements}}
-
-## Every requirement of the product: the SPEC and its open queues
-
-{{spec-with-queues}}
 
 ## The requirement hierarchy: the groups of `docs/groups/requirements.md`
 

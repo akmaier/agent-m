@@ -298,7 +298,7 @@ test("propose-edit holds a document's new text in the draft's edits, the later e
 // input: propose-edit of each path in the table below
 // expect: the answer in the table for each — a refusal naming where the document is changed — and no edit in the draft; counter-proof: docs/notes/allowed.md, docs/jobs-notes.md and docs/tests-overview.md are held
 test("propose-edit refuses SPEC.md, use cases, architecture, every record, every change queue, settings and every file outside docs/, naming where each is changed", async () => {
-  const requirements = "refused: SPEC.md is changed by a job of change-requirements, from the requirements page";
+  const requirements = "refused: SPEC.md is changed as a proposal, an entry of its section's queue, by a job of change-requirements, from the requirements page";
   const useCases = "refused: docs/use-cases/UC-001-x.md is a use case, changed by a job of change-use-case, from the use case's page";
   const record = (path) => `refused: ${path} is a record, written once as evidence of what happened`;
   const REFUSED = [

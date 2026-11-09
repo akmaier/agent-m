@@ -1,71 +1,38 @@
 {
   "type": "object",
   "properties": {
-    "candidates": {
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "proposals": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "name": {
+          "path": {
             "type": "string"
           },
-          "rule": {
+          "text": {
             "type": "string"
-          },
-          "check": {
-            "type": "string"
-          },
-          "constrains": {
-            "type": "string",
-            "enum": [
-              "product",
-              "process"
-            ]
-          },
-          "class": {
-            "type": "string",
-            "enum": [
-              "new",
-              "change",
-              "duplicate",
-              "conflict"
-            ]
-          },
-          "of": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string"
-          },
-          "place": {
-            "type": "object",
-            "properties": {
-              "group": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "new": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "group"
-            ]
           }
         },
         "required": [
-          "name",
-          "rule",
-          "check",
-          "constrains",
-          "class"
+          "path",
+          "text"
         ]
       }
+    },
+    "groups": {
+      "type": "string"
+    },
+    "why": {
+      "type": "string"
     }
   },
   "required": [
-    "candidates"
+    "why"
   ]
 }

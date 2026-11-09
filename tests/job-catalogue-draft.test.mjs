@@ -29,7 +29,7 @@ for (const [category, name] of [["recipes", "named-requirements"], ["recipes", "
   ["recipes", "chapters-for-requirements"], ["recipes", "issue-context"], ["recipes", "use-case-with-neighbours"], ["recipes", "whole-spec"],
   ["recipes", "use-cases"], ["recipes", "accepted-use-cases"], ["recipes", "whole-architecture"], ["recipes", "chapters-for-architecture"],
   ["preconditions", "rests-on-accepted"], ["checks", "requirement-form"], ["checks", "identifier-kept"],
-  ["steps", "due-diligence"], ["writers", "queue-entries"], ["writers", "open-files"]]) {
+  ["steps", "due-diligence"], ["writers", "spec-edits"], ["writers", "open-files"]]) {
   try {
     registerStrategies("tests/job-catalogue-draft.test.mjs", { [category]: { [name]: nothing } });
   } catch (error) {
@@ -48,10 +48,10 @@ const prepare = (kind, params) => prepareJob(kind, contextOf(params), { drafter:
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: the kinds change-requirements, change-use-case and change-architecture of the catalogue
 // input: kindOf of each
-// expect: the recipes are, in this order, instruction, conversation, draft — the third optional, and for change-requirements issue-context too (MOD-job-catalogue: "issue-context?") — and then, for change-requirements named-requirements, spec-with-queues, requirement-hierarchy and chapters-for-requirements, for change-use-case use-case-with-neighbours and chapters-for-requirements, for change-architecture whole-spec, use-cases, whole-architecture and chapters-for-architecture, none optional
+// expect: the recipes are, in this order, instruction, conversation, draft — the third optional, and for change-requirements issue-context too (MOD-job-catalogue: "issue-context?") — and then, for change-requirements named-requirements, requirement-hierarchy and chapters-for-requirements, for change-use-case use-case-with-neighbours and chapters-for-requirements, for change-architecture whole-spec, use-cases, whole-architecture and chapters-for-architecture, none optional
 test("kindOf — the three change kinds name draft? right after conversation, then the recipes they named before", async () => {
   const expected = {
-    "change-requirements": ["named-requirements", "spec-with-queues", "requirement-hierarchy", "chapters-for-requirements"],
+    "change-requirements": ["named-requirements", "requirement-hierarchy", "chapters-for-requirements"],
     "change-use-case": ["use-case-with-neighbours", "chapters-for-requirements"],
     "change-architecture": ["whole-spec", "use-cases", "whole-architecture", "chapters-for-architecture"],
   };

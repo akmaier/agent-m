@@ -1,11 +1,11 @@
-// candidates.mjs — the candidates of a draft of requirements, as the author reviews them (MOD-review-pages, Parts): each candidate with its class, the requirement it refers to beside it, and its
-// rule and check, which the author may change; and the draft and the classes as the author left them. Used by the page of a draft of the conversation (requirements-draft.mjs); `showCurrent`, `flagged`, `splitCandidate`, `splitProblem` and `editedResult` are also the panel of a derivation's (jobs.mjs): the current text of the requirement, the candidate a finding the loop left names, its split into parts of its own, and the draft as the author left it.
+// candidates.mjs — the candidates of a derivation of requirements, as the author reviews them (MOD-review-pages, Parts): the panel of a derivation's (jobs.mjs) — the current text of the
+// requirement a candidate refers to, the candidate a finding the loop left names, its split into parts of its own, and the draft and the classes as the author left them.
 //
 // Module: MOD-review-pages
 //
 // A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; A CONFLICT IS DECIDED BY A PERSON. Nothing is read or written here.
 
-import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
+import { renderArtifact } from "../markdown-render/index.mjs";
 import { el } from "./common.mjs";
 import { placeText } from "./sections.mjs";
 
@@ -67,37 +67,6 @@ export function showCurrent(current, held, register) {
   current.replaceChildren(el("h5", null, "Current requirement"), held
     ? renderArtifact(`**${held.name}**\n\n${held.rule ?? ""}\n\n*Sources:* ${held.sources.map((item) => sourceText(item, register)).join("; ")}\n\n*Check:* ${held.check ?? ""}`)
     : el("p", "none", "This candidate refers to no current requirement."));
-}
-
-export function candidateRows(panel, outcome, parsed, source, register, onChange) {
-  const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
-  for (const candidate of candidates.filter((each) => shownOnPanel(each, outcome.classes))) {
-    const decided = classOf(candidate, outcome.classes);
-    const select = classSelect(decided.class);
-    const of = el("input", "of");
-    of.value = decided.of ?? "";
-    const rule = el("textarea", "candidate-rule");
-    rule.value = candidate.rule ?? "";
-    const check = el("textarea", "candidate-check");
-    check.value = candidate.check ?? "";
-    const current = el("section", "current-requirement"), difference = el("section", "candidate-difference");
-    const refresh = () => {
-      const held = parsed.requirements.get(of.value.trim());
-      showCurrent(current, held, register);
-      difference.replaceChildren(el("h5", null, "Difference"), showDifference(held?.rule ?? "", rule.value));
-    };
-    const changed = () => { refresh(); onChange(); };
-    select.addEventListener("change", changed);
-    of.addEventListener("input", changed);
-    rule.addEventListener("input", changed);
-    check.addEventListener("input", onChange);
-    refresh();
-    const item = el("li", "candidate", el("section", "candidate-draft", el("span", "candidate-name", candidate.name),
-      el("label", null, " Class ", select), el("label", null, " of ", of), el("label", null, "Rule", rule),
-      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source, register)}.`), passagesLine(decided), placeLine(candidate, decided)), current, difference);
-    item.setAttribute("data-name", candidate.name);
-    panel.append(item);
-  }
 }
 
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();

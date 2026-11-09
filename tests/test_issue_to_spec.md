@@ -8,7 +8,7 @@ nothing else is committed, and no fix is offered for it. On a GitLab server the 
 
 **How a case reads.** `given` is its precondition. `input` holds the issues of the product `alice/product` (`issues`: the number and the labels of each),
 the number of the page opened (`issue`), the person's steps in order (`class`: the click on a class of the issue; `draft`: the participant drafts the
-change and the person saves it), and the candidates the fake participant answers (`candidates`). `expected` names only what the case asserts, out of:
+change and the person saves it), and the draft the fake participant answers (`draft`, the texts it changes with why). `expected` names only what the case asserts, out of:
 `labels` and `state` (the issue at the end), `issueWrites` (the writes made to the issue), `committed` (every path committed to the product),
 `outsideDocs` (those of them that do not lie under `docs/`, which are code or tests), `queueNames` (the issue named by the line `**Issue:** #<number> of <product address>` in the rationale of each entry),
 `queueHolds` (each of the case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), and `changeSection` and `fixSection` (whether the page
@@ -28,9 +28,7 @@ may state `unserved` (the requests of the project's API the fake did not serve).
     "issue": 7,
     "needles": ["EVERY EXPORT KEEPS ALL PAGES"],
     "steps": [{ "draft": true }],
-    "candidates": [
-      { "name": "EVERY EXPORT KEEPS ALL PAGES", "rule": "An export holds every page of the document.", "check": "tests/unit.test.mjs", "constrains": "product", "passage": "the export is cut off after the second page", "class": "new" }
-    ]
+    "draft": { "sections": ["## 1. Section\n\n**FIRST RULE** *(Product Owner)*\nThe first rule holds.\n*Check:* `tests/unit.test.mjs`\n\n**SECOND RULE** *(Product Owner)*\nThe second rule holds.\n*Check:* no automatic check; at review.\n\n**EVERY EXPORT KEEPS ALL PAGES** *(github.com/alice)*\nAn export holds every page of the document.\n*Check:* `tests/unit.test.mjs`\n"], "why": "The export is cut off after the second page." }
   },
   "expected": {
     "queueNames": ["#7 of https://github.com/alice/product"],
@@ -56,9 +54,7 @@ may state `unserved` (the requests of the project's API the fake did not serve).
     "issue": 7,
     "needles": ["EVERY EXPORT KEEPS ALL PAGES"],
     "steps": [{ "draft": true }],
-    "candidates": [
-      { "name": "EVERY EXPORT KEEPS ALL PAGES", "rule": "An export holds every page of the document.", "check": "tests/unit.test.mjs", "constrains": "product", "passage": "the export is cut off after the second page", "class": "new" }
-    ]
+    "draft": { "sections": ["## 1. Section\n\n**FIRST RULE** *(Product Owner)*\nThe first rule holds.\n*Check:* `tests/unit.test.mjs`\n\n**SECOND RULE** *(Product Owner)*\nThe second rule holds.\n*Check:* no automatic check; at review.\n\n**EVERY EXPORT KEEPS ALL PAGES** *(github.com/alice)*\nAn export holds every page of the document.\n*Check:* `tests/unit.test.mjs`\n"], "why": "The export is cut off after the second page." }
   },
   "expected": {
     "queueNames": ["#7 of https://gitlab.example.org/space/release-tool"],
@@ -83,8 +79,7 @@ may state `unserved` (the requests of the project's API the fake did not serve).
   "input": {
     "issues": [{ "number": 5, "labels": [] }],
     "issue": 5,
-    "steps": [{ "class": "change" }],
-    "candidates": []
+    "steps": [{ "class": "change" }]
   },
   "expected": {
     "labels": ["change"],
@@ -103,8 +98,7 @@ may state `unserved` (the requests of the project's API the fake did not serve).
   "input": {
     "issues": [{ "number": 6, "labels": ["defect"] }],
     "issue": 6,
-    "steps": [],
-    "candidates": []
+    "steps": []
   },
   "expected": {
     "changeSection": false,

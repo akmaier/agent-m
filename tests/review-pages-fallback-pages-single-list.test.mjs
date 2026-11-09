@@ -110,7 +110,9 @@ async function savedFiles(state = null) {
 }
 
 const OVERDUE = "Every loan states the date by which the book is returned, and says when it is overdue.";
-const REQUIREMENTS = { candidates: [{ name: LOAN, rule: OVERDUE, check: "`tests/fixture.test.mjs`", constrains: "product", passage: "overdue", class: "change", of: LOAN }] };
+// The drafted section 1. Lending — the rule of A LOAN HAS A DUE DATE changed, naming the person's source —, with its why.
+const REQUIREMENTS = { sections: [LENDING.replace(`**${LOAN}** *(Product Owner)*\nEvery loan states the date by which the book is returned.`, `**${LOAN}** *(Product Owner; ${SOURCE})*\n${OVERDUE}`)],
+  why: "Drafted from SRC-alice on the person's instruction." };
 const REQUIREMENTS_KEY = `requirement/name=${encodeURIComponent(LOAN)}/product=${PRODUCT}`;
 // The draft of requirements — the rule of A LOAN HAS A DUE DATE changed —, saved without a token.
 async function savedRequirements(state = null, began = null) {
@@ -212,7 +214,7 @@ test("draft — without a token a file of a draft that already differs is warned
 // guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a GitHub product whose host cannot write and no token stored; the draft of a change of A LOAN HAS A DUE DATE — its rule gains "and says when it is overdue." — from the source SRC-alice
 // input: a click on Save
-// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; four pages — the queue's index and decisions file, the entry's proposal and its rationale — of the queue docs/spec-freigaben/<day>_edits-of-anonymous, each with exactly one text beside its link; the proposal's text is the section "## 1. Lending" with the changed rule; the rationale's text is "Drafted from SRC-alice on the person's instruction."; the index's text names the section; no address holds a word of the text; no page is warned about
+// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; four pages — the queue's index and decisions file, the entry's proposal and its rationale — of the queue docs/spec-freigaben/<day>_edits-of-anonymous, each with exactly one text beside its link; the proposal's text is the section "## 1. Lending" with the changed rule; the rationale's Why is the draft's why, "Drafted from SRC-alice on the person's instruction."; the index's text names the section; no address holds a word of the text; no page is warned about
 test("draft — without a token the pages of a draft of requirements are fallbackPages' list: the sentence, each file's text, no warning", async () => {
   const { fake, target } = await savedRequirements();
   assert.equal(written(fake).length, 0, "nothing committed");

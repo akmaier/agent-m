@@ -1,10 +1,10 @@
-// propose.mjs — the sections a draft of requirements changes and the writer of classified candidates (MOD-spec-changes, Parts: propose.mjs; Interfaces: entrySections, specStrategies).
+// propose.mjs — the sections a draft of requirements changes, the writer of classified candidates and the writer of drafted texts (MOD-spec-changes, Parts: propose.mjs; Interfaces: entrySections, specStrategies).
 //
 // Module: MOD-spec-changes
 //
 // Pure: it reads only the texts it is given, and performs no input or output. A section's bytes are MOD-spec-document's: the slice of
-// the SPEC from its heading line to the next heading of level two. A draft is `{ candidates }` as the kinds derive-requirements and
-// change-requirements return it, and `classes` are MOD-documents' Classified, one for the candidates merged into it, whose first ref is
+// the SPEC from its heading line to the next heading of level two. A draft is `{ candidates }` as the kind derive-requirements
+// returns it, and `classes` are MOD-documents' Classified, one for the candidates merged into it, whose first ref is
 // the name of the candidate whose rule and check it takes. Where the module file leaves a reading open, this file states the one it takes:
 //
 //   - A `new` requirement is added at the end of the section of the requirement its class's `of` names when the SPEC holds it, else of the
@@ -233,6 +233,12 @@ const describeChange = (change) => (change.kind === "new" ? `adds ${change.name}
 // The origin a prompt names: a conversation in the prompt bar on its page, never a message of it.
 const conversationOf = (page) => `a conversation in the prompt bar${page ? ` on ${page}` : ""}`;
 
+// The origin of a drafted entry: the source with its passages, the issue it comes from, the source's version, and the conversation it was asked in — never a message of it.
+const originText = (job, passages = []) => `Source ${job.source}${passages.length ? `, passages: ${passages.join("; ")}` : ""}${job.issue ? `; issue #${job.issue.number} of ${job.issue.product}` : ""}.${job.sourceVersion ? ` Source version: ${job.sourceVersion}.` : ""}${job.prompted ? ` Asked in ${conversationOf(job.page)}.` : ""}`;
+
+// The job's parameter `issue`, when it is a positive whole number: the product's issue, at the context's address; null otherwise.
+const issueOfJob = (context) => (/^[1-9]\d*$/.test(String(context.params?.issue ?? "").trim()) ? { number: Number(context.params.issue), product: context.product.address } : null);
+
 // The text of one rationale, in the schema queue-rationale.
 function rationaleOf(section, changes, graph, job) {
   const impact = changes.map((change) => {
@@ -247,7 +253,7 @@ function rationaleOf(section, changes, graph, job) {
     `**The change.** ${changes.map(describeChange).join("; ")}. The rest of the section is carried over byte for byte.`, "",
     `**Why.** Drafted from ${job.source}${job.prompted ? " on the person's instruction" : ""}: ${candidates.join(" · ")}`, "",
     "**Impact list.**", ...impact, "",
-    `**Origin.** Source ${job.source}${passages.length ? `, passages: ${passages.join("; ")}` : ""}${job.issue ? `; issue #${job.issue.number} of ${job.issue.product}` : ""}.${job.sourceVersion ? ` Source version: ${job.sourceVersion}.` : ""}${job.prompted ? ` Asked in ${conversationOf(job.page)}.` : ""}`, "",
+    `**Origin.** ${originText(job, passages)}`, "",
     ...(job.issue ? [issueLine(job.issue), ""] : []),
     `**Provenance.** Agent M ${job.agentM.version}, commit ${job.agentM.commit}; participant ${job.participant.name}; model ${job.participant.model ?? "none"}; ${job.date}; correction rounds: ${job.rounds}.`, ""].join("\n");
 }
@@ -271,7 +277,7 @@ export async function queueEntries(result, context) {
   const source = String(context.params?.source ?? "");
   const prompted = typeof context.params?.instruction === "string";
   const page = typeof context.params?.page === "string" && context.params.page.trim() ? context.params.page.trim() : null;
-  const issue = /^[1-9]\d*$/.test(String(context.params?.issue ?? "").trim()) ? { number: Number(context.params.issue), product: context.product.address } : null;
+  const issue = issueOfJob(context);
   const notes = [];
   // A draft that holds no candidate writes nothing, and its one note says so, so that a run that writes nothing names why.
   if (drafted.length === 0) return { commits: [], files: [], pullRequest: null, shown: null, notes: ["the draft holds no requirement; nothing is written."] };
@@ -402,7 +408,7 @@ function sectionRationale(change, impact, origin = `${folded(change.origin)}; sa
     ? impact.map((item) => `- ${item.name}: ${item.change}; ${item.referencedBy.length ? `named by ${item.referencedBy.join(", ")}` : "nothing names it"}.`)
     : ["- no requirement of the section changes."];
   return [`# ${headingText(change.anchor)}: ${named}`, "", `**The change.** ${what[0].toUpperCase()}${what.slice(1)}; the rest of the section is as the person wrote it.`, "",
-    `**Why.** ${folded(change.why)}`, "", "**Impact list.**", ...lines, "", `**Origin.** ${origin}`, ""].join("\n");
+    `**Why.** ${folded(change.why)}`, "", "**Impact list.**", ...lines, "", `**Origin.** ${origin}`, "", ...(change.issue ? [issueLine(change.issue), ""] : [])].join("\n");
 }
 
 // The paths the repository held when the edit was opened on the commit `openedHead`: none for an edit opened on no commit (an empty repository), those of `snapshot` — the one the save has
@@ -484,6 +490,72 @@ export async function saveEntry(host, edit) {
 
   if (!info.canWrite) return { fallback: await pagesFor(host, snapshot, edit.openedHead, files) };
   const committed = await commitOrPages(host, snapshot, edit.openedHead, files, { branch: info.defaultBranch, expectedHead: snapshot.commit, files,
-    message: `Save the edit of entry ${pad2(entry.number)} of the queue ${edit.queue.split("/").pop()}` });
+    message: `Save the edit of entry ${pad2(entry.number)} of the queue ${edit.queue.split("/").pop()}${edit.trailers?.length ? `\n\n${edit.trailers.join("\n")}` : ""}` });
   return committed.fallback ? committed : { commit: committed.commit };
+}
+
+// ---------------------------------------------------------------- the writer of drafted texts (specStrategies: spec-edits)
+//
+// spec-edits(result, context) -> WriteOutcome — a draft of change-requirements as the person left it, `{ sections, proposals, groups, why }`, each text on the text the job's snapshot holds:
+// each section an entry of its queue through proposeSection, its anchor its heading line; each proposal of an open entry saved in that entry through saveEntry; a changed group file as a
+// pull request of the branch agent-m/<job>. Where the module file leaves a reading open, this file takes the one it names:
+//   - A text that stands as it is is not written. A section whose heading line the SPEC does not hold, a path that is no open entry's proposal, a text changed meanwhile, and a text that
+//     could not be committed for want of a token are each a note, and nothing of it is written; a draft none of whose texts differs says so in its one note.
+//   - The origin is queue-entries' (originText), with the issue's line where the job names an issue; the person who saves is the context's, else the job's source.
+//   - `files` names each entry's proposal and the group file.
+const GROUPS_PATH = "docs/groups/requirements.md";
+export async function specEdits(result, context) {
+  const draft = result?.draft ?? {};
+  const { snapshot, host } = context.product;
+  const outcome = { commits: [], files: [], pullRequest: null, shown: null, notes: [] };
+  const source = String(context.params?.source ?? "");
+  const job = { source, issue: issueOfJob(context), prompted: typeof context.params?.instruction === "string",
+    page: typeof context.params?.page === "string" && context.params.page.trim() ? context.params.page.trim() : null };
+  const participant = result?.drafter ?? { name: "none", model: null };
+  const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId ?? "none", kind: context.kind?.name ?? "none", participant, rounds: result?.rounds?.length ?? 0 });
+  const common = { why: folded(draft.why), person: context.person ?? source, openedHead: snapshot.commit, trailers };
+  const origin = originText(job).replace(/\.$/, "");
+  const sections = Array.isArray(draft.sections) ? draft.sections.filter((text) => typeof text === "string") : [];
+  const proposals = Array.isArray(draft.proposals) ? draft.proposals.filter((each) => typeof each?.path === "string" && typeof each?.text === "string") : [];
+  const spec = (await snapshot.read("SPEC.md")) ?? "";
+  let changes = 0;
+  const refused = (name, out) => (out.refused === "changed meanwhile" ? `${name} changed meanwhile; it is not written.`
+    : out.refused ? `${name} is ${out.state ?? out.refused}; it is not written.` : `${name} could not be committed without a token; it is not written.`);
+  for (const text of sections) {
+    const heading = parseSpec(text).sections[0]?.heading ?? text.split("\n")[0];
+    const current = sectionText(spec, heading);
+    if (current === null || current === undefined) { changes++; outcome.notes.push(`the SPEC holds no section ${heading}; it is not written.`); continue; }
+    if (current === text) continue;
+    changes++;
+    const out = await proposeSection(host, { ...common, target: "SPEC.md", anchor: heading, until: null, text, origin, openedBlob: await blobSha(current), ...(job.issue ? { issue: job.issue } : {}) });
+    if (out.commit) {
+      outcome.commits.push(out.commit);
+      outcome.files.push(`${out.queue}/${pad2(out.entry)}-${out.queue.split("/").pop()}.md`);
+    } else outcome.notes.push(refused(heading, out));
+  }
+  const entries = proposals.length ? (await queues(snapshot)).flatMap((queue) => queue.entries.map((entry) => ({ queue: queue.folder, entry }))) : [];
+  for (const { path, text } of proposals) {
+    const found = entries.find(({ entry }) => entry.proposal.path === path && entry.state === "open");
+    if (!found) { changes++; outcome.notes.push(`${path} is no open entry's proposal; it is not written.`); continue; }
+    if ((await snapshot.read(path)) === text) continue;
+    changes++;
+    const out = await saveEntry(host, { ...common, queue: found.queue, entry: found.entry.number, text, openedBlob: found.entry.proposal.blob });
+    if (out.commit) {
+      outcome.commits.push(out.commit);
+      outcome.files.push(path);
+    } else outcome.notes.push(refused(path, out));
+  }
+  if (typeof draft.groups === "string" && draft.groups !== (await snapshot.read(GROUPS_PATH))) {
+    changes++;
+    const branch = `agent-m/${context.jobId ?? "conversation"}`;
+    const { commit } = await host.commitFiles({ branch, expectedHead: snapshot.commit, files: [{ path: GROUPS_PATH, text: draft.groups }],
+      message: `propose ${GROUPS_PATH}\n\n${trailers.join("\n")}` });
+    const { defaultBranch } = await host.repositoryInfo();
+    const opened = await host.openPullRequest({ branch, base: defaultBranch, title: `${context.jobId ?? "conversation"}: ${context.kind?.name ?? "change-requirements"}`, body: trailers.join("\n") });
+    outcome.commits.push(commit);
+    outcome.files.push(GROUPS_PATH);
+    outcome.pullRequest = opened.url;
+  }
+  if (changes === 0) outcome.notes.push("the draft changes nothing; nothing is written.");
+  return outcome;
 }

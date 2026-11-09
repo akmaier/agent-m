@@ -3,7 +3,7 @@
 # Level: system
 """SPEC sections 11 and 12 - the check named tests/test_prompted_change_context.py.
 
-What it checks, with MOD-job-runner and the writers `open-files` (MOD-artifact-edits) and `queue-entries` (MOD-spec-changes)
+What it checks, with MOD-job-runner and the writers `open-files` (MOD-artifact-edits) and `spec-edits` (MOD-spec-changes)
 asked through node (tests/jsrun.py), on a fixture product kept in memory behind a fixture repository host, with a fixture CI
 agent and a stand-in driver that returns a fixed answer. Nothing reaches the network.
 
@@ -84,9 +84,10 @@ PRODUCT = {
 UC2_CHANGED = UC2.replace("extends a loan once.", "extends a loan once, and sees the due date.").replace(
     "2. The system answers.\n", "2. The system answers.\n\n```mermaid\nsequenceDiagram\n    Member->>System: extend\n    System-->>Member: due date\n```\n")
 USE_CASE_DRAFT = {"files": [{"path": UC2_PATH, "text": UC2_CHANGED, "class": "change", "of": "UC-002"}]}
-REQUIREMENT_DRAFT = {"candidates": [{
-    "name": RULE, "rule": CHANGED_RULE_TEXT, "check": "`tests/loan.test.mjs`", "constrains": "product",
-    "passage": "make visible", "class": "change", "of": RULE}]}
+# The changed requirement as the drafter returns it: the whole section Lending, its rule changed and the job's source named among its sources.
+REQUIREMENT_DRAFT = {"sections": [SPEC[SPEC.index("## Lending"):].replace(f"**{RULE}** *(Product Owner)*\n{RULE_TEXT}",
+                                                                      f"**{RULE}** *(Product Owner; SRC-author)*\n{CHANGED_RULE_TEXT}")],
+                     "why": "The due date should be visible."}
 
 # The Agent M side, in node: the fixture host, the fixture participants, the registered strategies, one run.
 WORLD = r"""

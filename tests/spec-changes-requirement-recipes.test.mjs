@@ -7,7 +7,7 @@
 // Run: node --test tests/spec-changes-requirement-recipes.test.mjs
 //
 // Module: MOD-spec-changes
-// Guards: DERIVATION SEES THE EXISTING REQUIREMENTS; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; UC-005; UC-007; UC-019
+// Guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-005; UC-007; UC-019
 // Level: unit
 //
 // The product is a small repository this file holds in memory, never Agent M's own: a SPEC of nine requirements, eight in four sections
@@ -213,10 +213,10 @@ test("chosen-requirements — without a choice, every requirement of the SPEC th
 // TST-473011 · level: unit · module: MOD-spec-changes
 // guards: UC-007; UC-019
 // given: the product above; names that the SPEC holds, and then names it does not: NO SUCH RULE, A SAMPLE RULE (held), and A SECOND QUEUE RULE, which stands in an open entry of the second queue and not in the SPEC
-// input: the recipes chosen-requirements and named-requirements, with the held names, and with all three
+// input: the recipe chosen-requirements, with the held names, and with all three (named-requirements gives an open entry's proposal for a name only it holds: tests/spec-changes-spec-edits.test.mjs)
 // expect: the held names give their parts; the three names give the failure RequirementNotFound, whose requirements are the two the SPEC does not hold, in the order given, and whose message names both and not A SAMPLE RULE
-test("chosen-requirements and named-requirements — a name the SPEC does not hold is a failure naming it, an open entry's among them", async () => {
-  for (const recipe of ["chosen-requirements", "named-requirements"]) {
+test("chosen-requirements — a name the SPEC does not hold is a failure naming it, an open entry's among them", async () => {
+  for (const recipe of ["chosen-requirements"]) {
     assert.deepEqual(namesOf(await run(recipe, WITH_QUEUES, { requirements: ["A SAMPLE RULE"] })), ["A SAMPLE RULE"],
       `known positive: ${recipe} gives a requirement the SPEC holds`);
     await assert.rejects(run(recipe, WITH_QUEUES, { requirements: ["NO SUCH RULE", "A SAMPLE RULE", "A SECOND QUEUE RULE"] }), (error) => {
@@ -232,20 +232,20 @@ test("chosen-requirements and named-requirements — a name the SPEC does not ho
 // ---------------------------------------------------------------- the recipe named-requirements
 
 // TST-473012 · level: unit · module: MOD-spec-changes
-// guards: UC-019; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
+// guards: UC-019; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: the product above; the parameter requirements naming A WRITE RULE, A SAMPLE RULE, A RULE WITHOUT A CHECK — which stands in the same section as A WRITE RULE — and A PREAMBLE RULE, which stands in no section
 // input: the recipe named-requirements, with the job's context and that parameter
-// expect: four parts in the order named, each named by its requirement: for the first three the whole section it stands in, byte for byte — section 2 twice, section 1 once, with the neighbours of each requirement —, for the last the requirement as the SPEC states it; with no source of their own and no artifact
+// expect: of the parts named by a requirement, four in the order named: for the first three the whole section it stands in, byte for byte — section 2 twice, section 1 once, with the neighbours of each requirement —, for the last the requirement as the SPEC states it; with no source of their own, each carrying its requirement as an artifact keyed by its name and its rule (the open entries' proposals beside them are tests/spec-changes-spec-edits.test.mjs')
 test("named-requirements — each requirement named, with the whole section it stands in", async () => {
   const named = ["A WRITE RULE", "A SAMPLE RULE", "A RULE WITHOUT A CHECK", "A PREAMBLE RULE"];
 
-  const parts = await run("named-requirements", WITH_QUEUES, { requirements: named });
+  const parts = (await run("named-requirements", WITH_QUEUES, { requirements: named })).filter((part) => named.includes(part.name));
 
-  assert.deepEqual(parts.map(({ name, text: held, sources, artifacts }) => ({ name, text: held, sources, artifacts })), [
-    { name: "A WRITE RULE", text: WRITING, sources: [], artifacts: undefined },
-    { name: "A SAMPLE RULE", text: READING, sources: [], artifacts: undefined },
-    { name: "A RULE WITHOUT A CHECK", text: WRITING, sources: [], artifacts: undefined },
-    { name: "A PREAMBLE RULE", text: stated(SPEC, "A PREAMBLE RULE"), sources: [], artifacts: undefined },
+  assert.deepEqual(parts.map(({ name, text: held, sources, artifacts }) => ({ name, text: held, sources, ids: artifacts.map((each) => each.id) })), [
+    { name: "A WRITE RULE", text: WRITING, sources: [], ids: ["A WRITE RULE"] },
+    { name: "A SAMPLE RULE", text: READING, sources: [], ids: ["A SAMPLE RULE"] },
+    { name: "A RULE WITHOUT A CHECK", text: WRITING, sources: [], ids: ["A RULE WITHOUT A CHECK"] },
+    { name: "A PREAMBLE RULE", text: stated(SPEC, "A PREAMBLE RULE"), sources: [], ids: ["A PREAMBLE RULE"] },
   ]);
 });
 

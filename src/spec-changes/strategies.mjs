@@ -1,5 +1,5 @@
 // strategies.mjs — the recipes of requirements of specStrategies (MOD-spec-changes, Parts: strategies.mjs; Interfaces: specStrategies).
-// Of it, ITM-337 builds the recipes `chosen-requirements`, `named-requirements` and `spec-with-queues`, ITM-438 the recipe `whole-spec`, and ITM-338 the writer `queue-entries` (propose.mjs).
+// Of it, ITM-337 builds the recipes `chosen-requirements`, `named-requirements` and `spec-with-queues`, ITM-438 the recipe `whole-spec`, and ITM-338 the writer `queue-entries` (propose.mjs), beside which stands the writer `spec-edits`.
 //
 // Module: MOD-spec-changes
 //
@@ -24,7 +24,7 @@
 
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
-import { queueEntries } from "./propose.mjs";
+import { queueEntries, specEdits } from "./propose.mjs";
 import { queues } from "./queues.mjs";
 import { finding } from "../text-tools/index.mjs";
 
@@ -61,11 +61,34 @@ async function chosen(context, params) {
   return named(spec, names).map((requirement) => partOf(requirement.name, stated(requirement)));
 }
 
-// The requirements the job's parameters name, each with the whole section it stands in; one that stands in none, as the SPEC states it.
+// The requirements the job's parameters name: for each, the whole section it stands in, under its name — one that stands in none, as the SPEC states it —, and the
+// proposal of each open entry that proposes it, under the proposal's path, once; each part carries the requirements it is given for as artifacts, its name the
+// identifier, its name and its rule the key, so that the job runner counts them. A name neither the SPEC nor an open entry holds is RequirementNotFound.
 async function sectionsOfNamed(context, params) {
-  const text = await context.product.snapshot.read(SPEC_PATH);
-  return named(parseSpec(text), namesOf(params)).map((requirement) =>
-    partOf(requirement.name, sectionText(text, requirement.section) ?? stated(requirement)));
+  const { snapshot } = context.product;
+  const names = namesOf(params);
+  if (names.length === 0) return [];
+  const text = await snapshot.read(SPEC_PATH);
+  const spec = parseSpec(text);
+  const open = [];
+  for (const entry of (await queues(snapshot)).flatMap((queue) => queue.entries.filter(({ state }) => state === "open"))) {
+    const proposal = (await snapshot.read(entry.proposal.path)) ?? "";
+    open.push({ path: entry.proposal.path, text: proposal, requirements: parseSpec(proposal).requirements });
+  }
+  const missing = names.filter((name) => !spec.requirements.has(name) && !open.some((each) => each.requirements.has(name)));
+  if (missing.length > 0) throw failure("RequirementNotFound", `the SPEC holds no requirement ${missing.join(", ")}`, { requirements: missing });
+  const artifact = (requirement) => ({ id: requirement.name, keys: [requirement.name, requirement.rule ?? ""] });
+  const parts = [];
+  for (const name of names) {
+    const requirement = spec.requirements.get(name);
+    if (requirement) parts.push({ ...partOf(name, sectionText(text, requirement.section) ?? stated(requirement)), artifacts: [artifact(requirement)] });
+    for (const each of open.filter((one) => one.requirements.has(name))) {
+      const held = parts.find((part) => part.name === each.path);
+      if (held) held.artifacts.push(artifact(each.requirements.get(name)));
+      else parts.push({ ...partOf(each.path, each.text), artifacts: [artifact(each.requirements.get(name))] });
+    }
+  }
+  return parts;
 }
 
 // A block of the part of `spec-with-queues`: the state and the section of a requirement, and the requirement.
@@ -109,8 +132,9 @@ async function wholeSpec(context) {
  * - recipe `chosen-requirements`: the requirements the job's parameter `requirements` names, in the order given, one part each, named by
  *   the requirement and holding it as the SPEC states it; without a choice, every requirement of the SPEC that no use case realises
  *   (MOD-trace-graph's coverageGaps). Throws RequirementNotFound { requirements } for names the SPEC does not hold;
- * - recipe `named-requirements`: the requirements the parameter names, in the order given, one part each, named by the requirement and
- *   holding the whole section it stands in, byte for byte. Throws as `chosen-requirements` does;
+ * - recipe `named-requirements`: the requirements the parameter names, in the order given, each with the whole section it stands in, byte
+ *   for byte, under its name, and with the proposal of each open entry that proposes it, under its path; each part carries its requirements as
+ *   artifacts. Throws RequirementNotFound for a name neither the SPEC nor an open entry holds;
  * - recipe `spec-with-queues`: every requirement of the SPEC and of every open entry of every queue, each with its section and state, as
  *   one part, which carries each of them as an artifact — its name as the identifier, its name and its rule as the key — against which
  *   `candidate-classes` classifies a draft; no part for a product without a requirement;
@@ -142,5 +166,6 @@ export const specStrategies = {
   },
   writers: {
     "queue-entries": queueEntries,
+    "spec-edits": specEdits,
   },
 };

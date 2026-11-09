@@ -54,11 +54,12 @@ test("a drafting kind's prompt states nothing of the form its draft is checked b
 // guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
 // given: the same six prompts
 // input: whether each still names the fields of its answer
-// expect: the requirement kinds name `name`, `rule`, `check` and `class`; the file kinds name `path`, `text` and `class`
+// expect: derive-requirements names `name`, `rule`, `check` and `class`; change-requirements, whose draft is the new text of what it changes, `sections`, `proposals`, `path`, `text`, `groups` and `why`; the file kinds name `path`, `text` and `class`
 test("a drafting kind's prompt still names the fields of its answer", async () => {
+  const fields = { "derive-requirements": ["name", "rule", "check", "class"], "change-requirements": ["sections", "proposals", "path", "text", "groups", "why"] };
   for (const name of KINDS.requirement) {
     const { prompt } = await kindOf(name);
-    for (const field of ["name", "rule", "check", "class"]) assert.ok(prompt.includes(`\`${field}\``), `${name}: ${field}`);
+    for (const field of fields[name]) assert.ok(prompt.includes(`\`${field}\``), `${name}: ${field}`);
   }
   for (const name of [...KINDS["use case"], ...KINDS.architecture]) {
     const { prompt } = await kindOf(name);
@@ -70,13 +71,12 @@ test("a drafting kind's prompt still names the fields of its answer", async () =
 // guards: THE PERSON WHO PROMPTS IS A SOURCE
 // given: the kinds change-requirements and, as the known positive, derive-requirements, whose candidates name the passage of their source
 // input: whether the prompt names `passage`, and whether the answer's schema of a candidate holds or requires it
-// expect: derive-requirements names it and its schema requires it; change-requirements' prompt does not name it, and its schema neither holds nor requires it
+// expect: derive-requirements names it and its schema requires it; change-requirements' prompt does not name it, and its schema holds no candidate and so no passage
 test("change-requirements asks for no passage, and its answer's schema has none", async () => {
   const candidateOf = (kind) => kind.answer.properties.candidates.items;
   const derive = await kindOf("derive-requirements");
   assert.ok(derive.prompt.includes("`passage`") && candidateOf(derive).required.includes("passage"), "known positive: derive-requirements asks for it");
   const change = await kindOf("change-requirements");
   assert.ok(!change.prompt.includes("passage"), change.prompt);
-  assert.ok(!("passage" in candidateOf(change).properties));
-  assert.ok(!candidateOf(change).required.includes("passage"));
+  assert.ok(!("candidates" in change.answer.properties) && !JSON.stringify(change.answer).includes("passage"));
 });

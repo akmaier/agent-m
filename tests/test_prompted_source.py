@@ -4,8 +4,9 @@
 """SPEC section 1 - the check named tests/test_prompted_source.py.
 
 The cases live in tests/test_prompted_source.md. This file loads them, takes the prompting person's account from
-MOD-source-register's personAccount, asks MOD-spec-changes for the sections a prompted change would save, and judges
-those sections with sourceFindings against a product that neither registers nor links that account.
+MOD-source-register's personAccount, judges the sections a prompted change drafts — the texts it saves — with the
+correction loop's check requirement-form for a job whose source is that account, and judges them with sourceFindings
+against a product that neither registers nor links that account.
 """
 import json
 import re
@@ -36,17 +37,18 @@ function linksDocument(linked) {
   return documents.readDocument(schemas.links, "docs/sources.md", text("# The sources this product meets", "",
     "| Source | Version | Hash | Part |", "|---|---|---|---|", ...rows));
 }
-function promptedSourceResult(input) {
+async function promptedSourceResult(input) {
   const links = linksDocument(input.linked ?? []);
   const register = (input.entries ?? []).map(entryDocument);
   // The person's account, as personAccount gives it for the instance's snapshot: the owner of the instance's repository.
   const source = sourceRegister.personAccount({ repository: { server: "github", path: input.instance } });
-  const sections = specChanges.entrySections(input.spec, { candidates: input.candidates ?? [] }, input.classes ?? [], source);
-  // Counter-proof: the same sections with the account taken out of every source.
-  const saved = sections.map((section) => input.dropAccount ? section.text.split(`; ${source})*`).join("; Unlinked Source)*").split(`(${source})*`).join("(Unlinked Source)*") : section.text);
-  const spec = specDocument.parseSpec(saved.join("\\n"));
+  // The sections the change drafts, the person's account written where the case writes <account>; the counter-proof writes another source there.
+  const sections = input.sections.map((text) => text.split("<account>").join(input.dropAccount ? "Unlinked Source" : source));
+  const snapshot = { read: async (path) => (path === "SPEC.md" ? input.spec : null) };
+  const form = await jobRunnerBuiltins.builtins.checks["requirement-form"]({ sections, why: "the instruction" }, { params: { source }, product: { snapshot } });
+  const spec = specDocument.parseSpec(sections.join("\\n"));
   const findings = sourceRegister.sourceFindings([...spec.requirements.values()], links, register).map((found) => found.rule);
-  return { source, sections: input.dropAccount ? [] : sections, findings };
+  return { source, sections, form: form.map((found) => [found.artifact, found.rule]), findings };
 }
 """
 
@@ -73,16 +75,16 @@ def cases() -> list[dict]:
 
 
 def result(case: dict) -> dict:
-    return js(JS_CHECK + "return promptedSourceResult(%s);" % json.dumps(case))
+    return js(JS_CHECK + "return await promptedSourceResult(%s);" % json.dumps(case))
 
 
 class TestPromptedSource(unittest.TestCase):
     # TST-416100 · level: release · module: system
     # guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS A REGISTERED SOURCE
-    # given: Markdown fixture cases: an instance owned by alice, a register with only bob's person entry, a product that links nothing,
-    #   a product SPEC and prompted candidates
-    # input: personAccount, entrySections, then sourceFindings over the saved sections
-    # expect: every drafted requirement names github.com/alice and passes; counter-proof: with the account taken out, each fails
+    # given: Markdown fixture cases: an instance owned by alice, a register with only bob's person entry, a product that links only bob,
+    #   a product SPEC and the section a prompted change drafts, one requirement changed and one added
+    # input: personAccount, the check requirement-form over the drafted section, then sourceFindings over it
+    # expect: every drafted requirement names github.com/alice and passes both; counter-proof: with another source in its place, each fails both
     def test_prompted_requirement_changes_use_the_persons_account(self):
         loaded = cases()
         self.assertEqual(len(loaded), 2)
@@ -94,15 +96,14 @@ class TestPromptedSource(unittest.TestCase):
     # guards: THE PERSON WHO PROMPTS IS A SOURCE
     # given: the two prompt cases
     # input: the loaded expected results
-    # expect: the data holds the account path, with the account in every section and no finding, and the counter-proof with findings
+    # expect: the data holds the account path, with the account in every section and no finding, and the counter-proof with findings of both checks
     def test_cases_cover_the_account_and_its_counter_proof(self):
         expected = [case["case"]["expected"] for case in cases()]
-        named = next(item for item in expected if item["sections"])
+        named = next(item for item in expected if not item["form"])
         self.assertEqual(named["source"], "github.com/alice")
-        self.assertTrue(all("github.com/alice)*" in section["text"] for section in named["sections"]))
-        self.assertFalse(any("github.com/alice, " in section["text"] for section in named["sections"]), "the account stands alone, with no passage")
-        self.assertEqual(named["findings"], [])
-        self.assertTrue(any(item["findings"] for item in expected))
+        self.assertTrue(all("github.com/alice)*" in section for section in named["sections"]))
+        self.assertEqual([named["form"], named["findings"]], [[], []])
+        self.assertTrue(any(item["form"] and item["findings"] for item in expected))
 
 
 if __name__ == "__main__":

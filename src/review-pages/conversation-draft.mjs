@@ -1,6 +1,6 @@
 // conversation-draft.mjs — the route `draft` (MOD-review-pages, Interfaces: `draft`; UC-049 steps 5 and 6, UC-019 steps 7 to 9): the draft of the conversation that MOD-prompt-bar keeps for the
-// subject the address names, shown against the current text before anything can be saved. Files each in the editor as their difference (file-drafts.mjs); requirements as the sections
-// `entrySections` composes (requirements-draft.mjs); an architecture file with the rounds of its job and its due diligence. Save and Discard are the person's decisions, and a draft saved or discarded is dropped from the conversation.
+// subject the address names, shown against the current text before anything can be saved. Files each in the editor as their difference (file-drafts.mjs); requirements as each text the draft
+// changes against the text it replaces (requirements-draft.mjs); an architecture file with the rounds of its job and its due diligence. Save and Discard are the person's decisions, and a draft saved or discarded is dropped from the conversation.
 //
 // Module: MOD-review-pages
 //

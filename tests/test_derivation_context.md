@@ -44,11 +44,11 @@ chapter parts are small stand-ins; the `spec-with-queues` part is MOD-spec-chang
 }
 ```
 
-## change requirements receives the named section and derivation context
+## change requirements receives the named section and the open entry that proposes it
 
-The precondition is that `change-requirements` is prepared with an instruction and a named existing requirement. The
-named requirement part must hold the whole section, while `spec-with-queues` still holds the SPEC and open queue
-requirements for classification.
+The precondition is that `change-requirements` is prepared with an instruction and a named existing requirement that an
+open entry also proposes. The named requirement's parts hold the whole section and that entry's proposal under its path
+(UC-019 step 4); the job gets no part of `spec-with-queues`.
 
 ### Case
 
@@ -72,19 +72,10 @@ requirements for classification.
     "partOrder": [
       { "recipe": "instruction", "name": "instruction" },
       { "recipe": "named-requirements", "name": "A SAMPLE RULE" },
-      { "recipe": "spec-with-queues", "name": "SPEC.md with its open queues" },
+      { "recipe": "named-requirements", "name": "docs/spec-freigaben/2026-10-12_context/01-reading.md" },
       { "recipe": "chapters-for-requirements", "name": "chapter 8 fixture" }
     ],
-    "context": {
-      "name": "SPEC.md with its open queues",
-      "artifacts": ["A SAMPLE RULE", "ANOTHER SAMPLE RULE", "A SAMPLE RULE", "A QUEUED RULE"],
-      "blocks": [
-        { "name": "A SAMPLE RULE", "state": "in SPEC", "section": "## 1. Reading" },
-        { "name": "ANOTHER SAMPLE RULE", "state": "in SPEC", "section": "## 1. Reading" },
-        { "name": "A SAMPLE RULE", "state": "open", "section": "## 1. Reading" },
-        { "name": "A QUEUED RULE", "state": "open", "section": "## 1. Reading" }
-      ]
-    },
+    "context": null,
     "namedRequirementText": "## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**ANOTHER SAMPLE RULE** *(Product Owner)*\nA reader sees the name of a file.\n*Check:* no automatic check; at review\n",
     "notFitting": []
   }
