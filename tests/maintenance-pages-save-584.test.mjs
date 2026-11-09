@@ -1,6 +1,6 @@
 // A change from an issue is drafted and saved as a queue naming the issue (ITM-584) — MOD-maintenance-pages' route `issue/<number>` over MOD-issue-handling's recipe `issue-context` and MOD-job-catalogue's kind `change-requirements`, as the accepted text of
-// docs/architecture/MOD-maintenance-pages.md states it: "for a change, the change of requirements drafted with the issue as its origin, run attended, each text it changes shown against the
-// text it replaces, then *Save*, which writes them as the kind's writer does, naming the issue — the job of `change-requirements` given the issue's number as its parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
+// docs/architecture/MOD-maintenance-pages.md and UC-012 step 6 state it: "for a change, the change of requirements drafted with the issue as its origin, run attended, then *Save*, which writes them
+// as the kind's writer does, as entries under docs/spec-freigaben/ naming the issue, which the author accepts on the requirements page (UC-006) — the job of `change-requirements` given the issue's number as its parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
 // instance's snapshot, or, where it gives none, what its precondition names as required"; UC-012 step 6 and its second postcondition.
 // Run: node --test tests/maintenance-pages-save-584.test.mjs
 //
@@ -13,7 +13,8 @@
 //   - The change is drafted and saved in a section of the issue's page, <section class="issue-change">, shown for an issue whose class is change — by its label, or by the person's click on Change — and for no other class. It has what the analysis has under its own class names: <input class="change-participant">
 //     (radio) for each participant that declares draft text, <input class="change-person">, and, once both are given, the run panel of the kind change-requirements; Run is the person's click.
 //   - The job's parameters are `issue` (the number) and `source` (the person's account, github.com/alice); the job's prompt carries the part of the issue-context recipe. The account needs no register entry and no link.
-//   - After Run each text the draft changes is <section class="changed-text"> with its difference against the text it replaces, and <button class="save-change"> "Save" is offered; Save is the person's click (`isTrusted`) and writes through the writer of the kind, MOD-job-runner's writeResult, as <p class="change-saved">.
+//   - After Run <button class="save-change"> "Save" is offered and no comparison of its own is shown (the entries are accepted on their pages, UC-006); Save is the person's click (`isTrusted`) and writes through the writer of the kind,
+//     MOD-job-runner's writeResult, as <p class="change-saved">, which links each entry written, <a class="change-entry">, to its page #spec-entry/id=spec-<queue>-<NN>/product=<the product's address>, and lists the writer's notes.
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -93,21 +94,19 @@ const queueFiles = (w) => writtenFiles(w).filter((entry) => entry.path.startsWit
 // guards: UC-012; EVERY ARTIFACT NAMES ITS ORIGIN; THE PERSON WHO PROMPTS IS A SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: known positive first — the issue 7 labelled change; the product links the source SRC-alice, whose register entry in the instance is of the account github.com/alice, the account of the instance's owner; the participant answers the section 1. Section with a requirement added
 // input: the route issue 7; a participant and a name; Run by a person; Save by a script and then by a person
-// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; the drafted section is shown against the section it replaces, the added requirement marked; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source github.com/alice, the person's account
+// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; Save is offered and no comparison is shown; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source github.com/alice, the person's account
 test("issue — Save runs change-requirements with the issue and the person's source and writes a queue naming the issue", async () => {
   const w = start({ ...WITH_SOURCE });
   const detail = await ready(w);
   const panel = one(changeOf(detail), "run-panel");
   assert.equal(byClass(panel, "blocking").length, 0, "nothing blocks the job");
   await trusted(buttonsOf(panel, "Run")[0]);
-  await waitFor(() => byClass(changeOf(detail), "changed-text").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
+  await waitFor(() => byClass(changeOf(detail), "save-change").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
   assert.equal(byClass(changeOf(detail), "issue-problem").length, 0, textOf(changeOf(detail)));
   assert.ok(w.kept.endpoint.length >= 1, "the participant was asked");
   const sent = JSON.stringify(w.kept.endpoint[0].body);
   assert.ok(sent.includes("Export loses pages 7") && sent.includes("the export is cut off after the second page"), "the prompt carries the issue's part");
-  const shown = byClass(changeOf(detail), "changed-text");
-  assert.equal(shown.length, 1);
-  assert.ok(textOf(shown[0]).includes("## 1. Section") && textOf(shown[0]).includes("EVERY EXPORT KEEPS ALL PAGES"), textOf(shown[0]));
+  assert.equal(byClass(changeOf(detail), "changed-text").length, 0, "the issue page shows no comparison of its own");
   assert.deepEqual(queueFiles(w), [], "nothing is written before Save");
 
   const save = buttonsOf(changeOf(detail), "Save")[0];
@@ -124,6 +123,10 @@ test("issue — Save runs change-requirements with the issue and the person's so
   const rationale = files.find((entry) => entry.path.endsWith(".begruendung.md"));
   assert.ok(rationale.content.includes("**Issue:** #7 of https://github.com/alice/product"), rationale.content);
   assert.ok(rationale.content.includes("issue #7 of https://github.com/alice/product") && rationale.content.includes(ACCOUNT), rationale.content);
+  const folder = index.path.slice(0, index.path.lastIndexOf("/"));
+  const number = /\/(\d{2})-[^/]*\.begruendung\.md$/.exec(rationale.path)[1];
+  const links = byClass(changeOf(detail), "change-entry").map((node) => node.getAttribute("href"));
+  assert.deepEqual(links, [`#spec-entry/id=spec-${folder.split("/").pop()}-${number}/product=${encodeURIComponent(PRODUCT_URL)}`], "the entry written is linked to its page for acceptance");
   assert.equal(w.kept.issues.find((issue) => issue.number === 7).state, "open");
 });
 

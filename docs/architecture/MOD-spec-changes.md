@@ -173,7 +173,8 @@ entry of another queue that is not in SPEC creates it.
   `docs/spec-freigaben/<queue>`, as `queues` gives it, read from that queue's files and what its entries name alone;
   `null` where the snapshot holds no such queue. Crosses the network and fails as `queues`.
 - `proposeSection(host: Host, change: { target: string, anchor: string, until: string | null, text: string,
-  why: string, origin: string, person: string, openedBlob: string, openedHead: string, trailers?: string[], places?:
+  why: string, origin: string, person: string, openedBlob: string, openedHead: string, trailers?: string[], issue?: { number:
+  number, product: string }, places?:
   Array<{ requirement: string, place: Place }> }) -> Promise<{ commit: string, queue: string,
   entry: number, alsoReplacing: Array<{ queue: string, entry: number }> } | { refused: "changed meanwhile", current:
   string } | { fallback: Array<{ url: string, path: string, text: string, differs: boolean }> }>` — writes one edited
