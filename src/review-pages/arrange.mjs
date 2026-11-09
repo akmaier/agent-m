@@ -109,13 +109,22 @@ async function render(target, context, params) {
   const where = await readPlace(target, context, place);
   if (where === null) return;
   try {
-    await show(where, kind);
+    const { adopt, items } = await arrangement(where, kind);
+    target.append(await proposeGroups(where, kind, items, adopt));
   } catch (failure) {
     target.append(readProblem(failure, Boolean(where.token)));
   }
 }
 
-async function show(where, kind) {
+/** isGroupKind(kind) -> whether `kind` names a group file this page arranges: requirements, use-cases, architecture, modules or tests. */
+export const isGroupKind = (kind) => Object.hasOwn(KINDS, kind ?? "");
+
+/**
+ * arrangement(where, kind, { onSaved }) -> Promise<{ adopt, items }> — the arrangement of the group kind `kind` drawn into `where.target`: the hierarchy, the pending changes and
+ * *Save arrangement*, which commits the group file only with saveGroupFile, on the blob read here. `adopt(moves)` makes a proposal's moves pending changes, each applied alone, in order;
+ * `onSaved()` is called once a save has committed. For the route `arrange/<group kind>` and for the route `draft`'s draft of propose-groups (UC-021 1b, UC-049 4a.1).
+ */
+export async function arrangement(where, kind, { onSaved = () => {} } = {}) {
   const { target, snapshot, token, host, context } = where;
   const path = pathOf(kind);
   const items = await itemsOf(kind, snapshot);
@@ -311,6 +320,7 @@ async function show(where, kind) {
       draw();
       const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
       resultBox.replaceChildren(el("p", "arrange-result", "Saved in ", link(commit, "commit-link", `commit ${outcome.commit.slice(0, 7)}`), "."));
+      onSaved();
     } catch (failure) {
       if (failure.name === "PermissionMissing") {
         const pages = fallbackEditLinks([{ path, text, existing: openedBlob !== null }], snapshot);
@@ -324,11 +334,11 @@ async function show(where, kind) {
   }
 
   draw();
-  target.append(await proposeGroups(where, kind, items, adopt));
+  return { adopt, items };
 }
 
 // *Propose groups* (UC-021 1b): the participants that can draft text, and a button that shows the run panel of the kind propose-groups for the one chosen — what is sent where, and Run. The job
-// writes nothing; its moves are handed to `adopt`, which makes them pending changes.
+// writes nothing: its kind is `review: person`, so a run in this tab ends with its result, whose draft's moves are handed to `adopt`, which makes them pending changes.
 async function proposeGroups(where, kind, items, adopt) {
   const { token, context, snapshot } = where;
   const box = el("section", "arrange-propose", el("h3", null, "Propose groups"), explain(PROPOSE.explain.draft.participant));

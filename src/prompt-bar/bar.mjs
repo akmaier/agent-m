@@ -305,17 +305,38 @@ export function startPromptBar(target, setup) {
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
     job.node.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
       ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
-      ...(view.problem ? [problem(view.problem)] : []));
+      ...(view.problem ? [problem(view.problem)] : []), ...(job.review ? [job.review] : []));
     // The run's answer joins the conversation once (UC-049 4a.5).
     if (view.answer && !state.answered.has(view.id)) {
       state.answered.add(view.id);
       keep([...conversationOf(store), { at: new Date(), from: "participant", who: state.spawnedBy ?? view.id, text: view.answer, subject: setup.subject().key }]);
+      if (view.end?.state === "done") keepAnswerDraft(view, job).catch((failure) => job.node.append(problem(`The draft could not be kept. ${said(failure)}`)));
     }
     // A job that is the endpoint's own (UC-049 4f): each job its end lists as handed over is followed the same way; the pieces it did not hand over stand among its results.
     for (const line of view.end?.results ?? []) {
       const handed = HANDED_OVER.exec(line)?.[1];
       if (handed) follow({ id: handed, address: job.address }, job.host);
     }
+  }
+
+  // A job ended on CI whose kind leaves its result to a person and whose writer writes nothing — its review `person`, its writer `return-draft`, as propose-groups —: the draft its answer
+  // holds, read by the kind's schema of its draft, is kept as the conversation's draft of that kind with the job's parameters, as the draft of a piece run in this tab is, and Review the
+  // draft stands under the job (UC-049 4a.1, 4a.5). An answer that holds no such draft keeps none.
+  async function keepAnswerDraft(view, job) {
+    const kind = await kindOf(view.kind);
+    if (kind.review !== "person" || kind.writer !== "return-draft") return;
+    const draft = (await import("./follow.mjs")).draftIn(view.answer, kind);
+    if (draft === null) return;
+    const subject = setup.subject();
+    const result = { draft, raw: null, drafter: null, rounds: Array.isArray(view.end.rounds) ? view.end.rounds : [], remaining: [], forPerson: [], stepFindings: [], classes: null,
+      stoppedBecause: view.end.stoppedBecause ?? "passed", gate: null, usage: null, written: null };
+    const params = view.params ?? {};
+    const participant = { name: view.participant ?? view.id };
+    writeTabValue(store, DRAFT, { subject: subject.key, kind: kind.name, participant: participant.name, params, result });
+    // A job queued in another product's repository than the page's leads to the review pages' `draft` with that product named (UC-049 3d).
+    const about = sameAddress(job.address, pageOf().address) ? null : { address: job.address };
+    job.review = reviewButton(subject, kind.name, participant, params, result, about);
+    job.node.append(job.review);
   }
 
   // A job is followed in the repository it was queued in: the page's, or the product the message named. A job followed already is not followed twice.
