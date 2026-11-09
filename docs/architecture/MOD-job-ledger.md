@@ -35,6 +35,7 @@ provides:
   - listJobs
   - recordsNewestFirst
   - jobCost
+  - worksOnProblem
 ---
 # MOD-job-ledger The record, state and cost of every job
 
@@ -187,6 +188,11 @@ by: tab <identifier>
   `Unreachable`.
 - `jobCost(usage: Usage | null, participant: Participant) -> Cost` — the cost the runtime reported; otherwise the
   reported tokens at the participant's declared price; otherwise unknown, with the usage — never zero, never an estimate.
+- `worksOnProblem(worksOn: string[]) -> string | null` — why a record would refuse `worksOn` as what its job works on: the
+  reason `writeDocument` gives for the field `works_on` of `job.schema.md`, whose form the `works on:` of `## Job
+  started` shares; `null` where the record takes it. The one rule of what a job's record names it works on, which
+  `startRecord` and `appendToRecord` apply when they write and MOD-runtimes' check `plan-works-on` applies to a plan
+  before its pieces are handed over. Pure.
 
 ## Files
 
@@ -197,7 +203,8 @@ RUN`); it does start Agent M's job workflow, which is how a CI route notices it.
 ## Uses
 
 - `MOD-documents.loadSchema`, `MOD-documents.readDocument`, `MOD-documents.writeDocument`, `MOD-documents.appendSection`
-  — the record's schema, reading it, writing its start, appending a part.
+  — the record's schema, reading it, writing its start, appending a part; `writeDocument` also the reason of
+  `worksOnProblem`.
 - `MOD-repository-hosts.commitFiles`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.Host`,
   `MOD-repository-hosts.Snapshot` — taking a job by a commit on the head it read, and the snapshots the list is built from.
 - `MOD-job-runner.Usage`, `MOD-job-runner.Round`, `MOD-job-runner.roundsText` — the usage a runtime reports, and the
