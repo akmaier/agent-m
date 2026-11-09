@@ -187,8 +187,10 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   `github.com` or a GitLab server. Throws `TypeError` naming what is not a repository's address. No request is made.
 - `connect(address: RepositoryAddress, credentials: Credentials) -> Host` — a host for one repository. The token goes
   only into the authorisation header of requests to the server that issued it (`A TOKEN GOES ONLY TO THE SERVER THAT
-  ISSUED IT`). With `clone`, files are read and committed in that clone and pushed with the clone's own credentials, and
-  every other function uses the REST adapter where a token is given, or throws `NotSupported`. A token of the other kind
+  ISSUED IT`). With `clone`, files are read and committed in that clone and pushed with the clone's own credentials;
+  without a token, `readHistory` is answered by the clone with `git log` — each commit, its date, its message and its
+  changes with `--name-status -M` —, as `containsCommit` is through the clone; every other function uses the REST adapter
+  where a token is given, or throws `NotSupported`. A token of the other kind
   of server — a GitLab token for a GitHub repository, a GitHub token for a GitLab project, each told by the prefix its
   own server gives it — is refused with a `TypeError`, whose message never holds the token. A text that begins with the
   prefix of neither kind of token is refused the same way, and the message says that it is no token of either server;

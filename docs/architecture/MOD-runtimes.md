@@ -195,8 +195,9 @@ On GitLab each job's name begins with `agent-m-`. How a job comes to receive onl
   beside the token or a key. The job that writes runs untagged; a self-hosted runner of a route takes no untagged job.
 
 The agent's machine is the agent's job: it receives the one key of the participant the run names, never the person's
-token. It reads the product with the workflow's own read access — GitHub's checkout, GitLab's clone of the project — and
-clones the instance without a token; on GitHub neither checkout keeps the workflow's token (`persist-credentials:
+token. It reads the product with the workflow's own read access — GitHub's checkout, GitLab's clone of the project —, with
+the product's whole history (`fetch-depth: 0` on GitHub, `GIT_DEPTH: 0` on GitLab), and clones the instance without a
+token; on GitHub neither checkout keeps the workflow's token (`persist-credentials:
 false`), and on GitLab the clone's remote is set to the project's address without the job's token before anything runs,
 since nothing on that machine fetches with it (`NO MODEL READS A CREDENTIAL`). It installs no coding agent: a
 start that names an `endpoint` runs that endpoint's job in Agent M's own loop, with the tools of MOD-checkout-tools in
