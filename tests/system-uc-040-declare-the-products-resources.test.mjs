@@ -570,14 +570,14 @@ test("UC-040 steps 9, 9b — the routes of a job's participants reach only the r
   assert.deepEqual(needs, [{ resource: "cluster", route: "runner:gpu" }, { resource: "hpc", route: "bridge hpc" }]);
   const gpu = { name: "ci-gpu", route: "ci runner:gpu secret K" }, hosted = { name: "ci-hosted", route: "ci hosted secret K" };
   const product = { visibility: "private", jobWorkflow: true };
-  const offered = (participant, wanted) => routesFor(participant, [gpu, hosted], product, wanted).map((offer) => offer.available);
+  const offered = (participant, wanted) => routesFor(participant, product, wanted).map((offer) => offer.available);
   assert.deepEqual(offered(gpu, []), [true], "known positive: with no need the runner's agent is offered");
   assert.deepEqual(offered(gpu, [needs[0]]), [true]);
   assert.deepEqual(offered(hosted, [needs[0]]), [false]);
   assert.deepEqual(offered(gpu, needs), [false]);
-  const refusal = routesFor(hosted, [gpu, hosted], product, [needs[0]])[0].reason;
+  const refusal = routesFor(hosted, product, [needs[0]])[0].reason;
   assert.ok(refusal.includes("cluster") && refusal.includes("runner:gpu"), refusal);
-  const second = routesFor(gpu, [gpu, hosted], product, needs)[0].reason;
+  const second = routesFor(gpu, product, needs)[0].reason;
   assert.ok(second.includes("hpc") && second.includes("bridge hpc"), second);
 });
 

@@ -487,7 +487,7 @@ async function fixSection({ context, product, issue, proposal }) {
     const info = await product.host.repositoryInfo();
     const listed = await head.read(RESOURCES);
     const needs = typeof listed === "string" ? reachableBy(readRegister(resourceSchema(), RESOURCES, listed).rows.map((row) => ({ name: row.cells.Name, route: row.cells.Route }))) : [];
-    return routesFor(chosen, participants, { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) }, needs)[0] ?? null;
+    return routesFor(chosen, { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) }, needs)[0] ?? null;
   };
   const paramsOf = async (_, { offer }) => {
     const violated = String(requirement.value ?? "").trim();

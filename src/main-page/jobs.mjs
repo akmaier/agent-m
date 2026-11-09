@@ -216,7 +216,7 @@ export const jobs = { name: "jobs", entry: null, title: "Every job", render };
 
 const usageText = (usage) => [usage.inputTokens != null && `${usage.inputTokens} input tokens`, usage.outputTokens != null && `${usage.outputTokens} output tokens`,
   usage.minutes != null && `${usage.minutes} minutes`].filter(Boolean).join(", ");
-// NO COST IS GUESSED: the amount only where the runtime or the declared price made one known; else the usage that was reported, with its price unknown; else unknown.
+// NO COST IS GUESSED: the amount only where the runtime reported one; else the usage that was reported, with its price unknown; else unknown.
 function costLine(cost) {
   if (cost.known) return `${cost.amount} ${cost.currency} (${cost.basis})`;
   const usage = cost.usage ? usageText(cost.usage) : "";
@@ -373,7 +373,7 @@ async function retryControls(context, held, read) {
   let offered = new Map();
   const fillRoutes = () => {
     const chosen = holders.find((each) => each.name === participant.value);
-    offered = new Map(routesFor(chosen, facts.participants, { visibility, jobWorkflow }, []).filter((each) => each.available).map((each) => [recordRoute(each.route), each.route]));
+    offered = new Map(routesFor(chosen, { visibility, jobWorkflow }, []).filter((each) => each.available).map((each) => [recordRoute(each.route), each.route]));
     route.replaceChildren(...[...offered.keys()].map((text) => { const option = el("option", null, text); option.value = text; return option; }));
   };
   participant.addEventListener("change", fillRoutes);

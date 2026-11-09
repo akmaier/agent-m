@@ -292,7 +292,7 @@ export const route = {
         const need = [{ resource: resource.name, route: `runner:${label}` }];
         let drafter = null, refusal = null;
         for (const candidate of participants.filter((each) => each.type === "CI agent")) {
-          const offers = routesFor(candidate, participants, { visibility: opened.visibility, jobWorkflow }, need);
+          const offers = routesFor(candidate, { visibility: opened.visibility, jobWorkflow }, need);
           const taken = offers.find((offer) => offer.route.kind === "ci" && offer.route.runner === label);
           if (taken?.available) { drafter = { participant: candidate, route: taken.route }; break; }
           refusal ??= taken?.reason ?? null;

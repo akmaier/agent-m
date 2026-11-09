@@ -230,7 +230,7 @@ async function prepareRun(state, chosen, levelsChosen, person) {
   const jobContext = { kind: definition, params, product: { address: head.repository?.web ?? "", snapshot: head, host }, instance: { snapshot: register, host: context.instance.host, checkout: null },
     connect: async () => host, participants, places: { sources: {}, mailbox: null }, gates: [], person, now, agentM, jobId: id };
   const prepared = await prepareJob(RUN_KIND, jobContext, { drafter: chosen, reviewers: [] });
-  const offer = routesFor(chosen, participants, product, []).filter((each) => each.route.kind !== "tab")[0];
+  const offer = routesFor(chosen, product, []).filter((each) => each.route.kind !== "tab")[0];
   void schedule;
   return { prepared, offer, params, id, now, agentM };
 }

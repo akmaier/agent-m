@@ -107,7 +107,7 @@ const prepareFor = (m, definition, params, participant) => prepareJob(definition
 async function startJob(m, { definition, worksOn, participant, params, limit = null }) {
   const job = { kind: definition.name, participant: participant.name };
   try {
-    const offer = routesFor(participant, m.participants, m.productInfo, []).find((each) => each.available);
+    const offer = routesFor(participant, m.productInfo, []).find((each) => each.available);
     if (!offer) throw new Error(`${participant.name} has no route a job can take`);
     const bridge = offer.route.kind === "bridge" ? bridgesOf([participant], m.context.store)[offer.route.bridge] : undefined;
     if (offer.route.kind === "bridge" && !bridge) throw new Error(`The Bridge ${offer.route.bridge} is not connected in this browser, so the job cannot be handed to it`);
@@ -434,7 +434,7 @@ async function draw(target, context, params) {
     <td data-label="Start">${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>${row.withheld.length ? "No holder of the implementing role is at a place the linked sources permit for this job." : "No holder of the implementing role can write and run tests."}</p>${withheldText(row)}` : `
       <label>Participant <select data-participant-of="${h(row.id)}">${row.holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
       ${withheldText(row)}
-      <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, participants, productInfo, []).map((offer) => `${h(recordRoute(offer.route))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
+      <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, productInfo, []).map((offer) => `${h(recordRoute(offer.route))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
       <p class="small">Attempt limit: ${h(definition.limit)}. Merges: <select data-merges-of="${h(row.id)}"><option value="agent">the coding agent</option><option value="person">a person</option></select>.
         Target branch: ${h(targetBranch(row.id, { sprints: [...judged.sprints.values()], order: null, branches: workflow.branches ?? {}, defaultBranch: info.defaultBranch }))}. ${gatesText.length ? `Gates: ${gatesText.join(", ")}.` : "No gate stands before the merge."}</p>
       <div data-sent="${h(row.id)}"></div>`) : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
@@ -467,7 +467,7 @@ async function draw(target, context, params) {
       const participant = row.holders.find((each) => each.name === choice(row.id)) ?? row.holders[0];
       let id = null, routeName = null;
       try {
-        const offer = routesFor(participant, participants, productInfo, []).find((each) => each.available);
+        const offer = routesFor(participant, productInfo, []).find((each) => each.available);
         if (!offer) throw new Error(`${participant.name} has no route a job can take`);
         routeName = recordRoute(offer.route);
         const { prepared } = await sentFor(prepareFor(row.id, merges(row.id)), participant);

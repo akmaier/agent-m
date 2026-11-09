@@ -178,7 +178,7 @@ test("TST-373304: UC-010 the use case enters the default branch directly and cou
 // expect: the job that needs no resource is offered on the server's own runners (ci, hosted) where the product has the job workflow, and the offer names the missing file where it has not; counter-proof — a job needing a compute resource of the runner gpu, and one needing a machine of a Bridge, are not offered there; the run needed no Bridge: every request it made went to the model endpoint or the server's API, and none to a loopback address
 test("TST-373305: UC-010 a job that needs no local resource runs on the server's machines with nothing installed", async () => {
   const requests = endpoint();
-  const offers = (product, needs) => routesFor(BOT, [BOT], product, needs).filter((offer) => offer.route.kind === "ci" && offer.route.runner === "hosted");
+  const offers = (product, needs) => routesFor(BOT, product, needs).filter((offer) => offer.route.kind === "ci" && offer.route.runner === "hosted");
   const withWorkflow = { visibility: "private", jobWorkflow: true };
   assert.deepEqual(offers(withWorkflow, []).map((offer) => offer.available), [true]);
   const without = offers({ ...withWorkflow, jobWorkflow: false }, []);

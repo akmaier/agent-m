@@ -205,7 +205,7 @@ async function render(target, context, params = {}) {
       box.type = "radio";
       box.name = "participant";
       box.value = writer.name;
-      const offers = routesFor(writer, register.participants, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => product.snapshot.paths.includes(path)) }, []);
+      const offers = routesFor(writer, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => product.snapshot.paths.includes(path)) }, []);
       const item = el("tr", "participant", column("Participant", el("label", null, box, ` ${writer.name}`)),
         column("Processing place", el("span", "place", writer.place ?? "no processing place declared")),
         column("Routes", el("span", "route", offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job")));
@@ -240,7 +240,7 @@ async function render(target, context, params = {}) {
       stage.append(readProblem(failure, Boolean(context.product.tokenStored)));
       return;
     }
-    const offer = routesFor(writer, register.participants, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => product.snapshot.paths.includes(path)) }, [])[0];
+    const offer = routesFor(writer, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => product.snapshot.paths.includes(path)) }, [])[0];
     let queued = false;
     const result = el("section", "job");
     const panel = runPanel(prepared, {
@@ -371,7 +371,7 @@ async function render(target, context, params = {}) {
     const kind = await kindOf("write-tests");
     const text = await snapshot.read("docs/resources.md");
     const needs = typeof text === "string" ? reachableBy(readRegister(resourceSchema(), "docs/resources.md", text).rows.map((each) => ({ name: each.cells.Name, route: each.cells.Route }))) : [];
-    const offer = routesFor(writer, register.participants, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) }, needs)[0];
+    const offer = routesFor(writer, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) }, needs)[0];
     const params = { requirements: record.params?.requirements ?? [], useCases: record.params?.useCases ?? [], modules: record.params?.modules ?? [], levels: record.params?.levels ?? [],
       route: offer ? recordRoute(offer.route) : null, draft: { cases } };
     const now = new Date();

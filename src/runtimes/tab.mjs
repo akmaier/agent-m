@@ -172,7 +172,7 @@ async function runHeld(prepared, context, connections, { host, record, refine, f
   } catch (error) {
     if (error.name === "Cancelled") throw error;
     // The job's own failure is what the caller must see: a record that cannot be appended to does not hide it.
-    await append(ended({ state: "failed", reason: `${error.name}: ${error.message}`, cost: jobCost(null, prepared.drafter) })).catch(() => {});
+    await append(ended({ state: "failed", reason: `${error.name}: ${error.message}`, cost: jobCost(null) })).catch(() => {});
     throw error;
   }
   if (result.stoppedBecause === "gate") {
@@ -192,7 +192,7 @@ function endFields(result, drafter) {
   return {
     state: failed ? "failed" : "done", reason: failed, results: failed ? [] : resultsOf(result.written),
     draft: result.written?.shown ?? null, rounds: result.rounds, forPerson: result.forPerson, stoppedBecause: result.stoppedBecause === "gate" ? undefined : result.stoppedBecause, usage,
-    cost: jobCost(usage, drafter),
+    cost: jobCost(usage),
   };
 }
 

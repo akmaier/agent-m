@@ -106,7 +106,7 @@ export { jobCost } from "./cost.mjs";
 /**
  * A job's cost: known, with the amount and how it was found; or unknown, with the usage if any was reported
  * (NO COST IS GUESSED — never zero, never an estimate).
- * @typedef {{ known: true, amount: number, currency: string, basis: "reported" | "usage at the declared price" } |
+ * @typedef {{ known: true, amount: number, currency: string, basis: "reported" } |
  *   { known: false, usage: Usage | null }} Cost
  */
 

@@ -70,6 +70,24 @@ export function keepsTokenFor(store, address) {
 }
 
 /**
+ * recordRoute(route: Route, participant?: Participant) -> string — the route as a job's record writes it (MOD-job-ledger, `route`): `tab`, `ci hosted` or
+ * `ci runner:<label>`, followed for a model endpoint's job by its connection's route, `endpoint <name>[ secret <NAME>]`; for a coding agent a Bridge offers, its
+ * connection's route `bridge <name> agent <agent>`; `bridge <name>` where no participant on such a connection is given.
+ */
+export function recordRoute(route, participant = null) {
+  const connection = String(participant?.route ?? "").trim();
+  if (route.kind === "bridge") return /^bridge\s+\S+\s+agent\s+\S+/.test(connection) ? connection : `bridge ${route.bridge}`;
+  const where = route.kind === "tab" ? "tab" : route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`;
+  return /^endpoint\s+\S+/.test(connection) ? `${where} ${connection}` : where;
+}
+
+/**
+ * declaresOf(participant: Participant) -> { declares } | {} — what the record of a job of an agent on a connection declares for its model (MOD-job-ledger,
+ * `declares`): the model's context and the connection's capabilities; nothing for a participant without a connection.
+ */
+export const declaresOf = (participant) => (participant?.route ? { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } } : {});
+
+/**
  * connectionsOf(participant: Participant, store: Store) -> { endpoints, bridges } — the endpoint and the Bridges the participant is reached through, from what the store
  * keeps: an endpoint's configuration and the Bridge it is called through, and the Bridge of an agent, each Bridge with settingsOf and then bridgeAt.
  */
@@ -96,9 +114,9 @@ export function connectionsOf(participant, store) {
  * `context` and `connections` to run it with, the `participants` of the register, whether the instance `recording` is on now, the
  * `person`, and the repository `page` the conversation is held on ({ address, host, snapshot }). Throws what the hosts and prepareJob throw.
  */
-export function prepareMessage({ subject, participant, instruction, conversation, store, instance, product }) {
+export function prepareMessage({ subject, participant, instruction, conversation, store, instance, product, connections }) {
   return prepareIn(BAR_KIND, () => ({ ...subject.paramsFor(participant), instruction, conversation, entry: subject.entry, refuses: subject.refuses }),
-    { participant, store, instance, product });
+    { participant, store, instance, product, connections });
 }
 
 export { BAR_KIND };
@@ -109,14 +127,14 @@ export { BAR_KIND };
  * task as `instruction`, the conversation so far, the subject's entry and refuses, and the bar's `source` (sourceOf). A kind with reviewers is prepared with the participant itself as its one reviewer and
  * `selfReview` set, since the change is described in the prompt bar (NO REVIEWER IS THE DRAFTER). Writes nothing; throws what prepareMessage throws, and what kindOf throws.
  */
-export async function prepareHandOver({ handOver, subject, participant, conversation, store, instance, product }) {
+export async function prepareHandOver({ handOver, subject, participant, conversation, store, instance, product, connections }) {
   const reviewed = (await kindOf(handOver.kind)).reviewer !== null;
   return prepareIn(handOver.kind, (snapshot) => {
     const { page: _page, ...context } = subject.paramsFor(participant);
     // A piece of a plan hands nothing on: `hand-over` is among its refuses (MOD-job-runner's hand-over).
     return { ...context, ...handOverParams(handOver.works_on, snapshot), instruction: String(handOver.task ?? ""), conversation, entry: subject.entry,
       refuses: [...new Set([...(subject.refuses ?? []), "hand-over"])] };
-  }, { participant, store, instance, product }, reviewed ? { reviewers: [participant], selfReview: true } : { reviewers: [] });
+  }, { participant, store, instance, product, connections }, reviewed ? { reviewers: [participant], selfReview: true } : { reviewers: [] });
 }
 
 // A job record's path under docs/jobs/, with the job's identifier.
@@ -139,11 +157,11 @@ export async function queueHere(ready, piece, { conversation = null, source } = 
   const { prepared } = ready;
   const drafter = prepared.drafter;
   // A piece that works on nothing yet — something new, whose place its task names — is a job that works on the repository the page is held on, by its web address.
-  const start = { id, kind: prepared.kind.name, worksOn: worksOn.length ? worksOn : [snapshot.repository.web], participant: drafter.name, model: drafter.model ?? null, route: "tab", run: null, retries: null, startedBy: ready.person,
+  const start = { id, kind: prepared.kind.name, worksOn: worksOn.length ? worksOn : [snapshot.repository.web], participant: drafter.name, model: drafter.model ?? null, route: recordRoute({ kind: "tab" }, drafter), run: null, retries: null, startedBy: ready.person,
     start: now, agentM: ready.context.agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "with the hand-over", conversation,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })),
     params: { ...(source === undefined || source === null ? {} : { source }), ...handOverParams(worksOn, snapshot), refuses: ["hand-over"] },
-    ...(ready.participants.some((each) => each.name === drafter.name) ? {} : { declares: { context: drafter.context ?? null, capabilities: drafter.capabilities ?? [] } }) };
+    ...declaresOf(drafter) };
   const { path } = await queueJob(host, start, { kind: "tab" }, snapshot.commit);
   ready.context.jobId = id;
   return { id, path, run: null };
@@ -159,12 +177,12 @@ export function runHere(ready, record, { signal }) {
 
 // A job of `kind` prepared in this tab's context, its parameters `paramsOf(snapshot of the page's repository)`, drafted by the participant and reviewed as `review`
 // gives — by none for a message; the Ready of prepareMessage.
-async function prepareIn(kind, paramsOf, { participant, store, instance, product }, review = { reviewers: [] }) {
+async function prepareIn(kind, paramsOf, { participant, store, instance, product, connections = [participant] }, review = { reviewers: [] }) {
   const instanceSnapshot = await defaultSnapshot(instance.host);
   const page = product
     ? { address: product.address, host: product.host, snapshot: await defaultSnapshot(product.host) }
     : { address: instanceSnapshot.repository.web, host: instance.host, snapshot: instanceSnapshot };
-  const participants = await readParticipants(instanceSnapshot);
+  const participants = await readParticipants(instanceSnapshot, connections);
   const person = personOf(store, page.snapshot, product !== null, instanceSnapshot);
   const commit = instanceSnapshot.commit ?? "unknown";
   const inputs = {

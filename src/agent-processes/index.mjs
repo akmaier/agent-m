@@ -35,6 +35,7 @@ function rowOf(cells) {
     command: cells.Command,
     version: json(cells.Version, "Version"),
     task: json(cells.Task, "Task"),
+    model: cells.Model == null || cells.Model === "—" ? null : json(cells.Model, "Model"),
     login: json(cells["Login check"], "Login check"),
     keyVariable: cells["Key variable"] ?? null,
     endpoint: cells.Endpoint == null ? null : json(cells.Endpoint, "Endpoint"),

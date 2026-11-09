@@ -91,7 +91,7 @@ function holderOf(item, states, facts, workflow) {
   for (const participant of facts.participants) {
     const verdict = startable(item, states, { workflow, assignment, sprint, held: facts.held, wip: workflow?.model?.flow?.wip ?? null, participants: [participant] });
     if (!verdict.startable) continue;
-    const offer = routesFor(participant, facts.participants, product, facts.resourceNeeds).find((each) => each.available);
+    const offer = routesFor(participant, product, facts.resourceNeeds).find((each) => each.available);
     if (offer) return { participant: participant.name, route: routeText(offer.route) };
   }
   return null;

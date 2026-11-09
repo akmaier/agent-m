@@ -72,7 +72,7 @@ async function routes(input) {
   const participants = input.participants;
   const offered = {};
   for (const participant of participants) {
-    const offers = runtimes.routesFor(participant, participants, { visibility: input.visibility, jobWorkflow: true }, needs);
+    const offers = runtimes.routesFor(participant, { visibility: input.visibility, jobWorkflow: true }, needs);
     offered[participant.name] = offers.map((offer) => offer.available);
   }
   return { needs, offered };

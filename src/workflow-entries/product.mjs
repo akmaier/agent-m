@@ -345,7 +345,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     ended = { ...ended, ...gathered, reason: handOver ? hidden(reason) : reason };
   }
   const part = { part: { part: "end", at: env.now, state: ended.state, results: ended.results, draft: ended.draft, rounds: ended.rounds, usage: ended.usage,
-    cost: jobCost(ended.usage, participant), reason: ended.reason, log: job.runUrl ?? null, ...(ended.stoppedBecause ? { stoppedBecause: ended.stoppedBecause } : {}) }, branch: env.branch };
+    cost: jobCost(ended.usage), reason: ended.reason, log: job.runUrl ?? null, ...(ended.stoppedBecause ? { stoppedBecause: ended.stoppedBecause } : {}) }, branch: env.branch };
   const trailers = provenanceLines({ agentM: record.agentM, jobId: record.id, kind: record.kind, participant, rounds: ended.rounds.length, instruction: record.params?.instruction ?? null });
   await endOf(composed)(path, part, trailers);
   const noChange = ended.state === "done" && ended.results.length === 1 && ended.results[0] === "no change";
@@ -416,7 +416,7 @@ async function resume(host, branch, now, { record, path, gateRecord }) {
 // Ends a job whose gate was rejected: its End, `failed`, with the reason the rows give (the gate, the gate record and its reason), committed on the current head.
 async function endRejected(host, branch, now, participants, { record, path, gateRecord, rejected }) {
   await endRecord(host, path, { branch, part: { part: "end", at: now, state: "failed", results: [], draft: null, rounds: [], usage: null,
-    cost: jobCost(null, participants.find((each) => each.name === record.participant)), reason: rejected, log: null } }, []);
+    cost: jobCost(null), reason: rejected, log: null } }, []);
   return `${record.id} ended by ${gateRecord}`;
 }
 
@@ -544,7 +544,7 @@ async function runHandOver(env, composed, listed, row, inputs) {
   if (noToken) return notRun(noToken);
   const task = typeof inputs.task === "string" ? inputs.task : "";
   if (!task.trim()) {
-    const part = { part: { part: "end", at: env.now, state: "failed", results: [], draft: null, rounds: [], usage: null, cost: jobCost(null, participant), reason: NO_TASK, log: env.job.runUrl ?? null }, branch: env.branch };
+    const part = { part: { part: "end", at: env.now, state: "failed", results: [], draft: null, rounds: [], usage: null, cost: jobCost(null), reason: NO_TASK, log: env.job.runUrl ?? null }, branch: env.branch };
     await endOf(composed)(path, part, provenanceLines({ agentM: record.agentM, jobId: record.id, kind: record.kind, participant, rounds: 0 }));
     return failedStatus(`${record.id} failed: ${NO_TASK}`);
   }

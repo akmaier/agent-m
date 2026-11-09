@@ -480,7 +480,7 @@ test("TST-375314: a job of a public product is refused on a self-hosted runner, 
   assert.equal(lab.route, "ci runner:lab secret MODEL_KEY");
   const visibilityOf = async (web) => (await connect(parseAddress(web), { token: PRODUCT_TOKEN }).repositoryInfo()).visibility;
   assert.deepEqual([await visibilityOf(ALPHA), await visibilityOf(OPEN)], ["private", "public"], "known positive: what the server reports");
-  const offer = async (participant, visibility) => routesFor(participant, participants, { visibility, jobWorkflow: true }, [])[0];
+  const offer = async (participant, visibility) => routesFor(participant, { visibility, jobWorkflow: true }, [])[0];
   assert.equal((await offer(lab, "private")).available, true);
   const refused = await offer(lab, await visibilityOf(OPEN));
   assert.equal(refused.available, false);

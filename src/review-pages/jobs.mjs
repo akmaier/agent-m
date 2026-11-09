@@ -80,7 +80,7 @@ export function participantList(drafters, participants, product, needs, role = "
     box.name = role;
     box.value = participant.name;
     const route = el("span", "route");
-    const offers = routesFor(participant, participants, product, needs);
+    const offers = routesFor(participant, product, needs);
     route.append(offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job");
     const item = el("li", role, el("label", null, box, ` ${participant.name} `), el("span", "place", participant.place ?? "no processing place declared"), " ", route);
     for (const offer of offers) if (!offer.available) item.append(" ", el("span", "reason", offer.reason));
@@ -167,7 +167,7 @@ export async function preparedRun(run, snapshot = run.snapshot, params = run.par
     places: run.places ?? { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
   let prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
   if (run.relax) prepared = run.relax(prepared);
-  const offer = routesFor(chosen, run.participants, run.product, run.needs)[0];
+  const offer = routesFor(chosen, run.product, run.needs)[0];
   return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
 }
 
@@ -797,7 +797,7 @@ async function checkDraft(run, draft) {
 
 function dueDiligenceMissingText(failure, run) {
   const registries = (failure.decisions ?? []).map((each) => each.registry).filter(Boolean);
-  const offered = run.participants.flatMap((participant) => routesFor(participant, run.participants, run.product, run.needs)
+  const offered = run.participants.flatMap((participant) => routesFor(participant, run.product, run.needs)
     .map((offer) => ({ participant, offer }))).find(({ offer }) => offer.available && offer.route.kind !== "tab");
   const route = offered ? ` Try ${recordRoute(offered.offer.route)} with ${offered.participant.name}.` : " Try a participant that can reach the web.";
   return `${failure.message}${registries.length ? ` Registry: ${registries.join(", ")}.` : ""}${route}`;

@@ -264,7 +264,7 @@ function createWatcher(config) {
     const cancelled = quit || failed?.name === "Cancelled";
     const usage = result ? totalUsage(result.usage) : null;
     const written = result?.written;
-    const part = { part: "end", at: new Date(), draft: tasks.has(record.id) ? null : written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage, participant), log: null };
+    const part = { part: "end", at: new Date(), draft: tasks.has(record.id) ? null : written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage), log: null };
     const unusable = result ? failedBecause(result) : null;
     if (failed || unusable) {
       Object.assign(part, { state: cancelled ? "cancelled" : "failed", results: [],
