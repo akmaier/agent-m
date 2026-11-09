@@ -195,7 +195,9 @@ IN THE REPOSITORY`).
   subject: () -> Subject, explain: (topic: string) -> Element, go: (route: string, params?: Record<string, string>) ->
   void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void }` — `tokenKey` is the key under which `store`
   keeps that product's own token, as the frame gives it. It draws the bar into
-  `target`, fixed to the bottom of the window, and keeps it for the life of the page. Where the page hands `instanceSnapshot`
+  `target`, fixed to the bottom of the window, and keeps it for the life of the page. A page puts a prompt into the bar
+  with the window's event `agent-m:prompt`, its `detail` the text: the bar takes it into its input and focuses it, and
+  sends nothing. Where the page hands `instanceSnapshot`
   and it gives the instance's default branch as the page's own load read it, the bar reads through it and asks the host for no
   commit and no tree again (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); else it reads the default branch itself. It first reads this browser's
   connections, and reads no participant list for the offer (UC-049 1): `endpointsOffered` and `sessionsOffered`, the

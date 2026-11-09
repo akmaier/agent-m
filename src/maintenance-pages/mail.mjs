@@ -294,7 +294,12 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
       if (decision.kind === "not-an-issue") { onMarked(mail.id); return; }
       onDecided(mail.id, { product: found?.address ?? null, issue: decision.kind === "create" ? issue : decision.issue });
       result.replaceChildren(decision.kind === "create" ? `Created issue #${issue} in ${which}.` : `Added to #${decision.issue} of ${which}.`);
-      if (decision.kind === "create" && decision.label === "change") result.append(" ", link(issueRoute(issue, found?.address), "issue-link", "Propose SPEC change"));
+      if (decision.kind === "create" && decision.label === "change") {
+        // Propose SPEC change puts the request into the prompt bar, for the person to send or change (UC-038 step 10, UC-049).
+        const propose = button("propose-spec-change", "Propose SPEC change", () => globalThis.dispatchEvent?.(new CustomEvent("agent-m:prompt",
+          { detail: `In ${found?.name ?? "the product"}: change the requirements as issue #${issue} asks: ${decision.title}` })));
+        result.append(" ", propose);
+      }
     } catch (failure) {
       if (failure?.name === "PersonFound") { result.textContent = `The text names the mail's people: ${(failure.hits ?? []).map((hit) => hit.value).join(", ")}. Nothing was written.`; return; }
       if (failure?.name === "TokenRefused" || failure?.name === "PermissionMissing") {

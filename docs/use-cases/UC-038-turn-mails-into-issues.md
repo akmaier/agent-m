@@ -119,8 +119,9 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    labelled `defect` or `change`, listing the mail's `MAIL-` identifier; the issue names no reporter.
 9. On **Add to #n**, Agent M adds the mail's identifier to the list in issue #n. That reporter will also
    be answered when #n is closed (UC-039).
-10. For an issue of kind *change*, the dashboard offers **Propose SPEC change** (UC-012); a *defect*
-    goes to implementation directly.
+10. For an issue of kind *change*, the dashboard offers **Propose SPEC change**: one click puts the request to change
+    the requirements as the issue asks, with its number and title, into the prompt bar, where the author sends or changes
+    it (UC-049); a *defect* goes to implementation directly.
 
 ```mermaid
 sequenceDiagram

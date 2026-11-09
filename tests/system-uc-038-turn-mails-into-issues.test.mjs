@@ -147,8 +147,8 @@ test("main flow, steps 4 to 10: one Propose per mail opened, one decision per ma
       const text = `${issue.title}\n${issue.body}`;
       for (const forbidden of ["Erika", "Mustermann", "erika@example.invalid", "Kind regards", "my thesis"]) assert.ok(!text.includes(forbidden), `${forbidden} is not in the issue`);
     }
-    assert.ok(byClass(itemOf(p.main(), B.id), "issue-link").length > 0, "a change offers the SPEC change");
-    assert.equal(byClass(itemOf(p.main(), A.id), "issue-link").length, 0, "a defect goes to implementation directly");
+    assert.ok(byClass(itemOf(p.main(), B.id), "propose-spec-change").length > 0, "a change offers the SPEC change");
+    assert.equal(byClass(itemOf(p.main(), A.id), "propose-spec-change").length, 0, "a defect goes to implementation directly");
     assert.deepEqual(graphWrites(p), [], "the mailbox saw no write");
     assert.deepEqual(clicks, ["Propose", "Propose", "Create issue defect", "Create issue change"]);
     assert.ok(!everyWrite(p).includes("Mustermann") && !everyWrite(p).includes("erika@example.invalid"), "no sender or name in any write");
