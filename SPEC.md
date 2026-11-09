@@ -551,10 +551,10 @@ runnable on the hosted-CI route; counter-proof: a job needing a compute resource
 **A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET** *(PO A. Maier)*
 A job on the server's own machines authenticates its coding agent with a key stored as a CI secret of the
 repository, which the dashboard names and whose settings page it opens, and never asks for. The runner machine the
-agent works on receives only the key of the participant the job names; no other secret of the repository reaches it.
+agent works on receives only the key of the connection the job runs on; no other secret of the repository reaches it.
 *Check:* `tests/test_runtime_levels.py` — the generated job workflow reads the key only from the named
 secret, and the part of it that runs the agent reads no other secret; counter-proof: a workflow with the key written
-into it, or one whose agent part reads `AGENT_M_TOKEN` or another participant's key, fails.
+into it, or one whose agent part reads `AGENT_M_TOKEN` or another connection's key, fails.
 
 **THE BRIDGE IS ONE FILE PER PLATFORM** *(PO A. Maier)*
 The local bridge is delivered as one file for each of Windows on x86-64, macOS and Linux — an executable,
@@ -592,7 +592,7 @@ is taken from the file.
 
 **THE BRIDGE FINDS THE INSTALLED AGENTS** *(PO A. Maier)*
 The bridge lists each supported coding-agent CLI that is installed on its machine, with its version, and
-offers as participants only those of them the person has chosen in its window.
+offers as connections only those of them the person has chosen in its window.
 *Check:* `tests/test_bridge_agents.py` — puts fixture executables of supported agents on the path and chooses some of
 them in the bridge's settings. It checks that exactly the installed ones are listed, and that only the chosen ones are
 offered.
