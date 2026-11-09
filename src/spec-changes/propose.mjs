@@ -496,14 +496,15 @@ export async function saveEntry(host, edit) {
 
 // ---------------------------------------------------------------- the writer of drafted texts (specStrategies: spec-edits)
 //
-// spec-edits(result, context) -> WriteOutcome — a draft of change-requirements as the person left it, `{ sections, proposals, groups, why }`, each text on the text the job's snapshot holds:
-// each section an entry of its queue through proposeSection, its anchor its heading line; each proposal of an open entry saved in that entry through saveEntry; a changed group file as a
-// pull request of the branch agent-m/<job>. Where the module file leaves a reading open, this file takes the one it names:
+// spec-edits(result, context) -> WriteOutcome — a draft of change-requirements as the person left it, `{ sections, proposals, places, why }`, each text on the text the job's snapshot holds:
+// each section an entry of its queue through proposeSection, its anchor its heading line, with the draft's places whose requirement the section's text names as its places; each proposal
+// of an open entry saved in that entry through saveEntry. It writes no group file and opens no pull request: acceptance writes the places (acceptEntries). Where the module file leaves a
+// reading open, this file takes the one it names:
 //   - A text that stands as it is is not written. A section whose heading line the SPEC does not hold, a path that is no open entry's proposal, a text changed meanwhile, and a text that
 //     could not be committed for want of a token are each a note, and nothing of it is written; a draft none of whose texts differs says so in its one note.
+//   - A section's text names a requirement when parseSpec reads that name among its requirements; a place whose requirement no section of the draft names is a note of its own.
 //   - The origin is queue-entries' (originText), with the issue's line where the job names an issue; the person who saves is the context's, else the job's source.
-//   - `files` names each entry's proposal and the group file.
-const GROUPS_PATH = "docs/groups/requirements.md";
+//   - `files` names each entry's proposal.
 export async function specEdits(result, context) {
   const draft = result?.draft ?? {};
   const { snapshot, host } = context.product;
@@ -517,17 +518,24 @@ export async function specEdits(result, context) {
   const origin = originText(job).replace(/\.$/, "");
   const sections = Array.isArray(draft.sections) ? draft.sections.filter((text) => typeof text === "string") : [];
   const proposals = Array.isArray(draft.proposals) ? draft.proposals.filter((each) => typeof each?.path === "string" && typeof each?.text === "string") : [];
+  const places = Array.isArray(draft.places) ? draft.places.filter((each) => typeof each?.requirement === "string" && Array.isArray(each?.place?.group))
+    .map(({ requirement, place }) => ({ requirement: folded(requirement), place: { group: place.group, new: typeof place.new === "string" && place.new.trim() ? place.new : null } })) : [];
+  const named = new Set();
   const spec = (await snapshot.read("SPEC.md")) ?? "";
   let changes = 0;
   const refused = (name, out) => (out.refused === "changed meanwhile" ? `${name} changed meanwhile; it is not written.`
     : out.refused ? `${name} is ${out.state ?? out.refused}; it is not written.` : `${name} could not be committed without a token; it is not written.`);
   for (const text of sections) {
-    const heading = parseSpec(text).sections[0]?.heading ?? text.split("\n")[0];
+    const parsed = parseSpec(text);
+    const heading = parsed.sections[0]?.heading ?? text.split("\n")[0];
+    const names = new Set(parsed.requirements.keys());
+    for (const name of names) named.add(name);
     const current = sectionText(spec, heading);
     if (current === null || current === undefined) { changes++; outcome.notes.push(`the SPEC holds no section ${heading}; it is not written.`); continue; }
     if (current === text) continue;
     changes++;
-    const out = await proposeSection(host, { ...common, target: "SPEC.md", anchor: heading, until: null, text, origin, openedBlob: await blobSha(current), ...(job.issue ? { issue: job.issue } : {}) });
+    const own = places.filter((each) => names.has(each.requirement));
+    const out = await proposeSection(host, { ...common, target: "SPEC.md", anchor: heading, until: null, text, origin, openedBlob: await blobSha(current), places: own, ...(job.issue ? { issue: job.issue } : {}) });
     if (out.commit) {
       outcome.commits.push(out.commit);
       outcome.files.push(`${out.queue}/${pad2(out.entry)}-${out.queue.split("/").pop()}.md`);
@@ -545,16 +553,10 @@ export async function specEdits(result, context) {
       outcome.files.push(path);
     } else outcome.notes.push(refused(path, out));
   }
-  if (typeof draft.groups === "string" && draft.groups !== (await snapshot.read(GROUPS_PATH))) {
+  for (const { requirement } of places) {
+    if (named.has(requirement)) continue;
     changes++;
-    const branch = `agent-m/${context.jobId ?? "conversation"}`;
-    const { commit } = await host.commitFiles({ branch, expectedHead: snapshot.commit, files: [{ path: GROUPS_PATH, text: draft.groups }],
-      message: `propose ${GROUPS_PATH}\n\n${trailers.join("\n")}` });
-    const { defaultBranch } = await host.repositoryInfo();
-    const opened = await host.openPullRequest({ branch, base: defaultBranch, title: `${context.jobId ?? "conversation"}: ${context.kind?.name ?? "change-requirements"}`, body: trailers.join("\n") });
-    outcome.commits.push(commit);
-    outcome.files.push(GROUPS_PATH);
-    outcome.pullRequest = opened.url;
+    outcome.notes.push(`no section of the draft names ${requirement}; its place is not written.`);
   }
   if (changes === 0) outcome.notes.push("the draft changes nothing; nothing is written.");
   return outcome;

@@ -1,9 +1,9 @@
 // The writer spec-edits and the recipe named-requirements of a change of requirements — MOD-spec-changes' specStrategies, as docs/architecture/MOD-spec-changes.md states them:
 // "writer `spec-edits` — writes a draft of `change-requirements` as the person left it, each text on the text the job's snapshot holds: each section as an entry of its queue with
 // `proposeSection`, its anchor the section's heading line; each proposal of an open entry in that entry with `saveEntry`; the *Why* of each the draft's `why`, the origin as `queue-entries`
-// names it for a change by prompt or from an issue, and the provenance lines as the commit's trailers. A changed `docs/groups/requirements.md` goes as a pull request of a branch
-// `agent-m/<job>`, never as a commit on the default branch. A text it does not write … is named in the outcome's notes …; a draft that changes nothing writes nothing, and its one note
-// says so"; `saveEntry`'s `trailers` "end the commit's message, as `proposeSection`'s do"; and "recipe `named-requirements` — the requirements the job's parameters name, each with its
+// names it for a change by prompt or from an issue, and the provenance lines as the commit's trailers. It writes no group file: the places stand in the entry, and its acceptance
+// writes them" — each section "with the draft's `places` whose requirement that section's text names as its `places`" —; "A text it does not write …, and a place whose requirement no
+// section of the draft names, are named in the outcome's notes …; a draft that changes nothing writes nothing, and its one note says so"; `saveEntry`'s `trailers` "end the commit's message, as `proposeSection`'s do"; and "recipe `named-requirements` — the requirements the job's parameters name, each with its
 // whole section, or, for one that an open entry proposes, with that entry's proposal under its path; each part carries its requirement as an artifact".
 // Run: node --test tests/spec-changes-spec-edits.test.mjs
 //
@@ -14,7 +14,7 @@
 // The product is a fixture this file holds in memory: a SPEC of two sections and one open entry of the queue `returning`, which proposes A LATE RETURN IS FINED. The host answers
 // repositoryInfo, readSnapshot, commitFiles and openPullRequest and records each commit and pull request. Readings this file takes: an open entry's proposal is told by its path; an
 // entry is "open" by its state `open`; a section's file written is its entry's proposal; a section the SPEC does not hold, an entry no longer open and a text changed meanwhile are each
-// one note naming the text, and nothing of it is written. Each test states its input and its expected result before it runs (given / input / expect).
+// one note naming the text, and nothing of it is written; a place whose requirement no section names is one note naming the requirement. Each test states its input and its expected result before it runs (given / input / expect).
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -86,20 +86,26 @@ test("TST-2026110905: spec-edits — a section is written as an entry of its que
 });
 
 // TST-2026110906 · level: unit · module: MOD-spec-changes
-// guards: A CI AGENT'S DRAFT ENTERS AS OPEN; UC-019 6b
-// given: a draft that changes docs/groups/requirements.md only
+// guards: A CI AGENT'S DRAFT ENTERS AS OPEN; A REGROUPING IS COMMITTED DIRECTLY; UC-019 6b
+// given: a draft whose section 1. Lending adds A LOAN IS RENEWED, with places for it — a new group "Renewals" in "1. Lending" — and for A RULE NOBODY ADDS, which no section names
 // input: the writer spec-edits
-// expect: one commit, on the branch agent-m/JOB-20261109-1000-abcd from the commit the job read, holding only the group file as drafted, its message ending with the provenance lines; a pull request of that branch into main; nothing on the default branch
-test("TST-2026110906: spec-edits — a changed group file goes as a pull request, never a commit on the default branch", async () => {
+// expect: one commit, on the default branch: the entry of the queue lending with its places file 01-lending.plaetze.md naming A LOAN IS RENEWED in "1. Lending" with the new group
+//   "Renewals", and no row for A RULE NOBODY ADDS; docs/groups/requirements.md in no commit; no branch agent-m/…, no pull request; one note naming A RULE NOBODY ADDS
+test("TST-2026110906: spec-edits — a section's places go into its entry; no group file and no pull request is written", async () => {
   const world = product();
-  const groups = "- 1. Lending\n  - A LOAN HAS A DUE DATE\n- 2. Returning\n  - A RETURN IS RECORDED\n";
-  const outcome = await write(world, { groups, why: "Returning gets a group." });
+  const renewed = `${LENDING}**A LOAN IS RENEWED** *(github.com/alice)*\nA loan can be renewed once.\n*Check:* no automatic check; at review\n\n`;
+  const outcome = await write(world, { sections: [renewed], places: [{ requirement: "A LOAN IS RENEWED", place: { group: ["1. Lending"], new: "Renewals" } },
+    { requirement: "A RULE NOBODY ADDS", place: { group: [], new: null } }], why: "Loans are renewed." });
   assert.equal(world.commits.length, 1);
-  assert.deepEqual([world.commits[0].branch, world.commits[0].expectedHead], ["agent-m/JOB-20261109-1000-abcd", "h".repeat(40)]);
-  assert.deepEqual(files(world.commits[0]), { [GROUPS]: groups });
-  assert.ok(world.commits[0].message.split("\n").includes("Agent-M-Kind: change-requirements"));
-  assert.deepEqual(world.pulls.map((pull) => [pull.branch, pull.base]), [["agent-m/JOB-20261109-1000-abcd", "main"]]);
-  assert.equal(outcome.pullRequest, "https://github.com/alice/product/pull/7");
+  assert.equal(world.commits[0].branch, "main");
+  const written = files(world.commits[0]);
+  const placesFile = written["docs/spec-freigaben/lending/01-lending.plaetze.md"];
+  assert.ok(placesFile, `the entry has its places file: ${Object.keys(written)}`);
+  assert.match(placesFile, /\| A LOAN IS RENEWED \| 1\. Lending \| Renewals \|/);
+  assert.doesNotMatch(placesFile, /A RULE NOBODY ADDS/);
+  assert.ok(!world.commits.some((commit) => commit.files.some((file) => file.path === GROUPS)), "no commit writes the group file");
+  assert.deepEqual([world.pulls, outcome.pullRequest], [[], null]);
+  assert.deepEqual(outcome.notes, ["no section of the draft names A RULE NOBODY ADDS; its place is not written."]);
 });
 
 // TST-2026110907 · level: unit · module: MOD-spec-changes

@@ -54,9 +54,9 @@ test("a drafting kind's prompt states nothing of the form its draft is checked b
 // guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
 // given: the same six prompts
 // input: whether each still names the fields of its answer
-// expect: derive-requirements names `name`, `rule`, `check` and `class`; change-requirements, whose draft is the new text of what it changes, `sections`, `proposals`, `path`, `text`, `groups` and `why`; the file kinds name `path`, `text` and `class`
+// expect: derive-requirements names `name`, `rule`, `check` and `class`; change-requirements, whose draft is the new text of what it changes, `sections`, `proposals`, `path`, `text`, `places` with `requirement`, `place`, `group` and `new`, and `why`; the file kinds name `path`, `text` and `class`
 test("a drafting kind's prompt still names the fields of its answer", async () => {
-  const fields = { "derive-requirements": ["name", "rule", "check", "class"], "change-requirements": ["sections", "proposals", "path", "text", "groups", "why"] };
+  const fields = { "derive-requirements": ["name", "rule", "check", "class"], "change-requirements": ["sections", "proposals", "path", "text", "places", "requirement", "place", "group", "new", "why"] };
   for (const name of KINDS.requirement) {
     const { prompt } = await kindOf(name);
     for (const field of fields[name]) assert.ok(prompt.includes(`\`${field}\``), `${name}: ${field}`);

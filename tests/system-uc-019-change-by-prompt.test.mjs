@@ -61,8 +61,12 @@ const FLOW_EVIDENCE = {
     evidence: [["tests/spec-changes-spec-edits.test.mjs", "TST-2026110909"], ["tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"], [RELEASE_REQUIREMENTS, "TST-418106"], [RELEASE_REQUIREMENTS, "TST-418128"]],
   },
   "main-6-new-texts": {
-    uc: "For requirements, that is the new text of each section it changes, of each open entry's proposal it changes",
-    evidence: [[DRAFT, "TST-2026110910"], [RELEASE_REQUIREMENTS, "TST-418103"], [RELEASE_REQUIREMENTS, "TST-418128"]],
+    uc: "For requirements, that is the new text of each section it changes and of each open entry's proposal it changes",
+    evidence: [[DRAFT, "TST-2026110910"], [RELEASE_REQUIREMENTS, "TST-418103"]],
+  },
+  "main-6-places-of-added-requirements": {
+    uc: "Each requirement a section adds also names its place in the requirement hierarchy",
+    evidence: [[RELEASE_REQUIREMENTS, "TST-418128"], ["tests/spec-changes-spec-edits.test.mjs", "TST-2026110906"]],
   },
   "main-6-renamed": {
     uc: "A renamed requirement stands under its new name.",
@@ -72,12 +76,12 @@ const FLOW_EVIDENCE = {
     uc: "does not name github.com/akmaier among its sources [THE PERSON WHO PROMPTS IS A SOURCE]",
     evidence: [[RELEASE_REQUIREMENTS, "TST-418129"]],
   },
-  "main-9-entries-and-group-file": {
-    uc: "each changed section is written as an entry of its queue, each changed proposal is saved in its entry (UC-018 1a), and a changed `docs/groups/requirements.md` is committed as an arrangement is (UC-021)",
+  "main-9-entries-with-places": {
+    uc: "each changed section is written as an entry of its queue, with the places of its new requirements beside it (UC-005, step 8), and each changed proposal is saved in its entry (UC-018 1a); the SPEC and `docs/groups/requirements.md` stay unchanged",
     evidence: [[DRAFT, "TST-2026110911"], [RELEASE_REQUIREMENTS, "TST-418128"]],
   },
-  "6b-group-file-as-pull-request": {
-    uc: "a changed `docs/groups/requirements.md` as a pull request",
+  "6b-entries-with-places-no-group-file": {
+    uc: "each changed section as an entry of its queue with its places and each changed proposal in its entry; `SPEC.md` and `docs/groups/requirements.md` are not touched",
     evidence: [["tests/spec-changes-spec-edits.test.mjs", "TST-2026110906"]],
   },
   "main-5-send": {
