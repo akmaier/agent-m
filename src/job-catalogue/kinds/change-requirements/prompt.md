@@ -5,11 +5,14 @@ Return the new text of everything you change, each whole, as the person would wr
 - `sections`: each SPEC section you change, from its heading line, unchanged, to its end;
 - `proposals`: each open entry's proposal you change, as `path` — the path it is given under below — and its whole new `text`; a requirement an
   open entry proposes is changed there;
-- `groups`: the whole new text of `docs/groups/requirements.md`, only where you move a requirement or name a group;
+- `places`: for each requirement a section of yours adds, its `place` in the requirement hierarchy below, as `requirement` — its
+  name — and `place`: `group`, the titles of a group the hierarchy holds from the top, `[]` for the top level, and `new`, the
+  title of a new group standing in `group`, or `null`;
 - `why`: one or two sentences of why.
 
 A renamed requirement stands under its new name. Each requirement you add or change names the person's account among its sources.
-Change nothing the instruction does not ask for, and leave out every text you do not change.
+Change nothing the instruction does not ask for, and leave out every text you do not change. A requirement you do not add keeps
+its place: moving it to another group is a regrouping, which is not yours to draft — `propose-groups` drafts it.
 
 ## The person's instruction
 
@@ -35,7 +38,7 @@ Where an issue is given, change the requirements as it asks and nothing else.
 
 {{named-requirements}}
 
-## The requirement hierarchy: the groups of `docs/groups/requirements.md`
+## The requirement hierarchy: the groups of `docs/groups/requirements.md`, where a place names one
 
 Where none is given, every requirement stands at the top level.
 

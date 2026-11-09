@@ -17,7 +17,6 @@ realises:
   - EVERY ARTIFACT HAS AN IDENTIFIER
   - ARTIFACTS ARE ARRANGED IN NESTED GROUPS
   - AN ITEM HAS ONE PLACE IN ITS HIERARCHY
-  - A REGROUPING IS COMMITTED DIRECTLY
   - A SPEC EDIT IS SAVED AS A PROPOSAL
   - A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
   - A REFUSED SAVE KEEPS THE EDIT
@@ -83,11 +82,14 @@ same Markdown the author does.
 5. The author presses **Send** — that click is the decision to send.
 6. Agent M sends the instruction and the context with the change prompt from the repository's single
    definition. The drafter returns the changed text. For requirements, that is the new text of each section it
-   changes, of each open entry's proposal it changes — a requirement an open entry proposes is changed there —, and of
-   `docs/groups/requirements.md` where it moves a requirement or names a group, as the author would write them in the
-   editor of UC-018, with one or two sentences of why. A renamed requirement stands under its new name. Each
-   requirement it adds or changes names among its sources the author's account `<server>/<account>` —
-   `github.com/akmaier` —, which needs no register entry (UC-004) and no link (UC-015).
+   changes and of each open entry's proposal it changes — a requirement an open entry proposes is changed there —, as
+   the author would write them in the editor of UC-018, with one or two sentences of why. A renamed requirement stands
+   under its new name. Each requirement it adds or changes names among its sources the author's account
+   `<server>/<account>` — `github.com/akmaier` —, which needs no register entry (UC-004) and no link (UC-015). Each
+   requirement a section adds also names its place in the requirement hierarchy — a group the hierarchy holds, or a new
+   group with the group it stands in —, as in UC-005, step 5; every other requirement keeps its place. Moving a
+   requirement to another group is no change of the SPEC: it is a regrouping (UC-021), whose moves *Propose groups*
+   drafts (UC-021 1b).
 7. **The correction loop.** Before showing anything, Agent M checks the draft without a model and
    sends every finding back to the drafter, which returns a corrected draft; this repeats until the
    draft passes, or until the limit of rounds fixed before the first round and named in the conversation (default 5), or until a round
@@ -107,12 +109,13 @@ same Markdown the author does.
    the entry withdraws the old name and adds the new one when it is accepted (`A RENAMED REQUIREMENT IS WITHDRAWN AND
    ADDED`).
 8. The dashboard opens the editor of UC-018 with the draft, each file showing its difference against the
-   current text line by line. The author edits freely, or writes a follow-up instruction in the prompt bar,
+   current text line by line, and each requirement a section adds with its place, which the author changes by a
+   follow-up instruction or at acceptance (UC-006 3c). The author edits freely, or writes a follow-up instruction in the prompt bar,
    which repeats steps 5–7 on the current draft.
 9. The author presses **Save** — one click — and UC-018 continues at step 5: the use case is
-   committed as open; each changed section is written as an entry of its queue, each changed proposal is saved in its
-   entry (UC-018 1a), and a changed `docs/groups/requirements.md` is committed as an arrangement is (UC-021); the SPEC
-   stays unchanged. The commit, or the
+   committed as open; each changed section is written as an entry of its queue, with the places of its new
+   requirements beside it (UC-005, step 8), and each changed proposal is saved in its entry (UC-018 1a); the SPEC and
+   `docs/groups/requirements.md` stay unchanged. The commit, or the
    queue entry, records the drafter, the model, the Agent M version, the date, and how many
    correction rounds the draft needed — never the instruction, which is a message of the conversation and is kept only
    in its conversation record when the instance records conversations (UC-049, 6c).
@@ -126,14 +129,14 @@ sequenceDiagram
     A->>D: instruction in the prompt bar, Send
     D->>G: read target, related requirements, their groups, and use cases
     D->>P: instruction, context, change prompt
-    P-->>D: changed text
+    P-->>D: changed text, places of added requirements
     D->>D: requirement form, identifiers, realised names
     D-->>A: difference against current text in the editor
     A->>D: edit or follow-up instruction, then Save
     alt use case
         D->>G: commit file (open)
     else requirements
-        D->>G: commit queue entries or the open entry, and the group file, SPEC untouched
+        D->>G: commit queue entries with places, or the open entry, SPEC and groups untouched
     end
 ```
 
@@ -147,12 +150,12 @@ sequenceDiagram
 - **6a. The drafter is a CLI session** (UC-011). The request goes through the local
   bridge; the agent returns the draft to the dashboard and the flow continues at step 7.
 - **6b. The work is handed to GitHub Actions** (UC-049, 4a). The workflow runs the correction loop of step 7 from
-  the same definition, then writes the draft — a use case as open, each changed section as an entry of its queue and
-  each changed proposal in its entry, on the default branch, and a changed `docs/groups/requirements.md` as a pull
-  request; `SPEC.md` is not touched. The
+  the same definition, then writes the draft on the default branch — a use case as open, each changed section as an
+  entry of its queue with its places and each changed proposal in its entry; `SPEC.md` and `docs/groups/requirements.md`
+  are not touched. The
   commit records what step 9 records, and its job record names no message of the conversation. Instead of step 8, the author reviews it on the dashboard: a use
   case in UC-008, shown against its last accepted text (UC-008, 2a); a queue entry in UC-006, beside the
-  current SPEC section. Nothing counts before it is accepted.
+  current SPEC section, where each new requirement's place is decided. Nothing counts before it is accepted.
 - **6c. The drafter returns nothing usable** — no text, the unchanged text, or text that cannot
   be read as the artifact. That is a finding of the correction loop (step 7) like any other; if it is
   still so after the last round, the dashboard says which, shows the raw answer folded, and writes
@@ -175,8 +178,8 @@ sequenceDiagram
 ## Postcondition
 
 - Only what the author saved — or, through a CI agent, what its workflow committed for review (6b) —
-  was written: a use case as open, a queue entry beside the current SPEC section, or the requirement hierarchy as
-  arranged; the SPEC itself is unchanged.
+  was written: a use case as open, or a queue entry beside the current SPEC section; the SPEC itself and the
+  requirement hierarchy are unchanged.
 - What an entry renames, withdraws or adds follows from its text against the section it replaces, when it is accepted
   (UC-006).
 - The record of the change names the drafter and the model that drafted it, and no message of the conversation.

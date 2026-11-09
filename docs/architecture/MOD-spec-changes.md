@@ -15,8 +15,6 @@ uses:
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.commitFiles
-  - MOD-repository-hosts.repositoryInfo
-  - MOD-repository-hosts.openPullRequest
   - MOD-documents.Schema
   - MOD-documents.Document
   - MOD-documents.loadSchema
@@ -322,11 +320,13 @@ entry of another queue that is not in SPEC creates it.
     issue as its origin beside the source, and in its line `**Issue:**`, with the product's address.
   - writer `spec-edits` — writes a draft of `change-requirements` as the person left it, each text on the text the
     job's snapshot holds: each section as an entry of its queue with `proposeSection`, its anchor the section's heading
-    line; each proposal of an open entry in that entry with `saveEntry`; the *Why* of each the draft's `why`, the origin
-    as `queue-entries` names it for a change by prompt or from an issue, and the provenance lines as the commit's
-    trailers. A changed `docs/groups/requirements.md` goes as a pull request of a branch `agent-m/<job>`, never as a
-    commit on the default branch (`A CI AGENT'S DRAFT ENTERS AS OPEN`). A text it does not write — a section whose
-    heading the SPEC does not hold, an entry that is no longer open, a text changed meanwhile — is named in the
+    line, with the draft's `places` whose requirement that section's text names as its `places`; each proposal of an
+    open entry in that entry with `saveEntry`; the *Why* of each the draft's `why`, the origin as `queue-entries` names it
+    for a change by prompt or from an issue, and the provenance lines as the commit's trailers. It writes no group file:
+    the places stand in the entry, and its acceptance writes them (`acceptEntries`); moving a requirement to another group
+    is a regrouping, the person's own input (`A REGROUPING IS COMMITTED DIRECTLY`), which `propose-groups` drafts
+    (UC-021 1b). A text it does not write — a section whose heading the SPEC does not hold, an entry that is no longer
+    open, a text changed meanwhile —, and a place whose requirement no section of the draft names, are named in the
     outcome's notes, as `queue-entries` names what it does not write; a draft that changes nothing writes nothing, and
     its one note says so.
 
@@ -338,8 +338,7 @@ entry of another queue that is not in SPEC creates it.
   `docs/approvals/spec-*.md`, the target of each queue (`SPEC.md`), `docs/groups/requirements.md`, and every artifact the
   trace graph needs for an impact list.
 - Writes, in one commit each time: a new entry with its rationale, its places file where it proposes a place, and its
-  index row, in a new queue folder where its section has none; for `spec-edits`, also a branch `agent-m/<job>` with the
-  group file and its pull request; on acceptance,
+  index row, in a new queue folder where its section has none; on acceptance,
   `docs/approvals/spec-<queue>-<NN>-<blob12>.md`, the target's section, `docs/groups/requirements.md` where a place
   applies, and a row of `entscheidungen.md`; on a rejection, through MOD-approvals' `commitRejection`, the entry's
   proposal, rationale and places file deleted and its index row removed, or, for the queue's last entry, every file of
@@ -351,8 +350,7 @@ entry of another queue that is not in SPEC creates it.
   one commit of a rejection, or GitHub's pages for it without a token.
 - MOD-artifact-edits.fallbackEditLinks — GitHub's pages for the files of an entry without a token.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory, commitFiles — reading queues and the head, the history
-  of a requirement, and the one commit of a proposal or an acceptance; MOD-repository-hosts.repositoryInfo,
-  openPullRequest — the branch and pull request of a changed group file in `spec-edits`;
+  of a requirement, and the one commit of a proposal or an acceptance;
   MOD-repository-hosts.readFileAt — `SPEC.md` at every commit that changed it, for the history of a requirement, in
   batches.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, readRegister, appendSection — the queue's files

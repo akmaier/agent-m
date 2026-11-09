@@ -25,8 +25,37 @@
         ]
       }
     },
-    "groups": {
-      "type": "string"
+    "places": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "requirement": {
+            "type": "string"
+          },
+          "place": {
+            "type": "object",
+            "properties": {
+              "group": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "new": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "group"
+            ]
+          }
+        },
+        "required": [
+          "requirement",
+          "place"
+        ]
+      }
     },
     "why": {
       "type": "string"

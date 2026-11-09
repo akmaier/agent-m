@@ -129,7 +129,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
   current text.
 - `file-drafts.mjs` — drafted files in editors as their difference, saved together in one commit.
 - `requirements-draft.mjs` — a draft of requirements: each text it changes against the text it replaces, saved as
-  entries of their sections' queues, in their open entries and as an arrangement.
+  entries of their sections' queues, with the places of the requirements they add, and in their open entries.
 - `candidates.mjs` — the candidates of a draft of requirements as the author reviews them, with their classes.
 - `file-edit.mjs`, `edit.mjs`, `entry-edit.mjs` — the editors of a reviewed file, of a requirement, and of an open SPEC
   entry in place.
@@ -260,12 +260,13 @@ ReviewKind = {
     the person came from, shown against the current text before anything can be saved (`A DRAFTED CHANGE IS SHOWN AGAINST
     THE CURRENT TEXT`) — files each in the editor as their difference, a use case with a changed identifier the loop left
     restored first with `keptIdentifier` (UC-019 7a); requirements as each text the draft changes — a SPEC section, an
-    open entry's proposal, `docs/groups/requirements.md` — in the editor as its difference against the text it
-    replaces, with the draft's `why` in the *Why* field of UC-018 step 4; an architecture file with its rounds, the due diligence and
+    open entry's proposal — in the editor as its difference against the text it replaces, with the draft's `why` in the
+    *Why* field of UC-018 step 4, and beside a section each requirement it adds with the place the draft's `places`
+    gives it, which this route does not change — a follow-up instruction or the acceptance does (UC-006 3c); an architecture file with its rounds, the due diligence and
     the impact list of a change, as the descriptor's sections show them —, with the rounds and the findings the loop
     left. *Save* saves the draft as an edit of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b),
-    each section with `proposeSection` as an entry of its queue, each proposal of an open entry with `saveEntry`, the
-    group file with `saveFile` (UC-019 step 9) —, only on the text the job
+    each section with `proposeSection` as an entry of its queue, with the places of the requirements its text names,
+    each proposal of an open entry with `saveEntry` (UC-019 step 9) —, only on the text the job
     read, with GitHub's pages without a token, and with the job's provenance lines, which name no message of the
     conversation (UC-019 step 9, 9a); *Discard* drops the draft. A further change is asked for in the prompt bar: the subject carries
     the draft as it stands as `draft`, the conversation hands the change on to the draft's kind with it (UC-049 4a.1),

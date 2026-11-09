@@ -91,7 +91,7 @@ Agent M prepares no job of the kind.
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
 | `derive-requirements` | UC-005 | draft text | | `instruction?`, `source-excerpt`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class, and, for a new one, its place |
-| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form` | | | `person` · `spec-edits` | the texts it changes, each whole, as a person writes them in the editor: each SPEC section, each open entry's proposal, and `docs/groups/requirements.md`, with why |
+| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form` | | | `person` · `spec-edits` | the texts it changes, each whole, as a person writes them in the editor: each SPEC section and each open entry's proposal, with why, and the place of each requirement a section adds |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `instruction?`, `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
 | `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `draft?`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `instruction?`, `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
@@ -158,8 +158,11 @@ the cases it was handed, each with its counter-proof.
 A candidate of `derive-requirements` classed `new` names its place in the requirement hierarchy
 the recipe `requirement-hierarchy` shows, as `place`, a MOD-group-document `Place`: `group`, the path of titles of a
 group the hierarchy holds from the top, `[]` for the top level, and `new`, the title of a new group standing in `group`,
-or `null`; their prompts ask for it, and for no place on a candidate of another class, which keeps the place of the
-requirement it refers to (UC-005 step 5).
+or `null`; its prompt asks for it, and for no place on a candidate of another class, which keeps the place of the
+requirement it refers to (UC-005 step 5). A draft of `change-requirements` names in its `places` the place, in the same
+form, of each requirement one of its sections adds, as `{ requirement, place }`, and none of a requirement it does not
+add, which keeps its place (UC-019 step 6): moving a requirement to another group is a regrouping, the person's own
+input (`A REGROUPING IS COMMITTED DIRECTLY`), whose moves `propose-groups` drafts for the person to save (UC-021 1b).
 
 For `derive-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the
