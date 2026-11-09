@@ -147,7 +147,7 @@ for (const step of input.steps) {
     radio.dispatchEvent(new Event("change"));
     await waitFor(() => byClass(change, "run-panel").length > 0 || byClass(change, "issue-problem").length > 0);
     await trusted(buttonsOf(one(change, "run-panel"), "Run")[0]);
-    await waitFor(() => byClass(change, "changed-text").length > 0 || byClass(change, "issue-problem").length > 0);
+    await waitFor(() => byClass(change, "save-change").length > 0 || byClass(change, "issue-problem").length > 0);
     await trusted(buttonsOf(change, "Save")[0]);
     await waitFor(() => byClass(change, "change-saved").length > 0 || byClass(change, "issue-problem").length > 0);
     if (byClass(change, "issue-problem").length) throw new Error("the change could not be drafted: " + textOf(change));

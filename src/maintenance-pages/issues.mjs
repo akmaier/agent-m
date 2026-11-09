@@ -13,9 +13,9 @@
 //   - The decision's buttons are "Bug", "Change" and "Not reproducible" before a proposal and "Confirm <class>" for the class proposed and "Correct to <class>" for another after it; a click is the person's or does nothing. A class needs no analysis first.
 //     "Reject issue" is disabled while the reason is blank. After a rejection the issue is closed, and the page offers neither analysis nor decision. A failure names itself, nothing is half done, and the controls stay.
 //   - The change (ITM-584): a section "Change" is shown for an issue whose class is change — by its label, or by the person's click on Change —, built as the analysis is (`runSection`) over the kind `change-requirements`, whose parameters are `issue` and `source`, the
-//     latter the person's account, which MOD-source-register's `personAccount` gives for the instance's snapshot; where it gives none the precondition `person-source` blocks the run panel, which names what it requires. Each text the draft changes — a SPEC
-//     section, an open entry's proposal, docs/groups/requirements.md — is <section class="changed-text"> with its difference against the text it replaces in the snapshot the job read, the draft's why below them. Save, the person's click, writes the draft
-//     with the kind's writer through `writeResult`, on the default branch as it stands then, and lists what it wrote and its notes.
+//     latter the person's account, which MOD-source-register's `personAccount` gives for the instance's snapshot; where it gives none the precondition `person-source` blocks the run panel, which names what it requires. Save, the person's click, writes the draft
+//     with the kind's writer through `writeResult` (spec-edits), on the default branch as it stands then, as entries under docs/spec-freigaben/ naming the issue; it lists each entry written, linked to its page
+//     #spec-entry/id=spec-<queue>-<NN>, where the author accepts it (UC-006), and the writer's notes. The page shows no comparison of its own.
 //   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue whose class is bug or change — by its label, or by the person's click on a class —, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
 //     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, which hands over its list-valued keys as lists. The form holds a provisional identifier,
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
@@ -54,8 +54,6 @@ import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { recordRoute } from "../prompt-bar/hand-over.mjs";
 import { runPanel, schemaForm } from "../site-frame/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
-import { parseSpec, sectionText } from "../spec-document/index.mjs";
-import { showDifference } from "../markdown-render/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { backlogFindings } from "../work-plans/index.mjs";
 import { button, connectionsOf, el, failed, fold } from "./mail.mjs";
@@ -197,21 +195,22 @@ function analysisSection({ context, product, issue, onProposal }) {
 }
 
 // The change of requirements the issue asks for (UC-012 step 6): the job of `change-requirements` given the issue's number and, as its `source`, the person's account, which personAccount gives for the
-// instance's snapshot, run attended; each text it changes against the text it replaces, and Save, which writes them through the kind's writer, naming the issue. Where personAccount gives
-// no account the precondition `person-source` keeps the job from starting, and the run panel names what it requires.
-const GROUPS = "docs/groups/requirements.md";
-async function changedTexts(draft, snapshot) {
-  const spec = (await snapshot.read("SPEC.md")) ?? "";
-  const shown = [];
-  for (const text of Array.isArray(draft?.sections) ? draft.sections.filter((each) => typeof each === "string") : []) {
-    const heading = parseSpec(text).sections[0]?.heading ?? text.split("\n")[0];
-    shown.push({ title: heading, text, current: sectionText(spec, heading) ?? "" });
+// instance's snapshot, run attended; Save writes the drafted texts through the kind's writer as entries under docs/spec-freigaben/ naming the issue, each linked to its page, where the author
+// accepts it (UC-006): the issue page shows no comparison of its own. Where personAccount gives no account the precondition `person-source` keeps the job from starting, and the run panel names what it requires.
+// An entry's file, docs/spec-freigaben/<queue>/<NN>-<name>.md, is the entry spec-<queue>-<NN> of the route spec-entry; any other file written (the group file) is named as it is.
+const ENTRY_FILE = /^docs\/spec-freigaben\/([^/]+)\/(\d{2})-[^/]*\.md$/;
+function writtenItem(path, product, pullRequest) {
+  const entry = ENTRY_FILE.exec(path);
+  if (entry === null) {
+    if (!pullRequest) return el("li", "change-file", path);
+    const where = el("a", "change-pull-request", path);
+    where.setAttribute("href", pullRequest);
+    return el("li", "change-file", where);
   }
-  for (const { path, text } of Array.isArray(draft?.proposals) ? draft.proposals.filter((each) => typeof each?.path === "string" && typeof each?.text === "string") : []) {
-    shown.push({ title: path, text, current: (await snapshot.read(path)) ?? "" });
-  }
-  if (typeof draft?.groups === "string") shown.push({ title: GROUPS, text: draft.groups, current: (await snapshot.read(GROUPS)) ?? "" });
-  return shown;
+  const id = `spec-${entry[1]}-${entry[2]}`;
+  const anchor = el("a", "change-entry", id);
+  anchor.setAttribute("href", `#spec-entry/id=${encodeURIComponent(id)}/product=${encodeURIComponent(product.address)}`);
+  return el("li", "change-file", anchor);
 }
 
 function changeSection({ context, product, issue }) {
@@ -219,8 +218,6 @@ function changeSection({ context, product, issue }) {
     names: { section: "issue-change", participant: "change-participant", person: "change-person" },
     paramsOf: async (instanceSnapshot) => { const source = personAccount(instanceSnapshot); return source === null ? {} : { source }; },
     onResult: async (outcome, { stage, result, prepared, jobContext }) => {
-      const texts = await changedTexts(outcome.draft, jobContext.product.snapshot);
-      const items = texts.map((item) => el("section", "changed-text", el("h4", null, item.title), showDifference(item.current, item.text)));
       const saved = el("div", "change-result");
       const save = button("save-change", "Save", async () => {
         save.disabled = true;
@@ -228,7 +225,9 @@ function changeSection({ context, product, issue }) {
         try {
           const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
           const written = await writeResult(prepared, outcome.draft, { result: outcome, context: { ...jobContext, product: { ...jobContext.product, snapshot: head } } });
-          saved.append(el("p", "change-saved", written.files?.length ? `Saved: ${written.files.join(", ")}` : "Nothing changed."),
+          const files = written.files ?? [];
+          saved.append(el("p", "change-saved", files.length ? "Saved; accept each entry on its page:" : "Nothing changed."),
+            ...(files.length ? [el("ul", "change-written", ...files.map((path) => writtenItem(path, product, written.pullRequest)))] : []),
             ...(written.notes?.length ? [el("ul", "change-notes", ...written.notes.map((note) => el("li", "note", note)))] : []));
         } catch (problem) {
           save.disabled = false;
@@ -236,7 +235,7 @@ function changeSection({ context, product, issue }) {
         }
       });
       stage.replaceChildren(el("p", "issue-drafted", `Drafted by ${prepared.drafter.name}; rounds: ${outcome.rounds?.length ?? 0}.`),
-        ...items, el("p", "change-why", `Why: ${outcome.draft?.why ?? ""}`), el("p", "actions", save), saved);
+        el("p", "actions", save), saved);
       result.replaceChildren();
     } });
 }
