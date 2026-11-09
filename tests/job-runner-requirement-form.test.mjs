@@ -170,6 +170,22 @@ test("TST-2026110903: requirement-form — a renamed requirement is judged as ad
   assert.deepEqual(await formOf({ sections: [renamed.replace("*(PO)*", "*(PO; github.com/alice)*")], why: "logged" }), []);
 });
 
+// TST-2026110908 · level: unit · module: MOD-job-runner
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-019
+// given: the SPEC's section 1. Lending with A LOAN HAS A DUE DATE and A LOAN IS RECORDED; a drafted section 1. Lending that holds only a new requirement A LOAN IS EXTENDED with the account — the requirements of the section it replaces left out —; then the same draft naming A LOAN HAS A DUE DATE and A LOAN IS RECORDED under `withdraw`; then the whole section with the new requirement added
+// input: requirement-form on each draft, for a job whose source is github.com/alice
+// expect: the first gives one error per requirement left out, on A LOAN HAS A DUE DATE and A LOAN IS RECORDED, under A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT, whose fix asks for the section whole or the requirement under `withdraw`; the second and the third give none. Counter-proof: on the check as it stood, the first gave no finding, and the section's writer withdrew both (akmaier/AlienInvasion, entry 04 of the queue requirements, which withdrew seventeen requirements).
+test("TST-2026110908: requirement-form — a drafted section that leaves out a requirement of the section it replaces goes back, unless the draft withdraws it", async () => {
+  const added = "**A LOAN IS EXTENDED** *(github.com/alice)*\nA loan is extended once.\n*Check:* no automatic check; at review\n";
+  const partial = `## 1. Lending\n\n${added}`;
+  const found = await formOf({ sections: [partial], why: "extensions" });
+  assert.deepEqual(brief(found), [["A LOAN HAS A DUE DATE", "error", "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT"], ["A LOAN IS RECORDED", "error", "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT"]]);
+  assert.match(found[0].fix, /withdraw/);
+  found.forEach(sayItInOneLine);
+  assert.deepEqual(await formOf({ sections: [partial], withdraw: ["A LOAN HAS A DUE DATE", "A LOAN IS RECORDED"], why: "extensions" }), []);
+  assert.deepEqual(brief(await formOf({ sections: [`${LENDING}${added}`], why: "extensions" })).filter(([, , rule]) => rule === "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT"), []);
+});
+
 // TST-2026110904 · level: unit · module: MOD-job-runner
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-019
 // given: the open entry's proposal at docs/spec-freigaben/returning/01-returning.md, which adds A LATE RETURN IS FINED with the account; a drafted proposal that changes the fine's rule and keeps the account, and one that adds A LOST BOOK IS PAID without it

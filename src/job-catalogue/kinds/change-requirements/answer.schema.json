@@ -7,6 +7,12 @@
         "type": "string"
       }
     },
+    "withdraw": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "proposals": {
       "type": "array",
       "items": {

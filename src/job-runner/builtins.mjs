@@ -143,6 +143,17 @@ function textFindings(text, before, source) {
       what: `"${each.name}" does not name ${source} among its sources`, fix: `add the account ${source} to its source` }))];
 }
 
+// The requirements of the section a drafted section replaces that the draft leaves out, each an error that goes back: a section is returned whole, and a requirement
+// is withdrawn only where the draft names it under `withdraw`. A rename — an added requirement with the rule of the one left out — is no leaving out.
+function leftOut(text, before, withdraw) {
+  const was = parseSpec(before).requirements, is = parseSpec(text).requirements;
+  const { withdrawn, added } = renamedRequirements(before, text);
+  const renamed = (name) => added.some((each) => is.get(each)?.rule === was.get(name)?.rule);
+  return withdrawn.filter((name) => !withdraw.has(name) && !renamed(name)).map((name) => finding({ artifact: name, line: was.get(name)?.line ?? 1, kind: "error", rule: GOES_BACK,
+    what: `the section leaves out ${name}, which the section it replaces holds`,
+    fix: `return the section whole, with ${name} as it stands, or name ${name} under \`withdraw\` where the change withdraws it` }));
+}
+
 // The rule a refused task cites: no requirement of the SPEC states it, so it is UC-049 4a's wording — the hand-over names the task in its words, and the job
 // starts with the task as its input.
 const TASK_RULE = "THE HAND-OVER NAMES THE TASK IN ITS WORDS";
@@ -197,9 +208,11 @@ export const builtins = {
       if (sections.length === 0 && proposals.length === 0) return found;
       const { snapshot } = context.product;
       const spec = (await snapshot.read("SPEC.md")) ?? "";
+      const withdraw = new Set((Array.isArray(draft?.withdraw) ? draft.withdraw : []).map(folded));
       for (const text of sections) {
         const heading = parseSpec(text).sections[0]?.heading;
-        found.push(...textFindings(text, (heading && sectionText(spec, heading)) ?? "", source));
+        const before = (heading && sectionText(spec, heading)) ?? "";
+        found.push(...textFindings(text, before, source), ...leftOut(text, before, withdraw));
       }
       for (const { path, text } of proposals) found.push(...textFindings(text, (await snapshot.read(path)) ?? "", source));
       return found;

@@ -2,7 +2,9 @@ You change requirements of a product as the person's instruction says.
 
 Return the new text of everything you change, each whole, as the person would write it in the editor:
 
-- `sections`: each SPEC section you change, from its heading line, unchanged, to its end;
+- `sections`: each SPEC section you change, from its heading line, unchanged, to its end, whole — every requirement of the
+  section you do not change stands in it as it is;
+- `withdraw`: the names of the requirements your change removes from a section, and only those;
 - `proposals`: each open entry's proposal you change, as `path` — the path it is given under below — and its whole new `text`; a requirement an
   open entry proposes is changed there;
 - `places`: for each requirement a section of yours adds, its `place` in the requirement hierarchy below, as `requirement` — its
