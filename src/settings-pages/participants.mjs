@@ -141,14 +141,17 @@ async function productUseBasis(context, opened) {
   return basis;
 }
 
-// The products and roles that hold the participant, with the findings of their assignments that name it under the changed register (UC-017 4a).
-function productUseOf(products, participantName, register, connections, sources) {
+// The products and roles that hold the participant, with the findings of their assignments under the changed register that name it or that the change makes —
+// an agent in a role that needs a person (UC-017 4a). `opened` is the register as it was read.
+function productUseOf(products, participantName, opened, register, connections, sources) {
   return products.map(({ web, workflow, assignments }) => {
     const roles = assignments.flatMap((assignment) => rolesNaming(assignment, participantName));
     if (!roles.length) return null;
     const usedPaths = new Set(roles.map((role) => role.path));
+    const said = (found) => `${found.artifact} ${found.line} ${found.what}`;
+    const before = new Set(roleAssignmentFindings(assignments, workflow, participantDocument(opened), connections, sources).map(said));
     const findings = roleAssignmentFindings(assignments, workflow, participantDocument(register), connections, sources)
-      .filter((found) => usedPaths.has(found.artifact) && text(found.what).includes(participantName));
+      .filter((found) => usedPaths.has(found.artifact) && (text(found.what).includes(participantName) || !before.has(said(found))));
     return { web, roles, findings };
   }).filter(Boolean);
 }
@@ -233,7 +236,7 @@ export const route = {
         const { register, problems } = drafted();
         findings.replaceChildren(...problems.map((each) => el("li", "warn", each)));
         save.disabled = problems.length > 0 || !state.type;
-        if (editing) useBox.replaceChildren(...productUseView(productUseOf(await productUse, editing, register, connections, opened.sources)));
+        if (editing) useBox.replaceChildren(...productUseView(productUseOf(await productUse, editing, opened.register, register, connections, opened.sources)));
       }
 
       async function commit() {

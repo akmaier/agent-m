@@ -22,8 +22,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { newJobId, startRecord, jobState, listJobs, recordsNewestFirst, jobCost } from "../src/job-ledger/index.mjs";
-import { readRegister } from "../src/documents/index.mjs";
-import { participantSchema, participantsOf } from "../src/participant-list/index.mjs";
 
 // ---------------------------------------------------------------- fixtures
 
@@ -181,7 +179,7 @@ at: 2026-10-02 09:00 UTC
 state: done
 results: docs/jobs/JOB-20261002-0821-d1d1.md, docs/jobs/JOB-20261002-0822-d2d2.md
 usage: {"inputTokens":1000,"outputTokens":200,"minutes":12,"cost":null}
-cost: {"known":true,"amount":3.4,"currency":"USD","basis":"usage at the declared price"}
+cost: {"known":true,"amount":3.4,"currency":"USD","basis":"reported"}
 `;
 
 // TST-472298 · level: unit · module: MOD-job-ledger
@@ -215,7 +213,7 @@ test("listJobs — a record with each kind of part appended, read", async () => 
   assert.equal(record.end.state, "done");
   assert.deepEqual(record.end.results, ["docs/jobs/JOB-20261002-0821-d1d1.md", "docs/jobs/JOB-20261002-0822-d2d2.md"]);
   assert.deepEqual(record.end.usage, { inputTokens: 1000, outputTokens: 200, minutes: 12, cost: null });
-  assert.deepEqual(record.end.cost, { known: true, amount: 3.4, currency: "USD", basis: "usage at the declared price" });
+  assert.deepEqual(record.end.cost, { known: true, amount: 3.4, currency: "USD", basis: "reported" });
   assert.equal(record.end.draft, null, "no fenced json block stands in this End");
   assert.equal(record.end.reason, null, "no reason stands in this End (not failed or cancelled)");
   assert.equal(record.end.log, null, "no log stands in this End");
@@ -501,33 +499,15 @@ state: done
 
 // TST-472303 · level: unit · module: MOD-job-ledger
 // guards: NO COST IS GUESSED; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: usage with a reported cost; usage with tokens and no reported cost, and a participant read from a register row whose Price is `3 / 15 USD per million tokens` (as participantsOf reads it); no usage and no price
-// input: jobCost(usage, participant)
-// expect: the reported cost, basis "reported"; 1000 input and 200 output tokens at 3 / 15 per million: 0.006 USD, basis "usage at the declared price"; otherwise known false with the usage given — never a zero amount
-test("jobCost — the cost as reported, at the declared price per million tokens, or unknown, never zero", () => {
-  const row = (price) => participantsOf(readRegister(participantSchema(), "docs/participants.md", [
-    "# Participants of this instance", "", "**REGISTER**", "", "The people and agents who work on the products of this instance, one row per participant.", "",
-    "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
-    "|---|---|---|---|---|---|---|---|",
-    `| summariser | model endpoint | gpt-5 | 100000 | ${price} | draft text | this machine | endpoint summariser |`, ""].join("\n")).document)[0];
-  const priced = row("3 / 15 USD per million tokens");
-  const unpriced = row("—");
-  assert.deepEqual(priced.price, { input: 3, output: 15, currency: "USD" });
-  assert.equal(unpriced.price, null);
-
+// given: usage with a reported cost; usage with tokens and no reported cost; no usage
+// input: jobCost(usage)
+// expect: the reported cost, basis "reported"; otherwise known false with the usage given — never a zero amount, never an estimate from the tokens
+test("jobCost — the cost as reported, or unknown with the usage, never zero", () => {
   const reported = { inputTokens: 100, outputTokens: 50, minutes: null, cost: { amount: 1.23, currency: "USD" } };
-  assert.deepEqual(jobCost(reported, priced), { known: true, amount: 1.23, currency: "USD", basis: "reported" });
-
+  assert.deepEqual(jobCost(reported), { known: true, amount: 1.23, currency: "USD", basis: "reported" });
   const usage = { inputTokens: 1000, outputTokens: 200, minutes: 5, cost: null };
-  const cost = jobCost(usage, priced);
-  assert.equal(cost.known, true);
-  assert.equal(cost.basis, "usage at the declared price");
-  assert.equal(cost.currency, "USD");
-  assert.ok(Math.abs(cost.amount - 0.006) < 1e-12, `1000 x 3 / 1e6 + 200 x 15 / 1e6 = 0.006 USD, got ${cost.amount}`);
-  assert.ok(cost.amount > 0, "never zero where tokens and a price are given");
-
-  assert.deepEqual(jobCost(null, unpriced), { known: false, usage: null });
-  assert.deepEqual(jobCost(usage, unpriced), { known: false, usage });
+  assert.deepEqual(jobCost(usage), { known: false, usage });
+  assert.deepEqual(jobCost(null), { known: false, usage: null });
 });
 
 // TST-472304 · level: unit · module: MOD-job-ledger

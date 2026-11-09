@@ -156,6 +156,10 @@ const repositoryPath = (address) => { try { return new URL(address).pathname.rep
  * and the participant's route; a failure of either is shown in the bar by name, and
  * nothing is thrown to the caller. `stop` removes the bar and aborts a message that is running.
  */
+// The key of a connection the bar offers, by which the selector names and keeps it: its name and the model it offers — a CLI session offers one for each model it can
+// run (UC-049 step 1: `hub · claude-opus-5-5 — Anthropic, USA`).
+const keyOf = (connection) => `${connection.name} · ${connection.model}`;
+
 export function startPromptBar(target, setup) {
   const { store, instance } = setup;
   // `jobs` holds each job followed — its follower, its part of the bar, its repository's address and host, and whether it has ended —, by its identifier.
@@ -181,7 +185,7 @@ export function startPromptBar(target, setup) {
     recording = on;
     recorded.hidden = !on;
   };
-  const chosen = () => offered.find((each) => each.name === (selector.value ?? offered[0].name)) ?? offered[0];
+  const chosen = () => offered.find((each) => keyOf(each) === (selector.value ?? keyOf(offered[0]))) ?? offered[0];
   // A participant's answer stands once, in the conversation: its text is the bar's `answer`.
   const line = (message) => {
     const text = el("div", message.from === "participant" ? "text answer" : "text");
@@ -776,9 +780,9 @@ export function startPromptBar(target, setup) {
       chooser.replaceChildren(el("p", "none-able", `No endpoint or CLI session of this browser can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
       return;
     }
-    const named = (each) => `${each.name} — ${placeOf(each)}`;
+    const named = (each) => `${keyOf(each)} — ${placeOf(each)}`;
     // The same offer keeps its selector: replacing it while it takes focus would close its list before a choice is made.
-    const names = offered.map((each) => each.name).join("\n");
+    const names = offered.map(keyOf).join("\n");
     if (selector && names === offeredNames) return relabel();
     offeredNames = names;
     if (offered.length === 1) {
@@ -787,10 +791,10 @@ export function startPromptBar(target, setup) {
       selector = el("select", "participant");
       for (const each of offered) {
         const option = el("option", null, named(each));
-        option.value = each.name;
+        option.value = keyOf(each);
         selector.append(option);
       }
-      selector.value = offered.some((each) => each.name === kept) ? kept : offered[0].name;
+      selector.value = offered.some((each) => keyOf(each) === kept) ? kept : keyOf(offered[0]);
       selector.addEventListener("focus", () => judge().catch(() => {}));
       selector.addEventListener("change", (event) => {
         try { writeTabValue(store, CHOSEN, event.target.value); } catch { /* the tab keeps no values */ }
