@@ -67,6 +67,7 @@ const ENDPOINT = { name: "fixture", kind: "openai-compatible", baseUrl: "https:/
 const GATE_PATH = "docs/gates/GATE-fixture.md";
 const gateText = (decision, reason) => text("# Gate fixture", "", `decision: ${decision}`, `reason: ${reason}`);
 const REASON = "every artifact meets the condition";
+const WRITER_THROWS = "a reason on which the fixture's writer throws";
 
 const PARTICIPANTS = text("# Participants of this instance", "",
   "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
@@ -156,6 +157,7 @@ let seen = null;
 registerStrategies("tests/workflow-entries-job-workflow.test.mjs", {
   recipes: { "gate-inputs": async (context) => { seen = context; return [{ name: "gate-inputs", text: "gate fixture checks docs/a.md", size: 0, sources: [], required: true }]; } },
   writers: { "gate-record": async (result, context) => {
+    if (result.draft.reason === WRITER_THROWS) throw new Error("the writer could not write");
     const host = context.product.host, head = await host.readSnapshot("HEAD"), body = gateText(result.draft.decision, result.draft.reason);
     if ((await head.read(GATE_PATH)) === body) return { commits: [], files: [], pullRequest: null, shown: null, notes: [] };
     const { commit } = await host.commitFiles({ branch: "main", expectedHead: head.commit, files: [{ path: GATE_PATH, text: body }], message: "gate fixture decided" });
@@ -194,6 +196,23 @@ test("onRecordsChanged — a queued job of this route is taken and run: its writ
     assert.equal(requests.length, 1, "the endpoint was asked once");
     assert.equal(requests[0].address, "https://llm.example.test/v1/chat/completions");
     assert.equal(requests[0].headers.Authorization, `Bearer ${KEY}`);
+  });
+});
+
+// TST-473213 · level: unit · module: MOD-workflow-entries
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: a product with a queued job of the route `ci hosted`, a fixture endpoint that reports 120 input tokens, and a writer that throws once the endpoint has answered
+// input: onRecordsChanged
+// expect: the job ends failed with the writer's reason, and its End still names the usage the endpoint reported (120 input tokens) and the round it ran — not usage null
+test("onRecordsChanged — a writer that throws ends the job failed, with the usage and the rounds gathered before it", async () => {
+  fakeEndpoint({ reason: WRITER_THROWS });
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+    await run(w);
+    const end = fileAt(w, `docs/jobs/${JOB}.md`).split("## End")[1];
+    assert.match(end, /state: failed/);
+    assert.match(end, /the writer could not write/);
+    assert.match(end, /usage: .*"inputTokens":120/);
+    assert.match(end, /## Rounds\n\n### Round 1 /);
   });
 });
 

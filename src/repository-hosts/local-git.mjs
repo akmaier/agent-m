@@ -5,7 +5,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — snapshot(ref), readFile(commit, path),
-// commitFiles(change) — beside the REST adapter that serves the host's other functions where a token is given. It touches
+// history(path, options), commitFiles(change) — beside the REST adapter that serves the host's other functions where a token is given. It touches
 // neither the clone's working tree nor its branches: a commit is made on the head the caller names, in a temporary index.
 
 import { HostError } from "./failures.mjs";
@@ -79,6 +79,32 @@ export function localAdapter(address, folder) {
     // does not; any other exit — a commit or branch the clone does not hold — is not contained either. Nothing is fetched.
     async containsCommit(branch, commit) {
       return typeof (await git(["merge-base", "--is-ancestor", commit, branch], { tolerate: true })) === "string";
+    },
+
+    // The commits that changed a path — the repository where it is null —, newest first, from `ref` (the clone's HEAD where none is
+    // given), at most `limit` of them: `git log`, each commit's changes from `--name-status -M` unless `changes` is false. No account
+    // names a clone's author.
+    async history(path, { ref, limit, changes: withChanges } = {}) {
+      const commit = await commitOf(ref ?? "HEAD");
+      if (!commit) {
+        const what = `${address.web} at ${ref}`;
+        throw new HostError("NotFound", { what }, `${what} was not found in the clone, nor in its origin.`);
+      }
+      const args = ["-c", "core.quotePath=false", "log", "--format=%x1e%H%x00%P%x00%an%x00%cI%x00%B%x00",
+        ...(withChanges === false ? [] : ["--name-status", "-M"]), ...(limit === undefined ? [] : [`-n${Math.max(1, limit)}`]),
+        commit, "--", ...(path ? [path] : [])];
+      const KIND = { A: "added", C: "added", M: "modified", T: "modified", D: "deleted", R: "renamed" };
+      return (await git(args)).split("\x1e").filter(Boolean).map((record) => {
+        const [sha, parents, name, date, message, listed] = record.split("\0");
+        const changes = listed.split("\n").filter(Boolean).map((line) => {
+          const [status, first, second] = line.split("\t");
+          const change = KIND[status[0]] ?? "modified";
+          if (status[0] === "R") return { path: second, change, from: first };
+          return { path: status[0] === "C" ? second : first, change };
+        });
+        return { commit: sha, parents: parents.split(" ").filter(Boolean), author: { account: null, name },
+          date: new Date(date).toISOString().replace(".000Z", "Z"), message: message.trimEnd(), changes };
+      });
     },
 
     async readFile(commit, path, { bytes = false } = {}) {

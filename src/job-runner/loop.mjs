@@ -241,7 +241,14 @@ export async function runJob(prepared, drivers, options) {
     return { ...result, stoppedBecause: "gate", gate: beforeWrite.name };
   }
   cancelled();
-  const written = await strategyOf("writers", kind.writer)(result, context);
+  // A writer's failure carries the rounds and the usage gathered before it, so that the job's end still names them.
+  let written;
+  try {
+    written = await strategyOf("writers", kind.writer)(result, context);
+  } catch (error) {
+    if (error && typeof error === "object") error.gathered = { rounds, usage };
+    throw error;
+  }
   const beforeMerge = notPassed("before-merge");
   if (beforeMerge) {
     await onGate?.(beforeMerge.name);

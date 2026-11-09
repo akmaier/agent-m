@@ -154,7 +154,7 @@ const issueNumber = (number) => {
   if (!Number.isInteger(number) || number < 1) throw new TypeError(`an issue is named by its number, a positive whole number, not ${number}`);
 };
 
-// The adapter of a host with a clone: the snapshot, the files and the commit through the clone; every
+// The adapter of a host with a clone: the snapshot, the files and the commit through the clone, the history too without a token; every
 // other function through the REST adapter where a token is given (`rest`), else NotSupported.
 function throughClone(repository, folder, rest) {
   const clone = localAdapter(repository, folder);
@@ -163,7 +163,7 @@ function throughClone(repository, folder, rest) {
   };
   return {
     repositoryInfo: rest ? (...a) => rest.repositoryInfo(...a) : without("the repository's information"),
-    history: rest ? (...a) => rest.history(...a) : without("the history"),
+    history: rest ? (...a) => rest.history(...a) : (...a) => clone.history(...a),
     listTags: rest ? (...a) => rest.listTags(...a) : without("the tags"),
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
     listIssues: rest ? (...a) => rest.listIssues(...a) : without("the issues"),

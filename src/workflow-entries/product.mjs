@@ -341,7 +341,8 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
       // The job runner called the endpoint itself: its own diagnosis is the reason (UC-049 4d).
       reason = `the run failed against the endpoint ${endpoint.baseUrl} (${endpoint.model}): ${error.diagnosis.reason} — ${error.diagnosis.message}. The routes that would work: a self-hosted runner, or a Bridge.`;
     }
-    ended = { ...ended, reason: handOver ? hidden(reason) : reason };
+    const gathered = error?.gathered ? { rounds: error.gathered.rounds, usage: usageOf(error.gathered.usage) } : {};
+    ended = { ...ended, ...gathered, reason: handOver ? hidden(reason) : reason };
   }
   const part = { part: { part: "end", at: env.now, state: ended.state, results: ended.results, draft: ended.draft, rounds: ended.rounds, usage: ended.usage,
     cost: jobCost(ended.usage, participant), reason: ended.reason, log: job.runUrl ?? null, ...(ended.stoppedBecause ? { stoppedBecause: ended.stoppedBecause } : {}) }, branch: env.branch };

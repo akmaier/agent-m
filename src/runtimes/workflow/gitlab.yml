@@ -138,6 +138,7 @@ spec:
     AGENT_M_INSTANCE: "@@repository@@"
     AGENT_M_COMMIT: "@@commit@@"
     AGENT_M_PART: "agent"
+    GIT_DEPTH: 0
     AGENT_M_MODEL_USER: "agent-m-model"
     AGENT_M_KEY_NAMES: "@@key-names@@"
     AGENT_M_KEY: "@@agent@@"
