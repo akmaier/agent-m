@@ -139,7 +139,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     const value = next(), shown = typeof value === "function" ? null : (value && Object.hasOwn(value, "draft") ? value.draft : value);
     const files = Array.isArray(shown?.files) ? shown.files.map((file) => file.path) : [];
     const hash = globalThis.location?.hash ?? "";
-    const kind = Array.isArray(shown?.sections) || Array.isArray(shown?.proposals) || typeof shown?.groups === "string" ? "change-requirements" : files.some((path) => path.startsWith("docs/architecture/")) || /^#(decision|module)\//.test(hash)
+    const kind = Array.isArray(shown?.sections) || Array.isArray(shown?.proposals) || Array.isArray(shown?.places) ? "change-requirements" : files.some((path) => path.startsWith("docs/architecture/")) || /^#(decision|module)\//.test(hash)
       ? "change-architecture" : files.length > 0 || /^#use-case\//.test(hash) ? "change-use-case" : "change-requirements";
     const task = /## The person's message\n\n(?:### [^\n]*\n\n)?([^]*?)\n\n## /.exec(textOfRequest(body))?.[1] ?? "";
     return { answer: `Handed on to ${kind}.`, handOver: [{ kind, works_on: [], task, after: [] }] };

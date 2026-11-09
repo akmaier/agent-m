@@ -36,7 +36,7 @@ const DRAFT = "tests/review-pages-conversation-draft.test.mjs";
 const REALISED = [
   "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT", "A CI AGENT'S DRAFT ENTERS AS OPEN", "A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT",
   "THE PERSON WHO PROMPTS IS A SOURCE", "A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS", "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY",
-  "A REQUIREMENT HAS FOUR FIELDS", "EVERY ARTIFACT HAS AN IDENTIFIER", "A REGROUPING IS COMMITTED DIRECTLY", "A SPEC EDIT IS SAVED AS A PROPOSAL", "A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE", "A REFUSED SAVE KEEPS THE EDIT",
+  "A REQUIREMENT HAS FOUR FIELDS", "EVERY ARTIFACT HAS AN IDENTIFIER", "A SPEC EDIT IS SAVED AS A PROPOSAL", "A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE", "A REFUSED SAVE KEEPS THE EDIT",
   "AN EDITED FILE KEEPS ITS IDENTIFIER", "A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED", "A GENERATED ARTIFACT IS A PROPOSAL", "THE PAGE NAMES WHERE IT SENDS",
   "A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON", "AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT", "ONE DEFINITION, THREE DRIVERS",
   "A PARTICIPANT DECLARES ITS CAPABILITIES", "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA", "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION",
@@ -60,19 +60,14 @@ function ucRealises() {
 const ev = (file, id) => ({ file, id });
 
 const COVERED_BY_RELEASE = {
-  // UC-019 as accepted: step 4 gives the drafter "the requirement hierarchy from `docs/groups/requirements.md`", step 6 has it return the new text of that file "where it
-  // moves a requirement or names a group", and step 9 commits a changed group file "as an arrangement is (UC-021)"; through GitHub Actions it is a pull request (6b).
+  // UC-019 as accepted: step 4 gives the drafter "the requirement hierarchy from `docs/groups/requirements.md`", step 6 has "Each requirement a section adds also names its place in the
+  // requirement hierarchy", and step 9 writes each changed section "with the places of its new requirements beside it"; "the SPEC and `docs/groups/requirements.md` stay unchanged".
   "ARTIFACTS ARE ARRANGED IN NESTED GROUPS": [
     ev(RELEASE_REQUIREMENTS, "TST-418128"),
     ev("tests/spec-changes-requirement-hierarchy.test.mjs", "TST-2026110877"),
   ],
   "AN ITEM HAS ONE PLACE IN ITS HIERARCHY": [
     ev(RELEASE_REQUIREMENTS, "TST-418128"),
-    ev("tests/artifact-edits-group-file.test.mjs", "TST-722001"),
-  ],
-  "A REGROUPING IS COMMITTED DIRECTLY": [
-    ev(RELEASE_REQUIREMENTS, "TST-418128"),
-    ev("tests/artifact-edits-group-file.test.mjs", "TST-722001"),
     ev("tests/spec-changes-spec-edits.test.mjs", "TST-2026110906"),
   ],
   "A REQUIREMENT HAS FOUR FIELDS": [
@@ -235,10 +230,10 @@ const FINDINGS = {
 // guards: UC-019
 // given: UC-019's realised requirements as committed, REALISED, COVERED_BY_RELEASE and FINDINGS in this release test
 // input: compare the realised requirements with REALISED and with the keys of COVERED_BY_RELEASE
-// expect: UC-019 realises exactly the 33 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
+// expect: UC-019 realises exactly the 32 requirements REALISED lists, each once; every one has evidence and no other does; every evidence file exists and contains its named TST id; every finding's test stands in its file with the todo naming the finding
 test("TST-377101: UC-019 release coverage names every realised requirement and its executable evidence", () => {
   const realised = ucRealises();
-  assert.equal(REALISED.length, 33);
+  assert.equal(REALISED.length, 32);
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
   assert.deepEqual(realised.toSorted(), REALISED.toSorted());
   assert.deepEqual(Object.keys(COVERED_BY_RELEASE).sort(), REALISED.toSorted());

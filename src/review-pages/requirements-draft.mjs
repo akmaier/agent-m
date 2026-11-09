@@ -1,6 +1,7 @@
 // requirements-draft.mjs — a draft of requirements from the conversation (MOD-review-pages, Parts; Interfaces: `draft`, UC-019 8, 9, 9a): each text the draft changes — a SPEC section, an
-// open entry's proposal, `docs/groups/requirements.md` — in the editor as its difference against the text it replaces, with the draft's `why` in the Why field, and Save, which saves each
-// section with `proposeSection` as an entry of its queue, each proposal with `saveEntry` in its entry and the group file with `saveFile`, only on the text the job read.
+// open entry's proposal — in the editor as its difference against the text it replaces, with the draft's `why` in the Why field, and beside a section each requirement it adds with the
+// place the draft's `places` gives it, which this page does not change; and Save, which saves each section with `proposeSection` as an entry of its queue, with the places of the
+// requirements its text names, and each proposal with `saveEntry` in its entry, only on the text the job read. No group file is written (UC-019 step 9).
 //
 // Module: MOD-review-pages
 //
@@ -8,8 +9,8 @@
 // ONLY ON A PERSON'S CLICK. Nothing is written before Save. A draft that was saved, or discarded, is dropped from the conversation: `drop` is called then. Readings this file takes: each editor's
 // Save saves every text of the draft; before anything is written every text is compared with the default branch, and one changed meanwhile writes nothing and stands beside the draft
 // (<div class="newer">); a section whose heading the SPEC does not hold, and a path that is no open entry's proposal, are named and not saved; a text that stands as it is is not saved.
+// A section's text names a requirement when parseSpec reads that name among its requirements; its places are read from the text as it stands when Save is pressed.
 
-import { fallbackEditLinks, saveFile } from "../artifact-edits/index.mjs";
 import { showDifference } from "../markdown-render/index.mjs";
 import { proposeSection, queues, saveEntry } from "../spec-changes/index.mjs";
 import { parseSpec, requirementFindings, sectionText } from "../spec-document/index.mjs";
@@ -17,13 +18,17 @@ import { blobSha } from "../text-tools/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { el, button, link, openEditor, refusalText } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
+import { placeText } from "./sections.mjs";
 
 const SPEC = "SPEC.md";
-const GROUPS = "docs/groups/requirements.md";
+
+// The draft's places, each `{ requirement, place }` with a MOD-group-document Place; and those whose requirement the section text `text` names.
+const draftPlaces = (draft) => (Array.isArray(draft.places) ? draft.places.filter((each) => typeof each?.requirement === "string" && Array.isArray(each?.place?.group))
+  .map(({ requirement, place }) => ({ requirement: requirement.replace(/\s+/g, " ").trim(), place: { group: place.group, new: typeof place.new === "string" && place.new.trim() ? place.new : null } })) : []);
+const placesIn = (places, text) => { const names = parseSpec(text).requirements; return places.filter((each) => names.has(each.requirement)); };
 
 // The texts of the draft, each with what it replaces: { kind, title, text, current, openedBlob, entry? } — a section's current text the SPEC's section under its heading line, opened on
-// the blob `version` names for the section the job's parameters name; a proposal's the file at its path, with the open entry it belongs to; the group file's the file. A text the page
-// cannot save has `problem`.
+// the blob `version` names for the section the job's parameters name; a proposal's the file at its path, with the open entry it belongs to. A text the page cannot save has `problem`.
 async function textsOf(snapshot, draft, params) {
   const spec = (await snapshot.read(SPEC)) ?? "";
   const named = params.section ?? parseSpec(spec).requirements.get((params.requirements ?? [])[0])?.section;
@@ -41,7 +46,6 @@ async function textsOf(snapshot, draft, params) {
     texts.push({ kind: "proposal", title: path, text, current: (await snapshot.read(path)) ?? "", openedBlob: snapshot.blob(path), entry,
       problem: entry ? null : `${path} is no open entry's proposal: it is not saved.` });
   }
-  if (typeof draft.groups === "string") texts.push({ kind: "groups", title: GROUPS, text: draft.groups, current: (await snapshot.read(GROUPS)) ?? "", openedBlob: snapshot.blob(GROUPS), problem: null });
   return texts;
 }
 
@@ -51,8 +55,7 @@ async function standing(latest, item) {
     const now = sectionText((await latest.read(SPEC)) ?? "", item.title) ?? null;
     return { blob: now === null ? null : await blobSha(now), text: now ?? "" };
   }
-  const path = item.kind === "proposal" ? item.title : GROUPS;
-  return { blob: latest.blob(path), text: (await latest.read(path)) ?? "" };
+  return { blob: latest.blob(item.title), text: (await latest.read(item.title)) ?? "" };
 }
 
 /**
@@ -64,6 +67,7 @@ export async function requirementsDraft({ snapshot, host, token, draft, trailers
   const drafted = result.draft ?? {};
   const panel = el("section", "requirements-result", el("h3", null, "The drafted texts"), explain("draft-difference"));
   const texts = await textsOf(snapshot, drafted, params);
+  const places = draftPlaces(drafted);
   const why = el("textarea", "why");
   why.setAttribute("aria-label", "Why");
   why.value = typeof drafted.why === "string" ? drafted.why : "";
@@ -90,10 +94,8 @@ export async function requirementsDraft({ snapshot, host, token, draft, trailers
       const fallback = [], commits = [];
       for (const item of shown) {
         let out;
-        if (item.kind === "section") out = await proposeSection(host, { ...common, target: SPEC, anchor: item.title, until: null, text: item.text, origin: "the prompt bar", openedBlob: item.openedBlob });
-        else if (item.kind === "proposal") out = await saveEntry(host, { ...common, queue: item.entry.queue, entry: item.entry.entry.number, text: item.text, openedBlob: item.openedBlob });
-        else if (!info.canWrite) out = { fallback: fallbackEditLinks([{ path: GROUPS, text: item.text, existing: item.openedBlob !== null }], snapshot) };
-        else out = await saveFile(host, { path: GROUPS, text: item.text, openedBlob: item.openedBlob, trailers });
+        if (item.kind === "section") out = await proposeSection(host, { ...common, target: SPEC, anchor: item.title, until: null, text: item.text, origin: "the prompt bar", openedBlob: item.openedBlob, places: placesIn(places, item.text) });
+        else out = await saveEntry(host, { ...common, queue: item.entry.queue, entry: item.entry.entry.number, text: item.text, openedBlob: item.openedBlob });
         if (out.fallback) fallback.push(...out.fallback);
         else if (out.refused) return { kind: "failed", reason: `${item.title}: ${out.refused}${out.state ? ` (${out.state})` : ""}; nothing more was saved.` };
         else commits.push(out.commit);
@@ -119,8 +121,10 @@ export async function requirementsDraft({ snapshot, host, token, draft, trailers
     box.setAttribute("data-path", item.title);
     const editorBox = el("div", "editor-box");
     box.append(editorBox);
+    const shownPlaces = item.kind === "section" ? placesIn(places, item.text) : [];
+    if (shownPlaces.length) box.append(el("ul", "places", ...shownPlaces.map(({ requirement, place }) => el("li", "place", `${requirement}: ${placeText(place)}.`))));
     boxes.append(box);
-    const marks = item.kind === "groups" ? () => [] : (text) => requirementFindings(parseSpec(text));
+    const marks = (text) => requirementFindings(parseSpec(text));
     const editor = openEditor(editorBox, item.current, { marks, save: () => saveAll() });
     editor.showDraft(item.text, item.current);
     editors.push({ item, editor });

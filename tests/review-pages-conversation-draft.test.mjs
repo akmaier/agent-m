@@ -1,9 +1,9 @@
 // MOD-review-pages' route `draft` shows the conversation's draft (ITM-507), as the accepted text of docs/architecture/MOD-review-pages.md, UC-049 (steps 5, 6) and UC-019
 // (steps 7, 8, 9 and the alternative flows 7a, 8a, 8b, 8c, 9a) state it: "`draft` — the draft of the conversation: MOD-prompt-bar's `latestDraft` for the subject the person came from,
 // shown against the current text before anything can be saved — files each in the editor as their difference, a use case with a changed identifier the loop left restored first with
-// `keptIdentifier` (UC-019 7a); requirements as each text the draft changes — a SPEC section, an open entry's proposal, `docs/groups/requirements.md` — in the editor as its
-// difference against the text it replaces, with the draft's `why` in the *Why* field; an architecture file with its rounds, the due diligence …. *Save* saves the draft as an edit
-// of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b), each section with `proposeSection` as an entry of its queue, each proposal of an open entry with `saveEntry`, the group file with `saveFile` —, only on the
+// `keptIdentifier` (UC-019 7a); requirements as each text the draft changes — a SPEC section, an open entry's proposal — in the editor as its difference against the text it
+// replaces, with the draft's `why` in the *Why* field, and beside a section each requirement it adds with the place the draft's `places` gives it, which this route does not change …; an architecture file with its rounds, the due diligence …. *Save* saves the draft as an edit
+// of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b), each section with `proposeSection` as an entry of its queue, with the places of the requirements its text names, each proposal of an open entry with `saveEntry` (UC-019 step 9) —, only on the
 // text the job read, with GitHub's pages without a token, and with the job's provenance lines, which name no message of the conversation (UC-019 step 9, 9a); *Discard* drops the
 // draft. … A draft of the kind `converse` … is shown and saved the same way, each file with `saveFile` after its owner's schema found no error."
 // Run: node --test tests/review-pages-conversation-draft.test.mjs
@@ -25,7 +25,7 @@
 //     rounds of its job) and <section class="due-diligence"> for a decision with such a section.
 //   - Each <li class="left"> is one finding in the one fixed text form `<artifact>:<line>: <kind>: <what> [<rule>] — <fix>.` (ITM-559; `A FINDING READS LIKE A COMPILER MESSAGE`), for a draft of
 //     files and of requirements alike.
-//   - Requirements: one <div class="draft" data-path> for each text — a section by its heading line, a proposal or the group file by its path — with the editor opened on the text it
+//   - Requirements: one <div class="draft" data-path> for each text — a section by its heading line, a proposal by its path, a section's places as <ul class="places"> of <li class="place"> — with the editor opened on the text it
 //     replaces and the draft shown against it, each editor's Save saving every text; <textarea class="why"> holding the draft's why; <button class="discard">; a text changed meanwhile
 //     is <div class="newer">, a save <p class="entry">.
 //   - "The text the job read" is, for the file or SPEC section the subject names, the `version` among the draft's parameters; for any other file or section, the text the page read.

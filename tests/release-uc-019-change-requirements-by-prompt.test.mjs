@@ -33,8 +33,8 @@ import { scenario, onRequirementPage, run, send, review, save, goTo, press, rest
 // NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY: the use-case context branch is distinct from the requirement context.
 // AN EDITED FILE KEEPS ITS IDENTIFIER: its SPEC rule enumerates use cases, architecture decisions and tests;
 //   requirement names follow the separate change/rename rules below.
-// A prompted change of requirements is the drafter's new text of each section, open entry's proposal and group file it changes, checked by the
-// requirement form and written as open entries (UC-019 steps 6, 7 and 9): it has no candidate classes, places or conflicts, which these tests therefore do not look for.
+// A prompted change of requirements is the drafter's new text of each section and open entry's proposal it changes, with the place of each requirement a section adds, checked by the
+// requirement form and written as open entries (UC-019 steps 6, 7 and 9): it has no candidate classes or conflicts, which these tests therefore do not look for.
 
 const resultOf = (s) => one(s.target, "section", "requirements-result");
 const roundsOf = (s) => keptDraft(s).result.rounds;
@@ -631,31 +631,29 @@ test("TST-418126: a finding left on the draft page reads like a compiler message
 // TST-418128
 // level: release
 // module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages; MOD-artifact-edits; MOD-spec-changes
-// guards: UC-019; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A REGROUPING IS COMMITTED DIRECTLY
-// given: the product's hierarchy docs/groups/requirements.md holds the group "Lending" with both requirements; the drafter adds A RETURN IS RECORDED to the section Lending and returns the
-//   new text of docs/groups/requirements.md with a new group "Returns" in "Lending" that holds it (UC-019 step 6: "and of `docs/groups/requirements.md` where it moves a requirement or names a group")
+// guards: UC-019; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: the product's hierarchy docs/groups/requirements.md holds the group "Lending" with both requirements; the drafter adds A RETURN IS RECORDED to the section Lending and names its
+//   place, a new group "Returns" in "Lending" (UC-019 step 6: "Each requirement a section adds also names its place in the requirement hierarchy")
 // input: Send, Review the draft, Save
-// expect: step 4 — the request carries the hierarchy; one exchange; step 8 — two drafted texts, the section "## Lending" and docs/groups/requirements.md, the latter's editor holding the drafted
-//   group file; step 9 — one proposal commit for the section, SPEC.md byte-identical, and docs/groups/requirements.md committed as drafted, in a commit of its own that writes no queue entry
-//   ("a changed `docs/groups/requirements.md` is committed as an arrangement is (UC-021)"), A RETURN IS RECORDED standing in it once
-test("TST-418128: a drafted group file stands beside the section and is committed as an arrangement, the SPEC untouched", async () => {
+// expect: step 4 — the request carries the hierarchy; one exchange; step 8 — one drafted text, the section "## Lending", with A RETURN IS RECORDED and its place "in a new group “Returns” in
+//   “Lending”" beside it; step 9 — one proposal commit for the section whose places file names A RETURN IS RECORDED in "Lending" with the new group "Returns"; SPEC.md and
+//   docs/groups/requirements.md byte-identical, and no commit writes the group file ("the SPEC and `docs/groups/requirements.md` stay unchanged")
+test("TST-418128: a drafted place stands beside its section and is saved in the section's entry, the SPEC and the group file untouched", async () => {
   const RETURN = "A RETURN IS RECORDED";
-  const groups = `- Lending\n  - ${LOAN}\n  - ${SHELF}\n  - Returns\n    - ${RETURN}\n`;
   const added = draft(candidate({ name: RETURN, rule: "Every return is recorded with its date.", check: "`tests/return.test.mjs`", replaces: null }));
-  const s = await scenario({ answers: [{ ...added, groups }] });
+  const s = await scenario({ answers: [{ ...added, places: [{ requirement: RETURN, place: { group: ["Lending"], new: "Returns" } }] }] });
   await run(s);
   assert.equal(s.endpointRequests.length, 1, "the draft passes at once");
   assert.ok(sentText(s, 0).includes(GROUPS.trim()), "the request carries the requirement hierarchy");
-  assert.deepEqual(all(s.target, "div", "draft").map((node) => node.getAttribute("data-path")), ["## Lending", "docs/groups/requirements.md"]);
-  assert.equal(editorText(draftBox(s, "docs/groups/requirements.md")), groups);
+  assert.deepEqual(all(s.target, "div", "draft").map((node) => node.getAttribute("data-path")), ["## Lending"]);
+  assert.deepEqual(all(draftBox(s), "li", "place").map((node) => node.textContent), [`${RETURN}: in a new group “Returns” in “Lending”.`]);
   await save(s);
   assert.equal(proposalWrites(s).length, 1, "one proposal commit, for the section");
+  const placesFile = Object.entries(proposalWrites(s)[0].files).find(([path]) => path.endsWith(".plaetze.md"))?.[1];
+  assert.match(placesFile ?? "", new RegExp(`\\| ${RETURN} \\| Lending \\| Returns \\|`), `the entry's places file names the place: ${placesFile}`);
   assert.equal(s.product.files["SPEC.md"], SPEC, "SPEC.md stays byte-identical");
-  assert.equal(s.product.files["docs/groups/requirements.md"], groups, "the group file is committed as drafted");
-  const arrangement = s.product.writes.filter((write) => Object.keys(write.files).includes("docs/groups/requirements.md"));
-  assert.equal(arrangement.length, 1, "one commit writes the group file");
-  assert.deepEqual(Object.keys(arrangement[0].files), ["docs/groups/requirements.md"], "the arrangement's commit writes no queue entry");
-  assert.equal(groups.split("\n").filter((line) => line.trim() === `- ${RETURN}`).length, 1, "the new requirement has one place");
+  assert.equal(s.product.files["docs/groups/requirements.md"], GROUPS, "the group file stays byte-identical");
+  assert.equal(s.product.writes.filter((write) => Object.keys(write.files).includes("docs/groups/requirements.md")).length, 0, "no commit writes the group file");
 });
 
 // TST-418129
@@ -697,7 +695,7 @@ const FAULTS = [
   { ids: ["TST-418107", "TST-377006"], file: at("src", "prompt-bar", "send.mjs"), from: '...prepared.notFitting.map(', to: '...[].map(' },
   { ids: ["TST-418108", "TST-418113"], file: at("src", "job-runner", "builtins.mjs"), from: '...requirementFindings(is).filter((each) => names.has(each.artifact))', to: '...[]' },
   { ids: ["TST-418129"], file: at("src", "job-runner", "builtins.mjs"), from: '...judged.filter((each) => !each.sources.includes(source))', to: '...[].filter((each) => !each.sources.includes(source))' },
-  { ids: ["TST-418128"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'saveFile(host, { path: GROUPS, text: item.text,', to: 'saveFile(host, { path: GROUPS, text: item.current,' },
+  { ids: ["TST-418128"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'openedBlob: item.openedBlob, places: placesIn(places, item.text) });', to: 'openedBlob: item.openedBlob, places: [] });' },
   { ids: ["TST-418109"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'editor.showDraft(item.text, item.current);', to: 'editor.showDraft(item.text, item.text);' },
   { ids: ["TST-418113", "TST-418124"], file: at("src", "job-runner", "driver-prompt.mjs"), from: 'if (input.findings?.length)', to: 'if (false)' },
   { ids: ["TST-418114", "TST-418122"], file: at("src", "job-runner", "loop.mjs"), from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
