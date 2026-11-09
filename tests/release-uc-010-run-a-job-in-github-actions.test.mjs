@@ -1,6 +1,7 @@
 // Release tests of UC-010 "Run a job in GitHub Actions": each requirement UC-010 realises, checked from the files the job workflow consists of, the commits the origin received and the requests the fixture endpoint
 // received — one definition for the three drivers, a runtime that is interchangeable, a generated artifact that is a proposal and enters the default branch as open, no secret in the repository, a job recorded in
-// its product repository, no local installation, the agent authenticated with a CI secret, and the person's token read from a CI secret by the writing machine alone. TST-373301 maps every requirement
+// its product repository, no local installation, the agent authenticated with a CI secret, the person's token read from a CI secret by the writing machine alone, and a coding agent on CI that names
+// the models it offers. TST-373301 maps every requirement
 // UC-010 realises to a release test that guards it; `A JOB RECORD STARTS NO CI RUN` is the one the item leaves out.
 // Run: node --test tests/release-uc-010-run-a-job-in-github-actions.test.mjs
 //
@@ -10,6 +11,9 @@
 // Module: MOD-settings-pages
 // Module: MOD-repository-hosts
 // Module: MOD-endpoint-calls
+// Module: MOD-prompt-bar
+// Module: MOD-browser-store
+// Module: MOD-participant-list
 // Guards: UC-010
 // Level: release
 //
@@ -25,13 +29,20 @@
 //   - "A job on the server's own machines pushes … with the person's token, never with the workflow's built-in token" is read on the file as the absence of the built-in token (GITHUB_TOKEN, github.token) from the
 //     job workflow, whose permissions are read only. The two machines are run with the kind decide-gate, whose writer reads no history (a writer that does, the use cases', fails on the agent's machine:
 //     TST-373209 of tests/system-uc-010-run-a-job-in-github-actions.test.mjs).
+//   - A CONNECTION NAMES THE MODELS IT OFFERS is read, for UC-010's coding agent on CI, on the texts MOD-browser-store (`ci-agent:<name>`), MOD-prompt-bar (ciAgentsOffered), MOD-participant-list
+//     (Connection) and MOD-runtimes (routesFor; jobWorkflowFiles' `agents`, named in the file as AGENT_M_CI_AGENTS). The texts give the declarations' fields, not how the file writes them: since the store
+//     keeps each value as JSON (MOD-browser-store, Data), the value of AGENT_M_CI_AGENTS is read as the JSON list of the declarations, each `{ name, ...the setting }`, as jobWorkflowFiles' `agents` names them.
+//     "Lacks nothing" (MOD-prompt-bar's endpointLacks) is checked on a declaration whose only model has no context, so that it is not offered under either reading of whether the lack is the model's or
+//     the declaration's.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { statuses } from "../src/approvals/index.mjs";
-import { routesFor } from "../src/runtimes/index.mjs";
+import { jobWorkflowFiles, routesFor } from "../src/runtimes/index.mjs";
+import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { ciAgentsOffered } from "../src/prompt-bar/index.mjs";
 import { ACCEPTED, ENDPOINT, GATE_DRAFT, GATE_PATH, INSTRUCTION, KEY, TOKEN, UC1, UC1_CHANGED, UC1_TEXT, WORKFLOW, agentEnvironment, approvalOf, endpoint, entry, gateText, git, installFast,
   pushRun, queueFromDashboard, queueGate, runAddress, runInTab, runOnDraftingPage, workflowFiles, workflowRun, world, writingEnvironment } from "./uc-010-harness.mjs";
 
@@ -64,19 +75,20 @@ const EVIDENCE = {
   "ONE DEFINITION, THREE DRIVERS": [[SELF, "TST-373308"]],
   "A RUNTIME IS INTERCHANGEABLE": [[SELF, "TST-373309"]],
   "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY": [[SELF, "TST-373310"]],
+  "A CONNECTION NAMES THE MODELS IT OFFERS": [[SELF, "TST-373311"]],
 };
 const LEFT_OUT = ["A JOB RECORD STARTS NO CI RUN"];
 
 // TST-373301 · level: release · module: system
 // guards: UC-010
-// given: UC-010 as committed text, whose `realises` lists ten requirements, and the release tests named in EVIDENCE
+// given: UC-010 as committed text, whose `realises` lists eleven requirements, and the release tests named in EVIDENCE
 // input: read UC-010's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-010 realises these ten requirements; nine have at least one test named and the tenth, A JOB RECORD STARTS NO CI RUN, is the one the item leaves out; each test named stands in its file with the level release and guards that requirement
+// expect: known positive — UC-010 realises these eleven requirements; ten have at least one test named and the eleventh, A JOB RECORD STARTS NO CI RUN, is the one the item leaves out; each test named stands in its file with the level release and guards that requirement
 test("TST-373301: UC-010 every requirement it realises has a release test that guards it", () => {
   const text = read("docs/use-cases/UC-010-run-a-job-in-github-actions.md");
   const front = text.slice(text.indexOf("realises:"), text.indexOf("\n---", text.indexOf("realises:")));
   const realised = [...front.matchAll(/^ {2}- (.+)$/gm)].map((match) => match[1]);
-  assert.equal(realised.length, 10, "known positive: UC-010 realises ten requirements");
+  assert.equal(realised.length, 11, "known positive: UC-010 realises eleven requirements");
   for (const name of realised) assert.ok(name in EVIDENCE || LEFT_OUT.includes(name), `${name} has a release test or is left out`);
   assert.deepEqual(Object.keys(EVIDENCE).filter((name) => !realised.includes(name)), [], "EVIDENCE names no requirement UC-010 does not realise");
   for (const [name, tests] of Object.entries(EVIDENCE)) {
@@ -288,6 +300,78 @@ test("TST-373307: UC-010 the writing machine writes the agent's result with the 
     assert.equal(w.fileAt(GATE_PATH), null, "counter-proof: the gate's record is not written");
     assert.match(w.fileAt(queued.path), /## End[^]*state: failed/);
   });
+});
+
+// ---------------------------------------------------------------- A CONNECTION NAMES THE MODELS IT OFFERS
+
+// A browser's localStorage, which MOD-browser-store keeps its settings in, as an empty map.
+class Storage {
+  constructor() { this.values = new Map(); }
+  getItem(key) { return this.values.get(key) ?? null; }
+  setItem(key, value) { this.values.set(key, String(value)); }
+  removeItem(key) { this.values.delete(key); }
+  get length() { return this.values.size; }
+  key(index) { return [...this.values.keys()][index] ?? null; }
+}
+// The coding agents on CI the job workflow's text declares: the value of each AGENT_M_CI_AGENTS it names, read as JSON; none where it names it nowhere.
+const ciAgentsDeclared = (text) => [...text.matchAll(/^ +AGENT_M_CI_AGENTS: (".*")$/gm)].map((match) => JSON.parse(JSON.parse(match[1])));
+
+// TST-373311 · level: release · module: system
+// guards: A CONNECTION NAMES THE MODELS IT OFFERS; UC-010
+// given: this browser's settings declaring three coding agents on CI as UC-010's precondition does — dev-ci, Claude Code on the server's runners with its key in the CI secret CLAUDE_KEY, its place, its capabilities and two models each with its context; lab-ci, Codex on the self-hosted runner gpu with its key in CODEX_KEY and one model; and bare-ci, whose only model names no context
+// input: ciAgentsOffered of the settings; routesFor of each connection offered, for a private and for a public product with the job workflow; the job workflow generated for those agents, and one generated for none
+// expect: known positive — dev-ci is offered once for each of its two models, in their order, each with its context, the type CI agent, its place and capabilities and the route ci hosted agent claude secret CLAUDE_KEY; lab-ci once, with the route ci runner:gpu agent codex secret CODEX_KEY; counter-proof — bare-ci, whose model has no context, is not offered; routesFor offers each on CI alone — dev-ci on the server's runners (ci, hosted), lab-ci on the runner gpu for the private product, and refused with a reason for the public one; the job workflow names the agents in AGENT_M_CI_AGENTS, each with its name, agent, runner, secret, place, capabilities and models with their contexts; counter-proof — the file generated for no agent declares none
+test("TST-373311: UC-010 a coding agent on CI declared in the browser's settings offers one connection for each model it names, with its context, on its CI runner", () => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+  try {
+    const store = openStore("alice/agent-m");
+    const CAPABILITIES = ["draft text", "read the repository", "write to the repository", "run code and tests"];
+    const DEV = { agent: "claude", runner: "hosted", secret: "CLAUDE_KEY", place: "Anthropic, USA", capabilities: CAPABILITIES,
+      models: [{ model: "claude-large", context: 200000 }, { model: "claude-small", context: 100000 }] };
+    const LAB = { agent: "codex", runner: "gpu", secret: "CODEX_KEY", place: "the lab's own machine", capabilities: CAPABILITIES, models: [{ model: "codex-model", context: 128000 }] };
+    const BARE = { ...DEV, secret: "BARE_KEY", models: [{ model: "bare-model" }] };
+    writeSetting(store, "ci-agent:dev-ci", DEV);
+    writeSetting(store, "ci-agent:lab-ci", LAB);
+    writeSetting(store, "ci-agent:bare-ci", BARE);
+
+    const of = (name, setting, model, context, route) => ({ name, type: "CI agent", model, context, capabilities: setting.capabilities, place: setting.place, route });
+    const offered = ciAgentsOffered(store);
+    assert.deepEqual(offered, [
+      of("dev-ci", DEV, "claude-large", 200000, "ci hosted agent claude secret CLAUDE_KEY"),
+      of("dev-ci", DEV, "claude-small", 100000, "ci hosted agent claude secret CLAUDE_KEY"),
+      of("lab-ci", LAB, "codex-model", 128000, "ci runner:gpu agent codex secret CODEX_KEY"),
+    ], "known positive: one connection for each model, with its context and its route");
+    assert.ok(!offered.some((connection) => connection.name === "bare-ci" || connection.model === "bare-model"), "counter-proof: a model without its context is not offered");
+
+    const PRIVATE = { visibility: "private", jobWorkflow: true };
+    const PUBLIC = { visibility: "public", jobWorkflow: true };
+    for (const connection of offered) {
+      const offers = routesFor(connection, PRIVATE, []);
+      assert.ok(offers.length > 0 && offers.every((offer) => offer.route.kind === "ci"), `${connection.name} ${connection.model} is offered on CI alone`);
+      const runner = connection.name === "dev-ci" ? "hosted" : "gpu";
+      const on = offers.find((offer) => offer.route.runner === runner);
+      assert.ok(on && on.available, `${connection.name} ${connection.model} is offered on the runner ${runner}`);
+    }
+    const lab = offered.find((connection) => connection.name === "lab-ci");
+    const publicGpu = routesFor(lab, PUBLIC, []).find((offer) => offer.route.kind === "ci" && offer.route.runner === "gpu");
+    assert.equal(publicGpu?.available, false, "counter-proof: a self-hosted runner is not offered for a public repository");
+    assert.ok(publicGpu.reason, "the refusal names its reason");
+    assert.equal(routesFor(offered[0], PUBLIC, []).find((offer) => offer.route.runner === "hosted")?.available, true, "the server's own runners serve a public repository");
+
+    const instance = { repository: "alice/agent-m", commit: "0".repeat(40) };
+    const agents = [{ name: "dev-ci", ...DEV }, { name: "lab-ci", ...LAB }];
+    const [file] = jobWorkflowFiles("github", instance, { token: "AGENT_M_TOKEN", keys: ["CLAUDE_KEY", "CODEX_KEY"] }, ["gpu"], null, agents);
+    assert.equal(file.path, WORKFLOW);
+    const declared = ciAgentsDeclared(file.text);
+    assert.ok(declared.length > 0, "known positive: the job workflow names AGENT_M_CI_AGENTS");
+    for (const each of declared) assert.deepEqual(each, agents, "the job workflow names each agent with its runner, secret, place, capabilities and models with their contexts");
+    const [none] = jobWorkflowFiles("github", instance, { token: "AGENT_M_TOKEN", keys: ["CLAUDE_KEY"] }, [], null, []);
+    assert.ok(ciAgentsDeclared(none.text).every((each) => each.length === 0), "counter-proof: a file generated for no agent declares none");
+  } finally {
+    if (saved) Object.defineProperty(globalThis, "localStorage", saved);
+    else delete globalThis.localStorage;
+  }
 });
 
 // ---------------------------------------------------------------- the tests that draw a page
