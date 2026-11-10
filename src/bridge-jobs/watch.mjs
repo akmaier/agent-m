@@ -17,6 +17,7 @@ import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
 import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, instanceClone, makeOutbox, publish, removeClone, workingClone } from "./workfolders.mjs";
 import { enclosureOf } from "./enclosures.mjs";
+import { appendOutput, readListings, readOutput, removeOld, writeListing } from "./joblogs.mjs";
 
 const PARTICIPANTS = "docs/participants.md";
 const QUIT = "the Bridge was quit";
@@ -72,18 +73,49 @@ const reasonOf = (error) => [error.message, error.lastOutput, ...(error.blocking
 // The watchers this program runs. A hand-over reaches every one of them.
 const watchers = new Set();
 
-// The jobs this program took, in the order it took them, kept in memory only: what GET /v1/jobs lists (MOD-bridge-jobs, Interfaces).
+// The jobs this program took, in the order it took them: with those an earlier start of the Bridge took, which joblogs.mjs keeps, what GET /v1/jobs lists
+// (MOD-bridge-jobs, Interfaces).
 const jobsTaken = new Map();
 
-// The log of each job this program took: the lines its agent's process wrote to standard output, in order, and whether the job has ended; and the jobs still running, to cancel. In memory only.
+// Of the log of each job this program took, the last HELD_LINES lines, in memory, so that a reader that keeps up — the window's console, a page following
+// GET /v1/jobs/{id}/log — is answered without reading the log's file: the number of the first of them counted from the job's first line, the line being
+// written, and whether the job has ended. The whole log is the file joblogs.mjs keeps. And the jobs still running, to cancel.
+const HELD_LINES = 2000;
 const logs = new Map();
 const live = new Map();
 
-/** jobLog(id, from) -> { lines, next, ended } — the lines of a job's log from `from` on, the index after the last line, and whether the job has ended; not-found for a job this Bridge did not take. */
+// A job's log read from its file: every line its agent ended, the line it was writing, and, for a job that has ended, that line among the others.
+function logFromFile(id, entry) {
+  const text = readOutput(id);
+  if (text === null) return null;
+  const lines = text.split("\n"), ended = entry ? entry.ended : true;
+  let partial = lines.pop();
+  if (ended && partial) { lines.push(partial); partial = ""; }
+  return { lines, first: 0, partial, ended };
+}
+
+/**
+ * jobLog(id, from) -> { lines, first, next, partial, ended } — a job's log: `lines` the lines its agent ended, from `from` on — a negative `from` asks for the last
+ * -`from` of them —; `first` the number of the first line given, counted from the job's first line at 0; `next` the number after the last line written, the `from`
+ * to ask next; `partial` the line being written, "" where there is none; `ended` whether the job has ended. A job of an earlier start of the Bridge is read from
+ * its kept log, and has ended. not-found for a job this Bridge took in no start of the last six weeks.
+ */
 export function jobLog(id, from = 0) {
-  const entry = logs.get(id);
-  if (!entry) throw failure("not-found", "This Bridge took no such job.");
-  return { lines: entry.lines.slice(from), next: entry.lines.length, ended: entry.ended };
+  const entry = logs.get(id) ?? null;
+  const total = entry ? entry.first + entry.lines.length : null;
+  const wanted = from < 0 && total !== null ? Math.max(0, total + from) : from;
+  const log = entry && wanted >= entry.first ? entry : logFromFile(id, entry);
+  if (!log) throw failure("not-found", "This Bridge took no such job.");
+  const next = log.first + log.lines.length;
+  const start = Math.max(log.first, wanted < 0 ? next + wanted : wanted);
+  return { lines: log.lines.slice(Math.max(0, start - log.first)), first: Math.min(start, next), next, partial: log.partial, ended: log.ended };
+}
+
+// Lines added to a job's log in memory, of which it holds the last HELD_LINES, counting those it lets go in `first`.
+function keep(entry, lines) {
+  const all = entry.lines.concat(lines), over = Math.max(0, all.length - HELD_LINES);
+  entry.lines = over ? all.slice(over) : all;
+  entry.first += over;
 }
 
 /**
@@ -93,7 +125,7 @@ export function jobLog(id, from = 0) {
 export async function cancelJob(id) {
   const entry = live.get(id);
   if (!entry) {
-    if (!jobsTaken.has(id)) throw failure("not-found", "This Bridge took no such job.");
+    if (!jobsTaken.has(id) && readOutput(id) === null) throw failure("not-found", "This Bridge took no such job.");
     return { confirmed: true };
   }
   entry.cancelledByPage = true;
@@ -103,20 +135,22 @@ export async function cancelJob(id) {
   return { confirmed: true };
 }
 
-// The text an agent wrote, added to a job's log line by line: a line is complete at its line break.
-function appended(entry, chunk) {
+// The text an agent wrote, added to a job's kept log as it wrote it, and to the lines held in memory line by line: a line is complete at its line break.
+function appended(id, entry, chunk) {
+  appendOutput(id, chunk);
   const pieces = (entry.partial + chunk).split("\n");
   entry.partial = pieces.pop();
-  entry.lines.push(...pieces);
+  keep(entry, pieces);
 }
 
 /**
- * listJobs() -> { id, product, kind, agent, state, started, usage }[] — the jobs this Bridge took since it started, in the order it took them: `state` is `running` while the agent works and, once the job
- * has ended, the state of its end (`done`, `failed` or `cancelled`); `started` the moment it took the job (ISO); `usage` null while it runs and the usage its end records afterwards. A job another route took is
- * not listed.
+ * listJobs() -> { id, product, kind, agent, state, started, usage }[] — the jobs this Bridge took in the last six weeks, in the order it took them: `state` is `running` while the agent works and, once the job
+ * has ended, the state of its end (`done`, `failed` or `cancelled`), or `interrupted` for a job an earlier start left running; `started` the moment it took the job (ISO); `usage` null while it runs and the
+ * usage its end records afterwards. A job another route took is not listed.
  */
 export function listJobs() {
-  return [...jobsTaken.values()].map((job) => ({ ...job }));
+  const earlier = readListings().filter((job) => !jobsTaken.has(job.id)).map((job) => (job.state === "running" ? { ...job, state: "interrupted" } : job));
+  return [...earlier, ...[...jobsTaken.values()].map((job) => ({ ...job }))].sort((a, b) => String(a.started).localeCompare(String(b.started)));
 }
 
 function createWatcher(config) {
@@ -225,7 +259,7 @@ function createWatcher(config) {
     const mine = { controller, done: null };
     running.set(record.id, mine);
     live.set(record.id, mine);
-    const logged = { lines: [], partial: "", ended: false };
+    const logged = { lines: [], first: 0, partial: "", ended: false };
     const working = folders.job(record.id), cleanup = [];
     let result = null, failed = null, listed = null;
     try {
@@ -239,6 +273,8 @@ function createWatcher(config) {
       listed = { id: record.id, product, kind: record.kind, agent: agent.name, state: "running", started: new Date().toISOString(), usage: null };
       jobsTaken.set(record.id, listed);
       logs.set(record.id, logged);
+      removeOld();
+      writeListing(listed);
       try {
         // No enclosure, no agent (ARC-054): the job ends failed with the enclosure's reason and its one-time step.
         const enclosure = await enclosureOf(config.enclosures, agent.folder);
@@ -268,7 +304,7 @@ function createWatcher(config) {
           return answer;
         } };
         const prepared = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
-        result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal, onOutput: (chunk) => appended(logged, chunk) });
+        result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal, onOutput: (chunk) => appended(record.id, logged, chunk) });
       } catch (error) {
         failed = error;
       }
@@ -284,8 +320,9 @@ function createWatcher(config) {
       }
     } finally {
       if (listed?.state === "running") listed.state = "failed";
-      if (logged.partial) { logged.lines.push(logged.partial); logged.partial = ""; }
+      if (logged.partial) { keep(logged, [logged.partial]); logged.partial = ""; }
       logged.ended = true;
+      if (listed) writeListing(listed);
       live.delete(record.id);
       tasks.delete(record.id);
       running.delete(record.id);

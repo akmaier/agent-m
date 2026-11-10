@@ -77,7 +77,9 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
     "GET /v1/jobs/{id}/log": async ({ params, query }) => {
       const from = query?.from === undefined ? 0 : Number(query.from);
       if (query?.from !== undefined && (String(query.from).trim() === "" || !Number.isInteger(from) || from < 0)) throw failure("invalid-request", "The first line wanted is a whole number of at least 0.");
-      return jobLog(params.id, from);
+      // The protocol's answer, { lines, next, ended }, of the log the Bridge's window reads too.
+      const { lines, next, ended } = jobLog(params.id, from);
+      return { lines, next, ended };
     },
     // Stops the agent's process; answers once it has ended, after which the job commits nothing more.
     "POST /v1/jobs/{id}/cancel": async ({ params }) => cancelJob(params.id),

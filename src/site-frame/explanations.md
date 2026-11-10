@@ -524,6 +524,14 @@ enclosure the agent has a home of its own, so it needs its own login there once:
 enclosure is an account of the Bridge's own, which an administrator allows once with *Set up*; on Linux it needs the
 package bubblewrap.
 
+## bridge-jobs
+
+The jobs this Bridge's agents took in the last six weeks, with their state. The Bridge keeps what each job's agent wrote
+for six weeks, in its own folder on this computer, which no agent can read, and the dashboard reads the job's log from
+there. Below the list, the console of the job chosen — by default the one running — shows what its agent writes, line by
+line as it writes it, the line it is still writing at the end. Like a terminal, it holds only the last lines; scroll up
+to read back, and to the end to follow again.
+
 ## bridge-https-route
 
 Some browsers block the call to the Bridge's local address, `http://127.0.0.1`, as Safari does. The site then says why and points

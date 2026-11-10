@@ -4,7 +4,7 @@ import { confirmDecision, explain, notice, startPage } from "../site-frame/index
 
 // A button in the site's look (MOD-site-frame, look.css): btn, with "primary" for the action a route leads with and "small" for one beside a line of text.
 const button = (label, action, kind = "") => { const control = document.createElement("button"); control.className = kind ? `btn ${kind}` : "btn"; control.textContent = label; control.addEventListener("click", action); return control; };
-const navigation = (context) => { const links = document.createElement("p"); links.append(button("Agents", () => context.go("agents")), button("Pairing", () => context.go("pairing")), button("Settings", () => context.go("settings")), button("Tunnels", () => context.go("tunnels")), button("Updates", () => context.go("updates"))); return links; };
+const navigation = (context) => { const links = document.createElement("p"); links.append(button("Agents", () => context.go("agents")), button("Jobs", () => context.go("jobs")), button("Pairing", () => context.go("pairing")), button("Settings", () => context.go("settings")), button("Tunnels", () => context.go("tunnels")), button("Updates", () => context.go("updates"))); return links; };
 // Which origin the Bridge is paired with: the one MOD-bridge-http's pairedWith() gives, or that no request with the token has come since this start.
 const pairedLine = (state) => Object.assign(document.createElement("p"), { textContent: state.pairedWith ? `This Bridge is paired with ${state.pairedWith}.` : "This Bridge is not yet paired since this start." });
 async function pairing(target, context) {
@@ -45,73 +45,77 @@ const field = (label, value, type = "text") => {
 };
 const area = (label, value) => { const input = document.createElement("textarea"), caption = document.createElement("label"); input.value = value ?? ""; caption.textContent = label; caption.append(input); return { caption, input }; };
 const installUrl = (agent, platform) => agent.install?.[platform] ?? Object.values(agent.install ?? {})[0] ?? null;
+// An element of `name` in the look's class `className`, holding `children`: text or elements.
+const made = (name, className, ...children) => { const element = document.createElement(name); if (className) element.className = className; element.append(...children); return element; };
+// A table in the look's class list: its head and its rows, each cell labelled by its column for a narrow window (MOD-site-frame, look.css).
+function table(columns, rows) {
+  const head = made("tr", "", ...columns.map((column) => made("th", "", column)));
+  const body = rows.map((cells) => made("tr", "", ...cells.map((cell, at) => { const item = made("td", "", cell); item.setAttribute("data-label", columns[at]); return item; })));
+  return made("table", "list", made("thead", "", head), made("tbody", "", ...body));
+}
 // The last checkout's result (UC-044 step 3): for each agent and repository the commit its clone holds, or the repository not reached with git's reason.
 function checkedOut(result, checkout, saved = null) {
   if (!Array.isArray(checkout)) return;
-  if (!checkout.length) { result.textContent = `${saved ? `${saved} ` : ""}Nothing to check out: tick an agent and choose the folder.`; return; }
-  const lines = document.createElement("ul");
-  for (const entry of checkout) {
-    const item = document.createElement("li");
-    item.textContent = `${entry.agent}: ${entry.repository} ${entry.commit ? `checked out at ${entry.commit.slice(0, 12)}` : `not reached: ${entry.reason}`}`;
-    lines.append(item);
-  }
-  result.replaceChildren(...(saved ? [saved] : []), lines);
+  const said = saved ? [made("p", "", saved)] : [];
+  if (!checkout.length) { result.replaceChildren(...said, made("p", "", "Nothing to check out: tick an agent and choose the folder.")); return; }
+  const rows = checkout.map((entry) => [entry.agent, entry.repository, entry.commit ? `checked out at ${entry.commit.slice(0, 12)}` : `not reached: ${entry.reason}`]);
+  result.replaceChildren(...said, made("h2", "", "Checked out"), table(["Agent", "Repository", "Commit or reason"], rows));
+}
+// An installed agent's state, as its panel's badge says it: not enclosed where its enclosure does not work (ARC-054), not logged in where it is not, there or on this computer, else ready.
+function agentState(agent, enclosed) {
+  if (enclosed && !enclosed.works) return { text: "not enclosed", badge: "b-stale" };
+  if (agent.loggedIn === false || (enclosed && !enclosed.loggedIn)) return { text: "not logged in", badge: "b-changed" };
+  return { text: "ready", badge: "b-applied" };
 }
 async function agents(target, context) {
   const state = await window.bridge.state("agents"), selected = new Map((state.selected ?? []).map((agent) => [agent.name, agent]));
-  const heading = document.createElement("h1"), list = document.createElement("div"), result = document.createElement("p"), rows = [];
-  heading.textContent = "Bridge agents";
+  const result = made("div", ""), rows = [], panels = [], missing = [];
   // The one folder that holds the working folder of each ticked agent, <folder>/<agent>, which the Bridge makes (UC-044 step 3).
   const folder = field("Folder of the agents' working folders ", state.folder ?? "");
+  folder.input.size = 48;
   const choose = button("Choose folder", async () => { const chosen = await window.bridge.chooseFolder(); if (chosen) folder.input.value = chosen; }, "small");
+  const place = made("section", "panel", made("h2", "", "Folder"), made("p", "", folder.caption, choose),
+    made("p", "muted small", "The Bridge makes in it a folder for each agent you tick, named after the agent, and checks the instance and its products out there."));
   for (const agent of state.agents ?? []) {
-    const row = document.createElement("p"), name = document.createElement("strong"), status = document.createElement("span");
-    name.textContent = agent.name;
-    if (agent.installed) {
-      const kept = selected.get(agent.name) ?? null;
-      const tick = document.createElement("input");
-      tick.type = "checkbox"; tick.checked = kept !== null;
-      status.textContent = ` ${agent.version ?? "installed"}${agent.loggedIn === false ? " not logged in" : " ready"}${kept?.folder ? `, working in ${kept.folder}` : ""}`;
-      row.append(tick, name, status);
-      // The agent's enclosure (ARC-054): whether it works here, else why and its one-time step; whether the agent is logged in there, else its login step.
-      const enclosed = state.enclosures?.[agent.name];
-      if (enclosed) {
-        const line = document.createElement("span");
-        if (!enclosed.works) {
-          line.textContent = ` Not enclosed: ${enclosed.reason}. One-time step: ${enclosed.setup}. `;
-          row.append(line, button("Set up", async () => { const done = await window.bridge.state("enclosure-setup", { name: agent.name }); result.textContent = done.done ? "Set up." : `Not set up: ${done.reason}`; }, "small"));
-        } else if (!enclosed.loggedIn) {
-          line.textContent = " Not logged in in its enclosure. ";
-          row.append(line, button("Log in", async () => { await window.bridge.state("agent-login", { name: agent.name }); result.textContent = `A terminal runs ${agent.name}'s own login step; press Check again when it is done.`; }, "small"));
-        } else {
-          line.textContent = " Enclosed and logged in.";
-          row.append(line);
-        }
-      }
-      // Its declaration as a connection (UC-044 step 5): the place where it processes data, this machine preset; its capabilities, every one preset; each model it can
-      // run with its context in tokens, one per line as `<model> <context>`.
-      const declaration = document.createElement("span"), place = field(" Place", kept?.place ?? "this machine"), ticks = [];
-      declaration.append(place.caption);
-      for (const capability of state.capabilities ?? []) {
-        const box = field(` ${capability}`, "", "checkbox");
-        box.input.checked = kept ? (kept.capabilities ?? []).includes(capability) : true;
-        ticks.push([capability, box.input]);
-        declaration.append(box.caption);
-      }
-      const models = area(" Models, one per line: model and context in tokens", (kept?.models ?? []).map((each) => `${each.model} ${each.context ?? ""}`.trim()).join("\n"));
-      declaration.append(models.caption);
-      row.append(declaration);
-      rows.push({ agent, tick, place: place.input, ticks, models: models.input });
-    } else {
-      const link = document.createElement("a");
-      link.textContent = "How to install";
+    if (!agent.installed) {
+      const link = made("a", "", "How to install");
       const href = installUrl(agent, state.platform);
       if (href) link.setAttribute("href", href);
-      status.textContent = " missing ";
-      row.append(name, status, link);
+      missing.push(made("li", "", made("strong", "", agent.name), " ", link));
+      continue;
     }
-    list.append(row);
+    const kept = selected.get(agent.name) ?? null, enclosed = state.enclosures?.[agent.name] ?? null, shown = agentState(agent, enclosed);
+    const tick = document.createElement("input");
+    tick.type = "checkbox"; tick.checked = kept !== null;
+    const heading = made("h2", "", `${agent.name} `, made("span", "muted small", agent.version ?? "installed"), " ", made("span", `badge ${shown.badge}`, shown.text));
+    const offered = made("p", "", tick, ` Offer ${agent.name} from this Bridge`, ...(kept?.folder ? [made("span", "muted small", ` — working in ${kept.folder}`)] : []));
+    const panel = made("section", "panel", heading, offered);
+    // The agent's enclosure (ARC-054): whether it works here, else why and its one-time step; whether the agent is logged in there, else its login step.
+    if (enclosed && !enclosed.works) {
+      panel.append(made("p", "", `Not enclosed: ${enclosed.reason}. One-time step: ${enclosed.setup}. `,
+        button("Set up", async () => { const done = await window.bridge.state("enclosure-setup", { name: agent.name }); result.textContent = done.done ? "Set up." : `Not set up: ${done.reason}`; }, "small")));
+    } else if (enclosed && !enclosed.loggedIn) {
+      panel.append(made("p", "", "Not logged in in its enclosure. ",
+        button("Log in", async () => { await window.bridge.state("agent-login", { name: agent.name }); result.textContent = `A terminal runs ${agent.name}'s own login step; press Check again when it is done.`; }, "small")));
+    } else if (enclosed) panel.append(made("p", "muted small", "Enclosed and logged in."));
+    // Its declaration as a connection (UC-044 step 5): the place where it processes data, this machine preset; its capabilities, every one preset; each model it can
+    // run with its context in tokens, one per line as `<model> <context>`.
+    const where = field("Place ", kept?.place ?? "this machine"), ticks = [];
+    const capabilities = made("fieldset", "", made("legend", "", "Capabilities"));
+    for (const capability of state.capabilities ?? []) {
+      const box = document.createElement("input");
+      box.type = "checkbox"; box.checked = kept ? (kept.capabilities ?? []).includes(capability) : true;
+      ticks.push([capability, box]);
+      capabilities.append(made("label", "", box, ` ${capability}`));
+    }
+    const models = area("Models ", (kept?.models ?? []).map((each) => `${each.model} ${each.context ?? ""}`.trim()).join("\n"));
+    models.input.rows = 3; models.input.cols = 48;
+    panel.append(made("p", "", where.caption), capabilities, made("p", "", models.caption),
+      made("p", "muted small", "One model per line: its name and its context in tokens, for example claude-opus-5-5 200000."));
+    rows.push({ agent, tick, place: where.input, ticks, models: models.input });
+    panels.push(panel);
   }
+  const absent = missing.length ? [made("section", "panel", made("h2", "", "Not installed"), made("ul", "", ...missing))] : [];
   // Save agents keeps the ticked agents and the folder; the Bridge then checks out at once, and its result is shown when the checkout has ended.
   const save = button("Save agents", async () => {
     const agents = rows.filter(({ agent, tick }) => agent.installed && tick.checked)
@@ -126,7 +130,67 @@ async function agents(target, context) {
   checkedOut(result, state.checkout);
   // Check again reads the installed agents anew, so that one installed meanwhile is listed without the Bridge restarting (UC-044 3a).
   const again = button("Check again", () => agents(target, context));
-  target.replaceChildren(heading, navigation(context), explain("bridge-own-login"), folder.caption, choose, list, again, save, result);
+  target.replaceChildren(made("h1", "", "Bridge agents"), navigation(context), explain("bridge-own-login"), place, ...panels, ...absent, made("p", "", save, again), result);
+}
+// The Jobs view (UC-044 step 6; THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE): the jobs this Bridge took, and the console of the one chosen — by default the one running, else the one
+// taken last —, asked of the main process every CONSOLE_EVERY_MS while the view is shown: first the last CONSOLE_LINES lines of its log, then those after the last it has. The console
+// holds the last CONSOLE_LINES lines; the Bridge keeps the whole log.
+const CONSOLE_EVERY_MS = 500;
+const CONSOLE_LINES = 1000;
+const STATE_BADGES = { running: "b-open", done: "b-applied", failed: "b-stale", cancelled: "b-changed" };
+// The drawing of the Jobs view that asks now: a later drawing, or another route shown, ends the asking of an earlier one.
+let jobsDrawn = 0;
+const shownRoute = () => String(globalThis.location?.hash ?? "").replace(/^#/, "").split("/")[0];
+const chosenJob = (list, named) => list.find((job) => job.id === named) ?? [...list].reverse().find((job) => job.state === "running") ?? list.at(-1) ?? null;
+async function jobs(target, context, params = {}) {
+  const drawing = ++jobsDrawn;
+  const list = made("div", ""), title = made("h2", ""), hint = made("p", "muted small"), pane = made("pre", "console");
+  const said = made("p", "");
+  target.replaceChildren(made("h1", "", "Bridge jobs"), navigation(context), explain("bridge-jobs"), list, title, hint, pane, said);
+  let listed = null, shownId = null, held = [], next = -CONSOLE_LINES, partial = "";
+  const draw = (taken, job) => {
+    const key = JSON.stringify([taken, job?.id ?? null]);
+    if (key === listed) return;
+    listed = key;
+    if (!taken.length) { list.replaceChildren(made("p", "", "This Bridge has taken no job since it started. A job its agents take is listed here, with what its agent writes.")); return; }
+    list.replaceChildren(table(["Job", "Kind", "Agent", "Product", "State", "Taken", ""], taken.map((each) => [each.id, each.kind, each.agent, each.product,
+      made("span", `badge ${STATE_BADGES[each.state] ?? "b-open"}`, each.state), new Date(each.started).toLocaleString(),
+      each.id === job?.id ? made("span", "muted small", "shown below") : button("Show console", () => context.go("jobs", { job: each.id }), "small")])));
+  };
+  // The console's text: the lines held and the one being written; it stays at the newest line unless the person has scrolled up from it.
+  const show = () => {
+    const atEnd = !(Number(pane.scrollHeight) - Number(pane.scrollTop) - Number(pane.clientHeight) > 4);
+    pane.textContent = [...held, ...(partial ? [partial] : [])].join("\n");
+    if (atEnd) pane.scrollTop = pane.scrollHeight;
+  };
+  const ask = async () => {
+    if (drawing !== jobsDrawn || shownRoute() !== "jobs") return;
+    try {
+      const taken = (await window.bridge.state("jobs"))?.jobs ?? [];
+      const job = chosenJob(taken, params.job);
+      draw(taken, job);
+      if (job?.id !== shownId) {
+        shownId = job?.id ?? null; held = []; next = -CONSOLE_LINES; partial = "";
+        title.textContent = job ? `Console of ${job.id}` : "";
+        hint.textContent = job ? `What ${job.agent} writes for this ${job.kind} job, as it writes it: the last lines only. Scroll up to read back; scroll to the end to follow again.` : "";
+        show();
+      }
+      if (job) {
+        const log = await window.bridge.state("job-log", { id: job.id, from: next });
+        if (drawing !== jobsDrawn) return;
+        held = (next < 0 || log.first > next ? [] : held).concat(log.lines);
+        held = held.slice(Math.max(0, held.length - CONSOLE_LINES));
+        next = log.next; partial = log.partial ?? "";
+        show();
+      }
+      said.textContent = "";
+    } catch (failure) {
+      said.textContent = `The Bridge did not answer: ${failure.message}`;
+    } finally {
+      if (drawing === jobsDrawn && shownRoute() === "jobs") { const timer = setTimeout(ask, CONSOLE_EVERY_MS); timer?.unref?.(); }
+    }
+  };
+  await ask();
 }
 let taken = null;
 async function settings(target, context) {
@@ -195,4 +259,4 @@ async function updates(target, context) {
   } else if (!state.error && !state.refused) shown.push(paragraph("No newer release is offered."));
   target.replaceChildren(...shown);
 }
-await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "agents", entry: null, title: "Agents", render: agents }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }, { name: "updates", entry: null, title: "Updates", render: updates }] }], menuViews: [] });
+await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "agents", entry: null, title: "Agents", render: agents }, { name: "jobs", entry: null, title: "Jobs", render: jobs }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }, { name: "updates", entry: null, title: "Updates", render: updates }] }], menuViews: [] });

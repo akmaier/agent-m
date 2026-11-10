@@ -10,8 +10,9 @@
 // This drives the production window entry through a small EventTarget DOM, as tests/mod-desktop-shell-window.test.mjs does. It opens no native window,
 // contacts no service, and uses only constructed preload replies. The expected results are written here from the two texts above, and none is read from
 // the code. Readings taken where the texts leave one open:
-//   - "The routes" are the five routes the window serves — Pairing (also as it stands when the Bridge could not start), Agents, Settings, Tunnels and
-//     Updates (with a release offered, before and after its download) — each drawn with a state that shows every button it can draw.
+//   - "The routes" are the six routes the window serves — Pairing (also as it stands when the Bridge could not start), Agents, Jobs, Settings, Tunnels and
+//     Updates (with a release offered, before and after its download) — each drawn with a state that shows every button it can draw; Jobs with two jobs, one
+//     shown in its console and one with its Show console.
 //   - "The look's classes" for a button are `btn`, with `primary` or `small` beside it (MOD-site-frame, look.css): every button a route draws carries `btn`.
 //     A table is drawn in the look's class `list`.
 //   - "No style of their own" is no `style` attribute and no <style> or <link> element in what a route draws.
@@ -68,6 +69,9 @@ test("TST-1105202 the Bridge window's routes use only the site's style sheet, an
       if (action === "tunnels") return { publicKey: "ssh-ed25519 fixture", tunnels: [{ name: "own", state: "open" }] };
       if (action === "updates") return { version: "2026.10.0", offer: { version: "2026.11.0", notes: "Fixes the tunnels." }, ready, refused: null, error: null };
       if (action === "running-jobs") return { jobs: [] };
+      if (action === "jobs") return { jobs: [{ id: "JOB-1", product: "https://products.example.test", kind: "decide-gate", agent: "claude", state: "done", started: "2026-11-10T09:00:00Z", usage: null },
+        { id: "JOB-2", product: "https://products.example.test", kind: "decide-gate", agent: "claude", state: "running", started: "2026-11-10T10:00:00Z", usage: null }] };
+      if (action === "job-log") return { lines: ["one", "two"], first: 0, next: 2, partial: "thr", ended: false };
       return failure ?? { address: "http://127.0.0.1:4711", token: "fixture-token", paused: false, pairedWith: null };
     },
     async copy() {}, async quit() {}, async retryPort() {}, async pairAnew() {}, async pause() {}, async resume() {},
@@ -106,12 +110,14 @@ test("TST-1105202 the Bridge window's routes use only the site's style sheet, an
   await show("#pairing"); inspect("pairing");
   failure = { failure: { name: "PortInUse", message: "occupied" } }; await show("#pairing"); inspect("pairing, not started"); failure = null;
   await show("#agents"); inspect("agents");
+  await show("#jobs"); inspect("jobs");
+  assert.ok(descendants(route(), (node) => node.localName === "pre" && classes(node).includes("console")).length === 1, "jobs: the console is drawn in the look's class console");
   await show("#settings"); inspect("settings");
   await show("#tunnels"); inspect("tunnels");
   await show("#updates"); inspect("updates, offered");
   ready = true; await show("#updates"); inspect("updates, downloaded");
   for (const label of ["Use this port", "Quit", "Copy token", "Pair anew", "Choose folder", "Set up", "Log in", "Check again", "Save agents",
-    "Save settings", "Import settings export", "Copy public key", "Save jump host", "Download", "Install and restart", "Agents", "Updates"]) {
+    "Save settings", "Import settings export", "Copy public key", "Save jump host", "Download", "Install and restart", "Agents", "Jobs", "Show console", "Updates"]) {
     assert.ok(drawn.includes(label), `the routes drew the button ${label}`);
   }
 });

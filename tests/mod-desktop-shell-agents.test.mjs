@@ -254,7 +254,7 @@ test("TST-407002: window Agents view keeps the one folder and shows missing inst
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(saved, { agents: [{ name: "claude", ...DECLARED }], folder: chosen },
     "failure node: only the ticked installed agent is saved, with its declaration and no folder of its own, beside the one folder chosen through the window bridge");
-  assert.match(document.body.textContent, /shell-owner\/agent-m checked out at 0123456789ab/, "failure node: the checkout's commit is shown");
-  assert.match(document.body.textContent, /shell-owner\/refused not reached: permission denied/,
+  assert.match(document.body.textContent, /shell-owner\/agent-m\s*checked out at 0123456789ab/, "failure node: the checkout's commit is shown");
+  assert.match(document.body.textContent, /shell-owner\/refused\s*not reached: permission denied/,
     "failure node: a repository the Bridge does not reach is shown with git's reason");
 });
