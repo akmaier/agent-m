@@ -105,6 +105,8 @@ export async function compose({ instance, origin, dataFolder, port = bridgeApi.d
     key,
     ...bridge,
     enclosures,
+    // At start every working folder is checked out, in the background (MOD-desktop-shell, Start and The checkout).
+    checkingOut: checkout.checkOut(),
     checkOut: () => checkout.checkOut(),
     checkout: () => checkout.last(),
     pairAnew: (token = null) => pairAnew(dataFolder, token),
