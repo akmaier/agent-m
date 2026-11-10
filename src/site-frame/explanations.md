@@ -511,12 +511,15 @@ by the agent's provider. In the book *Vibe Coding*: chapter 10, section 6, on AP
 
 ## bridge-own-login
 
-A job handed to a Bridge runs on your computer with the agent's own login and with the computer's own git login. No key is
-stored for it on GitHub; the job uses your subscription. The computer's git login must reach the
-instance and the product, and the Bridge refuses the job and names the repository when it does not.
+A job handed to a Bridge runs on your computer with the agent's own login. No key is stored for it on GitHub; the job uses
+your subscription. Choose one folder: the Bridge makes a working folder for each agent you tick in it, and when you save, it
+checks out the instance and the products there at once and shows what it reached. It reaches the repositories with the
+repository tokens your dashboard hands it once paired — no token is entered here —, or, for a repository without one, with
+this computer's own git login.
 
-The agent works in an enclosure: it cannot read the Bridge's folder, your SSH keys or your git login, and it can write only its
-own folder and the job's checkout. The Bridge, not the agent, pushes the agent's branch and opens its pull request. Inside the
+The agent works in an enclosure: it cannot read the Bridge's folder, the tokens, your SSH keys or your git login, and it can
+write only its own folder and the job's checkout. The Bridge, not the agent, pushes the agent's branch and opens its pull
+request — a merge request on GitLab. Inside the
 enclosure the agent has a home of its own, so it needs its own login there once: press *Log in* beside it. On Windows the
 enclosure is an account of the Bridge's own, which an administrator allows once with *Set up*; on Linux it needs the
 package bubblewrap.

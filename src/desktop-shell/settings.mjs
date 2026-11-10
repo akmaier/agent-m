@@ -6,10 +6,11 @@ import { join } from "node:path";
 import { bridgeApi } from "../bridge-http/index.mjs";
 import { tunnelCommands } from "../bridge-client/index.mjs";
 import { readExport } from "../browser-store/index.mjs";
+import { keepRepositoryTokens } from "../bridge-jobs/index.mjs";
 
 const VERSION = 1;
 const SETTINGS_FILE = "settings.json";
-const fields = ["agent-m-bridge-settings", "name", "port", "agents", "products", "every", "paused", "jumpHost", "tunnels"];
+const fields = ["agent-m-bridge-settings", "name", "port", "folder", "agents", "products", "every", "paused", "jumpHost", "tunnels"];
 
 const keyFile = (dataFolder) => join(dataFolder, "ssh", "id_ed25519");
 const fileOf = (dataFolder) => join(dataFolder, SETTINGS_FILE);
@@ -23,6 +24,7 @@ function defaults(dataFolder, supplied = {}) {
     "agent-m-bridge-settings": VERSION,
     name: supplied.name ?? hostname(),
     port: supplied.port ?? bridgeApi.defaultPort,
+    folder: supplied.folder ?? null,
     agents: supplied.agents ?? [],
     products: supplied.products ?? [],
     every: supplied.every ?? 300,
@@ -50,11 +52,12 @@ function declarationOf(value) {
   return { place, capabilities, models };
 }
 
-function agentOf(value) {
+// An offered agent as the settings keep it, and in memory with its working folder `<folder>/<agent>`, which follows from the one folder and is no
+// setting of its own (MOD-desktop-shell, Data: folder): null while no folder is chosen. An agent's own folder of an earlier file is not kept.
+function agentOf(value, folder) {
   if (!object(value)) return null;
   const name = text(value.name);
-  const folder = text(value.folder);
-  return name && folder ? { name, folder, ...declarationOf(value) } : null;
+  return name ? { name, folder: folder ? join(folder, name) : null, ...declarationOf(value) } : null;
 }
 
 // declareAgent(dataFolder, agent, declaration) -> settings — keeps the declaration of an agent the Bridge offers (`PUT /v1/agents/{agent}`, UC-044 step 5): its place,
@@ -90,7 +93,8 @@ function canonical(dataFolder, value) {
   for (const field of fields) input[field] = value?.[field] ?? input[field];
   const settings = Object.fromEntries(fields.map((field) => [field, input[field]]));
   settings.jumpHost = jumpHostOf(settings.jumpHost);
-  settings.agents = Array.isArray(settings.agents) ? settings.agents.map(agentOf).filter(Boolean) : null;
+  settings.folder = text(settings.folder)?.trim() || null;
+  settings.agents = Array.isArray(settings.agents) ? settings.agents.map((agent) => agentOf(agent, settings.folder)).filter(Boolean) : null;
   settings.products = Array.isArray(settings.products) ? settings.products.filter((item) => typeof item === "string") : null;
   settings.tunnels = Array.isArray(settings.tunnels) ? settings.tunnels.map((plan) => tunnelOf(dataFolder, plan)).filter(Boolean) : null;
   if (settings["agent-m-bridge-settings"] !== VERSION || typeof settings.name !== "string" || !settings.name ||
@@ -129,13 +133,20 @@ export function setJumpHost(dataFolder, value) {
 export function saveSettings(dataFolder, value) {
   const settings = canonical(dataFolder, value);
   ownFolder(dataFolder);
-  writeFileSync(fileOf(dataFolder), JSON.stringify(settings), { encoding: "utf8", mode: 0o600 });
+  // The file keeps the one folder; each agent's working folder follows from it.
+  writeFileSync(fileOf(dataFolder), JSON.stringify({ ...settings, agents: settings.agents.map(({ folder: _working, ...agent }) => agent) }), { encoding: "utf8", mode: 0o600 });
   return settings;
 }
 
-// The shell's own handler: `PUT /v1/agents/{agent}` keeps an agent's declaration in the settings, and in the agents the Bridge's handlers and its watching hold.
-export function composeSettingsHandlers(settings, dataFolder) {
+// The shell's own handlers: `PUT /v1/agents/{agent}` keeps an agent's declaration in the settings, and in the agents the Bridge's handlers and its watching hold;
+// `PUT /v1/repository-tokens` keeps the tokens the paired browser hands the Bridge (MOD-bridge-jobs' keepRepositoryTokens), then has `checkOutAgain` check out.
+export function composeSettingsHandlers(settings, dataFolder, { checkOutAgain = () => {} } = {}) {
   return {
+    "PUT /v1/repository-tokens": async ({ body }) => {
+      const kept = await keepRepositoryTokens(dataFolder, body?.tokens);
+      checkOutAgain();
+      return { kept };
+    },
     "PUT /v1/agents/{agent}": async ({ params, body }) => {
       let kept;
       try { kept = declareAgent(dataFolder, decodeURIComponent(params.agent), body); }

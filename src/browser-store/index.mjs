@@ -11,7 +11,7 @@
 // instance's prefix and throws StoreError. Every other file of this folder is private to it.
 
 import { isKnownKey } from "./catalogue.mjs";
-import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError, tabStorage } from "./store.mjs";
+import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError, tabStorage, watchRaw } from "./store.mjs";
 import { removeSignIn, signInOf, viewOfStorage } from "./sign-in.mjs";
 import { moveLegacyKeys } from "./legacy-keys.mjs";
 export { exportSettings, importSettings, readExport } from "./export.mjs";
@@ -43,7 +43,12 @@ export function writeSetting(store, key, value) {
   setRaw(store, key, JSON.stringify(value));
 }
 
-// readTabValue(store, key) -> the value this browser tab keeps under `key` for the instance, or null. No other tab reads
+// watchSettings(store, listener) -> () => void — calls `listener(key)` after each setting this page writes or clears in the instance's
+// store, through any Store of the instance — writeSetting, clearSetting, clearEverything, importSettings —; the returned function stops
+// it. A listener that throws stops neither the write nor the other listeners; what another tab writes is not told.
+export const watchSettings = (store, listener) => watchRaw(store, listener);
+
+// readTabValue(store, key) ->the value this browser tab keeps under `key` for the instance, or null. No other tab reads
 // it. Throws StorageUnavailable.
 export function readTabValue(store, key) {
   const raw = tabStorage().getItem(store.prefix + key);
@@ -83,7 +88,7 @@ export function clearEverything(store) {
   const signIn = signInOfStore(store);
   for (let index = store.storage.length - 1; index >= 0; index -= 1) {
     const storageKey = store.storage.key(index);
-    if (storageKey?.startsWith(store.prefix)) store.storage.removeItem(storageKey);
+    if (storageKey?.startsWith(store.prefix)) removeRaw(store, storageKey.slice(store.prefix.length));
   }
   removeSignIn(store.storage, signIn);
 }

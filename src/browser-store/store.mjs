@@ -51,6 +51,28 @@ export function getRaw(store, key) {
   return v === null || v === undefined ? null : v;
 }
 
+// The listeners of each instance's settings in this page (watchSettings, index.mjs), by the storage and the prefix: every Store of
+// one instance is told alike.
+const listeners = new WeakMap();
+const listenersOf = (store) => {
+  const byPrefix = listeners.get(store.storage) ?? new Map();
+  listeners.set(store.storage, byPrefix);
+  if (!byPrefix.has(store.prefix)) byPrefix.set(store.prefix, new Set());
+  return byPrefix.get(store.prefix);
+};
+
+// watchRaw(store, listener) -> stop — `listener(key)` after each setRaw and removeRaw of the instance; a listener that throws stops
+// neither the write nor the others.
+export function watchRaw(store, listener) {
+  const set = listenersOf(store);
+  const entry = (key) => listener(key);
+  set.add(entry);
+  return () => set.delete(entry);
+}
+function tell(store, key) {
+  for (const listener of [...listenersOf(store)]) { try { listener(key); } catch { /* a listener's failure is its own */ } }
+}
+
 // setRaw(store, key, raw) -> void. Throws StorageUnavailable where the browser refuses the write — a quota used up, or
 // storage taken away, after the store was opened.
 export function setRaw(store, key, raw) {
@@ -59,6 +81,7 @@ export function setRaw(store, key, raw) {
   } catch {
     throw new StoreError("StorageUnavailable", {}, "localStorage refused to store this value.");
   }
+  tell(store, key);
 }
 
 // tabStorage() -> the tab's sessionStorage, which a value of the tab lives in (MOD-browser-store, Interfaces:
@@ -75,4 +98,5 @@ export function tabStorage() {
 // removeRaw(store, key) -> void — removes the entry from localStorage itself (A CLEAR IS A REAL CLEAR).
 export function removeRaw(store, key) {
   store.storage.removeItem(store.prefix + key);
+  tell(store, key);
 }

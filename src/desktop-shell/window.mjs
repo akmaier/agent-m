@@ -45,20 +45,34 @@ const field = (label, value, type = "text") => {
 };
 const area = (label, value) => { const input = document.createElement("textarea"), caption = document.createElement("label"); input.value = value ?? ""; caption.textContent = label; caption.append(input); return { caption, input }; };
 const installUrl = (agent, platform) => agent.install?.[platform] ?? Object.values(agent.install ?? {})[0] ?? null;
+// The last checkout's result (UC-044 step 3): for each agent and repository the commit its clone holds, or the repository not reached with git's reason.
+function checkedOut(result, checkout, saved = null) {
+  if (!Array.isArray(checkout)) return;
+  if (!checkout.length) { result.textContent = `${saved ? `${saved} ` : ""}Nothing to check out: tick an agent and choose the folder.`; return; }
+  const lines = document.createElement("ul");
+  for (const entry of checkout) {
+    const item = document.createElement("li");
+    item.textContent = `${entry.agent}: ${entry.repository} ${entry.commit ? `checked out at ${entry.commit.slice(0, 12)}` : `not reached: ${entry.reason}`}`;
+    lines.append(item);
+  }
+  result.replaceChildren(...(saved ? [saved] : []), lines);
+}
 async function agents(target, context) {
   const state = await window.bridge.state("agents"), selected = new Map((state.selected ?? []).map((agent) => [agent.name, agent]));
   const heading = document.createElement("h1"), list = document.createElement("div"), result = document.createElement("p"), rows = [];
   heading.textContent = "Bridge agents";
+  // The one folder that holds the working folder of each ticked agent, <folder>/<agent>, which the Bridge makes (UC-044 step 3).
+  const folder = field("Folder of the agents' working folders ", state.folder ?? "");
+  const choose = button("Choose folder", async () => { const chosen = await window.bridge.chooseFolder(); if (chosen) folder.input.value = chosen; }, "small");
   for (const agent of state.agents ?? []) {
     const row = document.createElement("p"), name = document.createElement("strong"), status = document.createElement("span");
     name.textContent = agent.name;
     if (agent.installed) {
       const kept = selected.get(agent.name) ?? null;
-      const tick = document.createElement("input"), folder = field(" Working folder", kept?.folder ?? "");
+      const tick = document.createElement("input");
       tick.type = "checkbox"; tick.checked = kept !== null;
-      status.textContent = ` ${agent.version ?? "installed"}${agent.loggedIn === false ? " not logged in" : " ready"}`;
-      const choose = button("Choose folder", async () => { const chosen = await window.bridge.chooseFolder(); if (chosen) { folder.input.value = chosen; tick.checked = true; } }, "small");
-      row.append(tick, name, status, folder.caption, choose);
+      status.textContent = ` ${agent.version ?? "installed"}${agent.loggedIn === false ? " not logged in" : " ready"}${kept?.folder ? `, working in ${kept.folder}` : ""}`;
+      row.append(tick, name, status);
       // The agent's enclosure (ARC-054): whether it works here, else why and its one-time step; whether the agent is logged in there, else its login step.
       const enclosed = state.enclosures?.[agent.name];
       if (enclosed) {
@@ -87,7 +101,7 @@ async function agents(target, context) {
       const models = area(" Models, one per line: model and context in tokens", (kept?.models ?? []).map((each) => `${each.model} ${each.context ?? ""}`.trim()).join("\n"));
       declaration.append(models.caption);
       row.append(declaration);
-      rows.push({ agent, tick, folder: folder.input, place: place.input, ticks, models: models.input });
+      rows.push({ agent, tick, place: place.input, ticks, models: models.input });
     } else {
       const link = document.createElement("a");
       link.textContent = "How to install";
@@ -98,29 +112,21 @@ async function agents(target, context) {
     }
     list.append(row);
   }
+  // Save agents keeps the ticked agents and the folder; the Bridge then checks out at once, and its result is shown when the checkout has ended.
   const save = button("Save agents", async () => {
-    const agents = rows.filter(({ agent, tick, folder }) => agent.installed && tick.checked && folder.value)
-      .map(({ agent, folder, place, ticks, models }) => ({ name: agent.name, folder: folder.value, place: place.value.trim() || "this machine",
+    const agents = rows.filter(({ agent, tick }) => agent.installed && tick.checked)
+      .map(({ agent, place, ticks, models }) => ({ name: agent.name, place: place.value.trim() || "this machine",
         capabilities: ticks.filter(([, box]) => box.checked).map(([capability]) => capability),
         models: models.value.split("\n").map((line) => line.trim().split(/\s+/)).filter(([model]) => model).map(([model, context]) => ({ model, context: Number(context) || null })) }));
-    await window.bridge.state("save-agents", { agents });
-    result.textContent = `Saved ${agents.length} agent(s).`;
+    await window.bridge.state("save-agents", { agents, folder: folder.input.value.trim() || null });
+    const saved = `Saved ${agents.length} agent(s).`;
+    result.textContent = `${saved} Checking out the instance and the products…`;
+    checkedOut(result, (await window.bridge.state("checkout")).checkout, saved);
   }, "primary");
-  const access = button("Test access", async () => {
-    const answer = await window.bridge.state("test-access");
-    const refused = (answer.results ?? []).filter((entry) => !entry.reachable);
-    if (!refused.length) { result.textContent = "All repositories reached."; return; }
-    const failures = document.createElement("ul");
-    for (const entry of refused) {
-      const item = document.createElement("li");
-      item.textContent = `${entry.repository}: ${entry.reason}`;
-      failures.append(item);
-    }
-    result.replaceChildren(failures);
-  });
+  checkedOut(result, state.checkout);
   // Check again reads the installed agents anew, so that one installed meanwhile is listed without the Bridge restarting (UC-044 3a).
   const again = button("Check again", () => agents(target, context));
-  target.replaceChildren(heading, navigation(context), explain("bridge-own-login"), list, again, save, access, result);
+  target.replaceChildren(heading, navigation(context), explain("bridge-own-login"), folder.caption, choose, list, again, save, result);
 }
 let taken = null;
 async function settings(target, context) {

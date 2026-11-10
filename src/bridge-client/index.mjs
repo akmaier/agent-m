@@ -1,7 +1,7 @@
 // The page's client for the Bridge API used by UC-003 endpoint tests.
 //
 // Module: MOD-bridge-client
-// Public: BridgeError, settingsOf, bridgeAt, pair, testBridge, handOver, ask, bridgeJobs, bridgeJobLog, cancelOnBridge, mailCall, probe
+// Public: BridgeError, settingsOf, bridgeAt, pair, testBridge, handTokens, handOver, ask, bridgeJobs, bridgeJobLog, cancelOnBridge, mailCall, probe
 
 import { bridgeApi } from "../bridge-http/index.mjs";
 import { bridgePath } from "./paths.mjs";
@@ -148,6 +148,14 @@ export async function declareAgent(bridge, agent, declaration) {
   const route = apiRoute("PUT", "/v1/agents/{agent}");
   await call(bridge, route.path.replace("{agent}", encodeURIComponent(agent)), { method: route.method,
     body: JSON.stringify({ place: declaration.place, capabilities: declaration.capabilities, models: declaration.models }) });
+}
+
+// handTokens(bridge, tokens) -> Promise<{ kept }> — `PUT /v1/repository-tokens`: every repository token this browser keeps, each with the address of its
+// repository, which replace those the Bridge kept before; [] makes it forget every one. The tokens travel only in this request's body (A TOKEN GOES ONLY TO
+// THE SERVER THAT ISSUED IT; MOD-bridge-client, Interfaces: handTokens; UC-044 step 4).
+export async function handTokens(bridge, tokens) {
+  const route = apiRoute("PUT", "/v1/repository-tokens");
+  return call(bridge, route.path, { method: route.method, body: JSON.stringify({ tokens: tokens.map(({ repository, token }) => ({ repository, token })) }) });
 }
 
 export async function handOver(bridge, job) {

@@ -22,15 +22,15 @@ const folder = () => mkdtemp(join(tmpdir(), "agent-m-declarations-"));
 
 // TST-20261109304 · level: unit · module: MOD-desktop-shell
 // guards: A CONNECTION NAMES THE MODELS IT OFFERS; A CONNECTION DECLARES ITS CAPABILITIES; UC-044
-// given: Bridge settings that offer claude with its working folder and no declaration yet
+// given: Bridge settings that offer claude, working in /work/claude of the one folder /work, and no declaration yet
 // input: loadSettings; then declareAgent(folder, "claude", a declaration); declareAgent for codex, which is not offered; a declaration whose model names no context
 // expect: the agent read back with the place "this machine" and every capability preset and no model; then with the declaration kept in the settings file; NotOffered for codex and InvalidSettings for the model without its context, the file unchanged
 test("declareAgent — the Bridge's settings keep an offered agent's declaration, preset with this machine and every capability", async () => {
   const data = await folder();
-  saveSettings(data, { ...loadSettings(data), agents: [{ name: "claude", folder: "/work/claude" }] });
+  saveSettings(data, { ...loadSettings(data), folder: "/work", agents: [{ name: "claude" }] });
   assert.deepEqual(loadSettings(data).agents, [{ name: "claude", folder: "/work/claude", place: "this machine", capabilities: CAPABILITIES, models: [] }]);
   declareAgent(data, "claude", DECLARATION);
-  assert.deepEqual(JSON.parse(await readFile(join(data, "settings.json"), "utf8")).agents, [{ name: "claude", folder: "/work/claude", ...DECLARATION }]);
+  assert.deepEqual(JSON.parse(await readFile(join(data, "settings.json"), "utf8")).agents, [{ name: "claude", ...DECLARATION }], "the file keeps no folder of the agent's own");
   const before = await readFile(join(data, "settings.json"), "utf8");
   assert.throws(() => declareAgent(data, "codex", DECLARATION), { name: "NotOffered" });
   assert.throws(() => declareAgent(data, "claude", { ...DECLARATION, models: [{ model: "claude-opus-5-5" }] }), { name: "InvalidSettings" });
@@ -44,7 +44,7 @@ test("declareAgent — the Bridge's settings keep an offered agent's declaration
 // expect: it resolves; the settings file and the agents the Bridge holds keep the declaration; codex is refused with the failure not-found; the wrong token is refused with 401 and nothing changes
 test("PUT /v1/agents/{agent} — declareAgent keeps the declaration in the Bridge's settings and in the agents it holds", async (t) => {
   const data = await folder();
-  const settings = saveSettings(data, { ...loadSettings(data), agents: [{ name: "claude", folder: "/work/claude" }] });
+  const settings = saveSettings(data, { ...loadSettings(data), folder: "/work", agents: [{ name: "claude" }] });
   const bridge = await serveBridge({ host: "127.0.0.1", port: 0, origin: ORIGIN, dataFolder: data, paused: () => false },
     { jobs: {}, mail: {}, tunnels: {}, settings: composeSettingsHandlers(settings, data) });
   t.after(() => bridge.close());

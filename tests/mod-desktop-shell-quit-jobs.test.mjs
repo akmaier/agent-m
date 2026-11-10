@@ -132,7 +132,7 @@ test("confirming Quit with two jobs running ends both records as cancelled", asy
     const first = w.queue(JOB("JOB-20261011-0901-aaa1", "drafter")), second = w.queue(JOB("JOB-20261011-0902-aaa2", "claude-drafter"));
     const appData = temporary(), data = temporary(), resources = temporary();
     const [port] = await unusedPorts(1);
-    saveSettings(data, { "agent-m-bridge-settings": 1, name: "lab-pc", port, agents: [{ name: "opencode", folder: w.folder("work-opencode") }, { name: "claude", folder: w.folder("work-claude") }],
+    saveSettings(data, { "agent-m-bridge-settings": 1, name: "lab-pc", port, folder: w.folder("work"), agents: [{ name: "opencode" }, { name: "claude" }],
       products: [PRODUCT], every: 1, paused: false, jumpHost: null, tunnels: [] });
     const entry = await startEntry({ resources, appData, argv: [`--instance=${INSTANCE_NAME}`, "--origin=https://carol.github.io", `--port=${port}`, `--data-folder=${data}`] });
     try {

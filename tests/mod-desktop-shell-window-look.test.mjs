@@ -110,7 +110,7 @@ test("TST-1105202 the Bridge window's routes use only the site's style sheet, an
   await show("#tunnels"); inspect("tunnels");
   await show("#updates"); inspect("updates, offered");
   ready = true; await show("#updates"); inspect("updates, downloaded");
-  for (const label of ["Use this port", "Quit", "Copy token", "Pair anew", "Choose folder", "Set up", "Log in", "Check again", "Save agents", "Test access",
+  for (const label of ["Use this port", "Quit", "Copy token", "Pair anew", "Choose folder", "Set up", "Log in", "Check again", "Save agents",
     "Save settings", "Import settings export", "Copy public key", "Save jump host", "Download", "Install and restart", "Agents", "Updates"]) {
     assert.ok(drawn.includes(label), `the routes drew the button ${label}`);
   }
