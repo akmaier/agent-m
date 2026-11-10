@@ -341,7 +341,8 @@ so; a model's command there reaches what that user can.
   handed over as `onRecordsChanged` states; each job's end appended, naming its commits and pull requests as they now
   stand, and the jobs it handed over. A result that is refused, or that does not apply on the branch
   as it stands now, writes no branch, and each job it ended is ended `failed`, naming why, except one another run has
-  taken or ended meanwhile, which is that run's. While the agent works, a job's record shows it queued: its taking
+  taken or ended meanwhile, which is that run's — read on the branch as the origin holds it, not on the commits picked
+  before one did not apply, among which stands the job's own taking. While the agent works, a job's record shows it queued: its taking
   reaches the product with the result.
 - `runTests(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, in each test job of MOD-test-schedule's
   configuration, on a machine that holds no token: the files of the row `AGENT_M_ROW` among the commit's committed files,

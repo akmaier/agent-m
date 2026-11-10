@@ -424,6 +424,35 @@ test("writeResult — on a main that moved, the commits are picked onto it and t
   });
 });
 
+// TST-2026111007 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: the same run, and someone pushes a commit to the origin's main that writes the gate file the writer writes too, while the agent works
+// input: onRecordsChanged and leaveResult on the agent's machine, the other commit, writeResult
+// expect: writeResult ends `failed`, naming the commit that does not apply; the origin's main holds the other commit and, on top of it, the job's end alone —
+//   `failed`, its reason naming the commit —, neither the taking nor the writer's commit. Counter-proof: the taking, picked before the writer's commit failed, stayed
+//   in the checkout; the record read from it counted as taken by another run, and the job was left queued for ever (akmaier/AlienInvasion, JOB-20261110-0903-9f75).
+test("writeResult — a result that does not apply on a main that moved ends its job failed, not queued", async () => {
+  fakeEndpoint();
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+    await entry("onRecordsChanged", agentMachine(w));
+    await entry("leaveResult", agentMachine(w));
+    const seed = join(w.root, "product-seed");
+    git(seed, "pull", "-q", "origin", "main");
+    write(seed, { [GATE_PATH]: "# a gate someone else wrote\n" });
+    git(seed, "add", "-A");
+    git(seed, "commit", "-q", "-m", "someone else");
+    git(seed, "push", "-q", "origin", "HEAD:refs/heads/main");
+
+    const written = await entry("writeResult", writingMachine(w));
+    assert.equal(written.outcome, "failed", written.summary);
+    assert.match(written.summary, /does not apply/);
+    assert.deepEqual(subjects(w).slice(0, 2), [`end ${JOB}: failed`, "someone else"]);
+    const record = fileAt(w, `docs/jobs/${JOB}.md`);
+    assert.ok(!record.includes("## Taken"), "the taking was not written");
+    assert.match(record, /## End[^]*state: failed[^]*reason: the result of the agent's machine was not written: [^\n]*does not apply/);
+  });
+});
+
 // TST-0124203 · level: unit · module: MOD-workflow-entries
 // guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the same run, after which the agent — led astray — commits a change of .github/workflows/ on a branch of its own and pushes it, as its checkout pushes

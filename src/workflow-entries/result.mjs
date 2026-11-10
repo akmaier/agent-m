@@ -175,7 +175,7 @@ export function checkResult(read, secrets, task) {
  * origin, with the credentials of the checkout, never forced. The default branch first: where the origin's branch stands at the result's base, its commits as they
  * are; where it has moved on, each of them picked onto it in their order, and pushed again where it moved meanwhile, up to five times; the checkout then stands at
  * what was pushed. Then every other branch as it is. Returns each commit picked anew by its old identifier. Throws ResultNotApplied where a commit does not apply
- * on the branch as it stands now, or a push is refused or fails.
+ * on the branch as it stands now, or a push is refused or fails; the checkout then stands at the origin's branch as it was fetched.
  */
 export function writeBranches(productDir, result) {
   const renamed = new Map();
@@ -195,10 +195,16 @@ export function writeBranches(productDir, result) {
         const picks = git(productDir, ["rev-list", "--reverse", "--topo-order", "--parents", local(main), ...(base ? ["--not", base] : [])]).split("\n").filter(Boolean);
         for (const line of picks) {
           const [commit, ...parents] = line.split(" ");
-          if (parents.length > 1) throw failure("ResultNotApplied", `the merge ${commit.slice(0, 12)} on ${result.branch} cannot be picked onto the branch as it stands now`);
+          // Where it gives up, the checkout stands at the branch as it is on the origin again, not at the commits picked so far — among them the job's taking,
+          // which would make the job read as taken by another run.
+          if (parents.length > 1) {
+            git(productDir, ["checkout", "--quiet", "--detach", head]);
+            throw failure("ResultNotApplied", `the merge ${commit.slice(0, 12)} on ${result.branch} cannot be picked onto the branch as it stands now`);
+          }
           const picked = git(productDir, ["cherry-pick", "--allow-empty", commit], { tolerate: true });
           if (typeof picked !== "string") {
             git(productDir, ["cherry-pick", "--abort"], { tolerate: true });
+            git(productDir, ["checkout", "--quiet", "--detach", head]);
             throw failure("ResultNotApplied", `the commit ${commit.slice(0, 12)} does not apply on ${result.branch} as it stands now`);
           }
           renamed.set(commit, git(productDir, ["rev-parse", "HEAD"]));
@@ -211,6 +217,7 @@ export function writeBranches(productDir, result) {
         break;
       }
       if (!/rejected|non-fast-forward|fetch first|stale info/i.test(pushed.failed) || attempt >= 5) {
+        git(productDir, ["checkout", "--quiet", "--detach", head]);
         throw failure("ResultNotApplied", `the branch ${result.branch} could not be pushed: ${pushed.failed}`);
       }
     }
