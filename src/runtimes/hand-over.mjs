@@ -35,6 +35,7 @@ export const planWorksOn = async (draft, context) => {
       what: `piece ${at + 1} of the plan rests on piece ${number}, which is no earlier piece of the plan`,
       fix: "after names earlier pieces of this plan, by their numbers from 1; a piece that rests on a result already accepted names none" }))];
   });
+  found.push(...sharedWork(plan));
   const snapshot = context?.product?.snapshot;
   if (!snapshot || found.length > 0) return found;
   const unknown = await unknownRequirements(plan, snapshot);
@@ -67,6 +68,26 @@ async function unstartable(plan, context) {
 }
 
 const RECORDED = "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY";
+
+// Two pieces that work on the same thing and of which neither rests on the other run at once, and the result of the one that ends second does not apply on
+// what the first wrote: one error on the later piece, naming the earlier one and what both work on.
+function sharedWork(plan) {
+  const worksOn = plan.map((piece) => new Set([piece?.works_on].flat().filter(Boolean).map(String)));
+  const restsOn = (later, earlier, seen = new Set()) => [plan[later]?.after ?? []].flat().some((number) => Number.isInteger(number) && !seen.has(number)
+    && (number - 1 === earlier || (seen.add(number), restsOn(number - 1, earlier, seen))));
+  const found = [];
+  for (let later = 1; later < plan.length; later += 1) {
+    for (let earlier = 0; earlier < later; earlier += 1) {
+      const both = [...worksOn[later]].filter((each) => worksOn[earlier].has(each));
+      if (both.length === 0 || restsOn(later, earlier)) continue;
+      found.push(finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
+        what: `piece ${later + 1} of the plan works on ${both.join(", ")}, as piece ${earlier + 1} does, and the two would run at once`,
+        fix: `make them one piece, or let piece ${later + 1} rest on piece ${earlier + 1} by naming ${earlier + 1} in its after` }));
+      break;
+    }
+  }
+  return found;
+}
 const REQUIREMENT = /\*\*([A-Z0-9][A-Z0-9 ,'’.\-]*?)\*\*/g;
 
 // The requirement names of the plan's pieces that neither the product's SPEC.md nor a proposal under docs/spec-freigaben/ holds, one error each on its piece, so that the planner

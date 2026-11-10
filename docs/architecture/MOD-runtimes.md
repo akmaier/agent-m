@@ -417,7 +417,10 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   `docs/spec-freigaben/` holds, its `fix` saying that a requirement the change adds is named in the task and `works_on`
   names the requirements it stands beside or changes, or is empty. Also an error, under the same rule, for each number
   of a piece's `after` that names no earlier piece of the plan, its `fix` saying that `after` names earlier pieces of
-  this plan and that a piece resting on a result already accepted names none. Where the job's context has the instance
+  this plan and that a piece resting on a result already accepted names none. Also an error, under the same rule, on
+  a piece whose `works_on` shares an entry with an earlier piece of which it rests on none, directly or through others,
+  naming both pieces and what they share, its `fix` asking to make them one piece or to let the later rest on the
+  earlier. Where the job's context has the instance
   and the plan holds no such error, also an error, under the same rule, for each piece that rests on no other and whose
   job could not start for what the plan chose — a kind the catalogue lacks, the conversation's own kind, a kind that
   takes no task (MOD-job-runner's `taskRefusal`), or what MOD-job-runner's `prepareJob` refuses of the parameters

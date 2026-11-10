@@ -31,7 +31,7 @@ const piece = (works_on) => ({ kind: "change-use-case", works_on, task: "split t
 // counter-proof: before this change routeStrategies offered no check, and the call fails
 test("TST-2026110951: plan-works-on — an error on the answer for each piece whose works_on its job's record refuses", async () => {
   for (const [plan, refused] of [[[piece(["UC-049"]), piece(["the login page"]), piece([])], ["the login page"]],
-    [[piece(["UC-049"]), piece(["UC-049", "docs/x.md"])], ["UC-049", "docs/x.md"]]]) {
+    [[piece(["UC-049"]), { ...piece(["UC-049", "docs/x.md"]), after: [1] }], ["UC-049", "docs/x.md"]]]) {
     const found = await check({ answer: "planned", handOver: plan });
     assert.equal(found.length, 1, JSON.stringify(plan));
     const [one] = found;
@@ -89,4 +89,24 @@ test("TST-2026111001: plan-works-on — an after that names no earlier piece of 
   assert.match(found[0].fix, /earlier pieces of (the|this) plan/);
   assert.match(found[0].fix, /accepted/);
   assert.deepEqual(await routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [piece([]), piece([1])] }, { params: {} }), []);
+});
+
+// TST-2026111006 · level: unit · module: MOD-runtimes
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-049
+// given: no product context
+// input: the check plan-works-on of a plan whose pieces 1 and 2 both work on MOD-game-logic and rest on nothing; then of the same plan with piece 2 resting on piece 1;
+//   then of one whose two pieces work on different files
+// expect: the first gives one error on the answer naming piece 2, piece 1 and MOD-game-logic, its fix saying to make them one piece or to let the later rest on the earlier;
+//   the second and third give none. Counter-proof: on the check as it stood the first passed; both pieces ran at once, and the result of the one that finished second
+//   did not apply on main and was lost, its record left queued (akmaier/AlienInvasion, JOB-20261110-0903-9f75).
+test("TST-2026111006: plan-works-on — two pieces that would work on the same file at once go back to the planner", async () => {
+  const piece = (works_on, after = []) => ({ kind: "change-architecture", works_on, task: "update the module", after });
+  const found = await routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [piece(["ARC-004", "MOD-game-logic"]), piece(["MOD-game-logic"])] }, { params: {} });
+  assert.equal(found.length, 1);
+  assert.deepEqual([found[0].artifact, found[0].kind, found[0].rule], ["answer", "error", RULE]);
+  assert.match(found[0].what, /piece 2\b.*MOD-game-logic.*piece 1\b|piece 2\b.*piece 1\b.*MOD-game-logic/);
+  assert.match(found[0].fix, /one piece/);
+  assert.match(found[0].fix, /after/);
+  assert.deepEqual(await routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [piece(["ARC-004", "MOD-game-logic"]), piece(["MOD-game-logic"], [1])] }, { params: {} }), []);
+  assert.deepEqual(await routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [piece(["MOD-input"]), piece(["MOD-rendering"])] }, { params: {} }), []);
 });
