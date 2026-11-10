@@ -80,15 +80,16 @@ test("TST-407001: composition offers only selected installed agents with their f
     saveSettings(dataFolder, {
       name: "lab-pc",
       port: 4711,
-      agents: [{ name: "claude", folder: machine.folders.claude }],
+      folder: machine.root,
+      agents: [{ name: "claude" }],
       products: [],
       every: 300,
       paused: false,
       jumpHost: null,
       tunnels: [],
     });
-    assert.deepEqual(loadSettings(dataFolder).agents, [{ name: "claude", folder: machine.folders.claude }],
-      "failure node: selected agents are kept in the private settings file");
+    assert.deepEqual(loadSettings(dataFolder).agents.map(({ name, folder }) => ({ name, folder })), [{ name: "claude", folder: join(machine.root, "claude") }],
+      "failure node: selected agents are kept in the private settings file, each working in <folder>/<agent>");
     assert.equal(typeof composeJobHandlers, "function", "failure node: composition exposes the job-handler wiring for unit evidence");
     const answer = await composeJobHandlers(loadSettings(dataFolder), openEnclosures())["GET /v1/agents"]({ params: {}, query: {}, body: {} });
     assert.deepEqual(answer, {
@@ -181,14 +182,17 @@ const click = async (root, label, index = 0) => {
 };
 
 // TST-407002 · level: unit · module: MOD-desktop-shell
-// guards: UC-044; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
-// given: the production Bridge window entry with two installed agents, one selected folder, one missing supported agent and a constructed folder-dialog result
-// input: the Agents view is rendered, the selected agent's folder is chosen, agents are saved, and Test access returns one refused repository
-// expect: the selected agent and chosen folder are saved with its declaration, the unticked installed agent is not offered, the missing agent shows an install link, and the refused repository is shown with git's reason
+// guards: UC-044; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
+// given: the production Bridge window entry with two installed agents, one of them kept with its working folder in the one folder /tmp/old, one missing supported
+//   agent, a constructed folder-dialog result, and a checkout that answers one repository checked out and one not reached
+// input: the Agents view is rendered, the one folder is chosen, and agents are saved
+// expect: the ticked agent is saved with its declaration and without a folder of its own, beside the chosen folder; the unticked installed agent is not offered;
+//   the missing agent shows an install link; after the save the checkout's result shows the commit of the repository checked out and the other with git's
+//   reason; counter-proof: the view offers no Test access and no field of an agent's own working folder
 // Planted fault: omitting the Agents route leaves no Save agents control and this case fails before any save.
 // A kept agent's declaration: the place, the capabilities ticked and each model with its context.
 const DECLARED = { place: "this machine", capabilities: ["draft text"], models: [{ model: "claude-opus-5-5", context: 200000 }] };
-test("TST-407002: window Agents view keeps chosen folders and shows missing installation and access refusals", async () => {
+test("TST-407002: window Agents view keeps the one folder and shows missing installation and the checkout's result", async () => {
   const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
   document.head = document.createElement("head");
   document.body = document.createElement("body");
@@ -199,13 +203,15 @@ test("TST-407002: window Agents view keeps chosen folders and shows missing inst
   Object.defineProperty(globalThis, "location", { configurable: true, value: location });
   Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
   let saved = null;
-  const chosen = "/tmp/agent-m-407-chosen-claude";
+  const chosen = "/tmp/agent-m-407-chosen";
   browser.bridge = {
     async state(action, value) {
       if (action === "agents") return {
         platform: "linux",
-        // Each kept agent with its declaration as a connection (MOD-desktop-shell, Data: agents), and the capabilities a declaration may tick.
-        selected: [{ name: "claude", folder: "/tmp/old-claude", ...DECLARED }],
+        // The one folder, each kept agent with its declaration as a connection and its working folder in the one folder (MOD-desktop-shell, Data), and the
+        // capabilities a declaration may tick.
+        folder: "/tmp/old",
+        selected: [{ name: "claude", folder: "/tmp/old/claude", ...DECLARED }],
         capabilities: ["draft text", "use tools"],
         agents: [
           { name: "claude", installed: true, version: "2.1.300", loggedIn: true, install: { linux: "https://claude.ai/code" } },
@@ -214,12 +220,12 @@ test("TST-407002: window Agents view keeps chosen folders and shows missing inst
         ],
       };
       if (action === "save-agents") {
-        saved = value.agents;
+        saved = value;
         return { saved: true };
       }
-      if (action === "test-access") return { results: [
-        { repository: "https://github.com/shell-owner/agent-m", reachable: true, reason: null },
-        { repository: "https://github.com/shell-owner/refused", reachable: false, reason: "permission denied" },
+      if (action === "checkout") return { checkout: [
+        { agent: "claude", repository: "https://github.com/shell-owner/agent-m", folder: `${chosen}/claude`, commit: "0123456789abcdef0123456789abcdef01234567", reason: null },
+        { agent: "claude", repository: "https://github.com/shell-owner/refused", folder: `${chosen}/claude/products/refused`, commit: null, reason: "permission denied" },
       ] };
       return { address: "http://127.0.0.1:4711", token: "fixture-token", paused: false };
     },
@@ -240,12 +246,15 @@ test("TST-407002: window Agents view keeps chosen folders and shows missing inst
   const install = descendants(document.body, (node) => node.localName === "a" && node.textContent === "How to install")[0];
   assert.equal(install.getAttribute("href"), "https://opencode.ai/docs/#install");
 
+  assert.equal(buttons(document.body, "Choose folder").length, 1, "one folder for every agent");
+  assert.equal(buttons(document.body, "Test access").length, 0, "counter-proof: no Test access; the checkout shows what is reached");
+  assert.doesNotMatch(document.body.textContent, /Working folder/, "counter-proof: no field of an agent's own working folder");
   await click(document.body, "Choose folder");
   await click(document.body, "Save agents");
-  assert.deepEqual(saved, [{ name: "claude", folder: chosen, ...DECLARED }],
-    "failure node: only the ticked installed agent is saved with the folder chosen through the window bridge, and with its declaration");
-
-  await click(document.body, "Test access");
-  assert.match(document.body.textContent, /shell-owner\/refused.*permission denied/s,
-    "failure node: a repository this computer cannot reach is shown with git's reason");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(saved, { agents: [{ name: "claude", ...DECLARED }], folder: chosen },
+    "failure node: only the ticked installed agent is saved, with its declaration and no folder of its own, beside the one folder chosen through the window bridge");
+  assert.match(document.body.textContent, /shell-owner\/agent-m checked out at 0123456789ab/, "failure node: the checkout's commit is shown");
+  assert.match(document.body.textContent, /shell-owner\/refused not reached: permission denied/,
+    "failure node: a repository the Bridge does not reach is shown with git's reason");
 });
