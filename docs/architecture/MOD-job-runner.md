@@ -191,6 +191,9 @@ draft — `type`, `properties`, `required`, `items`, `enum` —; a property that
 answer:1: error: the answer cannot be read: it is not JSON [A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT] — answer with one JSON object of the form the output schema gives.
 ```
 
+Of an answer that is not empty, `it is not JSON` goes on with where its reading stopped: at its end, that the text — its
+length named — ends before its object is closed; elsewhere, the character, counted from 1, and the text just before it.
+
 A reviewing kind's draft is a list of findings, each with `artifact`, `line`, `rule`, `what` and `fix`; the runner reads
 each as a warning, whatever kind the reviewer gave it.
 

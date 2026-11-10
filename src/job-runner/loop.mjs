@@ -56,14 +56,23 @@ export function misfit(value, schema, at) {
   return null;
 }
 
+// Where JSON.parse stopped in a text it refused, for the drafter to find its slip: at the end, the text ends before its object is closed; elsewhere, the
+// character where reading stopped and the text just before it.
+function whereReadingStopped(body, error) {
+  const at = Number(/position (\d+)/.exec(String(error?.message))?.[1] ?? body.length);
+  return at >= body.length
+    ? `the text, ${body.length} characters long, ends before its object is closed: close each object and list it opens, in order`
+    : `reading stopped at character ${at + 1} of ${body.length}, after «${body.slice(Math.max(0, at - 40), at)}»`;
+}
+
 // An answer read by its envelope: { value } or { why } it cannot be read. A text fenced as JSON is read inside its fence.
 function readAnswer(text, envelope) {
   const body = text.trim().replace(/^```(?:json)?[ \t]*\n([\s\S]*)\n```$/, "$1");
   let value;
   try {
     value = JSON.parse(body);
-  } catch {
-    return { why: "it is not JSON" };
+  } catch (error) {
+    return { why: body ? `it is not JSON — ${whereReadingStopped(body, error)}` : "it is not JSON" };
   }
   const why = misfit(value, envelope, "the answer");
   return why ? { why } : { value };
