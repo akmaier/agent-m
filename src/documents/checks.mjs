@@ -391,7 +391,8 @@ export function documentFindings(schema, document) {
         if (typeof value !== "string" || !value || describes(section?.text, value)) continue;
         add(lineOf[key] ?? 1, valueRules({ condition: null }, spec, frontLookup),
           `the key ${key} names ${value}, which ${spec.describedIn} does not describe`,
-          `add to ${spec.describedIn} a bullet that begins with \`${value}\`, or remove ${value} from ${key}`);
+          `begin a bullet of ${spec.describedIn} with the name in backticks, written as they stand: - \`${value}\` — and then what it is; a name in bold or plain `
+            + `does not describe it — or remove ${value} from ${key}`);
       }
     }
   }

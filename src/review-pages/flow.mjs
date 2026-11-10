@@ -386,6 +386,11 @@ export function reviewRoute(kind) {
     }
     // `impacts`: the impact list shown for each file offered, by path, which the page lists by module once Accept has recorded the file (UC-023 step 6).
     const records = [], graphOf = graphOnce(snapshot), storedOf = storedOnce(snapshot), asked = new Map(), impacts = new Map();
+    // A long review takes a while to draw: until its last file is drawn, a line says how far it is and that Accept follows below.
+    const total = shown.length + removed.length, progress = el("p", "review-progress");
+    const drawn = (count) => { progress.textContent = `${count} of ${total} files shown; the Accept button follows below once each is shown.`; };
+    drawn(0);
+    target.append(progress);
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
@@ -425,6 +430,7 @@ export function reviewRoute(kind) {
       if (withImpact) records.push({ file, record: recordOf(file.id, file.kind, file.path, blob), blob });
       target.append(section);
       centreFirstChange(section);
+      drawn(shown.indexOf(file) + 1);
     }
     // A removed decision or module file: its last accepted text against the empty text, which is the text shown, and its impact list; one
     // lastAcceptedText each, which gives its path. Without its last text or its impact list it is shown and not offered.
@@ -448,11 +454,13 @@ export function reviewRoute(kind) {
       }
       target.append(section);
       centreFirstChange(section);
+      drawn(shown.length + removed.indexOf(gone) + 1);
     }
     if (kind.whole) {
       const rounds = await draftingRounds(where);
       if (rounds) target.append(roundsSection(rounds.rounds, rounds.stopped));
     }
+    progress.remove();
     const heading = `Accept all ${shown.length + removed.length} shown`;
     if (token) {
       const accept = button("btn accept-all", heading);

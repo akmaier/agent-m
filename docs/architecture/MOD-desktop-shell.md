@@ -172,7 +172,7 @@ The rest of its surface faces the person, not another module:
   handlers of MOD-bridge-jobs, MOD-mail-protocols and MOD-tunnels, and its own for `PUT /v1/agents/{agent}`, which keeps
   an agent's declaration in the settings, and for `PUT /v1/repository-tokens`, which keeps the tokens the paired browser
   hands it through MOD-bridge-jobs' `keepRepositoryTokens` and then checks out again (`THE LOCAL BRIDGE BINDS TO LOOPBACK
-  ONLY`); opens
+  ONLY`); checks out every working folder (*The checkout*, below); opens
   the tunnels (`THE BRIDGE OPENS ITS TUNNELS ITSELF`); and, unless paused, starts watching the served products, so that
   their runs go on while no tab is open (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). A port in use is shown with
   a field for another; a data folder that cannot be written is shown with its path.
@@ -201,11 +201,11 @@ The rest of its surface faces the person, not another module:
   - *Settings* — the name, the port, the served products and the interval; *Import a settings export*, with its
     passphrase when the export is locked; what was taken over.
   - *Updates* — the running version, and a newer release when there is one.
-- **The checkout** (UC-044, step 3). At once whenever the agents, the folder or the served products are saved in the
-  window, an export is taken over, or the paired browser hands it its repository tokens, the shell has MOD-bridge-jobs'
-  `checkOut` bring every offered agent's working folder to the instance and the served products, in the background, and
-  keeps its result in memory for the *Agents* view, which shows it once it is there; a checkout asked for while one runs
-  follows it. Between two checkouts the watching brings the clones up to their origins at each reading.
+- **The checkout** (UC-044, step 3). At start, and at once whenever the agents, the folder or the served products are saved
+  in the window, an export is taken over, or the paired browser hands it its repository tokens, the shell has
+  MOD-bridge-jobs' `checkOut` bring every offered agent's working folder to the instance and the served products, in the
+  background, and keeps its result in memory for the *Agents* view, which shows it once it is there; a checkout asked for
+  while one runs follows it.
 - **Pause and quit.** *Pause* stops taking jobs, and the API answers new work with `paused`; jobs already running go on
   and can still be followed and cancelled. *Quit* names the jobs still running, which then end as cancelled, and stops the
   watching, the tunnels and the server.

@@ -597,8 +597,8 @@ The bridge shows the token it is paired with in its own window, with a button th
 *Check:* no automatic check; at review.
 
 **THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT** *(PO A. Maier)*
-A bridge's own settings — its name, its jump host, its port, its pairing token, the working folder of each agent it
-offers — are set in its window or read from a settings file exported by the dashboard.
+A bridge's own settings — its name, its jump host, its port, its pairing token, the one folder that holds the working
+folder of each agent it offers — are set in its window or read from a settings file exported by the dashboard.
 *Check:* `tests/test_bridge_settings.py` — sets each of these settings in the bridge's window and imports a fixture
 settings export of the dashboard. It checks that every setting is kept as it was set, and that the part the export holds
 is taken from the file.
@@ -644,8 +644,8 @@ valid one is installed after the click.
 
 **CONFIGURATION LIVES IN THE BROWSER** *(PO A. Maier)*
 Endpoint, model, model API key, the repository tokens, the list of products, the bridge's address and
-token, and the mailbox connection are stored in the browser of the person using the site; Agent M has
-no other store for them.
+token, and the mailbox connection are stored in the browser of the person using the site — a repository token also in
+the data folder of a Bridge this browser is paired with —; Agent M has no other store for them.
 *Check:* `tests/test_config_client_side.py`
 
 **SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS** *(PO A. Maier)*
@@ -755,11 +755,16 @@ into Agent M's settings.
 *Check:* no automatic check; at review.
 
 **A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT** *(PO A. Maier)*
-Each repository token leaves the browser only to the API of the server that issued it: as the authorisation header of
-its requests, or sealed to the public key of one of that server's repositories as that repository's CI secret.
+Each repository token leaves the browser only to the API of the server that issued it — as the authorisation header of
+its requests, or sealed to the public key of one of that server's repositories as that repository's CI secret — or in the
+body of a request to a Bridge this browser is paired with, which sends it on only to that server, as the authorisation
+of its git and API requests for the token's repository.
 *Check:* `tests/review-core.test.mjs`; `tests/repository-hosts-ci-secret.test.mjs` — a product's token stored as
 `AGENT_M_TOKEN` reaches only its own server, sealed in the body of the request that stores the secret; counter-proof: the
-token in the clear in any body or address fails.
+token in the clear in any body or address fails. `tests/bridge-repository-tokens.test.mjs` — a token handed to a fixture
+Bridge reaches a fixture server of its repository only as the authorisation of the Bridge's clone, push and pull request,
+and appears in no clone's configuration, remote address or command line; counter-proof: the repository of another token
+receives it in no request.
 
 **NO MODEL READS A CREDENTIAL** *(PO A. Maier)*
 No token, key or password that Agent M, its Bridge or its CI holds reaches a model: neither in what is sent to it nor

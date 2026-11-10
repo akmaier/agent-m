@@ -99,8 +99,7 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
   folder would be overwritten. A folder that holds a clone of another repository is refused, naming it;
 - **one clone per served product in `products/<name>/`**, `<name>` the repository's name, the folder `git clone` gives
   it, which Agent M's `.gitignore` ignores (`A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER`). The Bridge clones
-  a served product there at the checkout or at its first reading, whichever comes first, and a product a job connects to
-  when the job connects to it; the agent,
+  a served product there at its checkout, and a product a job connects to when the job connects to it; the agent,
   which cannot write the folder, clones none. A product whose folder holds a clone of another repository of the same
   name is refused, naming both;
 - **one working clone per running job of that agent in `jobs/<id>/`**, with its outbox, both removed when the job ends;

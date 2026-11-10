@@ -217,7 +217,8 @@ ReviewKind = {
   - `<k>/all` — *Review all*: every open or changed file of the kind in sequence, a changed one as its difference, in a box
     of its own that scrolls, opened with its first change in the middle of the box, a new one in full, and *Accept all N shown*: one commit with one record per file shown; a file that changed after it was
     shown, or that names a requirement or use case not yet accepted, is left out and named (`SEVERAL FILES ARE ACCEPTED IN
-    ONE CLICK`, `ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`). For the architecture, this is the review page of the whole
+    ONE CLICK`, `ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`); until its last file is drawn, a line under the heading says
+    how many of them are shown and that the button follows below once each is shown. For the architecture, this is the review page of the whole
     architecture: the decision that states the system first, then the subsystems' decisions, the module files, the
     further decisions with their due diligence, and the rounds of the job that drafted them. It also lists every decision or
     module file that `removedFiles` names, each with its impact list (`architectureImpact` with `after: null`) and the empty
