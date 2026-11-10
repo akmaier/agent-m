@@ -180,7 +180,7 @@ const PROMPTS = { "change-requirements": "You change requirements of a product",
 const RULES_TEXT = "# AGENTS.md — the fixture's working rules, marker rules-1360109\n";
 
 function fakeWorld(drafts, w) {
-  const requests = [], pulls = [], dispatches = [];
+  const requests = [], pulls = [], dispatches = [], rounds = {};
   globalThis.fetch = async (address, init = {}) => {
     const url = String(address), body = String(init.body ?? "");
     requests.push({ address: url, method: init.method ?? "GET", body });
@@ -190,7 +190,9 @@ function fakeWorld(drafts, w) {
     }
     if (url.startsWith("https://llm.example.test/")) {
       const kind = Object.keys(PROMPTS).find((name) => body.includes(PROMPTS[name])) ?? "converse";
-      const content = JSON.stringify({ draft: drafts[kind], answers: [] });
+      // A list of drafts answers round by round, its last one every later round.
+      const given = drafts[kind], asked = (rounds[kind] = (rounds[kind] ?? 0) + 1);
+      const content = JSON.stringify({ draft: Array.isArray(given) ? given[Math.min(asked, given.length) - 1] : given, answers: [] });
       return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: 120, completion_tokens: 30 } }), { status: 200 });
     }
     if (url === "https://api.github.com/repos/alice/thesis-tool/pulls" && (init.method ?? "GET") === "POST") {
@@ -415,7 +417,7 @@ test("TST-1360107: a piece that works on an item of the backlog is handed over a
     const world = fakeWorld({ converse: answer({ kind: "converse", works_on: ["UC-001"], task: "go on" }) }, w);
     const status = await run(w);
     assert.equal(status.outcome, "done", status.summary);
-    assert.equal(world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).length, 1, "only the conversation was sent");
+    assert.ok(world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).every((each) => !Object.values(PROMPTS).some((prompt) => each.body.includes(prompt))), "only the conversation was sent");
     assert.equal(world.dispatches.length, 0);
     assert.match(endOf(w), /not run: converse — [^\n]*this conversation itself/);
     assert.deepEqual(touched(w), [`docs/jobs/${JOB}.md`]);
@@ -432,10 +434,33 @@ test("TST-8048007: a piece of a kind that takes no instruction is not handed ove
     const world = fakeWorld({ converse: answer({ kind: "propose-items", works_on: ["UC-001"], task: "propose the items" }) }, w);
     const status = await run(w);
     assert.equal(status.outcome, "done", status.summary);
-    assert.equal(world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).length, 1, "only the conversation was sent");
+    assert.ok(world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).every((each) => !Object.values(PROMPTS).some((prompt) => each.body.includes(prompt))), "only the conversation was sent");
     assert.equal(world.dispatches.length, 0);
     assert.match(endOf(w), /not run: propose-items — [^\n]*THE HAND-OVER NAMES THE TASK IN ITS WORDS/);
     assert.deepEqual(touched(w), [`docs/jobs/${JOB}.md`]);
+  });
+});
+
+// TST-2026111002 · level: component · module: MOD-runtimes · MOD-workflow-entries
+// guards: UC-049; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+// given: a hosted converse job whose endpoint answers the conversation in its first round with the plan [{ implement, works_on [], "build the ship selection" }] — an
+//   implementation that names no step, item or module —, and in every later round with the answer alone
+// input: onRecordsChanged
+// expect: outcome `done`; the conversation's prompt is sent twice: the record's first round names, on the answer, piece 1 of the plan as one whose job cannot start, with
+//   the implementation's refusal "an implementation job names the steps, the items or the modules it implements"; the end lists no `not run: implement`, and the job workflow
+//   is not started. Counter-proof: on the check as it stood, the prompt was sent once and the end said `not run: implement — an implementation job names the steps…` — the
+//   model never read why (akmaier/AlienInvasion, JOB-20261110-0752-df6b).
+test("TST-2026111002: a piece whose job could not start goes back to the conversation's participant in its round", async () => {
+  await withWorkspace({}, async (w) => {
+    const world = fakeWorld({ converse: [answer({ kind: "implement", works_on: [], task: "build the ship selection" }), answer(null)] }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    const prompts = world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).length;
+    assert.equal(prompts, 2, "the conversation is prompted twice, and nothing else");
+    const record = fileAt(w, `docs/jobs/${JOB}.md`);
+    assert.match(record, /piece 1 of the plan cannot start: an implementation job names the steps, the items or the modules it implements/);
+    assert.doesNotMatch(endOf(w), /not run: implement/);
+    assert.equal(world.dispatches.length, 0);
   });
 });
 

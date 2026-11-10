@@ -29,10 +29,10 @@ const piece = (works_on) => ({ kind: "change-use-case", works_on, task: "split t
 // expect: one finding for each: an error on answer, line 1, under A JOB IS RECORDED IN ITS PRODUCT REPOSITORY, its what naming piece 2 and worksOnProblem's reason for its
 //   works_on, its fix asking for one of those forms or an empty works_on for something new; piece 1 and the empty piece 3 are not judged
 // counter-proof: before this change routeStrategies offered no check, and the call fails
-test("TST-2026110951: plan-works-on — an error on the answer for each piece whose works_on its job's record refuses", () => {
+test("TST-2026110951: plan-works-on — an error on the answer for each piece whose works_on its job's record refuses", async () => {
   for (const [plan, refused] of [[[piece(["UC-049"]), piece(["the login page"]), piece([])], ["the login page"]],
     [[piece(["UC-049"]), piece(["UC-049", "docs/x.md"])], ["UC-049", "docs/x.md"]]]) {
-    const found = check({ answer: "planned", handOver: plan });
+    const found = await check({ answer: "planned", handOver: plan });
     assert.equal(found.length, 1, JSON.stringify(plan));
     const [one] = found;
     assert.deepEqual([one.artifact, one.line, one.kind, one.rule], ["answer", 1, "error", RULE]);
@@ -48,10 +48,10 @@ test("TST-2026110951: plan-works-on — an error on the answer for each piece wh
 // given: a draft without a plan; one with an empty plan; one whose every piece works on what a record takes, or on nothing
 // input: the check plan-works-on of each draft
 // expect: no finding for any of them
-test("TST-2026110952: plan-works-on — no plan, or a plan its records take, has no finding", () => {
+test("TST-2026110952: plan-works-on — no plan, or a plan its records take, has no finding", async () => {
   for (const draft of [{ answer: "no plan" }, { answer: "empty", handOver: [] },
     { answer: "planned", handOver: [piece(["EXPORT IS A PDF"]), piece(["UC-049", "ITM-1319"]), piece([])] }]) {
-    assert.deepEqual(check(draft), [], JSON.stringify(draft));
+    assert.deepEqual(await check(draft), [], JSON.stringify(draft));
   }
 });
 

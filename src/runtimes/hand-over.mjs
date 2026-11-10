@@ -9,7 +9,8 @@
 // in capitals; those of the check plan-works-on with `finding` itself.
 
 import { appendToRecord, worksOnProblem } from "../job-ledger/index.mjs";
-import { taskRefusal } from "../job-runner/index.mjs";
+import { handOverParams, prepareJob, taskRefusal } from "../job-runner/index.mjs";
+import { kindOf } from "../job-catalogue/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { queueOnBridge } from "./bridge.mjs";
 import { RuntimeError, commitStart } from "./ci.mjs";
@@ -19,7 +20,7 @@ import { RuntimeError, commitStart } from "./ci.mjs";
  * MOD-job-ledger's worksOnProblem, an error on the answer naming the piece by its number from 1 and the reason, so that the drafter corrects in the round what handOverJob
  * could not record (UC-049 4a, 4f). A draft without a plan has none.
  */
-export const planWorksOn = (draft, context) => {
+export const planWorksOn = async (draft, context) => {
   const plan = Array.isArray(draft?.handOver) ? draft.handOver : [];
   const found = plan.flatMap((piece, at) => {
     const worksOn = [piece?.works_on].flat().filter(Boolean).map(String);
@@ -35,8 +36,35 @@ export const planWorksOn = (draft, context) => {
       fix: "after names earlier pieces of this plan, by their numbers from 1; a piece that rests on a result already accepted names none" }))];
   });
   const snapshot = context?.product?.snapshot;
-  return snapshot && found.length === 0 ? unknownRequirements(plan, snapshot) : found;
+  if (!snapshot || found.length > 0) return found;
+  const unknown = await unknownRequirements(plan, snapshot);
+  // Without the instance a piece cannot be prepared, and its preparation is left to the hand-over.
+  return unknown.length > 0 || !context.instance?.snapshot ? unknown : unstartable(plan, context);
 };
+
+// Each piece that rests on no other and whose job could not start for what the plan itself chose — a kind the catalogue lacks, the conversation's own kind, a kind that takes
+// no task, or what the kind's preparation refuses of what the piece names, as an implementation that names no step, item or module —, one error each, with the reason the
+// hand-over would give; prepared as the hand-over prepares it (MOD-workflow-entries), without its drafter. What the product lacks — a finding of a kind's preconditions —
+// is the hand-over's to name: the planner cannot change it.
+async function unstartable(plan, context) {
+  const found = [];
+  const refused = (at, why) => found.push(finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
+    what: `piece ${at + 1} of the plan cannot start: ${why}`,
+    fix: "name what the piece's kind needs to start — its steps, items, modules or requirements in works_on, or another kind that takes the task —, or leave the piece out" }));
+  for (const [at, piece] of plan.entries()) {
+    if ([piece?.after ?? []].flat().length > 0) continue;
+    let kind;
+    try { kind = await kindOf(String(piece?.kind ?? "")); } catch (error) { refused(at, error?.message ?? String(error)); continue; }
+    if (kind.name === context.kind?.name) { refused(at, "it is this conversation itself, which a hand-over does not start again"); continue; }
+    const dropped = String(piece?.task ?? "").trim() ? taskRefusal(kind) : null;
+    if (dropped) { refused(at, `${dropped.what} [${dropped.rule}]`); continue; }
+    const params = { ...(typeof context.params?.source === "string" ? { source: context.params.source } : {}),
+      ...handOverParams([piece?.works_on].flat().filter(Boolean).map(String), context.product.snapshot), refuses: ["hand-over"], instruction: String(piece?.task ?? "") };
+    try { await prepareJob(kind.name, { ...context, kind: null, params, gates: [] }, { drafter: null, reviewers: [] }); }
+    catch (error) { refused(at, error?.message ?? String(error)); }
+  }
+  return found;
+}
 
 const RECORDED = "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY";
 const REQUIREMENT = /\*\*([A-Z0-9][A-Z0-9 ,'’.\-]*?)\*\*/g;
