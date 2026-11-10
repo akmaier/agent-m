@@ -115,6 +115,7 @@ async function opened() {
 // ---------------------------------------------------------------- the cases
 async function setInTheWindow(input) {
   const app = await opened();
+  let chosen = null;
   try {
     const out = {};
     const firstToken = app.token();
@@ -137,10 +138,19 @@ async function setInTheWindow(input) {
     const row = rowOfClaude();
     assert.ok(row, "the installed agent is listed");
     app.descendants(row, (node) => node.type === "checkbox")[0].checked = true;
-    app.type("Working folder", input.agentFolder);
+    // The one folder that holds the agents' working folders: a temporary one, so that the Bridge may make <folder>/<agent> in it. Its path differs from run to
+    // run, so the record names it <folder>.
+    chosen = temporary();
+    const named = (path) => typeof path === "string" && path.startsWith(chosen) ? `<folder>${path.slice(chosen.length)}` : path;
+    app.type(input.folderField, chosen);
     await app.press("Save agents");
     await until(() => /Saved \d+ agent\(s\)\./.test(app.body.textContent));
-    out.agents = app.settingsFile().agents;
+    const afterAgents = app.settingsFile();
+    out.afterAgents = { folder: named(afterAgents.folder), agents: afterAgents.agents };
+    // The agent's working folder is derived from the one folder, not stored: the window, drawn anew, shows where the ticked agent works.
+    await app.goTo("Agents");
+    await until(() => rowOfClaude());
+    out.workingFolderShown = named(rowOfClaude().textContent.match(/working in (\S+)/)?.[1] ?? null);
     await app.goTo("Pairing");
     await app.press("Pair anew"); await app.press("Pair anew", true);
     // Pair anew writes the new token and then draws the window anew: wait until the window shows a token other than the first, the one written.
@@ -148,9 +158,10 @@ async function setInTheWindow(input) {
     const fresh = app.token();
     out.pairedAnew = { differs: fresh !== firstToken, oldToken: await app.answers(app.second, firstToken), newToken: await app.answers(app.second, fresh), shownInWindow: app.body.textContent.includes(fresh) };
     const final = app.settingsFile();
-    out.final = { name: final.name, port: final.port === app.second ? "the port set" : final.port, products: final.products, every: final.every, jumpHost: final.jumpHost, agents: final.agents };
+    out.final = { name: final.name, port: final.port === app.second ? "the port set" : final.port, products: final.products, every: final.every, jumpHost: final.jumpHost,
+      folder: final.folder === chosen ? "<folder>" : final.folder, agents: final.agents };
     return out;
-  } finally { await app.done(); }
+  } finally { await app.done(); if (chosen) rmSync(chosen, { recursive: true, force: true }); }
 }
 
 const KEYS = (text) => text.split("\n");
@@ -244,8 +255,9 @@ class TestBridgeSettings(unittest.TestCase):
     # TST-1056101 · level: release · module: MOD-desktop-shell
     # guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
     # given: the Bridge's app running with its window, on a computer that has one supported agent installed; the Bridge was paired with a first token
-    # input: in the window, set the name, the port, the served products and the interval and press Save settings; set the jump host and press Save jump host; tick the installed agent, give it a working folder and press Save agents; press Pair anew and confirm
-    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, the products, the interval, the jump host, the agent with its working folder), the pairing token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
+    # input: in the window, set the name, the port, the served products and the interval and press Save settings; set the jump host and press Save jump host; tick the installed agent, set the one folder of the agents' working folders and press Save agents; press Pair anew and confirm
+    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, the products, the interval, the jump host, the one folder, the ticked agent with no folder of its own), the window shows the agent working in <folder>/claude, the pairing token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
+    # counter-proof: run against src/ of the commit before the one folder (b254ffa20^), whose window has a Working folder field per agent and no field for the one folder, this case fails: the window has no "Folder of the agents' working folders"
     def test_every_setting_is_kept_as_it_was_set_in_the_window(self):
         for loaded in of_kind("set-in-the-window"):
             with self.subTest(case=loaded["name"]):

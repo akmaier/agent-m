@@ -8,7 +8,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
 
 ```json
 {
-  "given": "The Bridge's app running with its window on a computer that has Claude Code installed (a fixture executable) and no other agent; the Bridge was paired with a first token; its settings file holds the name before, the first port, no jump host and no agent.",
+  "given": "The Bridge's app running with its window on a computer that has Claude Code installed (a fixture executable) and no other agent; the Bridge was paired with a first token; its settings file holds the name before, the first port, no folder, no jump host and no agent.",
   "input": {
     "kind": "set-in-the-window",
     "name": "lab-pc",
@@ -22,7 +22,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "user": "alice",
       "sshPort": 2222
     },
-    "agentFolder": "/home/alice/agent-m-work/claude"
+    "folderField": "Folder of the agents' working folders"
   },
   "expected": {
     "afterSettings": {
@@ -37,7 +37,8 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "every": 120,
       "paused": true,
       "jumpHost": null,
-      "tunnels": []
+      "tunnels": [],
+      "folder": null
     },
     "portSetIsServed": 200,
     "oldPortIsFree": "refused",
@@ -47,12 +48,25 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "user": "alice",
       "sshPort": 2222
     },
-    "agents": [
-      {
-        "name": "claude",
-        "folder": "/home/alice/agent-m-work/claude"
-      }
-    ],
+    "afterAgents": {
+      "folder": "<folder>",
+      "agents": [
+        {
+          "name": "claude",
+          "place": "this machine",
+          "capabilities": [
+            "draft text",
+            "read the repository",
+            "write to the repository",
+            "run code and tests",
+            "use tools",
+            "reach the web"
+          ],
+          "models": []
+        }
+      ]
+    },
+    "workingFolderShown": "<folder>/claude",
     "pairedAnew": {
       "differs": true,
       "oldToken": 401,
@@ -72,10 +86,20 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
         "user": "alice",
         "sshPort": 2222
       },
+      "folder": "<folder>",
       "agents": [
         {
           "name": "claude",
-          "folder": "/home/alice/agent-m-work/claude"
+          "place": "this machine",
+          "capabilities": [
+            "draft text",
+            "read the repository",
+            "write to the repository",
+            "run code and tests",
+            "use tools",
+            "reach the web"
+          ],
+          "models": []
         }
       ]
     }
@@ -138,6 +162,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "agent-m-bridge-settings",
       "agents",
       "every",
+      "folder",
       "jumpHost",
       "name",
       "paused",
@@ -214,6 +239,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "agent-m-bridge-settings",
       "agents",
       "every",
+      "folder",
       "jumpHost",
       "name",
       "paused",
@@ -254,6 +280,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "agent-m-bridge-settings",
       "agents",
       "every",
+      "folder",
       "jumpHost",
       "name",
       "paused",
@@ -293,6 +320,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "agent-m-bridge-settings",
       "agents",
       "every",
+      "folder",
       "jumpHost",
       "name",
       "paused",
