@@ -60,9 +60,32 @@ export function misfit(value, schema, at) {
 // character where reading stopped and the text just before it.
 function whereReadingStopped(body, error) {
   const at = Number(/position (\d+)/.exec(String(error?.message))?.[1] ?? body.length);
-  return at >= body.length
-    ? `the text, ${body.length} characters long, ends before its object is closed: close each object and list it opens, in order`
-    : `reading stopped at character ${at + 1} of ${body.length}, after «${body.slice(Math.max(0, at - 40), at)}»`;
+  if (at < body.length) return `reading stopped at character ${at + 1} of ${body.length}, after «${body.slice(Math.max(0, at - 40), at)}»`;
+  const innermost = openContainers(body).at(-1);
+  const what = !innermost ? "" : innermost.key === null ? `the ${innermost.list ? "outermost list" : "outermost object"}` : `the ${innermost.list ? "list" : "object"} of \`${innermost.key}\``;
+  const named = innermost ? `; ${what}, opened at character ${innermost.at + 1}, is never closed`
+    + (innermost.last ? `, and \`${innermost.last}\` is the last key it holds — a key written after \`${innermost.last}\`'s value and meant beside it stands inside it` : "") : "";
+  return `the text, ${body.length} characters long, ends before its object is closed${named}: close each object and list it opens, in order`;
+}
+
+// The objects and lists still open at the end of a text, outermost first, each with the key whose value it is, where it opens, and the last key it holds.
+function openContainers(body) {
+  const stack = [];
+  let inString = false, escaped = false, text = "", lastString = null;
+  for (let at = 0; at < body.length; at += 1) {
+    const ch = body[at];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') { inString = false; lastString = text; } else text += ch;
+      continue;
+    }
+    if (ch === '"') { inString = true; text = ""; }
+    else if (ch === ":" && stack.length) stack.at(-1).last = lastString;
+    else if (ch === "{" || ch === "[") stack.push({ list: ch === "[", at, key: stack.length && !stack.at(-1).list ? stack.at(-1).last ?? null : null, last: null });
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  return stack;
 }
 
 // An answer read by its envelope: { value } or { why } it cannot be read. A text fenced as JSON is read inside its fence.

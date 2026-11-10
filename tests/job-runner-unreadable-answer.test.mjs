@@ -39,3 +39,18 @@ test("TST-2026111004: an answer that is not JSON is named with where its reading
   assert.ok(comma[0].includes('{"draft": {"files": [],'), comma[0]);
   assert.deepEqual(await findingsOf(""), ["the answer cannot be read: it is not JSON"]);
 });
+
+// TST-2026111005 · level: unit · module: MOD-job-runner
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: a drafter that leaves the object of `draft` open, so that `answers` stands inside it and the text ends one brace short
+// input: runJob attended, limit 1
+// expect: the finding names the outermost object as never closed, the character it opens at, and `draft` as the last key it holds, so that `answers`, meant beside
+//   `draft`, stands inside it. Counter-proof: the finding said
+//   only that the text ends before its object is closed, and Nemotron left `draft` open in the same way in its next answer (akmaier/AlienInvasion,
+//   JOB-20261110-0903-3021).
+test("TST-2026111005: an object left open is named, with where it opens and the last key it holds", async () => {
+  const [one] = await findingsOf('{"draft": {"files": [], "why": "none", "answers": []}');
+  assert.match(one, /the outermost object, opened at character 1\b/);
+  assert.match(one, /`draft` is the last key it holds/);
+  assert.match(one, /stands inside it/);
+});
