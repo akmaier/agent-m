@@ -424,3 +424,27 @@ test("TST-739013: UC-023 6 after Accept the affected modules are listed, each wi
   assert.ok(entries.some((entry) => entry.includes("MOD-desk") && entry.includes("ITM-902") && !entry.includes("ITM-901")), "MOD-desk with its plan step");
   assert.ok(entries.some((entry) => entry.includes("MOD-sync") && entry.includes("ITM-901") && !entry.includes("ITM-902")), "MOD-sync with its backlog item");
 });
+
+// TST-739014 · level: system · module: MOD-review-pages
+// guards: UC-023; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// given: the split of TST-739004 — six files to review
+// input: the reviewer opens the review page of the whole architecture; the page is looked at while it still draws its files, and once it has drawn them all
+// expect: while it draws them, a line under the heading says how many of the six files are shown and that the Accept button follows below once each is shown, and no Accept
+//   button is offered yet; once all are drawn the line is gone and "Accept all 6 shown" is offered. Counter-proof: on the page as it stood, nothing was shown in place of
+//   the button while the files were drawn, and on Agent M's own architecture of twelve drafts — a page of 936,000 characters — the reviewer found no Accept button.
+test("TST-739014: UC-023 the review of the whole architecture says, while it draws its files, that the Accept button follows", async () => {
+  const s = await scenario({ remove: [SYNC_PATH], now: { [ARC1_PATH]: ARC1_SPLIT, [DESK_PATH]: DESK_ON_READER, [REPORT_PATH]: REPORT_ON_WRITER }, extra: { [READER_PATH]: READER, [WRITER_PATH]: WRITER } });
+  s.location.hash = `#decision/id=all/product=${encodeURIComponent(s.address)}`;
+  let progress = [];
+  for (let turn = 0; turn < 2000 && progress.length === 0; turn += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+    progress = all(s.target, "p", "review-progress");
+  }
+  assert.equal(progress.length, 1, "a line says the files are being drawn");
+  assert.match(progress[0].textContent, /of 6 files/);
+  assert.match(progress[0].textContent, /Accept/);
+  assert.equal(buttonsNamed(s.target, "Accept all 6 shown").length, 0, "no Accept yet");
+  await onFile(s, "decision", "all");
+  assert.equal(all(s.target, "p", "review-progress").length, 0, "the line is gone once all are drawn");
+  namedButton(s.target, "Accept all 6 shown");
+});
