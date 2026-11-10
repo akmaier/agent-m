@@ -10,7 +10,12 @@ function headed(head, load, { subject = false } = {}) {
   let full = null;
   let imported = null;
   const module = () => (imported ??= load().then((route) => (full = route)));
-  return { ...head, module, render: async (target, context, params) => (await module()).render(target, context, params),
+  // While a route of the view is shown, the Bridges this browser keeps are handed its repository tokens at each change (bridge-tokens.mjs).
+  const render = async (target, context, params) => {
+    if (context?.store && context.instance?.repository) (await import("./bridge-tokens.mjs")).keepBridgesInformed(context.store, context.instance.repository);
+    return (await module()).render(target, context, params);
+  };
+  return { ...head, module, render,
     ...(subject ? { subject: (params, context) => (full ? full.subject(params, context) : null) } : {}) };
 }
 

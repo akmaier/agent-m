@@ -41,7 +41,7 @@ const script = (folder, name, body) => writeFileSync(join(folder, name), `#!/bin
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; UC-044
 // given: a Bridge computer on whose PATH only the fixture Claude is installed, so that Codex is missing; the window opened on Agents
 // input: the fixture Codex is put on the PATH; the view is looked at again (nothing pressed); then the button Check again is pressed
-// expect: before the press the view still lists Codex as missing, with its How to install link and one Choose folder (Claude's) — nothing is polled behind the person's back —; the view has a Check again button; after the press Codex is listed as installed — two Choose folder buttons, one How to install link fewer — without the Bridge restarting, and Claude is still listed
+// expect: before the press the view still lists Codex as missing, with its How to install link and one installed agent's tick (Claude's) — nothing is polled behind the person's back —; the view has a Check again button; after the press Codex is listed as installed — two ticks, one How to install link fewer — without the Bridge restarting, and Claude is still listed
 test("the Agents view lists a newly installed agent after Check again", async () => {
   const root = mkdtempSync(join(tmpdir(), "agent-m-1050-")), bin = join(root, "bin"), prior = process.env.PATH;
   mkdirSync(bin);
@@ -58,10 +58,11 @@ test("the Agents view lists a newly installed agent after Check again", async ()
     let asked = 0;
     browser.bridge = { async state(action) { if (action === "agents") { asked += 1; return { platform: "linux", agents: await installedAgents(), selected: [] }; } return {}; }, async copy() {}, async quit() {} };
     await import(`../src/desktop-shell/window.mjs?check-again=${Date.now()}`);
-    await until(() => buttons(document.body, "Choose folder").length === 1);
+    // An installed agent's row begins with its tick; the one folder has a single Choose folder for every agent.
+    const folders = () => descendants(document.body, (node) => node.localName === "p" && node.childNodes[0]?.localName === "input" && node.childNodes[0].type === "checkbox").length;
+    await until(() => folders() === 1);
     const links = () => descendants(document.body, (node) => node.localName === "a" && node.textContent === "How to install").length;
-    const folders = () => buttons(document.body, "Choose folder").length;
-    assert.equal(folders(), 1, "known positive: the installed Claude is listed with its folder");
+    assert.equal(folders(), 1, "known positive: the installed Claude is listed with its tick");
     const missingBefore = links();
     assert.ok(missingBefore >= 1, "Codex and the others are missing");
 

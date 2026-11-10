@@ -6,6 +6,7 @@ import { clearSetting, listSettings, readSetting, writeSetting } from "../browse
 import { endpointLacks } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { heads } from "./routes.mjs";
+import { pairedNow } from "./bridge-tokens.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -391,6 +392,8 @@ export const route = {
           writeSetting(context.store, "bridge", { address: settings.address, token: settings.token });
           applyBridge(bridgeFields, settings);
           result.textContent = `The Bridge ${settings.name} is paired in this browser.`;
+          // Once paired, the Bridges are handed this browser's repository tokens (UC-044 step 4).
+          await pairedNow(context.store, context.instance?.repository);
         } else {
           writeSetting(context.store, "bridge", settings);
           applyBridge(bridgeFields, settings);
@@ -489,6 +492,7 @@ export const route = {
       ...(download ? [download.section] : []),
       el("p", "notice bridge-shared-origin", sharedPagesNotice(context)),
       el("p", null, "The copied pairing token is sent only to the Bridge address when you choose Pair Bridge."),
+      el("p", "bridge-repository-tokens", "This browser's repository tokens go to every Bridge it keeps, when it is paired and whenever a token is stored, changed or cleared; the Bridge clones, pushes and opens pull and merge requests with them, and sends each only to its own server."),
       el("p", null, el("label", null, "Bridge address ", address)),
       el("p", null, el("label", null, "Pairing token ", token, " ", show)),
       el("p", null, pairButton, " ", clear),

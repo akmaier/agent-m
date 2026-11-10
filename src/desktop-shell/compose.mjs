@@ -1,6 +1,6 @@
 // Module: MOD-desktop-shell
 import { bridgeApi, pairAnew, serveBridge } from "../bridge-http/index.mjs";
-import { jobHandlers, startWatching, stopWatching } from "../bridge-jobs/index.mjs";
+import { checkOut, jobHandlers, startWatching, stopWatching, useRepositoryTokens } from "../bridge-jobs/index.mjs";
 import { mailHandlers } from "../mail-protocols/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import * as approvals from "../approvals/index.mjs";
@@ -33,8 +33,18 @@ export function composeJobHandlers(settings, enclosures = null) {
   return jobHandlers({ agents: settings.agents ?? [], enclosures });
 }
 
-export function composeBridgeHandlers(settings, enclosures = null, dataFolder = null) {
-  return { jobs: composeJobHandlers(settings, enclosures), mail: mailHandlers(), tunnels: tunnelHandlers, ...(dataFolder ? { settings: composeSettingsHandlers(settings, dataFolder) } : {}) };
+export function composeBridgeHandlers(settings, enclosures = null, dataFolder = null, { checkOutAgain } = {}) {
+  return { jobs: composeJobHandlers(settings, enclosures), mail: mailHandlers(), tunnels: tunnelHandlers,
+    ...(dataFolder ? { settings: composeSettingsHandlers(settings, dataFolder, { checkOutAgain }) } : {}) };
+}
+
+// The checkout of the offered agents' working folders (MOD-desktop-shell, The checkout; UC-044 step 3): run in the background, one after another, its last
+// result kept in memory for the window. `checkOut()` starts one and gives the promise of its result; `last()` the result of the last that ended, or null.
+export function checkoutRunner(settings, instance) {
+  let running = Promise.resolve(null), last = null;
+  const checkOutNow = () => (running = running.then(() => checkOut({ instance, products: settings.products ?? [], agents: settings.agents ?? [] }))
+    .then((result) => (last = result), (failure) => (last = [{ agent: null, repository: instance, folder: null, commit: null, reason: failure.message }])));
+  return { checkOut: checkOutNow, last: () => last };
 }
 
 export function bridgeStrategyRegistrations() {
@@ -77,11 +87,14 @@ export function createBridgeJobRuntime(settings, { instance, paused, startWatchi
 
 export async function compose({ instance, origin, dataFolder, port = bridgeApi.defaultPort, paused = () => false, version = null }) {
   const settings = loadSettings(dataFolder, port === 0 ? {} : { port });
+  // Every git of this process reads the repository tokens the paired browser handed the Bridge, before anything reaches a repository.
+  useRepositoryTokens(dataFolder);
   const key = await ensureKey(dataFolder);
   const enclosures = bridgeEnclosures(dataFolder);
+  const checkout = checkoutRunner(settings, instance);
   // The pair answer names the Bridge by the settings in force and its release by build.json's version, null for a start without it.
   const bridge = await serveBridge({ host: "127.0.0.1", port: port === 0 ? 0 : settings.port, origin, dataFolder, paused, name: () => settings.name, version },
-    composeBridgeHandlers(settings, enclosures, dataFolder));
+    composeBridgeHandlers(settings, enclosures, dataFolder, { checkOutAgain: () => checkout.checkOut() }));
   await openTunnels(dataFolder, settings.tunnels, Number(new URL(bridge.address).port));
   const jobs = createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching, enclosures });
   jobs.start();
@@ -92,6 +105,8 @@ export async function compose({ instance, origin, dataFolder, port = bridgeApi.d
     key,
     ...bridge,
     enclosures,
+    checkOut: () => checkout.checkOut(),
+    checkout: () => checkout.last(),
     pairAnew: (token = null) => pairAnew(dataFolder, token),
     tunnels: () => tunnelHandlers["GET /v1/tunnels"]().then((answer) => answer.tunnels),
     pauseWatching: () => jobs.pause(),

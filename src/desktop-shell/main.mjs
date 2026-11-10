@@ -4,7 +4,7 @@ import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { installedAgents } from "../agent-processes/index.mjs";
-import { listJobs, testAccess } from "../bridge-jobs/index.mjs";
+import { listJobs } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
 import { createUpdates } from "./updates.mjs";
@@ -104,6 +104,8 @@ export async function start(electron, supplied = {}) {
     startupFailure = null;
     return bridgeState();
   };
+  // A save of the agents, the folder or the served products starts a checkout in the background, which the window's "checkout" waits for.
+  const checkedOut = (state) => { bridge.checkingOut = bridge.checkOut(); return state; };
   electron.ipcMain.handle("bridge-state", async (_event, action, value) => {
     if (!action) return bridgeState();
     // The Updates view (UC-044 7a): the state, the click Download, the second click Install and restart (the window's decision names the running jobs first).
@@ -115,7 +117,10 @@ export async function start(electron, supplied = {}) {
       return updates.install(value);
     }
     if (startupFailure) return bridgeState();
-    if (action === "agents") return { platform: platformName(), agents: await installedAgents(), selected: bridge.settings.agents, enclosures: await enclosureStates(), capabilities: CAPABILITIES };
+    if (action === "agents") return { platform: platformName(), agents: await installedAgents(), folder: bridge.settings.folder, selected: bridge.settings.agents,
+      enclosures: await enclosureStates(), capabilities: CAPABILITIES, checkout: bridge.checkout() };
+    // The checkout's result once the checkout asked for last has ended (MOD-desktop-shell, The checkout).
+    if (action === "checkout") { await bridge.checkingOut; return { checkout: bridge.checkout() }; }
     // The one-time step of an agent's enclosure, where the Bridge can take it (on Windows, through the elevation prompt), and the agent's own login step,
     // in a terminal in its enclosure (ARC-054).
     if (action === "enclosure-setup") return enclosureFor(value?.name).setUp();
@@ -126,18 +131,18 @@ export async function start(electron, supplied = {}) {
       await enclosureFor(agent.name).openTerminal(command, args, agent.keeps);
       return { opened: true };
     }
+    // Saving the agents and the one folder checks them out at once (UC-044 step 3).
     if (action === "save-agents") {
-      saveSettings(config.dataFolder, { ...bridge.settings, agents: Array.isArray(value?.agents) ? value.agents : [], paused });
-      return restart();
+      saveSettings(config.dataFolder, { ...bridge.settings, agents: Array.isArray(value?.agents) ? value.agents : [], folder: value?.folder ?? bridge.settings.folder, paused });
+      return checkedOut(await restart());
     }
     // The jobs this Bridge took and that still run, which the window's Quit names (UC-044 7b).
     if (action === "running-jobs") return { jobs: listJobs().filter((job) => job.state === "running") };
-    if (action === "test-access") return { results: await testAccess({ instance: repositoryAddress(config.instance), products: bridge.settings.products }) };
     if (action === "settings") return { settings: bridge.settings };
     if (action === "tunnels") return { publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() };
     if (action === "save-settings") {
       saveSettings(config.dataFolder, { ...bridge.settings, ...value, paused });
-      return restart();
+      return checkedOut(await restart());
     }
     if (action === "save-jump-host") {
       setJumpHost(config.dataFolder, value);
@@ -153,7 +158,7 @@ export async function start(electron, supplied = {}) {
       }, value?.text ?? "");
       if (taken.pairingToken) await bridge.pairAnew(taken.pairingToken);
       paused = taken.paused;
-      return { ...(await restart()), taken: { products: taken.products, jumpHost: taken.jumpHost, tunnels: taken.tunnels } };
+      return { ...checkedOut(await restart()), taken: { products: taken.products, jumpHost: taken.jumpHost, tunnels: taken.tunnels } };
     }
     throw new TypeError("Unknown Bridge window request.");
   });

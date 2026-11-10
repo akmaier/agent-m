@@ -5,16 +5,16 @@
 //
 // Module: MOD-bridge-jobs
 //
-// A LOCAL AGENT USES THE PERSON'S OWN LOGIN: every clone is made and fetched by git with the login git finds on this computer — its credential
-// helper, its SSH key, its configuration —, and no token is entered anywhere. Access's local clone (MOD-repository-hosts' connect with a `clone`)
-// reads files and makes commits in these clones; through a clone, repositoryInfo needs a token, which a Bridge has none of, so the default branch
-// it reports is the one the clone's origin names.
+// A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT: every clone is made, fetched and pushed by git with the Bridge's credentials — the repository token its
+// paired browser handed it, which git reads from the file tokens.mjs keeps, or, for a repository it holds none for, the login git finds on this computer —,
+// and no token is entered anywhere. Access's local clone (MOD-repository-hosts' connect with a `clone`) reads files and makes commits in these clones, and,
+// with the token, reaches the server's API for pull or merge requests; the default branch it reports is the one the clone's origin names.
 
 import { execFile } from "node:child_process";
 import { appendFile, mkdir, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
-import { pullRequestsThroughCli } from "./pull-requests.mjs";
+import { tokenOf } from "./tokens.mjs";
 
 const TIMEOUT_MS = 120_000;
 
@@ -90,16 +90,14 @@ export async function defaultHead(folder) {
 }
 
 /**
- * MOD-repository-hosts' host for `address` through the clone in `folder`, its repositoryInfo answering the default branch the origin names, and its
- * commits one at a time with the clone's fetches: a push updates the clone's remote-tracking ref, which a fetch at the same moment would also lock.
+ * MOD-repository-hosts' host for `address` through the clone in `folder` and with the token the Bridge holds for that address (tokens.mjs): its pull or merge
+ * requests and the rest of the server's API with that token, NotSupported without one; its repositoryInfo answering the default branch the origin names, and
+ * its commits one at a time with the clone's fetches: a push updates the clone's remote-tracking ref, which a fetch at the same moment would also lock.
  */
 export async function hostOf(address, folder) {
-  const host = connect(parseAddress(address), { clone: folder });
+  const host = connect(parseAddress(address), { clone: folder, token: await tokenOf(address) });
   const { branch } = await defaultHead(folder);
-  // The pull requests through the person's gh, outside every enclosure (pull-requests.mjs); NotSupported where gh cannot open them.
-  const pulls = pullRequestsThroughCli(address, { cwd: folder });
-  return Object.freeze({ ...host, commitFiles: (change) => exclusively(folder, () => host.commitFiles(change)), repositoryInfo: async () => ({ defaultBranch: branch, visibility: null, canWrite: null, archived: false, description: null }),
-    listPullRequests: pulls.listPullRequests, openPullRequest: pulls.openPullRequest });
+  return Object.freeze({ ...host, commitFiles: (change) => exclusively(folder, () => host.commitFiles(change)), repositoryInfo: async () => ({ defaultBranch: branch, visibility: null, canWrite: null, archived: false, description: null }) });
 }
 
 /** The clone at one commit, detached, its files as that commit holds them. */

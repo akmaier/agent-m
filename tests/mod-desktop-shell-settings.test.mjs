@@ -47,17 +47,20 @@ test("TST-291001: MOD-desktop-shell saves bounded private settings", () => {
   const dataFolder = folder();
   try {
     const settings = saveSettings(dataFolder, {
-      name: "lab", port: 4711, agents: [{ name: "codex", folder: "/tmp/codex" }], products: ["https://github.com/example/product"], every: 120,
+      name: "lab", port: 4711, folder: "/tmp/agents", agents: [{ name: "codex" }], products: ["https://github.com/example/product"], every: 120,
       paused: true, jumpHost,
       tunnels: [{ direction: "reverse", jumpHost: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort, remotePort: 4111, bind: "127.0.0.1", bridgePort: 4711, keyFile: "foreign-key", password: "must-not-persist" }],
       repositoryToken: "must-not-persist", endpoint: "must-not-persist", mailbox: "must-not-persist", signIn: "must-not-persist",
     });
     const disk = JSON.parse(readFileSync(settingsFile(dataFolder), "utf8"));
-    assert.deepEqual(settings, disk, "failure node: settings writer returns exactly the persisted private contract");
-    assert.deepEqual(Object.keys(disk).sort(), ["agent-m-bridge-settings", "agents", "every", "jumpHost", "name", "paused", "port", "products", "tunnels"], "failure node: persisted settings exclude browser and mail secrets");
+    // In memory each agent carries its working folder <folder>/<agent>, which the file does not keep (MOD-desktop-shell, Data: folder).
+    const inMemory = (value) => ({ ...value, agents: value.agents.map((agent) => ({ ...agent, folder: join(value.folder, agent.name) })) });
+    assert.deepEqual(settings, inMemory(disk), "failure node: settings writer returns exactly the persisted private contract");
+    assert.equal(settings.agents[0].folder, join("/tmp/agents", "codex"));
+    assert.deepEqual(Object.keys(disk).sort(), ["agent-m-bridge-settings", "agents", "every", "folder", "jumpHost", "name", "paused", "port", "products", "tunnels"], "failure node: persisted settings exclude browser and mail secrets");
     assert.deepEqual(disk.jumpHost, { hostname: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort }, "failure node: only the Bridge jump-host fields persist");
     assert.equal(disk.tunnels[0].keyFile, join(dataFolder, "ssh", "id_ed25519"));
-    assert.deepEqual(loadSettings(dataFolder), disk, "failure node: restart reads the canonical persisted settings");
+    assert.deepEqual(loadSettings(dataFolder), inMemory(disk), "failure node: restart reads the canonical persisted settings");
   } finally { rmSync(dataFolder, { recursive: true, force: true }); }
 });
 
@@ -98,7 +101,7 @@ test("TST-291002: MOD-desktop-shell imports a named Bridge-through-jump-host ent
     assert.equal(taken.paused, true, "failure node: import preserves the current explicit pause state");
     assert.equal(taken.pairingToken, "paired-token");
     assert.deepEqual(taken.tunnels, [{ direction: "reverse", jumpHost: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort, remotePort: 4111, bind: "127.0.0.1", bridgePort: 5511, keyFile: join(dataFolder, "ssh", "id_ed25519") }], "failure node: named Bridge choice takes its reverse plan only");
-    assert.deepEqual(Object.keys(JSON.parse(readFileSync(settingsFile(dataFolder), "utf8"))).sort(), ["agent-m-bridge-settings", "agents", "every", "jumpHost", "name", "paused", "port", "products", "tunnels"], "failure node: import persists only the Bridge contract");
+    assert.deepEqual(Object.keys(JSON.parse(readFileSync(settingsFile(dataFolder), "utf8"))).sort(), ["agent-m-bridge-settings", "agents", "every", "folder", "jumpHost", "name", "paused", "port", "products", "tunnels"], "failure node: import persists only the Bridge contract");
   } finally { rmSync(dataFolder, { recursive: true, force: true }); }
 });
 

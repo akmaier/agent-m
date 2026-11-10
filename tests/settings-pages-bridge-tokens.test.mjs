@@ -53,6 +53,8 @@ function recording(t, refusing = null) {
     calls.push({ url: String(url), method: init.method, body: init.body ? JSON.parse(init.body) : null, token: init.headers?.["x-agent-m-bridge-token"] ?? null });
     if (refusing && String(url).startsWith(refusing)) return new Response(JSON.stringify({ error: "token-refused", message: "Bridge token refused." }), { status: 401 });
     if (String(url).endsWith("/v1/repository-tokens")) return new Response(JSON.stringify({ kept: JSON.parse(init.body).tokens.length }), { status: 200 });
+    // A pairing: the Bridge names itself by its port, 4712 the Bridge new.
+    if (String(url).endsWith("/v1/pair")) return new Response(JSON.stringify({ bridge: { name: String(url).includes(":4712") ? "new" : "lab", version: null, platform: "linux" }, origin: "https://fixture.github.io" }), { status: 200 });
     return new Response("{}", { status: 200 });
   };
   return calls;
@@ -80,7 +82,8 @@ test("TST-20261110401: each write and clear of a repository token hands every Br
   writeSetting(store, "github-token", { value: "github_pat_I", name: "GitHub token" });
   await settle();
   const instance = { repository: "https://github.com/fixture/instance", token: "github_pat_I" };
-  assert.deepEqual(tokenCalls(calls).map(({ url, method, token, body }) => [method, url, token, body]), [
+  // The module file names no order of the Bridges: the calls are compared by their addresses.
+  assert.deepEqual(tokenCalls(calls).map(({ url, method, token, body }) => [method, url, token, body]).sort((a, b) => a[1].localeCompare(b[1])), [
     ["PUT", "http://127.0.0.1:4711/v1/repository-tokens", "lab-token", { tokens: [instance] }],
     ["PUT", "http://localhost:40101/v1/repository-tokens", "gpu-token", { tokens: [instance] }]]);
 
@@ -109,27 +112,39 @@ test("TST-20261110401: each write and clear of a repository token hands every Br
 // guards: UC-044; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a browser that keeps github-token and the Bridge bridge:lab; the frame's notice place; a second Bridge, bridge:old at http://127.0.0.1:4799, whose pairing
 //   is refused (401); the route bridge shown
-// input: writeSetting of bridge:new at http://127.0.0.1:4712 — a pairing —; then, in a fresh browser that keeps no repository token, writeSetting of bridge:lab
-// expect: one PUT to each of the three Bridges with the instance's token; the refusing one named in a notice with the reason; counter-proof: in the browser that keeps
-//   no token, the pairing hands nothing
-test("TST-20261110402: a pairing hands the new Bridge the tokens at once, a Bridge that refuses them is named, and a browser without a token hands nothing", async (t) => {
+// input: Pair Bridge on the route with the address http://127.0.0.1:4712 and the copied token new-token; then writeSetting of bridge:far at a port of the jump host,
+//   as + Bridge through the jump host stores it; then, in a fresh browser that keeps no repository token, Pair Bridge with lab's address and token
+// expect: after the pairing one PUT to each of the three Bridges — lab, old and the new one — with the instance's token; the refusing one named in a notice with the
+//   reason; counter-proofs: the Bridge stored through the jump host, which is no pairing, hands nothing; and in the browser that keeps no token, the pairing hands
+//   nothing
+test("TST-20261110402: a pairing hands the Bridges the tokens at once, a Bridge that refuses them is named, and a Bridge stored without a pairing is not contacted", async (t) => {
+  const byClass = (root, name) => { const found = []; (function visit(node) { for (const child of node.childNodes ?? []) { if (child instanceof Element) { if (child.className.split(" ").includes(name)) found.push(child); visit(child); } } })(root); return found; };
+  const pairOn = async (target, address, token) => {
+    byClass(target, "bridge-address")[0].value = address;
+    byClass(target, "bridge-token")[0].value = token;
+    byClass(target, "bridge-pair")[0].dispatchEvent(new Event("click"));
+    await settle();
+  };
   const store = freshStore();
   writeSetting(store, "github-token", { value: "github_pat_I" });
   writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
   writeSetting(store, "bridge:old", { address: "http://127.0.0.1:4799", token: "old-token" });
   const place = noticePlace();
   const calls = recording(t, "http://127.0.0.1:4799");
-  await render(store);
-  writeSetting(store, "bridge:new", { address: "http://127.0.0.1:4712", token: "new-token" });
-  await settle();
+  const shown = await render(store);
+  await pairOn(shown, "http://127.0.0.1:4712", "new-token");
   assert.deepEqual(tokenCalls(calls).map(({ url }) => url).sort(), ["http://127.0.0.1:4711/v1/repository-tokens", "http://127.0.0.1:4712/v1/repository-tokens",
     "http://127.0.0.1:4799/v1/repository-tokens"]);
   assert.match(place.textContent, /old.*(refused|pairing token)/is, "the Bridge that did not take the tokens is named with the reason");
 
+  calls.length = 0;
+  writeSetting(store, "bridge:far", { port: 40102, token: "far-token" });
+  await settle();
+  assert.deepEqual(tokenCalls(calls), [], "counter-proof: a Bridge stored without a pairing is not contacted");
+
   const empty = freshStore();
   calls.length = 0;
-  await render(empty);
-  writeSetting(empty, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
-  await settle();
+  await pairOn(await render(empty), "http://127.0.0.1:4711", "lab-token");
+  assert.ok(calls.some(({ url }) => url.endsWith("/v1/pair")), "known positive: the pairing was made");
   assert.deepEqual(tokenCalls(calls), [], "counter-proof: a browser that keeps no repository token hands nothing");
 });
