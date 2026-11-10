@@ -24,10 +24,15 @@ export const planWorksOn = (draft, context) => {
   const found = plan.flatMap((piece, at) => {
     const worksOn = [piece?.works_on].flat().filter(Boolean).map(String);
     const why = worksOn.length ? worksOnProblem(worksOn) : null;
-    return why ? [finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
+    const stray = [piece?.after ?? []].flat().filter((number) => !Number.isInteger(number) || number < 1 || number > at);
+    return [...(why ? [finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
       what: `piece ${at + 1} of the plan works on what its job's record refuses: ${why}`,
       fix: "name each entry of its works_on in one of the forms that reason names, or leave works_on empty for something new, whose place the task names — "
-        + "the job of such a piece works on the repository, by its address" })] : [];
+        + "the job of such a piece works on the repository, by its address" })] : []),
+    // An `after` the plan cannot keep — a piece that rests on itself, a later one or none of the plan — would leave the piece waiting for ever.
+    ...stray.map((number) => finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
+      what: `piece ${at + 1} of the plan rests on piece ${number}, which is no earlier piece of the plan`,
+      fix: "after names earlier pieces of this plan, by their numbers from 1; a piece that rests on a result already accepted names none" }))];
   });
   const snapshot = context?.product?.snapshot;
   return snapshot && found.length === 0 ? unknownRequirements(plan, snapshot) : found;

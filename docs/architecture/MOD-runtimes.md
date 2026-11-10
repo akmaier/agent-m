@@ -415,7 +415,9 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   the job's context has the product's snapshot and every form is right, also an error, under the same rule, for each
   requirement name in a piece's `works_on` that neither the product's `SPEC.md` nor a proposal under
   `docs/spec-freigaben/` holds, its `fix` saying that a requirement the change adds is named in the task and `works_on`
-  names the requirements it stands beside or changes, or is empty. A draft
+  names the requirements it stands beside or changes, or is empty. Also an error, under the same rule, for each number
+  of a piece's `after` that names no earlier piece of the plan, its `fix` saying that `after` names earlier pieces of
+  this plan and that a piece resting on a result already accepted names none. A draft
   without a plan has no finding. Pure. The writer reads the branch named after the job
   and its commits. With a host of a server's API, it opens the pull request if the coding participant has not — into
   MOD-work-plans' `targetBranch` of the item or step the job works on, over the product's sprint records, plan order
