@@ -54,3 +54,26 @@ test("TST-2026111005: an object left open is named, with where it opens and the 
   assert.match(one, /`draft` is the last key it holds/);
   assert.match(one, /stands inside it/);
 });
+
+// TST-2026111503 · level: unit · module: MOD-job-runner
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: a drafter that writes a sentence before its JSON object; one whose object holds a value that is no JSON value, far into a long text; one with a bad value in a
+//   text shorter than JSON.parse's context
+// input: runJob attended, limit 1, once for each
+// expect: each finding names the character where reading stopped — 1 for the sentence, with the text found there; the bad value's own character for the others — and
+//   none says that the text ends before its object is closed: JSON.parse names no position for an unexpected token, only the characters around it. Counter-proof:
+//   the loop read no position there and said of each that its object is never closed, and Nemotron's answer that began "The corrected proposal is complete." was
+//   told so (akmaier/AlienInvasion, 2026-11-10).
+test("TST-2026111503: an unexpected token is named at its own character, not as an object left open", async () => {
+  const prose = 'The corrected proposal is complete. Here is my answer: {"draft": {"files": [], "why": "none"}, "answers": []}';
+  const [before] = await findingsOf(prose);
+  assert.match(before, /reading stopped at character 1 of 109\b/);
+  assert.ok(before.includes("«The corrected"), before);
+  assert.doesNotMatch(before, /ends before its object is closed/);
+  const long = `{"draft": {"files": [], "why": "${"x".repeat(60)}", "note": oops}, "answers": []}`;
+  const [bad] = await findingsOf(long);
+  assert.match(bad, new RegExp(`at character ${long.indexOf("oops") + 1} of ${long.length}\\b`));
+  assert.doesNotMatch(bad, /ends before its object is closed/);
+  const [shortBad] = await findingsOf('{"draft": x}');
+  assert.match(shortBad, /at character 11 of 12\b/);
+});

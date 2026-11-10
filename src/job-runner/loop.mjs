@@ -56,11 +56,25 @@ export function misfit(value, schema, at) {
   return null;
 }
 
+// Where JSON.parse stopped in a text it refused. Its message names the position, or, for an unexpected token, quotes the characters around it: up to
+// CONTEXT before and after, "..." marking text left out on either side; a text it quotes whole holds the token where it first stands in it.
+const CONTEXT = 10;
+function stoppedAt(body, error) {
+  const message = String(error?.message);
+  const position = /position (\d+)/.exec(message);
+  if (position) return Number(position[1]);
+  const quoted = /^Unexpected token '([\s\S])', (\.\.\.)?"([\s\S]*)"(\.\.\.)? is not valid JSON$/.exec(message);
+  const from = quoted ? body.indexOf(quoted[3]) : -1;
+  if (from < 0) return body.length;
+  const [, token, cutBefore, context, cutAfter] = quoted;
+  return from + (cutBefore ? CONTEXT : cutAfter ? context.length - CONTEXT : context.indexOf(token));
+}
+
 // Where JSON.parse stopped in a text it refused, for the drafter to find its slip: at the end, the text ends before its object is closed; elsewhere, the
-// character where reading stopped and the text just before it.
+// character where reading stopped, the text just before it and the text found there.
 function whereReadingStopped(body, error) {
-  const at = Number(/position (\d+)/.exec(String(error?.message))?.[1] ?? body.length);
-  if (at < body.length) return `reading stopped at character ${at + 1} of ${body.length}, after «${body.slice(Math.max(0, at - 40), at)}»`;
+  const at = stoppedAt(body, error);
+  if (at < body.length) return `reading stopped at character ${at + 1} of ${body.length}, after «${body.slice(Math.max(0, at - 40), at)}», at «${body.slice(at, at + 40)}»`;
   const innermost = openContainers(body).at(-1);
   const what = !innermost ? "" : innermost.key === null ? `the ${innermost.list ? "outermost list" : "outermost object"}` : `the ${innermost.list ? "list" : "object"} of \`${innermost.key}\``;
   const named = innermost ? `; ${what}, opened at character ${innermost.at + 1}, is never closed`
