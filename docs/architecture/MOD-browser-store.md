@@ -24,6 +24,7 @@ provides:
   - readExport
   - expiringSoon
   - secretValues
+  - watchSettings
   - readTabValue
   - writeTabValue
 ---
@@ -139,6 +140,10 @@ it the file cannot be read, and the passphrase cannot be recovered.
   expiry is within fourteen days of `now`, or past (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`).
 - `secretValues(store: Store) -> string[]` — the values of every stored secret, for the refusal of a commit that would
   write one (`NO SECRET IN THE REPOSITORY`); a caller passes them on and never shows or logs them.
+- `watchSettings(store: Store, listener: (key: SettingKey) -> void) -> () -> void` — calls `listener` with the key
+  after each setting this page writes or clears in the instance's store — through `writeSetting`, `clearSetting`,
+  `clearEverything` or `importSettings`, whichever `Store` of the instance it was given —, and returns the function that
+  stops it. A listener that throws stops neither the write nor the other listeners. What another tab writes is not told.
 - `readTabValue(store: Store, key: string) -> unknown | null` — a value this browser tab keeps for the instance, or
   `null`; what one tab keeps no other tab reads.
 - `writeTabValue(store: Store, key: string, value: unknown | null) -> void` — keeps a value in this tab's

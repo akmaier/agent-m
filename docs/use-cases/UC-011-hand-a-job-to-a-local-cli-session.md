@@ -26,6 +26,8 @@ realises:
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
   - THE BRIDGE FINDS THE INSTALLED AGENTS
   - A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
+  - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+  - NO MODEL READS A CREDENTIAL
 ---
 # UC-011 Hand a job to a local CLI session
 
@@ -36,13 +38,15 @@ they control, through the Agent M Bridge already running there.
 
 - **Author** — runs the Bridge, and chooses in its window the agents it offers.
 - **Local CLI session** — the coding agent the Bridge starts for the job, in that agent's working folder; it performs the
-  job with its own tools and login, and with the computer's own git login.
+  job with its own tools and login, in a checkout the Bridge made for it, and pushes its branches into the job's outbox;
+  the Bridge alone reaches the repositories.
 
 ## Precondition
 
 - The Agent M Bridge app is installed on the computer where the agent runs, offers the agent with its working folder,
   and is paired with this browser, which keeps it under its name (UC-044); it is bound to loopback.
-- That computer's own git login reaches the instance and the product (UC-044, step 3).
+- The Bridge holds a repository token that this browser handed it for the instance and for the product (UC-044, step 4),
+  or that computer's own git login reaches the one it holds none for (UC-044, step 3).
 - For current browsers, a dated measurement shows that the Pages site can reach the bridge.
 
 ## Main flow
@@ -57,10 +61,11 @@ they control, through the Agent M Bridge already running there.
 3. The Bridge checks the token, brings the clones in the agent's working folder to the job's commits — the product's
    branch, and the instance at the commit the job's record names — and starts the agent there with the participant's
    model and the task.
-4. The CLI session commits the artifacts to the default branch, where they are open; a code change
-   goes to a branch with a pull request instead.
-5. The CLI session writes the job's end record with its last commit; the bridge reports what was
-   committed, and the site shows the new artifacts for review.
+4. The job's artifacts reach the default branch, where they are open; a code change the CLI session commits on a branch
+   and pushes into the job's outbox goes to that branch instead, which the Bridge pushes to the product and opens a pull
+   request for — a merge request on GitLab — through the server's API, with the token it holds for the product.
+5. The Bridge writes the job's end record with its last commit and reports what was committed, and the site shows the
+   new artifacts for review.
 
 ```mermaid
 sequenceDiagram
@@ -72,7 +77,8 @@ sequenceDiagram
     M->>B: job and inputs with token
     B->>B: check token, clones at the job's commits
     B->>C: task in the agent's working folder
-    C-->>B: artifacts committed (open)
+    C-->>B: artifacts committed, branch in the outbox
+    B->>B: push, pull request with the product's token
     B-->>M: commit
     M-->>A: artifacts ready for review
 ```
@@ -111,10 +117,13 @@ sequenceDiagram
   (UC-044, 4b).
 - **3a. The token is missing or wrong.** The Bridge refuses the request; nothing reaches the CLI
   session.
-- **3b. The Bridge does not offer the agent** — it is not installed, not chosen in the Bridge's window, or has no working
-  folder. The Bridge refuses the job and names why; nothing reaches an agent.
-- **3c. The computer's git login does not reach the product or the instance.** The Bridge refuses the job and names the
-  repository; the author sets the login up on that computer and tests it in the Bridge's window (UC-044, step 3).
+- **3b. The Bridge does not offer the agent** — it is not installed, not chosen in the Bridge's window, or the folder that holds
+  the agents' working folders is not chosen. The Bridge refuses the job and names why; nothing reaches an agent.
+- **3c. Neither a token the Bridge holds nor the computer's git login reaches the product or the instance.** The job ends
+  failed and names the repository with git's reason; the author stores or renews that repository's token in the
+  dashboard, which hands it to the Bridge (UC-044, step 4, 3c).
+- **4a. The Bridge holds no token for the product.** Where the computer's own git login pushes the branch, the Bridge
+  pushes it and opens no pull request, and the job's end names the branch without one.
 - **2a. The browser blocks the call** — Safari does for `http://127.0.0.1`. The site names the reason and
   points to the route over HTTPS through the jump host (1c, 4) and to UC-010.
 

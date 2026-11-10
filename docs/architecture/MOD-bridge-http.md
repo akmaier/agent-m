@@ -53,6 +53,7 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 | `GET /v1/pair` | — | `{ bridge: { name, version, platform }, origin }` | the server itself |
 | `GET /v1/agents` | — | `{ agents: [{ name, version, ready, loggedIn, place, capabilities, models }], missing: [{ name }] }` — the agents the Bridge offers, each with its declaration as the Bridge's settings keep it (`models` each `{ model, context }`), and the supported agents missing on its computer | jobs |
 | `PUT /v1/agents/{agent}` | `{ place, capabilities, models }` — the declaration of an agent the Bridge offers | `{ declared }` — `true` once the Bridge's settings keep it | settings |
+| `PUT /v1/repository-tokens` | `{ tokens: [{ repository, token }] }` — every repository token the paired browser keeps, each with the address of the repository it is for; the tokens travel only in this body | `{ kept }` — the number of tokens the Bridge keeps, once they replace those it kept before | settings |
 | `POST /v1/jobs` | `{ product, record, commit, task? }` — a job handed over: the product's address, the path of its start record and the commit that holds it, and, for a job whose task travels with the hand-over, that task | `{ accepted }` — the job's identifier | jobs |
 | `GET /v1/jobs` | — | `{ jobs: [{ id, product, kind, agent, state, started, usage }] }` | jobs |
 | `GET /v1/jobs/{id}/log?from={line}` | — | `{ lines, next, ended }` — the log from that line on | jobs |

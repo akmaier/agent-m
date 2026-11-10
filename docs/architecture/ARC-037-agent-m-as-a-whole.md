@@ -567,7 +567,7 @@ flowchart TB
 |---|---|---|
 | Site, with every subsystem below it except the Bridge's | the person's browser, from the files GitHub Pages serves | the repository servers, model endpoints, Microsoft 365, registries — each named before it is called (`NO SERVER`) — and Bridges |
 | Workflows, with the same subsystems | GitHub's or GitLab's runners, or a self-hosted runner, with Node | the product's server with the person's token from a CI secret; the participant's endpoint or agent with its key from a CI secret |
-| Bridge | a person's computer, as a signed app | coding-agent CLIs, mail servers, local model servers, compute; the jump host over SSH; product repositories with the computer's own git login |
+| Bridge | a person's computer, as a signed app | coding-agent CLIs, mail servers, local model servers, compute; the jump host over SSH; product repositories with the person's tokens the paired browser hands it |
 | Jump host's web server | the jump host | the end of a Bridge's reverse tunnel, on the jump host's loopback |
 
 The Site's service worker (MOD-notifications) runs in the same browser, registered from its module's folder, which is

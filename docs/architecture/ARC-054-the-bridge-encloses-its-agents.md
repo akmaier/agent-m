@@ -5,6 +5,9 @@ refines: ARC-040
 forced_by:
   - NO MODEL READS A CREDENTIAL
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+  - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+  - CONFIGURATION LIVES IN THE BROWSER
+  - A CREDENTIAL IS NEVER PLACED IN A URL
   - THE BRIDGE IS ONE FILE PER PLATFORM
   - THE BRIDGE FINDS THE INSTALLED AGENTS
   - THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT
@@ -31,7 +34,9 @@ works with its own tools — reading files, running commands, reaching the web �
 agent's model. The Bridge holds credentials: its pairing token, the tokens of the remote sessions and whatever else its
 settings keep, and its own SSH key, in its data folder (MOD-bridge-http, MOD-desktop-shell, MOD-tunnels); an endpoint's
 key and a mailbox password in its memory, for one request (MOD-bridge-jobs, MOD-mail-protocols); and it reaches the
-repositories with the computer's own git login — SSH keys, an SSH agent, a credential helper and its store, the system's
+repositories with the repository tokens the browser it is paired with hands it, which it keeps in its data folder
+(`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`, `CONFIGURATION LIVES IN THE BROWSER`), and, for a repository it holds
+none for, with the computer's own git login — SSH keys, an SSH agent, a credential helper and its store, the system's
 keychain (MOD-bridge-jobs). `NO MODEL READS A CREDENTIAL` says that none of these reaches a model, neither in what is sent
 to it nor through a tool it calls.
 
@@ -96,14 +101,26 @@ the agent is logged in and the harmless probe.
   home and the folders below it —, the git identity the computer's configuration names for its commits, and the login
   its home keeps for it, and nothing else: no key variable, no SSH agent, no session bus.
 - **Git stays with the Bridge** (`NO MODEL READS A CREDENTIAL`; nothing twice — the push address of CI's agent machine,
-  MOD-workflow-entries). The Bridge clones the job's checkout with the computer's git login before the agent starts and
+  MOD-workflow-entries). The Bridge clones the job's checkout with its credentials before the agent starts and
   sets its push address to an outbox, a bare repository beside it, in which the agent's pushes land. After the agent has
   answered, the Bridge fetches the outbox's branches into its own clone of the product — which the agent cannot write —
   and pushes every branch the agent made or moved to the origin, never forced; the job's writer then reads the branch and
-  opens the pull request through the Bridge's host of the product, which opens it with the server's own command-line
-  client logged in as the person (`gh` on GitHub), outside the enclosure. The Bridge never runs git with the computer's
-  login in a repository the agent can write: a hook or a command in that repository's configuration would run with the
-  person's rights, the alternative ARC-046 rejects for CI.
+  opens the pull request through the Bridge's host of the product, which opens it — a pull request on GitHub, a merge
+  request on GitLab — through MOD-repository-hosts' adapter of the server's API, with the token the Bridge holds for the
+  product, outside the enclosure. The Bridge never runs git with its credentials in a repository the agent can write: a
+  hook or a command in that repository's configuration would run with the person's rights, the alternative ARC-046
+  rejects for CI.
+- **The repository tokens stay in the Bridge's data folder, and reach only the Bridge's own git** (`NO MODEL READS A
+  CREDENTIAL`, `A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). The browser hands the Bridge its repository tokens,
+  each with its repository, over the paired channel (UC-044, step 4); the Bridge keeps them in one file of its data
+  folder, which every enclosure hides, written in git's own configuration format: for each repository the header that
+  authorises git's requests to that repository's address, which git applies by its own matching of addresses. The
+  Bridge's process names that file to every git it starts — its environment includes the file by its path —, so that a
+  token is never on a command line, in a remote address, in a clone's configuration or in an environment; the API
+  requests read the token back from the same file, with git's same matching (*Nothing twice*: one store, one rule of
+  which token goes where). An agent's environment is chosen and names no such file. Where the file holds no token for a
+  repository, git uses the computer's own login, where it has one, at no cost of its own: the Bridge adds nothing for
+  it.
 - **No enclosure, no agent** — no silent weakening. Before it starts an agent, the Bridge asks the enclosure whether it
   works on this computer. Where it does not — bubblewrap missing or refused its namespaces, the account not made — the
   Bridge starts no agent: the agent is shown as not ready, a job ends failed and an ask fails, each naming the reason and
@@ -170,6 +187,20 @@ to the lower layer, never the other way.
   as much as the ones it keeps.
 - **The agent keeping the computer's git login to push and to open its pull request.** Rejected: through that login its
   model reaches the credential — `git credential fill`, the SSH agent.
+- **A token given to git on its command line (`-c http.extraHeader=…`).** Rejected: a process of the person's user reads
+  the command lines of the others (`ps`), an enclosed agent's among them on macOS, and MOD-bridge-jobs keeps no credential
+  in a process command.
+- **A token given to git in an environment variable, or by a `GIT_ASKPASS` program.** Rejected: on macOS an enclosed
+  agent reads the environment of the person's other processes (measured), and an askpass program is one program per
+  platform that reads the token from a file anyway.
+- **A token written into a clone's remote address or a credential store beside the clone.** Rejected: the clones are
+  readable by the agent (`A CREDENTIAL IS NEVER PLACED IN A URL`).
+- **The servers' command-line clients logged in as the person (`gh`, `glab`).** Rejected: a second login on the Bridge's
+  computer for each server, which the person sets up; `glab` is a further program, and the API adapters MOD-repository-hosts
+  already has open pull and merge requests with the token.
+- **A token entered in the Bridge's window, or taken from the dashboard's export.** Rejected: the person decided that no
+  token is entered there; and the browser's token, handed over the paired channel, is the one the person renews in the
+  dashboard (*Nothing twice*).
 - **Claude Code's `claude auth login` in the enclosure with the keychain opened to it.** Rejected: the keychain that would
   hold its login holds git's.
 - **The person pasting the token of `claude setup-token` into the Bridge.** Rejected: the Bridge would ask for a key
@@ -217,9 +248,11 @@ No candidate is marked: every licence is known to be compatible with MIT for the
   and Credential Manager (Windows), and cannot write where the Bridge or the person would run what it wrote.
 - Every agent a Bridge offers needs one login of its own, in its enclosure; a Windows computer needs an administrator
   once, a Linux computer without bubblewrap too. Until then the Bridge offers the agent as not ready and says why.
-- The agent no longer pushes or opens its pull request: the Bridge does, with the computer's git login and, on GitHub,
-  the person's `gh`. Without `gh` the job ends with its branch pushed and no pull request, and says so; on GitLab the
-  Bridge opens no merge request.
+- The agent no longer pushes or opens its pull request: the Bridge does, with the token this browser handed it for the
+  product — a pull request on GitHub, a merge request on GitLab. For a product it holds no token for, git pushes with the
+  computer's own login where it has one, and the job ends with its branch pushed and no pull request, and says so.
+- A Bridge reached at the jump host's HTTPS address receives the repository tokens through the jump host's web server, as
+  it receives its pairing token.
 - What remains within an enclosed agent's reach, stated rather than closed: on macOS the environment the Bridge was
   started with (measured), so the Bridge puts no credential into an environment; on Linux a session bus that listens
   on an abstract socket instead of in the runtime folder; on every platform the person's other files that are not among
