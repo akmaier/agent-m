@@ -18,6 +18,7 @@ export class BridgeError extends Error {
 
 const privateSettings = new WeakMap();
 const requestTimeoutMs = 15_000;
+const RUNNING_ASK_WAIT_MS = 1000;
 // A mail operation's time grows with the mailbox it reads: its limit is long, and finite.
 const mailTimeoutMs = 300_000;
 
@@ -175,6 +176,8 @@ export async function ask(bridge, target, input) {
       return answer.cut === true ? { ...done, cut: true } : done;
     }
     if (answer.state === "failed") throw new BridgeError("AskFailed", {}, answer.error ?? "The Bridge ask failed.");
+    // An ask still running is asked again after a wait, as a quiet job log is (MOD-runtimes' followBridgeLog).
+    await new Promise((resolve) => setTimeout(resolve, RUNNING_ASK_WAIT_MS));
   }
 }
 
