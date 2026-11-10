@@ -19,6 +19,7 @@ uses:
   - MOD-bridge-jobs.useRepositoryTokens
   - MOD-bridge-jobs.listJobs
   - MOD-bridge-jobs.jobLog
+  - MOD-bridge-jobs.keepJobLogs
   - MOD-mail-protocols.mailHandlers
   - MOD-tunnels.ensureKey
   - MOD-tunnels.openTunnels
@@ -138,7 +139,8 @@ only its own instance's origin.
 **The Bridge's per-user data folder**: a folder named after the app's identifier, in the platform's place for an app's
 per-user data — `~/Library/Application Support/` on macOS, `%APPDATA%` on Windows, `~/.config/` on Linux —, readable and
 writable by its user only, so that the Bridges of two instances on one computer never share one. It holds
-`settings.json`, MOD-bridge-http's `pairing-token`, MOD-tunnels' `ssh/` and MOD-bridge-jobs' `repository-tokens.gitconfig`.
+`settings.json`, MOD-bridge-http's `pairing-token`, MOD-tunnels' `ssh/` and MOD-bridge-jobs' `repository-tokens.gitconfig`
+and `job-logs/`.
 Nothing in it enters a repository or an export. The clones lie in the working folders of the agents the Bridge offers,
 in the folder the person chooses.
 
@@ -168,7 +170,8 @@ The rest of its surface faces the person, not another module:
 
 - **Start.** One Bridge runs per user; a second start opens the first one's window. The shell makes the data folder, and
   through MOD-tunnels the key pair (`THE BRIDGE CREATES ITS OWN SSH KEY`); has every git of its process read the
-  repository tokens it holds (MOD-bridge-jobs' `useRepositoryTokens`); registers with the job runner the strategies of
+  repository tokens it holds (MOD-bridge-jobs' `useRepositoryTokens`); has the jobs' logs kept in the data folder
+  (MOD-bridge-jobs' `keepJobLogs`); registers with the job runner the strategies of
   every kind a Bridge may run; starts the server on `127.0.0.1` at the settings' port, for the instance's origin, with
   the name of the settings in force and the version of `build.json`, `null` for a start without it, and with the
   handlers of MOD-bridge-jobs, MOD-mail-protocols and MOD-tunnels, and its own for `PUT /v1/agents/{agent}`, which keeps
@@ -198,14 +201,13 @@ The rest of its surface faces the person, not another module:
     what of its output the enclosure keeps (`Agent.keeps`). An installed agent's panel heads its tick with the agent's
     name, its version and its state — *ready*, *not logged in* or *not enclosed* — beside its *Log in* or *Set up*, and
     lays its declaration out as a small form: the place, the capabilities as a group of ticks, the models one per line.
-  - *Jobs* — the jobs the Bridge took since it started, MOD-bridge-jobs' `listJobs`, as a table — identifier, kind,
-    agent, product, state, when taken —, and the console of the one chosen, by default the one running, else the one
-    taken last (`THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE`, UC-044 step 6): the lines MOD-bridge-jobs' `jobLog`
-    holds of it and the line being written, in a pane of the look's class `console`. While the view is shown it asks
-    the main process every half second for the jobs and for the lines after the last it has — the reading
-    `GET /v1/jobs/{id}/log` answers from, so that no second copy of a log exists —, keeps of them only those from the
-    log's `first` on, so that it holds what the Bridge holds and names no limit of its own, and stays scrolled to the
-    newest line unless the person has scrolled up from it.
+  - *Jobs* — the jobs the Bridge took in the last six weeks, MOD-bridge-jobs' `listJobs`, as a table — identifier,
+    kind, agent, product, state, when taken —, and the console of the one chosen, by default the one running, else the
+    one taken last (`THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE`, UC-044 step 6): the last 1000 lines of its log and
+    the line being written, in a pane of the look's class `console`. While the view is shown it asks the main process
+    every half second for the jobs and, through MOD-bridge-jobs' `jobLog` — the reading `GET /v1/jobs/{id}/log` answers
+    from —, first for the last 1000 lines of the log and then for the lines after the last it has; it holds the last 1000
+    of them, and stays scrolled to the newest line unless the person has scrolled up from it.
   - *Pairing* — the Bridge's address and its pairing token with *Copy* (`THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS
     WINDOW`); *paired with* the origin MOD-bridge-http's `pairedWith()` gives, or *not yet paired since this start*; and
     *Pair anew*, a decision that names that every paired browser must pair again (`THE BRIDGE IS PAIRED
@@ -248,9 +250,10 @@ signature does not hold. Writes no repository file; the jobs it composes write t
   default port; the pairing token shown, and renewed on *Pair anew* or with the token of a Bridge reached through the
   jump host, from an export.
 - `MOD-bridge-jobs.jobHandlers`, `startWatching`, `stopWatching`, `checkOut`, `keepRepositoryTokens`, `useRepositoryTokens`,
-  `listJobs`, `jobLog` — the jobs routes; watching the served products while not paused; the checkout of the working
+  `listJobs`, `jobLog`, `keepJobLogs` — the jobs routes; watching the served products while not paused; the checkout of the working
   folders; the repository tokens the paired browser hands the Bridge, kept and read by its git; the jobs it took, the
-  running ones named before quitting or installing, and each one's console in the *Jobs* view.
+  running ones named before quitting or installing, and each one's console in the *Jobs* view; their logs kept in the
+  data folder.
 - `MOD-mail-protocols.mailHandlers` — the mail routes.
 - `MOD-tunnels.ensureKey`, `openTunnels`, `closeTunnels`, `tunnelState`, `tunnelHandlers` — the key shown; the tunnels
   opened, closed and shown; the tunnels route.

@@ -155,12 +155,19 @@ key for it.
 *Check:* `tests/test_bridge_agents.py` — the command the bridge starts carries no key and no key
 environment variable.
 
+**THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX WEEKS** *(PO A. Maier)*
+The Bridge keeps everything the agent of each job it took wrote to its output, across its restarts, for six weeks after
+the job last wrote to it and not beyond.
+*Check:* `tests/bridge-jobs-log-cancel.test.mjs` — a fixture job whose agent writes 1500 lines gives every line from its
+first, and gives them again after the Bridge is started anew; counter-proof: a job's log last written 43 days ago is
+removed at the next start, while one written 41 days ago is kept.
+
 **THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE** *(PO A. Maier)*
-The Bridge's window shows, for each job the Bridge took since it started, the last 1000 lines its agent has written to
-its output, as the agent writes them.
+The Bridge's window shows, for the job chosen among those whose logs the Bridge keeps, the last 1000 lines its agent has
+written to its output, as the agent writes them.
 *Check:* `tests/mod-desktop-shell-job-console.test.mjs` — a fixture job whose agent writes 1500 lines, then 100 more and
 a line it has not ended: the window shows each newest line and the unended one without being reloaded, and holds exactly
-the last 1000 lines; counter-proof: the first 600 lines are not shown.
+the last 1000 lines; counter-proof: the first 600 lines are not shown, while the Bridge's log of the job still holds them.
 
 **THE BRIDGE OPENS ITS TUNNELS ITSELF** *(PO A. Maier)*
 A bridge whose settings name a jump host opens the SSH connection they call for — the reverse tunnel on the
