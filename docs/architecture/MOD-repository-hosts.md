@@ -66,7 +66,7 @@ a commit, its history, its tags; writing commits on an expected head; branches, 
 and tags; and the addresses of the server's own pages — behind which three adapters are plug-ins: GitHub's REST API,
 GitLab's REST API, and a local clone through the `git` command. In a browser the REST adapters run with the person's
 token; in Node the local adapter runs in a CI checkout, with the person's token from a CI secret, or on a Bridge's
-computer, with its own git login. Every function that reaches a server or a clone says so and names how it fails
+computer, with the person's token the Bridge holds. Every function that reaches a server or a clone says so and names how it fails
 (`A REMOTE INTERFACE NAMES HOW IT FAILS`). It refuses to write a configured secret (`NO SECRET IN THE REPOSITORY`).
 
 ## Parts

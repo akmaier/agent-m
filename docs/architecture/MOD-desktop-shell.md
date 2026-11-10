@@ -14,7 +14,9 @@ uses:
   - MOD-bridge-jobs.jobHandlers
   - MOD-bridge-jobs.startWatching
   - MOD-bridge-jobs.stopWatching
-  - MOD-bridge-jobs.testAccess
+  - MOD-bridge-jobs.checkOut
+  - MOD-bridge-jobs.keepRepositoryTokens
+  - MOD-bridge-jobs.useRepositoryTokens
   - MOD-mail-protocols.mailHandlers
   - MOD-tunnels.ensureKey
   - MOD-tunnels.openTunnels
@@ -62,7 +64,7 @@ It belongs to the Bridge (ARC-040). It is the app of ARC-050: it composes the Br
 into one program, and it is everything a person sees of the Bridge. It starts by a double click and runs with its icon in
 the menu bar or the tray, or with its window open where there is no tray (`THE BRIDGE RUNS AS AN APP`). Its window, drawn
 with the site's frame and renderer, shows the agents of this computer and how to install a missing one, which of them
-the Bridge offers and the working folder of each, the pairing token, the jump host with the Bridge's public key, the tunnels, the settings and a newer release. It keeps the Bridge's
+the Bridge offers, the one folder that holds their working folders and what each holds checked out, the pairing token, the jump host with the Bridge's public key, the tunnels, the settings and a newer release. It keeps the Bridge's
 settings, set in the window or taken from the dashboard's export; it pauses and quits; and it installs a newer release
 only after the person's click and only with the publisher's signature. Its main process runs in Node, inside Electron;
 its window runs in Electron's browser part. The window serves UC-044 and UC-011.
@@ -90,8 +92,8 @@ its window runs in Electron's browser part. The window serves UC-044 and UC-011.
 Bridge's per-user data folder, written only by this module.
 
 ```json
-{ "agent-m-bridge-settings": 1, "name": "lab-pc", "port": 4711,
-  "agents": [{ "name": "claude", "folder": "/home/alice/agent-m-work/claude", "place": "this machine",
+{ "agent-m-bridge-settings": 1, "name": "lab-pc", "port": 4711, "folder": "/home/alice/agent-m-work",
+  "agents": [{ "name": "claude", "place": "this machine",
     "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools",
     "reach the web"], "models": [{ "model": "claude-opus-5-5", "context": 200000 }] }],
   "products": ["https://github.com/alice/example-product"], "every": 300, "paused": false,
@@ -104,9 +106,12 @@ Bridge's per-user data folder, written only by this module.
 - `name` — the Bridge's name, which the route of its connections in a browser's settings and of its jobs' records
   carries (`bridge <name> agent <agent>`, MOD-participant-list, MOD-job-ledger); by default the computer's own name.
 - `port` — the port on loopback the API listens on; by default the one `bridgeApi` names.
+- `folder` — the one folder the person chooses in the window, which holds the working folder of each agent the Bridge
+  offers, `<folder>/<agent>`, made by the Bridge, in which MOD-bridge-jobs keeps that agent's clones (`THE BRIDGE IS
+  CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`); `null` until it is chosen, and then no agent has a working folder. An
+  agent's working folder is no setting of its own: it follows from `folder` and the agent's name.
 - `agents` — the agents the Bridge offers, each a supported agent installed on this computer and chosen by the person in
-  the window, with its working folder, chosen there too, in which MOD-bridge-jobs keeps that agent's clones (`THE BRIDGE
-  FINDS THE INSTALLED AGENTS`, `THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`), and its declaration as a
+  the window (`THE BRIDGE FINDS THE INSTALLED AGENTS`), with its declaration as a
   connection (UC-044 step 5): `place`, where it processes data, *this machine* preset; `capabilities`, every one preset;
   and `models`, each model it can run with its context in tokens — set in the window or from the settings page through
   the API (MOD-bridge-http, `PUT /v1/agents/{agent}`); an agent no longer installed stays listed and is shown as missing.
@@ -131,8 +136,9 @@ only its own instance's origin.
 **The Bridge's per-user data folder**: a folder named after the app's identifier, in the platform's place for an app's
 per-user data — `~/Library/Application Support/` on macOS, `%APPDATA%` on Windows, `~/.config/` on Linux —, readable and
 writable by its user only, so that the Bridges of two instances on one computer never share one. It holds
-`settings.json`, MOD-bridge-http's `pairing-token` and MOD-tunnels' `ssh/`. Nothing in it enters a repository or an
-export. The clones lie in the working folders of the agents the Bridge offers, which the person chooses.
+`settings.json`, MOD-bridge-http's `pairing-token`, MOD-tunnels' `ssh/` and MOD-bridge-jobs' `repository-tokens.gitconfig`.
+Nothing in it enters a repository or an export. The clones lie in the working folders of the agents the Bridge offers,
+in the folder the person chooses.
 
 **What the build places among the app's resources**, read at start:
 
@@ -159,11 +165,14 @@ from its command line and offers no update.
 The rest of its surface faces the person, not another module:
 
 - **Start.** One Bridge runs per user; a second start opens the first one's window. The shell makes the data folder, and
-  through MOD-tunnels the key pair (`THE BRIDGE CREATES ITS OWN SSH KEY`); registers with the job runner the strategies of
+  through MOD-tunnels the key pair (`THE BRIDGE CREATES ITS OWN SSH KEY`); has every git of its process read the
+  repository tokens it holds (MOD-bridge-jobs' `useRepositoryTokens`); registers with the job runner the strategies of
   every kind a Bridge may run; starts the server on `127.0.0.1` at the settings' port, for the instance's origin, with
   the name of the settings in force and the version of `build.json`, `null` for a start without it, and with the
   handlers of MOD-bridge-jobs, MOD-mail-protocols and MOD-tunnels, and its own for `PUT /v1/agents/{agent}`, which keeps
-  an agent's declaration in the settings (`THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY`); opens
+  an agent's declaration in the settings, and for `PUT /v1/repository-tokens`, which keeps the tokens the paired browser
+  hands it through MOD-bridge-jobs' `keepRepositoryTokens` and then checks out again (`THE LOCAL BRIDGE BINDS TO LOOPBACK
+  ONLY`); checks out every working folder (*The checkout*, below); opens
   the tunnels (`THE BRIDGE OPENS ITS TUNNELS ITSELF`); and, unless paused, starts watching the served products, so that
   their runs go on while no tab is open (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). A port in use is shown with
   a field for another; a data folder that cannot be written is shown with its path.
@@ -174,10 +183,11 @@ The rest of its surface faces the person, not another module:
 - **The window's views**, drawn with the site's frame as the page `bridge`, each with its explanation:
   - *Agents* — every supported agent with its version, ready and logged in, installed but not logged in with its own
     login step (`Agent.login`), or missing with its vendor's installation page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
-    INSTALLATION OF A MISSING AGENT`); a tick for each installed agent the Bridge is to offer, and the working folder of
-    each ticked one, chosen with the system's folder dialog, and its declaration — place, capabilities, models with their
-    context —; *Test access*, through MOD-bridge-jobs' `testAccess`,
-    which names each repository this computer's own git login does not reach, with the reason. For each offered agent,
+    INSTALLATION OF A MISSING AGENT`); a tick for each installed agent the Bridge is to offer, with its declaration —
+    place, capabilities, models with their context —; the one folder, chosen with the system's folder dialog, with the
+    working folder `<folder>/<agent>` each ticked agent gets in it; *Save agents*; and the last checkout's result: for each
+    agent and repository the commit its clone holds, or the repository not reached with git's reason. No token is entered
+    here (UC-044, step 3). For each offered agent,
     its enclosure (ARC-054): whether it works on this computer, else its reason and its one-time step, with *Set up*
     where the Bridge can take that step itself — on Windows, through Windows' elevation prompt —; and whether the agent is
     logged in there, else *Log in*, which opens a terminal in the enclosure running the agent's own login step, with
@@ -191,6 +201,11 @@ The rest of its surface faces the person, not another module:
   - *Settings* — the name, the port, the served products and the interval; *Import a settings export*, with its
     passphrase when the export is locked; what was taken over.
   - *Updates* — the running version, and a newer release when there is one.
+- **The checkout** (UC-044, step 3). At start, and at once whenever the agents, the folder or the served products are saved
+  in the window, an export is taken over, or the paired browser hands it its repository tokens, the shell has
+  MOD-bridge-jobs' `checkOut` bring every offered agent's working folder to the instance and the served products, in the
+  background, and keeps its result in memory for the *Agents* view, which shows it once it is there; a checkout asked for
+  while one runs follows it.
 - **Pause and quit.** *Pause* stops taking jobs, and the API answers new work with `paused`; jobs already running go on
   and can still be followed and cancelled. *Quit* names the jobs still running, which then end as cancelled, and stops the
   watching, the tunnels and the server.
@@ -218,8 +233,9 @@ signature does not hold. Writes no repository file; the jobs it composes write t
 - `MOD-bridge-http.bridgeApi`, `BridgeHandlers`, `serveBridge`, `pairAnew` — the server with the Bridge's handlers and its
   default port; the pairing token shown, and renewed on *Pair anew* or with the token of a Bridge reached through the
   jump host, from an export.
-- `MOD-bridge-jobs.jobHandlers`, `startWatching`, `stopWatching`, `testAccess` — the jobs routes; watching the served
-  products while not paused; the running jobs named before quitting or installing; the test of the computer's git login.
+- `MOD-bridge-jobs.jobHandlers`, `startWatching`, `stopWatching`, `checkOut`, `keepRepositoryTokens`, `useRepositoryTokens`
+  — the jobs routes; watching the served products while not paused; the running jobs named before quitting or installing;
+  the checkout of the working folders; the repository tokens the paired browser hands the Bridge, kept and read by its git.
 - `MOD-mail-protocols.mailHandlers` — the mail routes.
 - `MOD-tunnels.ensureKey`, `openTunnels`, `closeTunnels`, `tunnelState`, `tunnelHandlers` — the key shown; the tunnels
   opened, closed and shown; the tunnels route.

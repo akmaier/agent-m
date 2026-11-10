@@ -30,6 +30,10 @@ realises:
   - A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
   - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
   - THE SHARED PAGES ORIGIN IS DISCLOSED
+  - CONFIGURATION LIVES IN THE BROWSER
+  - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+  - NO MODEL READS A CREDENTIAL
+  - A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER
   - A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST
   - THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
   - THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE
@@ -75,14 +79,23 @@ double-clicking it, and copying one token. Nobody types a command.
    for each missing one **How to install**, which opens the vendor's instructions for this system, and
    **Check again**. A folded explanation says that the agent will use its own login on this computer, so no
    key is needed and the person's subscription pays. The person ticks the installed agents this Bridge is to offer, and
-   gives each ticked agent a **working folder**, in which the Bridge keeps that agent's clones of the instance and of
-   the products it serves. **Test access** checks, changing nothing, that this computer's own git login reaches the
-   instance and each served product, and names a repository it does not reach with the reason; the person sets that
-   login up once with the server's own tools, and no token is entered here.
+   chooses one **folder**; the Bridge makes in it the working folder of each ticked agent, `<folder>/<agent>`, in which
+   it keeps that agent's clones of the instance and of the products it serves. When the person saves, the Bridge at once
+   checks them out: in each working folder the instance — the working folder itself becomes its clone — and each product
+   it serves in `products/<name>/`; the window shows, for each agent and repository, the commit the clone holds, or the
+   repository it could not reach with git's reason. It checks out again whenever the agents, the folder, the served
+   products or the repository tokens it holds change. No token is entered here: the Bridge reaches the repositories with
+   the repository tokens the dashboard hands it once it is paired (step 4); for a repository it holds no token for, git
+   uses this computer's own login, where it has one.
 4. **Pairing.** The window shows the bridge's pairing token with **Copy**. The person pastes it on the
    dashboard's settings page, under the shared-origin notice, and presses **Pair** — one click. The dashboard
    stores the Bridge under the name it reports — by default its computer's name —, with its address and token
-   (UC-042), and tests it; the bridge's window shows *paired with `<owner>.github.io`*.
+   (UC-042), and tests it; the bridge's window shows *paired with `<owner>.github.io`*. Then, and whenever a repository
+   token is stored, changed or cleared in this browser, the dashboard hands every Bridge this browser keeps every
+   repository token it keeps, each with the repository it is for — the instance's and each product's —, as the settings
+   page says beside **Pair**. The Bridge keeps them in its data folder, out of every agent's reach, forgets a token the
+   browser no longer holds, and from then on clones, fetches and pushes with them, and opens pull requests — merge
+   requests on GitLab — through the server's API.
 5. Each agent the Bridge offers becomes a connection once the person declares, in the Bridge's window or on the settings
    page, where it processes data — *this computer* preset —, its capabilities — every one preset — and each model it can
    run, with that model's context in tokens. The Bridge keeps the declaration, and its list of agents gives it to the
@@ -101,10 +114,13 @@ sequenceDiagram
     P->>B: double-click
     B->>C: which agents, which versions
     B-->>P: agents ready or how to install, pairing token
-    P->>B: agents to offer, working folders, Test access
+    P->>B: agents to offer, one folder, Save
+    B-->>P: instance and products checked out, or why not
     P->>D: paste token, Pair
     D->>B: test with the token (127.0.0.1)
     B-->>D: paired
+    D->>B: the repository tokens of this browser
+    B-->>P: checked out again with the tokens
     D-->>P: agents offered as connections
 ```
 
@@ -114,6 +130,11 @@ sequenceDiagram
   still useful for mail and tunnels. After installing one, **Check again** lists it.
 - **3b. An agent is installed but not logged in.** The bridge says so and shows the agent's own login step;
   it never asks for the password itself.
+- **3c. A repository is not reached.** Before the Bridge is paired, it holds no repository token, and a private
+  repository that this computer's own login does not reach is named with git's reason. Once the dashboard has handed it
+  the tokens (step 4), the Bridge checks out again and the window shows the commits. A repository the tokens do not reach
+  either — no token stored for it in the dashboard, or one refused — stays named with the reason; the person stores or
+  renews that token in the dashboard (UC-042), which hands it to the Bridge.
 - **4a. The person pairs from another browser.** They copy the token again from the bridge's window, or
   import the dashboard's settings export (UC-042), which contains it.
 - **4b. The token may have leaked.** **Pair anew** in the bridge's window makes a new token; the old one is
@@ -156,7 +177,9 @@ sequenceDiagram
 - The bridge runs as an app on this computer, paired with the person's dashboard; nothing was typed in a
   terminal.
 - The agents it offers are connections once declared, the Bridge keeping each declaration — their models available to
-  the agents of the instance's list, and offered in the prompt bar —, each working in its own folder with its own login; no key passed
-  through Agent M.
+  the agents of the instance's list, and offered in the prompt bar —, each working in its own folder `<folder>/<agent>`,
+  which holds the clones of the instance and of the served products, with its own login; no key passed through Agent M.
+- The Bridge holds the repository tokens this browser keeps, in its data folder only, and no agent reaches them; no token
+  was entered in its window.
 - If configured, its tunnel to the jump host is open and ends on the jump host's loopback; its private SSH key
   never left this computer.

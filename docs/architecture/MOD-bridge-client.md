@@ -19,6 +19,7 @@ provides:
   - pair
   - testBridge
   - declareAgent
+  - handTokens
   - handOver
   - ask
   - bridgeJobs
@@ -39,7 +40,8 @@ It belongs to Access (ARC-047). It is the client side of the Bridge's API (ARC-0
 and answer fields, its error codes; the protocol is the Bridge's, and this client reads it from `bridgeApi` itself, so the
 two never disagree. It reaches a Bridge directly on the computer's loopback, through a forward to the jump host, or at the
 jump host's HTTPS address with the web server's own login, always with the Bridge's token (`THE LOCAL BRIDGE REQUIRES A
-TOKEN`); a person may pair several Bridges, each known by its name. It pairs, tests, hands over jobs, asks an agent to
+TOKEN`); a person may pair several Bridges, each known by its name. It pairs, tests, hands a Bridge the repository
+tokens, hands over jobs, asks an agent to
 draft or a model endpoint to answer, follows and cancels jobs, passes mail operations and probes; and it names why a
 Bridge cannot be reached, as far as a browser lets a page know. It also owns the plan of a
 tunnel to a computer behind NAT, and writes for a person the commands of both ends and the configuration of the jump
@@ -126,6 +128,12 @@ uses; the key itself stays on its computer.
 - `declareAgent(bridge: Bridge, agent: string, declaration: { place: string, capabilities: string[], models: { model:
   string, context: number }[] }) -> Promise<void>` — `PUT /v1/agents/{agent}`: the declaration of an agent the Bridge
   offers, which the Bridge keeps (UC-044 step 5). Crosses the network; fails with every `BridgeError` but `AskFailed`.
+- `handTokens(bridge: Bridge, tokens: { repository: string, token: string }[]) -> Promise<{ kept: number }>` —
+  `PUT /v1/repository-tokens`: every repository token this browser keeps, each with the address of the repository it is
+  for, which replace those the Bridge kept before (UC-044, step 4); an empty list makes it forget every one. The tokens
+  travel only in that request's body (`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). Crosses the network; fails with
+  every `BridgeError` but `AskFailed`, among them `BridgeFailed` with `invalid-request` naming a repository whose token
+  the Bridge refuses.
 - `handOver(bridge: Bridge, job: { product: string, record: string, commit: string, task?: string }) -> Promise<{
   accepted: string }>` — `POST /v1/jobs`: hands over a job whose start record is committed — the product's address, the
   path of its start record, and the commit that holds it. The Bridge runs the job from that record, so nothing else

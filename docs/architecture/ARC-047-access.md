@@ -68,7 +68,7 @@ it speaks, as a client, the protocol the Bridge defines (ARC-040).
 **One repository interface, shared by every program.** A repository is reached through one host interface with three
 adapters as plug-ins: GitHub's REST API and GitLab's REST API, used in the browser with the person's token, and a local
 clone through the `git` command, used in Node — by the Workflows in a CI checkout, with the person's token from a CI
-secret, and by the Bridge, with its computer's own git login. Every service therefore reads and writes the same way in
+secret, and by the Bridge, with the person's tokens the paired browser hands it (ARC-054). Every service therefore reads and writes the same way in
 all three drivers, and a commit on an expected head means the same everywhere: in a clone it is a push that only
 fast-forwards.
 

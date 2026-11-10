@@ -75,7 +75,8 @@ uses another handler module.
 
 **What the Bridge shares rather than repeats.** It runs jobs with the same job runner, catalogue, ledger and run planner
 as the page and CI (ARC-046, ARC-042); it reads and writes product repositories through the same host interface as every
-other program, with Access's adapter for a local clone and the computer's own git login (ARC-047); it reads the
+other program, with Access's adapter for a local clone and the person's tokens the paired browser hands it (ARC-047,
+ARC-054); it reads the
 dashboard's settings export with the same function that writes it (MOD-browser-store); and its window is rendered with
 the site's frame and renderer (ARC-038), so its look, explanations and texts are the site's.
 

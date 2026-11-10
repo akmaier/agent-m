@@ -6,3 +6,4 @@
 |---|---|---|---|---|
 | 01 | `SPEC.md` | ## 7. Configuration and secrets | ## 8. Versioning | — |
 | 02 | `SPEC.md` | ## 7. Configuration and secrets | — | — |
+| 03 | `SPEC.md` | ## 7. Configuration and secrets | — | — |
