@@ -55,6 +55,8 @@ provides:
   - checkOut
   - keepRepositoryTokens
   - useRepositoryTokens
+  - listJobs
+  - jobLog
 ---
 # MOD-bridge-jobs The Bridge as a route for its computer's agents
 
@@ -88,7 +90,9 @@ process.
 
 ## Data
 
-It keeps no state of a job beyond its record: in memory, the jobs it runs with their logs and the asks in flight; on
+It keeps no state of a job beyond its record: in memory, the jobs it took since it started with their logs, and the asks in
+flight — a job's log is the last 1000 lines its agent's process wrote to its standard output, without their line breaks,
+numbered from the job's first line at 0, and the line it is still writing —; on
 disk, the repository tokens' file, and the working folder of each agent it offers — `<folder>/<agent>`, `<folder>` the
 one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local clone of Agent M is:
 
@@ -163,7 +167,8 @@ settings (MOD-desktop-shell).
     reading, since only its hand-over carries its task. Errors: `invalid-request` for an agent this Bridge does not
     offer, for one whose working folder is not set, and for a job whose task travels with the hand-over handed over
     without a task; `paused`.
-  - `GET /v1/jobs`, `GET /v1/jobs/{id}/log` — the jobs it runs with their live states, and their logs as they grow.
+  - `GET /v1/jobs`, `GET /v1/jobs/{id}/log` — the jobs it took with their live states (`listJobs`), and their logs as
+    they grow: the `lines`, `next` and `ended` of `jobLog` from the `from` asked.
   - `POST /v1/jobs/{id}/cancel` — stops the agent's process and confirms once it has ended; the job then commits nothing
     more (`A CANCELLED JOB WRITES NOTHING MORE`), and the person's page appends the record of the cancel.
   - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page's job runner: to one agent it offers, answered with its
@@ -214,6 +219,17 @@ settings (MOD-desktop-shell).
   A repository that is no repository's address (MOD-repository-hosts' `parseAddress`), a repository named twice, and a
   token MOD-repository-hosts' `connect` refuses for that repository — a GitLab token for GitHub, a text that is no token —
   throw `invalid-request`, naming the repository and never the token, and nothing is written.
+- `listJobs() -> { id, product, kind, agent, state, started, usage }[]` — the jobs this Bridge took since it started, in
+  the order it took them: `state` `running` while the agent works and, once the job has ended, the state of its end
+  (`done`, `failed` or `cancelled`); `started` the moment it took the job; `usage` null while it runs, and the usage its end
+  records afterwards. A job another route took is not listed.
+- `jobLog(id: string, from: number) -> { lines: string[], first: number, next: number, partial: string, ended: boolean }`
+  — the log of a job this Bridge took (Data): `first` the number of the first line it holds; `lines` the lines it holds
+  from `from` on, from `first` where `from` is smaller; `next` the number after the last line the agent ended, the `from`
+  to ask next; `partial` the line the agent is writing, `""` where there is none; `ended` whether the job has ended, its
+  last unended line then among `lines`. A job it did not take is `not-found`. Since a log holds only its last lines, a long
+  job does not fill the Bridge's memory, and the Bridge's window and `GET /v1/jobs/{id}/log` read the one log; a reader
+  that asks from a line no longer held receives those from `first` on.
 - `useRepositoryTokens(dataFolder: string) -> void` — includes the file of Data in the configuration of every git the
   Bridge's process starts from then on, by its environment, the entries it held before kept. Called once, by the
   composing program, before anything reaches a repository.

@@ -17,6 +17,8 @@ uses:
   - MOD-bridge-jobs.checkOut
   - MOD-bridge-jobs.keepRepositoryTokens
   - MOD-bridge-jobs.useRepositoryTokens
+  - MOD-bridge-jobs.listJobs
+  - MOD-bridge-jobs.jobLog
   - MOD-mail-protocols.mailHandlers
   - MOD-tunnels.ensureKey
   - MOD-tunnels.openTunnels
@@ -64,7 +66,7 @@ It belongs to the Bridge (ARC-040). It is the app of ARC-050: it composes the Br
 into one program, and it is everything a person sees of the Bridge. It starts by a double click and runs with its icon in
 the menu bar or the tray, or with its window open where there is no tray (`THE BRIDGE RUNS AS AN APP`). Its window, drawn
 with the site's frame and renderer, shows the agents of this computer and how to install a missing one, which of them
-the Bridge offers, the one folder that holds their working folders and what each holds checked out, the pairing token, the jump host with the Bridge's public key, the tunnels, the settings and a newer release. It keeps the Bridge's
+the Bridge offers, the one folder that holds their working folders and what each holds checked out, the pairing token, the jump host with the Bridge's public key, the tunnels, the jobs the Bridge took with the console of each, the settings and a newer release. It keeps the Bridge's
 settings, set in the window or taken from the dashboard's export; it pauses and quits; and it installs a newer release
 only after the person's click and only with the publisher's signature. Its main process runs in Node, inside Electron;
 its window runs in Electron's browser part. The window serves UC-044 and UC-011.
@@ -81,8 +83,8 @@ its window runs in Electron's browser part. The window serves UC-044 and UC-011.
 - `updates.mjs` — the offer of a newer release, its download on the click, its signatures, its installation on the
   click.
 - `window.html`, `window.mjs` — the window's page and its routes; the page links no style sheet, since `startPage` gives
-  it the site's look, and the routes draw their buttons, fields, tables and lists in that look's classes, with no style
-  of their own; `preload.cjs` — the fixed set of calls the window may
+  it the site's look, and the routes draw their buttons, fields, tables, lists and a job's console in that look's classes,
+  with no style of their own; `preload.cjs` — the fixed set of calls the window may
   make to the main process. The window has no other access to Node.
 - `icons/` — the app's icon for each platform, and the icon of the menu bar and the tray.
 
@@ -181,7 +183,9 @@ The rest of its surface faces the person, not another module:
   stays open while the Bridge runs. The window loads only the app's own files, under a protocol of the app's own, never
   a remote page; a link — an agent's installation page, the dashboard — opens in the person's browser.
 - **The window's views**, drawn with the site's frame as the page `bridge`, each with its explanation:
-  - *Agents* — every supported agent with its version, ready and logged in, installed but not logged in with its own
+  - *Agents* — laid out top down as the one folder, then a panel for each installed agent, then the agents not
+    installed, then *Save agents* and *Check again*, and the last checkout's result as a table of agent, repository, and
+    commit or reason. Every supported agent with its version, ready and logged in, installed but not logged in with its own
     login step (`Agent.login`), or missing with its vendor's installation page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
     INSTALLATION OF A MISSING AGENT`); a tick for each installed agent the Bridge is to offer, with its declaration —
     place, capabilities, models with their context —; the one folder, chosen with the system's folder dialog, with the
@@ -191,7 +195,17 @@ The rest of its surface faces the person, not another module:
     its enclosure (ARC-054): whether it works on this computer, else its reason and its one-time step, with *Set up*
     where the Bridge can take that step itself — on Windows, through Windows' elevation prompt —; and whether the agent is
     logged in there, else *Log in*, which opens a terminal in the enclosure running the agent's own login step, with
-    what of its output the enclosure keeps (`Agent.keeps`).
+    what of its output the enclosure keeps (`Agent.keeps`). An installed agent's panel heads its tick with the agent's
+    name, its version and its state — *ready*, *not logged in* or *not enclosed* — beside its *Log in* or *Set up*, and
+    lays its declaration out as a small form: the place, the capabilities as a group of ticks, the models one per line.
+  - *Jobs* — the jobs the Bridge took since it started, MOD-bridge-jobs' `listJobs`, as a table — identifier, kind,
+    agent, product, state, when taken —, and the console of the one chosen, by default the one running, else the one
+    taken last (`THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE`, UC-044 step 6): the lines MOD-bridge-jobs' `jobLog`
+    holds of it and the line being written, in a pane of the look's class `console`. While the view is shown it asks
+    the main process every half second for the jobs and for the lines after the last it has — the reading
+    `GET /v1/jobs/{id}/log` answers from, so that no second copy of a log exists —, keeps of them only those from the
+    log's `first` on, so that it holds what the Bridge holds and names no limit of its own, and stays scrolled to the
+    newest line unless the person has scrolled up from it.
   - *Pairing* — the Bridge's address and its pairing token with *Copy* (`THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS
     WINDOW`); *paired with* the origin MOD-bridge-http's `pairedWith()` gives, or *not yet paired since this start*; and
     *Pair anew*, a decision that names that every paired browser must pair again (`THE BRIDGE IS PAIRED
@@ -233,9 +247,10 @@ signature does not hold. Writes no repository file; the jobs it composes write t
 - `MOD-bridge-http.bridgeApi`, `BridgeHandlers`, `serveBridge`, `pairAnew` — the server with the Bridge's handlers and its
   default port; the pairing token shown, and renewed on *Pair anew* or with the token of a Bridge reached through the
   jump host, from an export.
-- `MOD-bridge-jobs.jobHandlers`, `startWatching`, `stopWatching`, `checkOut`, `keepRepositoryTokens`, `useRepositoryTokens`
-  — the jobs routes; watching the served products while not paused; the running jobs named before quitting or installing;
-  the checkout of the working folders; the repository tokens the paired browser hands the Bridge, kept and read by its git.
+- `MOD-bridge-jobs.jobHandlers`, `startWatching`, `stopWatching`, `checkOut`, `keepRepositoryTokens`, `useRepositoryTokens`,
+  `listJobs`, `jobLog` — the jobs routes; watching the served products while not paused; the checkout of the working
+  folders; the repository tokens the paired browser hands the Bridge, kept and read by its git; the jobs it took, the
+  running ones named before quitting or installing, and each one's console in the *Jobs* view.
 - `MOD-mail-protocols.mailHandlers` — the mail routes.
 - `MOD-tunnels.ensureKey`, `openTunnels`, `closeTunnels`, `tunnelState`, `tunnelHandlers` — the key shown; the tunnels
   opened, closed and shown; the tunnels route.

@@ -21,6 +21,7 @@ realises:
   - A CONNECTION DECLARES WHERE IT PROCESSES DATA
   - THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+  - THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE
   - THE BRIDGE OPENS ITS TUNNELS ITSELF
   - THE BRIDGE CREATES ITS OWN SSH KEY
   - THE BRIDGE IS UPDATED ONLY BY THE PERSON'S CHOICE
@@ -102,6 +103,11 @@ double-clicking it, and copying one token. Nobody types a command.
    dashboard. Its models are then among those an agent of the instance's list may be given (UC-017), it is offered in the
    prompt bar (UC-049), and the Bridge runs the jobs of its agents with it, a sprint's close by an agent among them
    (UC-041).
+6. **Jobs.** While the Bridge runs its agents' jobs, its window lists under **Jobs** each job it took since it started —
+   its identifier, kind, agent, product, state and when it was taken — and shows the console of the one the person
+   chooses, by default the one running: what its agent writes, each line as the agent writes it, the line it is still
+   writing included, in a dark pane of fixed height that holds the last 1000 lines and stays at the newest unless the
+   person scrolls back. Nothing is reloaded for it. The dashboard's log of the job (UC-036) is read from the same lines.
 
 ```mermaid
 sequenceDiagram
@@ -122,6 +128,7 @@ sequenceDiagram
     D->>B: the repository tokens of this browser
     B-->>P: checked out again with the tokens
     D-->>P: agents offered as connections
+    B-->>P: each job's console, as its agent writes
 ```
 
 ## Alternative flows
