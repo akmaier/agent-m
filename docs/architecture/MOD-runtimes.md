@@ -280,14 +280,14 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   checked again as a whole (UC-022, UC-023), which it hands to MOD-job-runner's `runJob` as its `from`; with `refine`, the draft the drafter is to change as the person's follow-up instruction says (UC-019 step 8), which it hands to `runJob` as its `refine`; a conversation of the prompt bar passes no record, and then
   nothing is appended anywhere: builds the drafter's and the reviewers' drivers from their routes — an
   endpoint's driver from its configuration, `endpointDriver` where its `bridge` is `null` and `bridgeDriver` with the
-  endpoint on the Bridge its `bridge` names, and an agent on a Bridge through `bridgeDriver`, each Bridge by its name among
+  endpoint on the Bridge its `bridge` names, and an agent on a Bridge through `bridgeDriver`, with the participant's model, each Bridge by its name among
   `bridges` —, appends a gate reached and the end to the job's record through the host, where it has one — `failed`, with
   no result and MOD-job-runner's `failedBecause` as its reason, where that names one, else `done` —, and returns the
   result for the page to show. Only the driver of an endpoint the tab calls itself is given the kind's tools (MOD-job-runner's
   `ToolUse`) — called directly, or through the Bridge its configuration names, where `bridgeDriver` carries each request of
   the loop as one `ask`. Fails as the
   drivers fail, by name.
-- `bridgeDriver(bridge: Bridge, target: { agent: string } | { endpoint: EndpointConfig }, participant: Participant) ->
+- `bridgeDriver(bridge: Bridge, target: { agent: string, model?: string } | { endpoint: EndpointConfig }, participant: Participant) ->
   Driver` — a driver whose `send` hands `driverPrompt(input)` to the named agent on the Bridge, or to the endpoint the Bridge calls,
   through Access's `ask` — for an endpoint given `tools`, the loop of MOD-endpoint-calls runs here in the tab, each of its
   requests one `ask` of one exchange (`endpointExchange`), and each tool call carried out here —, across the network to the Bridge, and returns its answer and the usage reported. Fails with what

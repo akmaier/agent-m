@@ -81,7 +81,7 @@ function driverOf(participant, connections) {
     return bridge;
   };
   const agent = /^bridge\s+(\S+)\s+agent\s+(\S+)/.exec(participant.route ?? "");
-  if (agent) return bridgeDriver(bridgeOf(agent[1]), { agent: agent[2] }, participant);
+  if (agent) return bridgeDriver(bridgeOf(agent[1]), { agent: agent[2], ...(participant.model ? { model: participant.model } : {}) }, participant);
   const endpoint = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
   const entry = endpoint === undefined ? undefined : connections.endpoints[endpoint];
   if (!entry) throw new RuntimeError("EndpointNotConfigured", { endpoint }, `the endpoint ${endpoint} has no configuration`);

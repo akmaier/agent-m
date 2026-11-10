@@ -527,3 +527,20 @@ test("runOnTab - a cost only some exchanges report is not the cost of the job", 
   assert.equal(end.cost.known, false);
   assert.deepEqual(end.cost.usage.inputTokens, 20);
 });
+
+// TST-2026111502 · level: unit · module: MOD-runtimes
+// guards: A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
+// given: a job whose drafter is the CLI agent claude on the Bridge lab-pc, naming the model example-model; the Bridge answers every ask with a draft
+// input: runOnTab
+// expect: the ask the tab posts names the agent and the drafter's model — { agent: "claude", model: "example-model", input }
+test("TST-2026111502: runOnTab - an agent on a Bridge is asked with its participant's model", async () => {
+  bridgeAnswers([usageOf(10, 5, null)]);
+  const posted = [], answer = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (init.method === "POST" && new URL(String(url)).pathname === "/v1/ask") posted.push(JSON.parse(init.body));
+    return answer(url, init);
+  };
+  await runAgent(agentJob(false));
+  assert.ok(posted.length > 0, "known positive: the tab posted an ask");
+  assert.deepEqual(posted.map(({ agent, model }) => ({ agent, model })), posted.map(() => ({ agent: "claude", model: "example-model" })));
+});

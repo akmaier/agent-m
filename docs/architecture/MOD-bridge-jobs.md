@@ -181,7 +181,8 @@ settings (MOD-desktop-shell).
     (`listJobs`), and their logs as they grow: the `lines`, `next` and `ended` of `jobLog` from the `from` asked.
   - `POST /v1/jobs/{id}/cancel` — stops the agent's process and confirms once it has ended; the job then commits nothing
     more (`A CANCELLED JOB WRITES NOTHING MORE`), and the person's page appends the record of the cancel.
-  - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page's job runner: to one agent it offers, answered with its
+  - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page's job runner: to one agent it offers, started with the
+    model the request names (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), answered with its
     draft and the usage it reported; or to a model endpoint, whose configuration the request carries, sent with
     MOD-endpoint-calls' `endpointDriver` in Node and answered the same way (`A RUNTIME IS INTERCHANGEABLE`) — or, where
     the request carries one exchange of a tool loop, with `endpointExchange`, answered with the endpoint's text, its tool

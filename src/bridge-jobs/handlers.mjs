@@ -31,13 +31,14 @@ function asked({ name, kind, baseUrl, model, key }, prompt) {
   return endpointDriver({ name, kind, baseUrl, model, key }, { name }).send({ prompt, parts: [], output: null, findings: [], previous: null, workdir: null });
 }
 
-// A drafting request to an agent, in its working folder and its enclosure, through its driver: the answer and the usage, or the failure. The agent may
-// write nothing of the working folder — its clones are the Bridge's —, only its own home and temporary files.
-async function drafted({ name, folder }, prompt, enclosures) {
+// A drafting request to an agent, in its working folder and its enclosure, through its driver, started with the model the ask names (none: the agent's own
+// default): the answer and the usage, or the failure. The agent may write nothing of the working folder — its clones are the Bridge's —, only its own home
+// and temporary files.
+async function drafted({ name, folder }, model, prompt, enclosures) {
   const enclosure = await enclosureOf(enclosures, folder);
   await enclosure.prepare({ writable: [], readable: [] });
   const agent = (await installedAgents({ enclosure, workdir: folder })).find((candidate) => candidate.name === name);
-  return agentDriver(agent, { workdir: folder, keyVariable: null, enclosure, writable: [] }, { name })
+  return agentDriver(agent, { workdir: folder, keyVariable: null, enclosure, writable: [] }, { name, model })
     .send({ prompt, parts: [], output: null, findings: [], previous: null, workdir: null });
 }
 
@@ -126,8 +127,9 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
       }
       const wanted = offered(body?.agent);
       if (!wanted?.folder || typeof body.input !== "string") throw failure("invalid-request", "This Bridge offers no such agent with a working folder, or the input is no text.");
+      if (body.model !== undefined && typeof body.model !== "string") throw failure("invalid-request", "An agent ask names its model as text, or names none.");
       asks.set(ask, entry);
-      drafted(wanted, body.input, enclosures).then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }),
+      drafted(wanted, body.model ?? null, body.input, enclosures).then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }),
         (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));
       return { ask };
     },

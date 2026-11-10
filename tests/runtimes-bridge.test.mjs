@@ -297,7 +297,7 @@ async function queuedFor() {
 // guards: A RUNTIME IS INTERCHANGEABLE; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011
 // given: two Bridges among `connections.bridges`, `lab-pc` and `office`, at different addresses; a drafter that is an agent on `office`; then a drafter that is a model endpoint whose configuration names `lab-pc`
 // input: runOnTab for each, with the record of a queued job
-// expect: the agent's exchange goes to `office` alone, as { agent } with the prompt, with `office`'s token; the endpoint's to `lab-pc` alone, as { endpoint: <the configuration> }; each result holds the draft the Bridge returned, and the record ends done with the usage the Bridge reported; no request reaches the model endpoint's own address
+// expect: the agent's exchange goes to `office` alone, as { agent, model } with the prompt, the model the participant's, with `office`'s token; the endpoint's to `lab-pc` alone, as { endpoint: <the configuration> }; each result holds the draft the Bridge returned, and the record ends done with the usage the Bridge reported; no request reaches the model endpoint's own address
 test("runOnTab — the Bridge a participant's route names is chosen by its name among connections.bridges", async () => {
   const bridges = { "lab-pc": bridgeNamed("lab-pc"), office: bridgeNamed("office", OTHER_ADDRESS) };
   const agent = { ...PARTICIPANT, route: "bridge office agent claude" };
@@ -307,7 +307,7 @@ test("runOnTab — the Bridge a participant's route names is chosen by its name 
   assert.deepEqual(result.draft, { text: "from the Bridge" });
   assert.deepEqual([...new Set(requests.map((each) => each.origin))], [OTHER_ADDRESS]);
   assert.equal(requests[0].token, "token-office");
-  assert.deepEqual([Object.keys(requests[0].body).sort(), requests[0].body.agent], [["agent", "input"], "claude"]);
+  assert.deepEqual([Object.keys(requests[0].body).sort(), requests[0].body.agent, requests[0].body.model], [["agent", "input", "model"], "claude", PARTICIPANT.model]);
   assert.ok(requests[0].body.input.startsWith("Write.\n\n## The form of your answer\n"), "the prepared prompt, then the form of the answer");
   let end = (await repository.record()).end;
   assert.deepEqual([end.state, end.usage.inputTokens, end.usage.outputTokens], ["done", 12, 7]);

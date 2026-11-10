@@ -60,7 +60,7 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
   assert.deepEqual(route("GET", "/v1/jobs/{id}/log"), { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", ended: "boolean" } });
   assert.deepEqual(route("POST", "/v1/jobs/{id}/cancel").answer, { confirmed: "boolean" });
   assert.deepEqual(route("POST", "/v1/ask").request, [
-    { agent: "string", input: "string" },
+    { agent: "string", model: "string?", input: "string" },
     { endpoint: { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] }, input: "string" },
     { endpoint: { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] }, exchange: { messages: ["object"], tools: ["object"] } },
   ]);

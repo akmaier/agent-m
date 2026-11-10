@@ -247,6 +247,27 @@ test("GET /v1/ask/{ask} — a failed ask with its error", async () => {
   });
 });
 
+// TST-2026111501 · level: unit · module: MOD-bridge-jobs
+// guards: A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL; UC-011
+// given: a computer with opencode, which answers; opencode offered with its working folder, declaring fixture-model
+// input: POST /v1/ask with { agent: "opencode", model: "fixture-model", input }, and, as the counter-proof, the same without a model
+// expect: the first starts `opencode run … --model fixture-model`; the second starts opencode with no --model; a model that is no text is invalid-request
+test("TST-2026111501: an ask that names a model starts the agent with that model", async () => {
+  const machine = computer({ opencode: {} });
+  await onComputer(machine, async () => {
+    const handlers = jobHandlers({ enclosures: openEnclosures(), agents: offered(machine, "opencode") });
+    const runs = () => machine.calls().filter((line) => /opencode run/.test(line));
+    const { ask } = await call(handlers, "POST /v1/ask", { body: { agent: "opencode", model: "fixture-model", input: "Draft the thing." } });
+    await until(async () => (await call(handlers, "GET /v1/ask/{ask}", { params: { ask } })).state === "done", "the ask to be done");
+    assert.match(runs()[0], /--model fixture-model/, "the agent is started with the model the ask names");
+    const plain = await call(handlers, "POST /v1/ask", { body: { agent: "opencode", input: "Draft again." } });
+    await until(async () => (await call(handlers, "GET /v1/ask/{ask}", { params: { ask: plain.ask } })).state === "done", "the second ask to be done");
+    assert.doesNotMatch(runs()[1], /--model/, "counter-proof: an ask without a model starts the agent without one");
+    const refused = await rejection(call(handlers, "POST /v1/ask", { body: { agent: "opencode", model: 7, input: "Draft." } }));
+    assert.equal(refused.code, "invalid-request", "a model that is no text is refused");
+  });
+});
+
 // TST-1237001 · level: unit · module: MOD-bridge-jobs
 // guards: UC-049; UC-011
 // given: a computer with an opencode that waits for a gate, then answers and reports 11 input and 7 output tokens; and a computer with an opencode that fails with "boom"
