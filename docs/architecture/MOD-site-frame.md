@@ -112,7 +112,8 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   the one the menu marks.
 - `look.css` — the one style sheet of the lab's look: colours, fonts, the page's body, headings, links and code, the
   header, footer and menu, the buttons (class `btn`, with `primary` for the action a page leads with and `small` for one
-  beside a line of text), the form fields, the tables (class `list`) and the lists, in FAU blue `#04316a`, dark blue
+  beside a line of text), the form fields with a group of them (`fieldset`), the tables (class `list`), the lists, and the
+  console of a job in the Bridge's window (class `console`: a dark pane of fixed height in the code font, which scrolls), in FAU blue `#04316a`, dark blue
   `#041e42`, metallic `#8c9fb1`, and their tints, for light and dark mode; and how a page reflows on a phone, one rule for
   every route (`EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE`):
   - **A table** below a phone's width (600 px) takes its narrow form: each row is a block whose cells stand one under

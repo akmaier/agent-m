@@ -1,6 +1,6 @@
 // Module: MOD-desktop-shell
 import { bridgeApi, pairAnew, serveBridge } from "../bridge-http/index.mjs";
-import { checkOut, jobHandlers, startWatching, stopWatching, useRepositoryTokens } from "../bridge-jobs/index.mjs";
+import { checkOut, jobHandlers, keepJobLogs, startWatching, stopWatching, useRepositoryTokens } from "../bridge-jobs/index.mjs";
 import { mailHandlers } from "../mail-protocols/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import * as approvals from "../approvals/index.mjs";
@@ -89,6 +89,7 @@ export async function compose({ instance, origin, dataFolder, port = bridgeApi.d
   const settings = loadSettings(dataFolder, port === 0 ? {} : { port });
   // Every git of this process reads the repository tokens the paired browser handed the Bridge, before anything reaches a repository.
   useRepositoryTokens(dataFolder);
+  keepJobLogs(dataFolder);
   const key = await ensureKey(dataFolder);
   const enclosures = bridgeEnclosures(dataFolder);
   const checkout = checkoutRunner(settings, instance);

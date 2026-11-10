@@ -55,6 +55,9 @@ provides:
   - checkOut
   - keepRepositoryTokens
   - useRepositoryTokens
+  - listJobs
+  - jobLog
+  - keepJobLogs
 ---
 # MOD-bridge-jobs The Bridge as a route for its computer's agents
 
@@ -83,13 +86,16 @@ process.
 - `checkout.mjs` — the checkout of every working folder: the instance and each served product (`checkOut`).
 - `tokens.mjs` — the repository tokens' file, the Bridge's git told to read it, and a repository's token read back from
   it (`keepRepositoryTokens`, `useRepositoryTokens`).
+- `joblogs.mjs` — the jobs' logs and listings kept on disk for six weeks (`keepJobLogs`).
 - `enclosures.mjs` — the working enclosure of an agent, or the refusal to start it, naming why.
 - `probes.mjs` — the harmless requests of the probes.
 
 ## Data
 
-It keeps no state of a job beyond its record: in memory, the jobs it runs with their logs and the asks in flight; on
-disk, the repository tokens' file, and the working folder of each agent it offers — `<folder>/<agent>`, `<folder>` the
+It keeps no state of a job beyond its record and its log: in memory, the jobs it runs and the asks in flight, and, of each
+job it took since it started, the last lines of its log, so that a reader that keeps up is answered without reading the
+log's file; on
+disk, the repository tokens' file, the jobs' logs, and the working folder of each agent it offers — `<folder>/<agent>`, `<folder>` the
 one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local clone of Agent M is:
 
 - **the working folder is a clone of the instance**, made in the folder itself, so that an agent started there — an ask
@@ -108,6 +114,14 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
 `home/` and `jobs/` are excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there
 sees them. Before an agent starts a job, the job's working clone holds the product's branch, and the instance's clone
 the commit of the instance the job's record names (`agent_m`, MOD-job-ledger).
+
+**The jobs' logs** — `job-logs/` in the Bridge's per-user data folder (MOD-desktop-shell), readable by its user only and
+hidden by every enclosure (MOD-agent-enclosure), written only by `joblogs.mjs` (`THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX
+WEEKS`): for each job the Bridge took, `<id>.log`, what its agent's process wrote to its standard output, appended as it
+wrote it — the job's log, whose lines are those text's lines without their line breaks, numbered from the first at 0 —,
+and `<id>.json`, the job as `listJobs` lists it, written when the job is taken and when it ends. The Bridge writes nothing
+else into them: no request, task, token or key. A file last written more than six weeks ago is removed whenever
+`keepJobLogs` opens the folder — at every start — and whenever a job is taken.
 
 **The repository tokens** — `repository-tokens.gitconfig` in the Bridge's per-user data folder (MOD-desktop-shell),
 readable by its user only and hidden by every enclosure (MOD-agent-enclosure), written only by `keepRepositoryTokens`: in
@@ -163,7 +177,8 @@ settings (MOD-desktop-shell).
     reading, since only its hand-over carries its task. Errors: `invalid-request` for an agent this Bridge does not
     offer, for one whose working folder is not set, and for a job whose task travels with the hand-over handed over
     without a task; `paused`.
-  - `GET /v1/jobs`, `GET /v1/jobs/{id}/log` — the jobs it runs with their live states, and their logs as they grow.
+  - `GET /v1/jobs`, `GET /v1/jobs/{id}/log` — the jobs it took in the last six weeks with their live states
+    (`listJobs`), and their logs as they grow: the `lines`, `next` and `ended` of `jobLog` from the `from` asked.
   - `POST /v1/jobs/{id}/cancel` — stops the agent's process and confirms once it has ended; the job then commits nothing
     more (`A CANCELLED JOB WRITES NOTHING MORE`), and the person's page appends the record of the cancel.
   - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page's job runner: to one agent it offers, answered with its
@@ -214,6 +229,20 @@ settings (MOD-desktop-shell).
   A repository that is no repository's address (MOD-repository-hosts' `parseAddress`), a repository named twice, and a
   token MOD-repository-hosts' `connect` refuses for that repository — a GitLab token for GitHub, a text that is no token —
   throw `invalid-request`, naming the repository and never the token, and nothing is written.
+- `listJobs() -> { id, product, kind, agent, state, started, usage }[]` — the jobs this Bridge took in the last six
+  weeks, this start's and those `job-logs/` keeps of earlier ones, in the order it took them: `state` `running` while the
+  agent works and, once the job has ended, the state of its end (`done`, `failed` or `cancelled`), or `interrupted` for a
+  job an earlier start left running; `started` the moment it took the job; `usage` null while it runs, and the usage its
+  end records afterwards. A job another route took is not listed.
+- `jobLog(id: string, from: number) -> { lines: string[], first: number, next: number, partial: string, ended: boolean }`
+  — the log of a job this Bridge took (Data): `lines` the lines from `from` on, or, for a negative `from`, the last
+  -`from` of them; `first` the number of the first line given; `next` the number after the last line the agent ended, the
+  `from` to ask next; `partial` the line the agent is writing, `""` where there is none; `ended` whether the job has ended,
+  its last unended line then among `lines`. A job of an earlier start is read from its kept log and has ended; a job taken
+  in no start of the last six weeks is `not-found`. The Bridge's window and `GET /v1/jobs/{id}/log` read the one log.
+- `keepJobLogs(dataFolder: string) -> void` — from then on keeps the jobs' logs and listings in `job-logs/` of the data
+  folder (Data), made readable by its user only, and removes those last written more than six weeks ago. Called once, by
+  the composing program, before any job is taken; without it nothing is kept on disk.
 - `useRepositoryTokens(dataFolder: string) -> void` — includes the file of Data in the configuration of every git the
   Bridge's process starts from then on, by its environment, the entries it held before kept. Called once, by the
   composing program, before anything reaches a repository.
@@ -253,7 +282,7 @@ In each served product, through Access's local clone: reads `docs/process.md`, t
 `docs/gates/`, and the instance's `docs/participants.md`; appends to job records; pushes the branches the agent made, from
 the job's outbox, and opens their pull requests through the server's API. Through its clone of the instance, which fetches that commit: the instance's
 process models at the commit a served product's declaration names. In the working folder of each agent it offers: the
-clones. In the Bridge's data folder: `repository-tokens.gitconfig`. Nothing else.
+clones. In the Bridge's data folder: `repository-tokens.gitconfig` and `job-logs/`. Nothing else.
 
 ## Uses
 

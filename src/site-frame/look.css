@@ -124,6 +124,10 @@ select, textarea, input:not([type="checkbox"],[type="radio"],[type="file"]) { fo
 .product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select, .arrange input, .arrange select { max-width: 22rem; }
 /* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
 button, .btn { margin-inline: .35em; }
+/* A group of fields, as a form's ticks: a box of the frame's line, its legend muted, its ticks in a row that wraps. */
+fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .35rem .8rem .55rem; margin: .6rem 0; min-width: 0; }
+legend { padding: 0 .3rem; color: var(--muted); font-size: .9rem; }
+fieldset label { display: inline-flex; align-items: center; gap: .3rem; margin: .2rem 1.1rem .2rem 0; }
 
 /* The arrange page (review-pages/arrange.mjs): the tree beside its pending changes, each group a box with its members indented, each line's
    controls on one row that wraps. */
@@ -175,6 +179,10 @@ code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-si
 code { background: var(--code); padding: .1em .35em; border-radius: 4px; }
 pre { background: var(--code); padding: .8em 1em; border-radius: 6px; overflow-x: auto; }
 pre code { background: none; padding: 0; }
+/* A job's console in the Bridge's window (desktop-shell/window.mjs, Jobs): a pane of fixed height that scrolls, dark in light and dark mode as a terminal is,
+   in the code font, its long lines wrapped. */
+pre.console { height: 24rem; margin: .5rem 0 1rem; overflow: auto; background: #0b1420; color: #d6e2ee; border: 1px solid var(--line); padding: .6rem .8rem;
+  font-size: .78rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .header-tools .repo { font-size: .82rem; overflow-wrap: anywhere; }
 .header-tools .help { font-size: .88rem; white-space: nowrap; }

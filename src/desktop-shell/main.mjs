@@ -4,7 +4,7 @@ import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { installedAgents } from "../agent-processes/index.mjs";
-import { listJobs } from "../bridge-jobs/index.mjs";
+import { jobLog, listJobs } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
 import { createUpdates } from "./updates.mjs";
@@ -138,6 +138,9 @@ export async function start(electron, supplied = {}) {
     }
     // The jobs this Bridge took and that still run, which the window's Quit names (UC-044 7b).
     if (action === "running-jobs") return { jobs: listJobs().filter((job) => job.state === "running") };
+    // The Jobs view (UC-044 step 6): the jobs this Bridge took in the last six weeks, and a job's log from a line on — a negative one asks for its last lines —, as GET /v1/jobs/{id}/log reads it.
+    if (action === "jobs") return { jobs: listJobs() };
+    if (action === "job-log") return jobLog(String(value?.id ?? ""), Number.isInteger(value?.from) ? value.from : 0);
     if (action === "settings") return { settings: bridge.settings };
     if (action === "tunnels") return { publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() };
     if (action === "save-settings") {

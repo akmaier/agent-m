@@ -20,7 +20,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -106,8 +106,9 @@ const JOB = (id, participant, route = ROUTES[participant]) => ({ id, kind: "deci
 const ID = (n) => `JOB-20261011-090${n}-aaa${n}`;
 
 // The Bridge's computer: a PATH of the fixture agent and the wrappers, the instance (two commits; the record names the first) and the products. The
-// agent answers with its working folder and, once started, waits for the gate file when `gated`; it writes a mark when it ends.
-async function world(run, { gated = false, fails = false } = {}) {
+// agent answers with its working folder and, once started, waits for the gate file when `gated`; it writes a mark when it ends. With `chatter`, it first
+// writes that many lines `line 1`, `line 2`, …, and, when `gated`, then `working` without a line break, before it waits.
+async function world(run, { gated = false, fails = false, chatter = 0 } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-1101-")));
   const bin = join(root, "bin"), calls = join(root, "calls"), gate = join(root, "gate"), finished = join(root, "finished"), pidfile = join(root, "pid");
   mkdirSync(bin);
@@ -116,7 +117,7 @@ async function world(run, { gated = false, fails = false } = {}) {
   script(bin, "sleep", `exec ${REAL_SLEEP} "$@"`);
   const event = JSON.stringify({ type: "text", part: { text: JSON.stringify({ draft: { decision: "passed", reason: "@PWD@" }, answers: [] }) } }).replace("@PWD@", `'"$PWD"'`);
   script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
-run) printf '%s\\n' "$PWD $*" >> ${calls}; echo $$ > ${pidfile}; printf '%s\\n' '{"type":"step_start"}'; ${gated ? `while [ ! -e ${gate} ]; do sleep 0.02; done; ` : ""}${fails ? "echo boom >&2; exit 3; " : ""}printf '%s\\n' ok >> ${finished}
+run) printf '%s\\n' "$PWD $*" >> ${calls}; echo $$ > ${pidfile}; printf '%s\\n' '{"type":"step_start"}'; ${chatter ? `i=1; while [ $i -le ${chatter} ]; do echo "line $i"; i=$((i+1)); done; ${gated ? "printf working; " : ""}` : ""}${gated ? `while [ ! -e ${gate} ]; do sleep 0.02; done; ` : ""}${fails ? "echo boom >&2; exit 3; " : ""}printf '%s\\n' ok >> ${finished}
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
   const instance = repository(root, "instance", { "docs/participants.md": PARTICIPANTS, "marker.md": "v1\n" });
   const first = git(instance.seed, "rev-parse", "HEAD");
@@ -294,4 +295,71 @@ test("the log and the cancel are answered in the form the protocol gives", async
     assert.deepEqual(Object.keys(await log(job.id)).sort(), Object.keys(route("GET", "/v1/jobs/{id}/log").answer).sort());
     assert.deepEqual(Object.keys(await cancel(job.id)).sort(), Object.keys(route("POST", "/v1/jobs/{id}/cancel").answer).sort());
   }, { gated: true });
+});
+
+// TST-2026111401 · level: unit · module: MOD-bridge-jobs
+// guards: THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX WEEKS; THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE; UC-044; UC-036
+// given: a Bridge that keeps its jobs' logs in a data folder (keepJobLogs), and a job whose agent has written its first event line, then 1500 lines `line 1` … `line 1500`, then
+//   `working` without a line break, and waits for a gate
+// input: jobLog from 0 and from -1000, through the interface of MOD-bridge-jobs; GET /v1/jobs/{id}/log with no from and from 1400; the files of job-logs/
+// expect: jobLog from 0 gives every line — the event line, `line 1` … `line 1500` —, first 0, next 1501, partial `working`, ended false; from -1000 the last 1000, `line 501` …
+//   `line 1500`, first 501; the route answers the same lines with only the keys lines, next and ended; job-logs/<id>.log holds what the agent wrote, `working` included, and
+//   job-logs/<id>.json the job, running, both readable by their owner only. Counter-proof: from -1000, `line 500` is not given
+// Planted fault: a log that keeps only its last lines gives from 0 no `line 1`.
+const DATA = mkdtempSync(join(tmpdir(), "agent-m-job-logs-"));
+const numbered = (from, to) => Array.from({ length: to - from + 1 }, (_, at) => `line ${from + at}`);
+test("a job's log keeps every line its agent wrote, on disk too, and gives its last lines when asked for them", async () => {
+  assert.equal(typeof bridgeJobs.jobLog, "function", "MOD-bridge-jobs gives jobLog");
+  assert.equal(typeof bridgeJobs.keepJobLogs, "function", "MOD-bridge-jobs gives keepJobLogs");
+  bridgeJobs.keepJobLogs(DATA);
+  await world(async (w) => {
+    const job = w.queue(PRODUCT_A, JOB(ID(6), "drafter"));
+    watch(w, [{ name: "opencode", folder: w.folder("agent-work") }], { every: 50 });
+    await w.until(() => { try { return bridgeJobs.jobLog(job.id, 0).partial === "working"; } catch { return false; } }, "the agent to write all its lines");
+    assert.deepEqual(bridgeJobs.jobLog(job.id, 0), { lines: [FIRST, ...numbered(1, 1500)], first: 0, next: 1501, partial: "working", ended: false });
+    assert.deepEqual(bridgeJobs.jobLog(job.id, -1000), { lines: numbered(501, 1500), first: 501, next: 1501, partial: "working", ended: false });
+    assert.ok(!bridgeJobs.jobLog(job.id, -1000).lines.includes("line 500"), "counter-proof: line 500 is not among the last 1000");
+    assert.deepEqual(await log(job.id), { lines: [FIRST, ...numbered(1, 1500)], next: 1501, ended: false });
+    assert.deepEqual(await log(job.id, 1400), { lines: numbered(1400, 1500), next: 1501, ended: false });
+    const kept = join(DATA, "job-logs");
+    assert.equal(readFileSync(join(kept, `${job.id}.log`), "utf8"), [FIRST, ...numbered(1, 1500), "working"].join("\n"));
+    assert.equal(JSON.parse(readFileSync(join(kept, `${job.id}.json`), "utf8")).state, "running");
+    for (const name of [`${job.id}.log`, `${job.id}.json`]) assert.equal(statSync(join(kept, name)).mode & 0o777, 0o600, `${name} is readable by its owner only`);
+  }, { gated: true, chatter: 1500 });
+});
+
+// TST-2026111403 · level: unit · module: MOD-bridge-jobs
+// guards: THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX WEEKS; UC-044; UC-036
+// given: the data folder of TST-2026111401, and a job that wrote three lines and ended; MOD-bridge-jobs' watch.mjs loaded anew, as a start of the Bridge that holds nothing in
+//   memory; a kept job JOB-20260930-0900-a41d whose files were last written 41 days ago
+// input: listJobs and jobLog of the new start; then the ended job's files set to 43 days ago and keepJobLogs called again, as at the Bridge's next start
+// expect: the new start lists the ended job, in the state it ended in, and the job of 41 days ago, and gives the ended job's whole log, ended; after keepJobLogs the job of 43 days ago is neither listed
+//   nor its log given (not-found) and its files are gone, while the job of 41 days ago is still listed. Counter-proof: the job of 41 days ago, kept
+// Planted fault: a log kept in memory only gives the new start not-found; removing nothing keeps the job of 43 days ago.
+test("the jobs' logs outlive the Bridge's start for six weeks, and no longer", async () => {
+  const kept = join(DATA, "job-logs"), day = 24 * 60 * 60 * 1000;
+  const young = "JOB-20260930-0900-a41d";
+  bridgeJobs.keepJobLogs(DATA);
+  writeFileSync(join(kept, `${young}.json`), `${JSON.stringify({ id: young, product: PRODUCT_A, kind: "decide-gate", agent: "opencode", state: "done", started: "2026-09-30T09:00:00.000Z", usage: null })}\n`);
+  writeFileSync(join(kept, `${young}.log`), "young\n");
+  for (const name of [`${young}.json`, `${young}.log`]) utimesSync(join(kept, name), new Date(Date.now() - 41 * day), new Date(Date.now() - 41 * day));
+  await world(async (w) => {
+    const job = w.queue(PRODUCT_A, JOB(ID(7), "drafter"));
+    watch(w, [{ name: "opencode", folder: w.folder("agent-work") }], { every: 50 });
+    await w.ended(job);
+    const state = await w.until(async () => { const found = (await list()).jobs.find((each) => each.id === job.id)?.state; return found && found !== "running" ? found : null; }, "the job to end in the listing", 8000);
+    const before = bridgeJobs.jobLog(job.id, 0);
+    assert.ok(before.lines.includes("line 3"), "known positive: the job's log holds its lines");
+    const restarted = await import(`../src/bridge-jobs/watch.mjs?restarted=${Date.now()}`);
+    const listed = restarted.listJobs();
+    assert.equal(listed.find((each) => each.id === job.id)?.state, state, "the new start lists the ended job in the state it ended in");
+    assert.ok(listed.some((each) => each.id === young), "the job of 41 days ago is listed");
+    assert.deepEqual(restarted.jobLog(job.id, 0), { ...before, ended: true });
+    for (const name of [`${job.id}.json`, `${job.id}.log`]) utimesSync(join(kept, name), new Date(Date.now() - 43 * day), new Date(Date.now() - 43 * day));
+    bridgeJobs.keepJobLogs(DATA);
+    assert.ok(!restarted.listJobs().some((each) => each.id === job.id), "the job of 43 days ago is no longer listed");
+    assert.throws(() => restarted.jobLog(job.id, 0), (error) => error.code === "not-found");
+    assert.ok(!existsSync(join(kept, `${job.id}.log`)) && !existsSync(join(kept, `${job.id}.json`)), "its files are gone");
+    assert.ok(restarted.listJobs().some((each) => each.id === young), "counter-proof: the job of 41 days ago is kept");
+  }, { chatter: 3 });
 });
