@@ -130,13 +130,14 @@ data, kept here once like a kind's prompt; the module that owns what a tool does
 | `propose-edit` | draft text | propose the new text of one document below `docs/`, held for a person | MOD-job-runner |
 | `hand-over` | draft text | add one piece to the plan of the work: hand it on to the kind of the catalogue that owns it — a change of requirements, a use case or the architecture — or that does what the tab cannot — running code or tests, changing code, reaching the web —, naming what it works on, the task in its words, and the earlier pieces whose accepted result it rests on; each piece goes on without a further click as a job of its own, a piece that rests on another once that one is accepted, and what it drafts is a proposal (UC-049 4a) | MOD-job-runner |
 
-Each row also holds the description the drafter reads and the JSON schema of its arguments. `converse` names all five,
+Each row also holds the description the drafter reads and the JSON schema of its arguments. `converse` names all five
+and `webfetch`, which fetches one web page by its address and nothing else, a row of `tools.md` too,
 with a `tool_limit` of 30, and its draft may hold, beside `answer` and `edits`, a `handOver`, the plan: a list of the
 tool's arguments, `{ kind, works_on, task, after }`, stated once in its answer schema, so that a drafter offered no tools — a coding agent, or an endpoint without *use tools* —
 proposes its plan in its answer as the tool would hold it; its prompt asks it to plan in the round that answers the
 message — the pieces the request needs, the requirements before the use cases that realise them and those before the
-architecture, each with what it rests on —; `change-requirements`, `change-use-case` and `change-architecture` name the three that read
-and `hand-over`, since their draft is their answer and a change of them may still be handed to CI (UC-019 6b). The kinds
+architecture, each with what it rests on —; `change-requirements`, `change-use-case` and `change-architecture` name the three that read,
+`hand-over` and `webfetch`, since their draft is their answer and a change of them may still be handed to CI (UC-019 6b). The kinds
 that change code or run tests — `implement`, `refactor`, `fix-bug`, `write-tests`, `propose-tests`, `run-tests` and
 `check-resource` — name the seven tools of MOD-checkout-tools, `read`, `write`, `edit`, `bash`, `grep`, `glob` and
 `webfetch`, rows of `tools.md` too, and no `tool_limit`, so that a model endpoint does their work in the job's

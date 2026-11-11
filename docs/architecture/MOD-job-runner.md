@@ -390,7 +390,9 @@ ONLY WHEN RECORDING IS ON`).
     which refuses by name what it must not write, unless the signal was aborted: after a cancel, nothing more is written
     (`A CANCELLED JOB WRITES NOTHING MORE`).
 
-  A driver's failure ends the job and is thrown by name; `Cancelled` when the signal is aborted.
+  A driver's failure ends the job and is thrown by name; `Cancelled` when the signal is aborted. A writer's failure is
+  thrown as the writer threw it, carrying `gathered: { rounds: Round[], usage: Usage | null }` — the rounds and the usage
+  of the run before it —, so that the job's end still names them (`NO COST IS GUESSED`).
 - `failedBecause(result: JobResult) -> string | null` — why a run that ran to its end ends its job `failed`: for a result
   stopped `unusable`, `the participant's answer could not be read: <why>`, the why its last round's finding on the answer
   gives — `the answer has no draft`, `it is not JSON` —; `null` for any other result, which ends its job `done`. The one

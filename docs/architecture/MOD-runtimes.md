@@ -422,11 +422,12 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   naming both pieces and what they share, its `fix` asking to make them one piece or to let the later rest on the
   earlier. Where the job's context has the instance
   and the plan holds no such error, also an error, under the same rule, for each piece that rests on no other and whose
-  job could not start for what the plan chose — a kind the catalogue lacks, the conversation's own kind, a kind that
-  takes no task (MOD-job-runner's `taskRefusal`), or what MOD-job-runner's `prepareJob` refuses of the parameters
+  job could not start for what the plan chose — a kind the catalogue lacks, a kind that takes no task (MOD-job-runner's `taskRefusal`), or what MOD-job-runner's `prepareJob` refuses of the parameters
   `handOverParams` gives for the piece, prepared as MOD-workflow-entries prepares a hand-over but without its drafter —,
   its `what` naming the piece and that reason, its `fix` asking to name what the kind needs to start or to leave the
-  piece out; a finding of a kind's preconditions, which the planner cannot change, stays the hand-over's to name. A draft
+  piece out; a finding of a kind's preconditions, which the planner cannot change, stays the hand-over's to name. A piece
+  of the conversation's own kind is the conversation itself handed on (UC-049 step 4a.2) and no error: its job refuses
+  `hand-over`, as every handed-over job does, so a conversation handed on is never handed on again. A draft
   without a plan has no finding. Pure. The writer reads the branch the participant's answer names — the branch named
   after the job — and its commits. It takes the branch's pull request where one is open or merged — one the coding
   participant opened through a Bridge's relay (MOD-bridge-jobs) among them —, and otherwise opens it — into
