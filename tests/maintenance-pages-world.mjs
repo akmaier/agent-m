@@ -25,6 +25,12 @@ const BRIDGE = "http://127.0.0.1:4711";
 const ERIKA = { name: "Erika Mustermann", address: "erika@example.invalid" };
 const SECRET = "the export of my thesis fails with error E42";
 
+// The SPEC.md of an instance whose drafting jobs are checked for the form of a requirement (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY): the paragraph *Form of a requirement* and the six
+// requirements the check of a requirement cites, each written here as a fixture, so that a job of change-requirements over it is not blocked for a missing form.
+const FORM_CITED = ["A REQUIREMENT HAS FOUR FIELDS", "A REQUIREMENT NAMES ITS CHECK", "ONE STATEMENT PER REQUIREMENT", "THE NAME IS THE ID AND IT SURVIVES", "EVERY ARTIFACT HAS AN IDENTIFIER", "A DOCUMENT HOLDS NO HISTORY"];
+const FORM_SPEC = ["# Instance — Specification", "", "**Form of a requirement:** a **name** in capitals, its **source**, one **rule** and the **check** that guards it.", "", "---", "## 1. Form", "",
+  ...FORM_CITED.flatMap((name) => [`**${name}** *(PO A. Maier)*`, `The fixture rule of ${name.toLowerCase()}.`, "*Check:* `tests/fixture.test.mjs`", ""])].join("\n");
+
 let net;
 /** Puts the fetch, the timers and the document back; a test file calls it after each test. */
 export function restoreWorld() { net?.restore(); timers.restore(); document.body.replaceChildren(); }
@@ -228,4 +234,4 @@ const start = async (extra = {}) => {
 };
 
 
-export { mailReadings, mailRead, openMail, routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, FIXER, FIXER_SESSIONS, issueRecord };
+export { mailReadings, mailRead, openMail, routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, FIXER, FIXER_SESSIONS, issueRecord, FORM_SPEC };

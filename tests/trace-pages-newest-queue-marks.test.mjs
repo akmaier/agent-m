@@ -1,6 +1,6 @@
 // The specification view (MOD-trace-pages' view `specification`) marks a requirement that two waiting entries of two queues name with the status of the newer queue's
 // entry, and lists both entries. Accepted texts: SPEC.md, OPEN PROPOSALS ARE SHOWN IN THE BROWSER: "Every requirement that an open queue entry would add, change or withdraw is shown
-// in the browser with that entry's status and a link to it."; MOD-trace-pages.md, the view `specification`: "first, only while an entry of a change queue waits for acceptance, those entries,
+// in the browser with that entry's status and a link to it."; MOD-trace-pages.md, the view `specification`: "first, only while an entry of a change queue waits for acceptance, a link *Review all N waiting*, which opens MOD-review-pages' `spec-entry/all`, … then those entries,
 // each with its status and a link to it"; UC-020 5c: "Two open proposals touch the same requirement. Both are listed". Run: node --test tests/trace-pages-newest-queue-marks.test.mjs
 //
 // Module: MOD-trace-pages
@@ -55,14 +55,14 @@ const listed = (target) => find(find(target, (node) => node.localName === "secti
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-020
 // given: the default branch main, whose SPEC holds ALPHA RULE and BETA RULE, and two queues each with one entry that waits — the older (2026-10-09_older) changes ALPHA RULE, the newer (2026-10-10_newer) withdraws it
 // input: the specification view drawn at main
-// expect: ALPHA RULE is marked "removal proposed", the newer queue's mark — the last entry naming it in queues' order, folder names then entry numbers —, and BETA RULE "in SPEC"; the list of waiting entries holds both links, the newer queue's first: #spec-entry/id=spec-2026-10-10_newer-01, #spec-entry/id=spec-2026-10-09_older-01
+// expect: ALPHA RULE is marked "removal proposed", the newer queue's mark — the last entry naming it in queues' order, folder names then entry numbers —, and BETA RULE "in SPEC"; the waiting section links Review all to #spec-entry/id=all, then both entries, the newer queue's first: #spec-entry/id=spec-2026-10-10_newer-01, #spec-entry/id=spec-2026-10-09_older-01
 //         counter-proof: with the entries exchanged (the older withdraws, the newer changes) ALPHA RULE is "change proposed", so the older queue's mark, planted, fails the first expectation
 test("TST-1301001 of two waiting entries that name one requirement the newer queue's gives the mark, and both are listed", async () => {
   const target = await render(files(ALPHA_CHANGED, ALPHA_WITHDRAWN));
   assert.deepEqual(marksOf(target), { "ALPHA RULE": "removal proposed", "BETA RULE": "in SPEC" });
-  assert.deepEqual(listed(target), [`#spec-entry/id=spec-${NEWER}-01`, `#spec-entry/id=spec-${OLDER}-01`]);
+  assert.deepEqual(listed(target), ["#spec-entry/id=all", `#spec-entry/id=spec-${NEWER}-01`, `#spec-entry/id=spec-${OLDER}-01`]);
 
   const exchanged = await render(files(ALPHA_WITHDRAWN, ALPHA_CHANGED));
   assert.equal(marksOf(exchanged)["ALPHA RULE"], "change proposed", "counter-proof: the mark follows the newer queue, whichever change it holds");
-  assert.deepEqual(listed(exchanged), [`#spec-entry/id=spec-${NEWER}-01`, `#spec-entry/id=spec-${OLDER}-01`]);
+  assert.deepEqual(listed(exchanged), ["#spec-entry/id=all", `#spec-entry/id=spec-${NEWER}-01`, `#spec-entry/id=spec-${OLDER}-01`]);
 });

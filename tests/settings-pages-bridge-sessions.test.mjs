@@ -137,11 +137,8 @@ test("TST-1186002: Test of a Bridge sends the two requests of testBridge and dra
 // TST-1186003 · level: unit · module: MOD-settings-pages
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A CONNECTION NAMES THE MODELS IT OFFERS; UC-044; UC-049
 // given: the tested Bridge laptop with the form of claude
-// input: place "this machine", the model "claude-opus-5-5" with context "200000", + Add model and the model "claude-sonnet-5-5" with context "1000000", Save session; then the first model's context "12.5", Save session; then its
-//   context "200000" again and run code and tests unchecked, Save session
-// expect: the first save sends PUT /v1/agents/claude to laptop, with its token, and { place: "this machine", capabilities: all six, models: [{ model: "claude-opus-5-5", context: 200000 }, { model: "claude-sonnet-5-5", context: 1000000 }] };
-//   the second sends nothing and names the context of claude-opus-5-5 as lacking (a number of tokens is whole); the third sends the declaration without run code and tests; no declaration goes to lab or for codex, and no
-//   setting of this browser names a session
+// input: place "this machine", the model "claude-opus-5-5" with context "200000", + Add model and the model "claude-sonnet-5-5" with context "1000000", Save session; then the first model's context "12.5", Save session; then its context "200000" again and run code and tests unchecked, Save session
+// expect: the first save sends PUT /v1/agents/claude to laptop, with its token, and { place: "this machine", capabilities: all six, models: [{ model: "claude-opus-5-5", context: 200000 }, { model: "claude-sonnet-5-5", context: 1000000 }] }; the second sends nothing and names the context of claude-opus-5-5 as lacking (a number of tokens is whole); the third sends the declaration without run code and tests; no declaration goes to lab or for codex, and no setting of this browser names a session
 // Planted fault: sending the context as the text typed, sending 12.5, sending one model only, sending to another agent or Bridge, or keeping the declaration in this browser fails.
 test("TST-1186003: Save session sends the declaration to the Bridge with declareAgent, each model with its context, and sends none whose context is not a whole number of tokens", async (t) => {
   const store = freshStore();

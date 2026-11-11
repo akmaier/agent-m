@@ -602,7 +602,7 @@ test("mailbox — the connected mailbox's Processing places show I have read thi
   assert.equal(shownReadLines(panel).length, 0);
 });
 
-// TST-472790 · level: unit · module: MOD-settings-pages
+// TST-20261111921 · level: unit · module: MOD-settings-pages
 // guards: THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037
 // given: the three places of this browser's endpoints desk, fau and us-cloud; its endpoint GPT-OSS-120B at NHR, Erlangen, Germany, its endpoint nemotron run through GitHub Actions at Nvidia, United States, an endpoint without a place, and the CLI session laptop:claude its Bridge laptop offers, whose declaration the Bridge keeps at Laptop, Germany
 // input: the mailbox page drawn, and the connected mailbox's Processing places opened

@@ -60,7 +60,7 @@ test("TST-266311: UC-003 2a over the jump host's HTTPS address both the test req
   const restore = inFrontOf(front);
   try {
     const { s } = await barOver(records, { forward: () => { throw new Error("the page must not use the fixture Bridge"); } });
-    assert.match(barOf(s).textContent, new RegExp(`campus — ${PLACE}`));
+    assert.match(barOf(s).textContent, new RegExp(`campus · tiny-model — ${PLACE}`));
     await sendMessage(s, "campus", WORDS);
     assert.match(statusOf(s).textContent, new RegExp(`^Sent to:campus — ${PLACE}`));
     assert.equal(served.seen.length, 2, "the job's request reached the model server");

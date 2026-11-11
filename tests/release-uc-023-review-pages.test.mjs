@@ -170,16 +170,19 @@ test("TST-739106: UC-023 a file is accepted exactly when a record names its curr
 // guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-023
 // given: a drafter that answers a new module file MOD-extra; a token
 // input: the author describes a new module in the bar, presses Send, Review the draft and Save
-// expect: Save makes one commit on the default branch main, holding MOD-extra's file and no approval record; the list of module files then gives MOD-extra as open
+// expect: before Save only the job's record is written — its start and its end, each under docs/jobs/ (A JOB IS RECORDED IN ITS PRODUCT REPOSITORY); Save makes one commit on the default branch main, holding MOD-extra's file and no approval record; the list of module files then gives MOD-extra as open
 test("TST-739107: UC-023 a drafted module file enters the default branch as open", async () => {
   const extra = module_("MOD-extra", "Extra", "src/extra/", { follows: "ARC-001" });
   const s = await scenario({ answers: [{ files: [{ path: "docs/architecture/MOD-extra.md", text: extra, class: "new" }] }] });
   await onFile(s, "module", "MOD-sync");
   await send(s, "Add a module for extras", { participant: "drafter" });
   await review(s);
+  const before = s.product.writes.length;
+  assert.equal(before, 2, "the job's record is written twice: its start and its end");
+  for (const write of s.product.writes) assert.deepEqual(Object.keys(write.files).filter((path) => !/^docs\/jobs\/JOB-[^/]+\.md$/.test(path)), [], "only the job's record is written before Save");
   await press(s, namedButton(s.target, "Save"));
-  assert.equal(s.product.writes.length, 1);
-  assert.deepEqual(Object.keys(s.product.writes[0].files), ["docs/architecture/MOD-extra.md"]);
+  assert.equal(s.product.writes.length, before + 1, "Save makes one commit");
+  assert.deepEqual(Object.keys(s.product.writes[before].files), ["docs/architecture/MOD-extra.md"]);
   assert.ok(s.authorized.some((request) => request.path.endsWith("/git/refs/heads/main")), "on the default branch");
   await goTo(s, `#module/product=${encodeURIComponent(s.address)}`);
   assert.equal(statusOfRows(s)["MOD-extra"], "open");

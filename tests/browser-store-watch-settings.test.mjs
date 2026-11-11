@@ -26,10 +26,8 @@ const install = () => Object.defineProperty(globalThis, "localStorage", { value:
 // TST-20261110301 · level: unit · module: MOD-browser-store
 // guards: UC-044; CONFIGURATION LIVES IN THE BROWSER; A CLEAR IS A REAL CLEAR
 // given: an empty store of akmaier/agent-m, a second Store object of the same instance opened later, and a store of another instance
-// input: watchSettings on the first; writeSetting of github-token through the second; clearSetting of it; writeSetting through the other instance's store; a second
-//   listener that throws; then the stop function of the first, and writeSetting of products
-// expect: the first listener is told github-token twice — after the write, with the value already readable, and after the clear —, nothing of the other instance,
-//   and nothing after it stopped; the throwing listener stops neither the write nor the first listener
+// input: watchSettings on the first; writeSetting of github-token through the second; clearSetting of it; writeSetting through the other instance's store; a second listener that throws; then the stop function of the first, and writeSetting of products
+// expect: the first listener is told github-token twice — after the write, with the value already readable, and after the clear —, nothing of the other instance, and nothing after it stopped; the throwing listener stops neither the write nor the first listener
 test("TST-20261110301: watchSettings tells each write and clear of the instance's settings, from any Store of the instance, until it is stopped", () => {
   install();
   const store = openStore("akmaier/agent-m"), again = openStore("akmaier/agent-m"), other = openStore("other/instance");

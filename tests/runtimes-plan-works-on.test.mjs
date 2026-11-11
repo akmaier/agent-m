@@ -74,12 +74,12 @@ test("TST-2026110953: plan-works-on — a requirement the product does not hold 
   assert.deepEqual(await asks(["PLAYER MOVEMENT KEYS", "SCORE BONUS"]), []);
 });
 
-// TST-2026111001 · level: unit · module: MOD-runtimes
+// TST-20261111911 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-049
 // given: no product context
 // input: the check plan-works-on of a plan in the answer whose first piece rests on piece 1 and whose second rests on piece 3, then of one whose second piece rests on the first
 // expect: the first gives one error on the answer for each of the two pieces, naming its number and the number its `after` names, its fix saying that `after` names earlier pieces of the same plan and that a piece resting on a result already accepted names none; the second gives none. Counter-proof: on the check as it stood, the first passed, and every piece of the plan ended "not run: waits for the acceptance of 1" — the plan a conversation gave after ARC-004 was accepted had copied `after` from the plan before it (akmaier/AlienInvasion, JOB-20261110-0740-a61b).
-test("TST-2026111001: plan-works-on — an after that names no earlier piece of the plan goes back to the planner", async () => {
+test("TST-20261111911: plan-works-on — an after that names no earlier piece of the plan goes back to the planner", async () => {
   const piece = (after) => ({ kind: "change-architecture", works_on: [], task: "update the architecture", after });
   const found = await routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [piece([1]), piece([3])] }, { params: {} });
   assert.equal(found.length, 2);
@@ -91,15 +91,12 @@ test("TST-2026111001: plan-works-on — an after that names no earlier piece of 
   assert.deepEqual(await routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [piece([]), piece([1])] }, { params: {} }), []);
 });
 
-// TST-2026111006 · level: unit · module: MOD-runtimes
+// TST-20261111913 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-049
 // given: no product context
-// input: the check plan-works-on of a plan whose pieces 1 and 2 both work on MOD-game-logic and rest on nothing; then of the same plan with piece 2 resting on piece 1;
-//   then of one whose two pieces work on different files
-// expect: the first gives one error on the answer naming piece 2, piece 1 and MOD-game-logic, its fix saying to make them one piece or to let the later rest on the earlier;
-//   the second and third give none. Counter-proof: on the check as it stood the first passed; both pieces ran at once, and the result of the one that finished second
-//   did not apply on main and was lost, its record left queued (akmaier/AlienInvasion, JOB-20261110-0903-9f75).
-test("TST-2026111006: plan-works-on — two pieces that would work on the same file at once go back to the planner", async () => {
+// input: the check plan-works-on of a plan whose pieces 1 and 2 both work on MOD-game-logic and rest on nothing; then of the same plan with piece 2 resting on piece 1; then of one whose two pieces work on different files
+// expect: the first gives one error on the answer naming piece 2, piece 1 and MOD-game-logic, its fix saying to make them one piece or to let the later rest on the earlier; the second and third give none. Counter-proof: on the check as it stood the first passed; both pieces ran at once, and the result of the one that finished second did not apply on main and was lost, its record left queued (akmaier/AlienInvasion, JOB-20261110-0903-9f75).
+test("TST-20261111913: plan-works-on — two pieces that would work on the same file at once go back to the planner", async () => {
   const piece = (works_on, after = []) => ({ kind: "change-architecture", works_on, task: "update the module", after });
   const found = await routeStrategies.checks["plan-works-on"]({ answer: "planned", handOver: [piece(["ARC-004", "MOD-game-logic"]), piece(["MOD-game-logic"])] }, { params: {} });
   assert.equal(found.length, 1);

@@ -27,8 +27,7 @@ const PRODUCTS = [{ address: ALIEN }, { address: THESIS }];
 // TST-2026110804 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
 // given: the products AlienInvasion and thesis-tool
-// input: namedProduct of: "a specification in the Alien Invasion repo"; "Write it in ALIEN   INVASION." (case, three spaces); "the alieninvasion repository"; "(AlienInvasion)";
-//   "fix thesistool"; "fix the thesis tool"
+// input: namedProduct of: "a specification in the Alien Invasion repo"; "Write it in ALIEN   INVASION." (case, three spaces); "the alieninvasion repository"; "(AlienInvasion)"; "fix thesistool"; "fix the thesis tool"
 // expect: AlienInvasion's address for the first four; thesis-tool's for the last two
 test("TST-2026110804: a text that names a product's repository name by its words, or by them joined, names that product", () => {
   for (const text of ["a specification in the Alien Invasion repo", "Write it in ALIEN   INVASION.", "the alieninvasion repository", "(AlienInvasion)"]) {
@@ -41,8 +40,7 @@ test("TST-2026110804: a text that names a product's repository name by its words
 // TST-2026110805 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
 // given: the products AlienInvasion and thesis-tool
-// input: namedProduct of: "aliens invading"; "the alien invasions"; "the invasion of aliens"; "an alien invasionary force"; "subalieninvasion"; "alien-invasion" (a dash is no space);
-//   and, as the known positive, "alien invasion"
+// input: namedProduct of: "aliens invading"; "the alien invasions"; "the invasion of aliens"; "an alien invasionary force"; "subalieninvasion"; "alien-invasion" (a dash is no space); and, as the known positive, "alien invasion"
 // expect: AlienInvasion's address for the known positive; null for every other
 test("TST-2026110805: a text that holds the words out of order, within a longer word, or with other separators names no product", () => {
   assert.equal(namedProduct("alien invasion", PRODUCTS), ALIEN, "known positive");

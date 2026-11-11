@@ -258,7 +258,7 @@ test("alternative 3a: a reply written without a participant opens an empty draft
 // guards: UC-039; THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; EVERY OUTGOING MAIL IS RELEASED BY A PERSON
 // given: the register lists the agent agent-cli, whose model the CLI session claude of the Bridge lab-pc-4 offers at this machine, beside local-llm and cloud-llm; the mailbox allows this machine
 // input: agent-cli chosen and a name typed; the person's click on Run
-// expect: agent-cli is offered with its place, after local-llm and before the connections themselves (ep1, lab-pc-4:claude), and the run panel names it; the Bridge receives one ask for the agent claude whose input holds the issue, what solved it and the mail, and nothing that sends; the texts it returns are stored as drafts in Drafts; no send request reaches Graph and no mail operation of sending is asked of the Bridge — nothing is sent without the confirmation of step 5 (flow: UC-039 alternative 3b)
+// expect: agent-cli is offered with its place, after local-llm and before the connections themselves (ep1, lab-pc-4:claude), and the run panel names it; the Bridge receives one ask for the agent claude with agent-cli's model model-c, whose input holds the issue, what solved it and the mail, and nothing that sends; the texts it returns are stored as drafts in Drafts; no send request reaches Graph and no mail operation of sending is asked of the Bridge — nothing is sent without the confirmation of step 5 (flow: UC-039 alternative 3b)
 test("alternative 3b: a CLI agent receives the job through its Bridge, returns the texts, and nothing is sent", async () => {
   const texts = [];
   const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])], rows: [CLOUD, LOCAL, CLI], texts, agents: [CLAUDE] });
@@ -273,8 +273,9 @@ test("alternative 3b: a CLI agent receives the job through its Bridge, returns t
     await run(p);
     assert.equal(byClass(p.main(), "reply-problem").length, 0, textOf(p.main()).slice(-400));
     assert.equal(p.state.asks.length, 1, "one ask to the Bridge");
-    assert.deepEqual(Object.keys(p.state.asks[0]).sort(), ["agent", "input"]);
+    assert.deepEqual(Object.keys(p.state.asks[0]).sort(), ["agent", "input", "model"]);
     assert.equal(p.state.asks[0].agent, "claude");
+    assert.equal(p.state.asks[0].model, "model-c", "the agent is started with its participant's model");
     for (const part of ["Issue #4", "pull/9", "Subject m1", "the export fails."]) assert.ok(p.state.asks[0].input.includes(part), `the job holds ${part}`);
     assert.doesNotMatch(p.state.asks[0].input, /\bconfirm-send\b|\/send\b|sendDraft/);
     assert.equal(draftsOf(p).length, 1);

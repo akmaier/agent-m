@@ -128,12 +128,12 @@ test("TST-2026110907: spec-edits — what it does not write is named in a note, 
   for (const world of [unknown, decided, moved, same]) assert.deepEqual([world.commits, world.pulls], [[], []]);
 });
 
-// TST-2026110908 · level: unit · module: MOD-spec-changes
+// TST-20261111905 · level: unit · module: MOD-spec-changes
 // guards: UC-012 step 6
 // given: a job of change-requirements given the parameter issue 12 that changes section 1. Lending
 // input: the writer spec-edits
 // expect: the entry's rationale holds the line "**Issue:** #12 of https://github.com/alice/product", and its origin names the issue beside the source
-test("TST-2026110908: spec-edits — a change from an issue names the issue as its origin", async () => {
+test("TST-20261111905: spec-edits — a change from an issue names the issue as its origin", async () => {
   const world = product();
   await write(world, { sections: [ALICE_LOAN], why: "As the issue asks." }, { issue: 12 });
   const rationale = files(world.commits[0])["docs/spec-freigaben/lending/01-lending.begruendung.md"];

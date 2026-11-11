@@ -63,13 +63,9 @@ const tokenCalls = (calls) => calls.filter((call) => call.url.endsWith("/v1/repo
 
 // TST-20261110401 · level: unit · module: MOD-settings-pages
 // guards: UC-044; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CLEAR IS A REAL CLEAR; THE PAGE NAMES WHERE IT SENDS
-// given: a browser that keeps two Bridges, bridge:lab at http://127.0.0.1:4711 with pairing token lab-token and bridge:gpu at http://localhost:40101 with gpu-token,
-//   and `bridge` with lab's address; no repository token yet; the route bridge shown
-// input: writeSetting of github-token (github_pat_I); writeSetting of github-token:fixture/product (github_pat_P) and of gitlab-token:gitlab.example.org/g/p (glpat-G)
-//   in one turn; clearSetting of github-token:fixture/product; then writeSetting of an endpoint
-// expect: the route says that the repository tokens go to every Bridge this browser keeps; after the first write one PUT /v1/repository-tokens to each Bridge,
-//   with its own pairing token, carrying [{ https://github.com/fixture/instance, github_pat_I }]; after the two writes of one turn one PUT to each, carrying all
-//   three, each with its repository; after the clear one PUT to each without the product's token; counter-proof: the endpoint's write hands nothing
+// given: a browser that keeps two Bridges, bridge:lab at http://127.0.0.1:4711 with pairing token lab-token and bridge:gpu at http://localhost:40101 with gpu-token, and `bridge` with lab's address; no repository token yet; the route bridge shown
+// input: writeSetting of github-token (github_pat_I); writeSetting of github-token:fixture/product (github_pat_P) and of gitlab-token:gitlab.example.org/g/p (glpat-G) in one turn; clearSetting of github-token:fixture/product; then writeSetting of an endpoint
+// expect: the route says that the repository tokens go to every Bridge this browser keeps; after the first write one PUT /v1/repository-tokens to each Bridge, with its own pairing token, carrying [{ https://github.com/fixture/instance, github_pat_I }]; after the two writes of one turn one PUT to each, carrying all three, each with its repository; after the clear one PUT to each without the product's token; counter-proof: the endpoint's write hands nothing
 test("TST-20261110401: each write and clear of a repository token hands every Bridge this browser keeps every repository token, each with its repository", async (t) => {
   const store = freshStore();
   writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
@@ -110,13 +106,9 @@ test("TST-20261110401: each write and clear of a repository token hands every Br
 
 // TST-20261110402 · level: unit · module: MOD-settings-pages
 // guards: UC-044; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: a browser that keeps github-token and the Bridge bridge:lab; the frame's notice place; a second Bridge, bridge:old at http://127.0.0.1:4799, whose pairing
-//   is refused (401); the route bridge shown
-// input: Pair Bridge on the route with the address http://127.0.0.1:4712 and the copied token new-token; then writeSetting of bridge:far at a port of the jump host,
-//   as + Bridge through the jump host stores it; then, in a fresh browser that keeps no repository token, Pair Bridge with lab's address and token
-// expect: after the pairing one PUT to each of the three Bridges — lab, old and the new one — with the instance's token; the refusing one named in a notice with the
-//   reason; counter-proofs: the Bridge stored through the jump host, which is no pairing, hands nothing; and in the browser that keeps no token, the pairing hands
-//   nothing
+// given: a browser that keeps github-token and the Bridge bridge:lab; the frame's notice place; a second Bridge, bridge:old at http://127.0.0.1:4799, whose pairing is refused (401); the route bridge shown
+// input: Pair Bridge on the route with the address http://127.0.0.1:4712 and the copied token new-token; then writeSetting of bridge:far at a port of the jump host, as + Bridge through the jump host stores it; then, in a fresh browser that keeps no repository token, Pair Bridge with lab's address and token
+// expect: after the pairing one PUT to each of the three Bridges — lab, old and the new one — with the instance's token; the refusing one named in a notice with the reason; counter-proofs: the Bridge stored through the jump host, which is no pairing, hands nothing; and in the browser that keeps no token, the pairing hands nothing
 test("TST-20261110402: a pairing hands the Bridges the tokens at once, a Bridge that refuses them is named, and a Bridge stored without a pairing is not contacted", async (t) => {
   const byClass = (root, name) => { const found = []; (function visit(node) { for (const child of node.childNodes ?? []) { if (child instanceof Element) { if (child.className.split(" ").includes(name)) found.push(child); visit(child); } } })(root); return found; };
   const pairOn = async (target, address, token) => {

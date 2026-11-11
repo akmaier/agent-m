@@ -68,7 +68,7 @@ const COVERED_BY_RELEASE = {
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": [GRAPH, "tests/review-core.test.mjs", "tests/job-runner-tools.test.mjs"],
   "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED": [PAGES, "tests/test_mail_privacy.py"],
   "A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL": [PAGES, "tests/test_mail_privacy.py"],
-  "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT": [GRAPH, "tests/review-core.test.mjs", "tests/repository-hosts-ci-secret.test.mjs"],
+  "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT": [GRAPH, "tests/review-core.test.mjs", "tests/repository-hosts-ci-secret.test.mjs", "tests/bridge-repository-tokens.test.mjs"],
   "NO SECRET IN THE REPOSITORY": [GRAPH, "tests/prompt-bar-record.test.mjs", "tests/test_no_secret_written.py"],
   "NO SERVER": [GRAPH, "tests/test_no_backend.py"],
   "ONE DEFINITION, THREE DRIVERS": [GRAPH, "tests/runtimes-tab-endpoint-tools.test.mjs", "tests/test_single_definition.py"],

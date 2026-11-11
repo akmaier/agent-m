@@ -141,8 +141,7 @@ test("TST-1185004: an endpoint keeps its place, context and CI secret name whole
 
 // TST-1185005 · level: unit · module: MOD-browser-store
 // guards: UC-049; UC-044; CONFIGURATION LIVES IN THE BROWSER; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
-// given: a store holding the products setting, and keys that are no family of the catalogue: session:lab:claude (a CLI session's declaration, which its Bridge keeps), session, sessions:lab:claude,
-//   session-lab:claude, agent-session:lab:claude, ci-agent
+// given: a store holding the products setting, and keys that are no family of the catalogue: session:lab:claude (a CLI session's declaration, which its Bridge keeps), session, sessions:lab:claude, session-lab:claude, agent-session:lab:claude, ci-agent
 // input: writeSetting with each such key
 // expect: each throws UnknownSetting naming the key and writes no byte
 test("TST-1185005: a key outside the catalogue is refused, a CLI session's key and session-like ones included", () => {

@@ -23,7 +23,7 @@ import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { runStrategies } from "../src/run-planner/index.mjs";
 import { resourceStrategies } from "../src/resource-list/index.mjs";
-import { FIXER, FIXER_SESSIONS, LOCAL, buttonsOf, byClass, flush, mailOf, one, restoreWorld, textOf, trusted, waitFor, walk, world, routeNamed, pages, ERIKA, SECRET } from "./maintenance-pages-world.mjs";
+import { FIXER, FIXER_SESSIONS, LOCAL, buttonsOf, byClass, flush, mailOf, one, restoreWorld, textOf, trusted, waitFor, walk, world, routeNamed, pages, ERIKA, SECRET, FORM_SPEC } from "./maintenance-pages-world.mjs";
 
 // The strategies the page's own view hands the frame, and those of the recipes `implementation-inputs` and `resource-pins` the kind fix-bug names, which the world does not register.
 for (const [at, strategies] of [...(pages.view?.strategies ?? []), runStrategies, resourceStrategies].entries()) {
@@ -73,7 +73,7 @@ const BOOK_FOLDER = "docs/sources/SRC-vibe-coding/2026-10-05/";
 const onDisk = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const BOOK = { "docs/sources/SRC-vibe-coding.md": onDisk("docs/sources/SRC-vibe-coding.md"),
   ...Object.fromEntries(readdirSync(new URL(`../${BOOK_FOLDER}`, import.meta.url)).map((name) => [BOOK_FOLDER + name, onDisk(BOOK_FOLDER + name)])) };
-export const INSTANCE_FILES = { ...BOOK, [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE };
+export const INSTANCE_FILES = { "SPEC.md": FORM_SPEC, ...BOOK, [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE };
 
 // ---------------------------------------------------------------- the world
 
@@ -139,12 +139,12 @@ export async function decided(detail, cls) {
 export const changeOf = (detail) => byClass(detail, "issue-change")[0];
 export const fixOf = (detail) => byClass(detail, "issue-fix")[0];
 
-/** Step 6: the change drafted by `name` and its changed texts waited for. */
+/** Step 6: the change drafted by `name` and its Save waited for — the issue page shows no comparison of its own (MOD-maintenance-pages, `issue/<number>`). */
 export async function drafted(detail, name = "local-llm") {
   await waitFor(() => changeOf(detail) !== undefined);
   const panel = await choose(changeOf(detail), "change-participant", "change-person", name);
   await trusted(buttonsOf(panel, "Run")[0]);
-  await waitFor(() => byClass(changeOf(detail), "changed-text").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
+  await waitFor(() => byClass(changeOf(detail), "save-change").length > 0 || byClass(changeOf(detail), "issue-problem").length > 0);
   assert.equal(byClass(changeOf(detail), "issue-problem").length, 0, textOf(changeOf(detail)));
   return detail;
 }

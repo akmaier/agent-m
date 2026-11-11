@@ -31,8 +31,10 @@ function mail({ id, messageId }, over = {}) {
 const peopleOf = (from) => ({ names: [from.name], addresses: [from.address], phones: [], accounts: [] });
 
 const issue = (number, title, over = {}) => ({ number, title, body: `Body of ${title}`, labels: [], state: "open", url: `https://example.invalid/${number}`, comments: [], ...over });
+// A product without a SPEC.md: its snapshot reads no file (MOD-mail-handling's mail-batch reads SPEC.md "where it has one").
 function fakeHost({ issues = [], description = "A thesis tool", log = [] } = {}) {
   return { calls: log,
+    readSnapshot: async (ref, options) => { log.push(["host.readSnapshot", ref, options]); return { ref, paths: [], read: async () => null }; },
     repositoryInfo: async () => { log.push(["host.repositoryInfo"]); return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description }; },
     listIssues: async (filter) => { log.push(["host.listIssues", filter]); return issues.filter((each) => filter.state === "all" || each.state === filter.state); } };
 }
