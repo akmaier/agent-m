@@ -39,13 +39,13 @@ const prepare = (kind, params) => prepareJob(kind, contextOf(params), { drafter:
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: the kinds implement, refactor, write-tests and fix-bug of the catalogue
 // input: kindOf of each
-// expect: `instruction` is the first recipe, optional; the recipes after it are, for implement implementation-inputs and chapters-for-implementation, for refactor implementation-inputs, for write-tests draft, test-selection and chapters-for-tests, for fix-bug fix-inputs and chapters-for-tests, none optional
-test("kindOf — the four work kinds name the recipe instruction? first, then the recipes they named before", async () => {
+// expect: `instruction` is the first recipe, optional; the recipes after it are, for implement implementation-inputs and chapters-for-implementation, for refactor implementation-inputs and chapters-for-implementation, for write-tests draft, test-selection and chapters-for-tests, for fix-bug fix-inputs and chapters-for-implementation, each followed by resource-pins, none optional
+test("kindOf — the four work kinds name the recipe instruction? first, then the recipes of their row of the table of kinds", async () => {
   const expected = {
     implement: ["implementation-inputs", "chapters-for-implementation", "resource-pins"],
-    refactor: ["implementation-inputs", "resource-pins"],
+    refactor: ["implementation-inputs", "chapters-for-implementation", "resource-pins"],
     "write-tests": ["draft", "test-selection", "chapters-for-tests", "resource-pins"],
-    "fix-bug": ["fix-inputs", "chapters-for-tests", "resource-pins"],
+    "fix-bug": ["fix-inputs", "chapters-for-implementation", "resource-pins"],
   };
   assert.deepEqual(Object.keys(expected), WORK_KINDS, "known positive: the four kinds are those expected here");
   for (const name of WORK_KINDS) {
