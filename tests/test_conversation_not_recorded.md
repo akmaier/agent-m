@@ -46,7 +46,7 @@ the conversation records of that repository hold it), `commits` and `strayReques
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
         "handOver": [
           {
-            "kind": "converse",
+            "kind": "derive-use-cases",
             "works_on": [
               "A LOAN HAS A DUE DATE"
             ],
@@ -138,7 +138,7 @@ the conversation records of that repository hold it), `commits` and `strayReques
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
         "handOver": [
           {
-            "kind": "converse",
+            "kind": "derive-use-cases",
             "works_on": [
               "A LOAN HAS A DUE DATE"
             ],
