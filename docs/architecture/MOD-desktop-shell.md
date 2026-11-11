@@ -189,7 +189,8 @@ The rest of its surface faces the person, not another module:
   - *Agents* — laid out top down as the one folder, then a panel for each installed agent, then the agents not
     installed, then *Save agents* and *Check again*, and the last checkout's result as a table of agent, repository, and
     commit or reason. Every supported agent with its version, ready and logged in, installed but not logged in with its own
-    login step (`Agent.login`), or missing with its vendor's installation page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
+    login step (`Agent.login`) and, beside it, *Check result*, which reads the agents anew as *Check again* does, so
+    that the login's result is checked where it was started, or missing with its vendor's installation page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
     INSTALLATION OF A MISSING AGENT`); a tick for each installed agent the Bridge is to offer, with its declaration —
     place, capabilities, models with their context —; the one folder, chosen with the system's folder dialog, with the
     working folder `<folder>/<agent>` each ticked agent gets in it; *Save agents*; and the last checkout's result: for each
