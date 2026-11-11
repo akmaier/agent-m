@@ -91,9 +91,10 @@ function theBridge() {
   started ??= (async () => {
     // Not below /tmp: the Linux enclosure gives the agent a private /tmp (MOD-agent-enclosure, Data), where the fixture agents and their answers would not be.
     const root = realpathSync(mkdtempSync(join(process.platform === "linux" ? "/var/tmp" : tmpdir(), "agent-m-367-")));
-    const bin = join(root, "bin"), work = join(root, "work-opencode"), data = join(root, "data"), answers = join(root, "answers");
+    // The one folder of the Bridge's settings holds each offered agent's working folder, <folder>/<agent> (MOD-desktop-shell, `folder`).
+    const bin = join(root, "bin"), agentsFolder = join(root, "agents"), work = join(agentsFolder, "opencode"), data = join(root, "data"), answers = join(root, "answers");
     const calls = join(work, "home", "opencode-calls"), codexCalls = join(root, "codex-calls");
-    for (const folder of [bin, work, data, answers]) mkdirSync(folder);
+    for (const folder of [bin, work, data, answers]) mkdirSync(folder, { recursive: true });
     writeFileSync(codexCalls, "");
     // opencode answers a task with the event in `answers/next` (the folder it runs in in place of @PWD@), and writes down the folder of each start of a task; codex, installed and not offered, writes down every call it gets.
     script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
@@ -110,7 +111,7 @@ printf '%s\\n' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}
     };
     const originText = (path) => spawnSync(REAL_GIT, ["--git-dir", product.origin, "show", `main:${path}`], { encoding: "utf8" }).stdout;
     const [port] = await unusedPorts(1);
-    saveSettings(data, { "agent-m-bridge-settings": 1, name: "lab-pc", port, agents: [{ name: "opencode", folder: work }], products: [PRODUCT], every: 3600, paused: false, jumpHost: null, tunnels: [] });
+    saveSettings(data, { "agent-m-bridge-settings": 1, name: "lab-pc", port, folder: agentsFolder, agents: [{ name: "opencode" }], products: [PRODUCT], every: 3600, paused: false, jumpHost: null, tunnels: [] });
     const pairs = [[INSTANCE_ADDRESS, instance.origin], [PRODUCT, product.origin]];
     const environment = { ...GIT_IDENTITY, PATH: `${bin}${delimiter}${process.env.PATH}`, GIT_CONFIG_COUNT: String(pairs.length) };
     pairs.forEach(([address, path], at) => { environment[`GIT_CONFIG_KEY_${at}`] = `url.${path}.insteadOf`; environment[`GIT_CONFIG_VALUE_${at}`] = address; });

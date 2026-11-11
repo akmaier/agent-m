@@ -492,10 +492,8 @@ test("handOverParams — an entry with lowercase letters, such as a section, nam
 // TST-1360202 · level: unit · module: MOD-job-runner
 // guards: UC-049; UC-021
 // given: a snapshot with no plan; known positive: works_on of requirement names alone
-// input: handOverParams of works_on of requirements alone, of use cases alone, of ARC-<n> alone, of MOD-<n> alone, and of a requirement beside a use case, a place beside a requirement,
-//   a decision beside a module, and none
-// expect: `kind` "requirements", "use-cases", "architecture", "modules" for the four of one group kind each — the parameter by which items-of-kind and group-rules read the kind
-//   propose-groups arranges —; no `kind` for the mixed ones and for none
+// input: handOverParams of works_on of requirements alone, of use cases alone, of ARC-<n> alone, of MOD-<n> alone, and of a requirement beside a use case, a place beside a requirement, a decision beside a module, and none
+// expect: `kind` "requirements", "use-cases", "architecture", "modules" for the four of one group kind each — the parameter by which items-of-kind and group-rules read the kind propose-groups arranges —; no `kind` for the mixed ones and for none
 test("handOverParams — `kind` names the group kind where every entry of works_on is of that one kind", async () => {
   const { handOverParams } = await import("../src/job-runner/index.mjs");
   const snapshot = { paths: ["SPEC.md"] };

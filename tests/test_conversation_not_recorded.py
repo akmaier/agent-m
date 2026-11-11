@@ -94,6 +94,8 @@ function repoOf(web, files) {
         return { commit: head, url: web + "/commit/" + head };
       },
       async startWorkflow(workflow, ref, inputs) { starts.push({ workflow, ref, inputs: structuredClone(inputs) }); return null; },
+      // The repository's Actions secrets: the person's token and the key handy names, so that the job workflow's setup is complete.
+      async ciSecretNames() { return ["AGENT_M_TOKEN", "KEY_A"]; },
       async listCiRuns() { return []; },
       async ciRunLog() { return null; },
       webLinks: () => ({ secrets: web + "/settings/secrets/actions" }),
@@ -140,13 +142,19 @@ globalThis.fetch = async (url, init = {}) => {
   if (next.calls) return completion({ content: null, tool_calls: next.calls.map(({ id, name, args }) => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } })) });
   return completion({ content: envelope(next) });
 };
-jobRunner.registerStrategies("tests/test_conversation_not_recorded.py", { recipes: { "chapters-for-page": async () => [] } });
+// The strategy sets the bar hands to the frame for a hand-over (MOD-prompt-bar's handOverStrategies), registered as the frame registers them;
+// their recipes chapters-for-… stand in for the book's chapters, which the fixture instance does not hold, with none.
+const noChapters = (recipes) => Object.fromEntries(Object.entries(recipes).map(([name, recipe]) => [name, name.startsWith("chapters-for-") ? async () => [] : recipe]));
+promptBarHandOver.handOverStrategies.forEach((strategies, at) => jobRunner.registerStrategies(`tests/test_conversation_not_recorded.py#${at}`,
+  { ...strategies, ...(strategies.recipes ? { recipes: noChapters(strategies.recipes) } : {}) }));
 
 // ---------------------------------------------------------------- the page and the bar
 const onInstance = input.page === "instance";
 const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": REGISTER,
   ...(input.recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
-const product = repoOf(PRODUCT_WEB, { "SPEC.md": "# Spec\n", "docs/notes.md": "# Notes\n\nOld text.\n", ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" });
+const product = repoOf(PRODUCT_WEB, { "SPEC.md": "# Spec\n\n**A LOAN HAS A DUE DATE** *(PO A. Maier)*\nEvery loan has a due date.\n*Check:* no automatic check; at review.\n", "docs/notes.md": "# Notes\n\nOld text.\n",
+  // The job workflow as this instance gives it, for the token and the key handy names: the product is set up for GitHub Actions.
+  ...Object.fromEntries(runtimes.jobWorkflowFiles("github", { repository: "alice/agent-m", commit: instance.head() }, { token: "AGENT_M_TOKEN", keys: ["KEY_A"] }, []).map((file) => [file.path, file.text])) });
 const store = browserStore.openStore("alice/agent-m");
 browserStore.writeSetting(store, "endpoint:tooler", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-t", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000 });
 browserStore.writeSetting(store, "last-test:endpoint:tooler", { at: "2026-10-19T12:00:00Z", outcome: "ok", tools: true });

@@ -186,7 +186,7 @@ For the conversation cases, the keys are those of tests/test_conversation_not_re
 
 ```json
 {
-  "given": "With recording off, the person sends one message to tooler and a second to handy (an endpoint of this browser, called through the Bridge lab-pc, that names the CI secret KEY_A), and handy proposes handing its task over, which goes on without a further click.",
+  "given": "With recording off, the person sends one message to tooler and a second to handy (an endpoint of this browser, called through the Bridge lab-pc, that names the CI secret KEY_A), and handy proposes handing on a derivation of the use case of the product's one requirement, a kind that takes a task and does not run in this tab, which goes on without a further click.",
   "input": {
     "recording": false,
     "page": "product",
@@ -198,11 +198,11 @@ For the conversation cases, the keys are those of tests/test_conversation_not_re
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
         "handOver": [
           {
-            "kind": "converse",
+            "kind": "derive-use-cases",
             "works_on": [
               "A LOAN HAS A DUE DATE"
             ],
-            "task": "run the tests of the notes",
+            "task": "derive the use case of the due date",
             "after": []
           }
         ]

@@ -29,8 +29,9 @@ Object.assign(process.env, { GIT_AUTHOR_NAME: "Seed", GIT_AUTHOR_EMAIL: "seed@ex
 const REAL_GIT = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
 const REAL_SLEEP = spawnSync("sh", ["-c", "command -v sleep"], { encoding: "utf8" }).stdout.trim();
 
-// converse names the recipe chapters-for-page, which no module registers in this program; the fixture gives no part.
-registerStrategies("tests/bridge-job-task-492.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
+// converse names the recipe chapters-for-page and the check plan-works-on (MOD-job-catalogue), which no module registers in this program; the
+// fixture's recipe gives no part, its check no finding.
+registerStrategies("tests/bridge-job-task-492.test.mjs", { recipes: { "chapters-for-page": async () => [] }, checks: { "plan-works-on": () => [] } });
 
 const INSTANCE = "https://github.com/acme/agent-m", PRODUCT = "https://github.com/acme/product-a";
 const TASK = "Add a footer to the page, token zebra-492";
