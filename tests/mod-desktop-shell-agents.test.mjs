@@ -50,7 +50,8 @@ function computer() {
   const log = `printf '%s\\n' "$0 $*" >> ${calls}`;
   script(bin, "claude", `${log}\ncase "$*" in '--version') echo '2.1.300';; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) exit 64;; esac`);
   script(bin, "codex", `${log}\ncase "$*" in '--version') echo 'codex 1.2.3';; 'login status') echo 'Logged in';; *) exit 64;; esac`);
-  const folders = { claude: join(root, "work-claude"), codex: join(root, "work-codex") };
+  // The agents' working folders as the Bridge lays them out in its one folder, the root: <folder>/<agent> (MOD-desktop-shell, `folder`).
+  const folders = { claude: join(root, "claude"), codex: join(root, "codex") };
   for (const folder of Object.values(folders)) mkdirSync(folder);
   return { root, bin, folders, calls: () => readFileSync(calls, "utf8").trim().split("\n").filter(Boolean) };
 }
@@ -70,7 +71,7 @@ async function onComputer(machine, work) {
 // guards: UC-011; UC-044; THE BRIDGE FINDS THE INSTALLED AGENTS; THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
 // given: a temporary Bridge data folder whose settings tick only Claude with a working folder, while fixture Claude and Codex executables are installed and OpenCode is missing
 // input: MOD-desktop-shell's composition builds the job handlers from the persisted settings and GET /v1/agents is called
-// expect: the Bridge offers Claude with its version and readiness; installed but unticked Codex is not offered; missing OpenCode is still listed as missing
+// expect: the Bridge offers Claude with its version and readiness, and its declaration as the settings keep it — place *this machine* and every capability preset, no model yet (MOD-bridge-jobs, GET /v1/agents; MOD-desktop-shell, `agents`); installed but unticked Codex is not offered; missing OpenCode is still listed as missing
 // Planted fault: leaving compose.mjs to call jobHandlers without the persisted agents makes the offered list empty.
 test("TST-407001: composition offers only selected installed agents with their folders", async () => {
   const machine = computer();
@@ -93,7 +94,8 @@ test("TST-407001: composition offers only selected installed agents with their f
     assert.equal(typeof composeJobHandlers, "function", "failure node: composition exposes the job-handler wiring for unit evidence");
     const answer = await composeJobHandlers(loadSettings(dataFolder), openEnclosures())["GET /v1/agents"]({ params: {}, query: {}, body: {} });
     assert.deepEqual(answer, {
-      agents: [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true }],
+      agents: [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true, place: "this machine",
+        capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"], models: [] }],
       missing: [{ name: "opencode" }],
     }, "failure node: only the ticked installed agent is offered; the missing supported agent is named");
     assert.equal(machine.calls().some((line) => /codex exec\b/.test(line)), false,
