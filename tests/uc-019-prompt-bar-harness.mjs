@@ -72,8 +72,14 @@ export const sectionWith = (...candidates) => {
   return txt("## Lending", "", [...blocks, ...candidates.filter((each) => !each.replaces)].map(block).join("\n\n"));
 };
 export const WHY = "The borrower must see when the book is due.";
-// The drafter's answer (src/job-catalogue/kinds/change-requirements/answer.schema.json): the new text of the section, and why.
-export const draft = (...candidates) => ({ sections: [sectionWith(...(candidates.length ? candidates : [candidate()]))], why: WHY });
+// The drafter's answer (src/job-catalogue/kinds/change-requirements/answer.schema.json): the new text of the section, why, and under `withdraw` the name of each
+// requirement of the section a candidate takes the place of under another name with another rule — a requirement the section then leaves out (MOD-job-runner's
+// requirement-form: a rename keeps its rule, any other requirement left out is named under `withdraw`).
+export const draft = (...candidates) => {
+  const written = candidates.length ? candidates : [candidate()];
+  const withdraw = written.filter((each) => each.replaces && each.name !== each.replaces && each.rule !== HELD[each.replaces].rule).map((each) => each.replaces);
+  return { sections: [sectionWith(...written)], ...(withdraw.length ? { withdraw } : {}), why: WHY };
+};
 
 // ---------------------------------------------------------------- the page and the servers
 
