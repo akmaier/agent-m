@@ -176,11 +176,9 @@ test("TST-2026110914: on GitLab actionsSetup lists no secret, and setUp commits 
 
 // TST-2026111201 · level: unit · module: MOD-runtimes
 // guards: UC-010; UC-049
-// given: an older instance commit OLD_COMMIT; four products — on GitHub one without the job workflow, one holding every file jobWorkflowFiles gives for INSTANCE_COMMIT, one holding every
-//   file jobWorkflowFiles gives for OLD_COMMIT, and on GitLab one holding every file jobWorkflowFiles gives for OLD_COMMIT and its .gitlab-ci.yml; this browser's store as in TST-2026110911
+// given: an older instance commit OLD_COMMIT; four products — on GitHub one without the job workflow, one holding every file jobWorkflowFiles gives for INSTANCE_COMMIT, one holding every file jobWorkflowFiles gives for OLD_COMMIT, and on GitLab one holding every file jobWorkflowFiles gives for OLD_COMMIT and its .gitlab-ci.yml; this browser's store as in TST-2026110911
 // input: actionsSetup for each; setUp is not called
-// expect: pins.instance is INSTANCE_COMMIT for each; pins.product is null for the product without the job workflow, INSTANCE_COMMIT for the current one, and OLD_COMMIT for both older ones;
-//   the older ones name every file of their job workflow as outdated, the current one none; nothing is written
+// expect: pins.instance is INSTANCE_COMMIT for each; pins.product is null for the product without the job workflow, INSTANCE_COMMIT for the current one, and OLD_COMMIT for both older ones; the older ones name every file of their job workflow as outdated, the current one none; nothing is written
 test("TST-2026111201: actionsSetup gives the instance commit its files pin and the one the product's job workflow file pins, null where that file is absent", async () => {
   const OLD_COMMIT = "fedcba9876543210fedcba9876543210fedcba98";
   // The paths of `older` whose text is not the one `current` gives for the same path.

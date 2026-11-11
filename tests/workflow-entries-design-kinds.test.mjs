@@ -206,14 +206,14 @@ test("onRecordsChanged — a queued change-use-case job ends in one commit of an
 
 // TST-473199 · level: unit · module: MOD-workflow-entries
 // guards: A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: the same product and instance, and a queued job of `change-requirements` naming the requirement, the person's own source — which the product links — and an instruction; a fixture endpoint that answers a candidate that changes the requirement
+// given: the same product and instance, and a queued job of `change-requirements` naming the requirement, the person's own source — which the product links — and an instruction; a fixture endpoint that answers the section of the requirement, changed, with why
 // input: onRecordsChanged
 // expect: outcome `done`; one commit by the writer that adds a new queue under docs/spec-freigaben/ — its index, its decisions, the proposal and its rationale — and changes nothing else: SPEC.md byte-identical; the commit's message ending with the provenance lines of the job
 test("onRecordsChanged — a queued change-requirements job ends in a new queue, SPEC.md byte-identical", async () => {
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(REQUIREMENTS_JOB, "change-requirements", { requirements: [RULE], source: "SRC-fixture-po", instruction: INSTRUCTION }, agentM))],
     extra: { "SPEC.md": SPEC, "docs/sources.md": LINKS, [UC_PATH]: UC_BEFORE } }, async (w) => {
-    fakeWorld({ candidates: [{ name: RULE, rule: `${RULE_TEXT} The member is told the date.`, check: "`tests/loan.test.mjs`", constrains: "product", passage: "§2",
-      class: "change", of: RULE, source: "SRC-fixture-po" }] }, w);
+    fakeWorld({ sections: [text("## Lending", "", `**${RULE}** *(SRC-fixture-po)*`, `${RULE_TEXT} The member is told the date.`, "*Check:* `tests/loan.test.mjs`")],
+      why: "The member is to be told the due date." }, w);
     const status = await run(w);
     assert.equal(status.outcome, "done", status.summary);
     const writer = git(w.product, "log", "--format=%H", "--grep=Agent-M-Kind: change-requirements", "main").split("\n").filter(Boolean)

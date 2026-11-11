@@ -58,7 +58,8 @@ globalThis.fetch = async () => {
 };
 
 const context = world.contextOf(fake);
-writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model" });
+// The endpoint drafter-a runs on, with the place it processes data at and its model's context, which a connection names to be offered (the world's EP1).
+writeSetting(context.store, "endpoint:ep1", world.EP1);
 const { target } = await world.draw(fake, "use-case", { id: "UC-007" }, { context });
 const accept = world.buttonsNamed(target, "Accept");
 if (accept.length !== 1) throw new Error(`the page offers ${accept.length} Accept buttons`);

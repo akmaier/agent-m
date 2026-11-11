@@ -26,8 +26,7 @@ const passesSourceCheck = (item) => sourceFindings([...parseSpec(`# P — Specif
 
 // TST-1792030 · level: unit · module: MOD-source-register
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS A REGISTERED SOURCE
-// given: three items that are accounts — alone, with a port and a part, with dots, hyphens and an underscore —, and seven that are not: a register
-//   identifier, a title with a part, a person's name, an account without its server, a repository's path, a web address, the empty item
+// given: three items that are accounts — alone, with a port and a part, with dots, hyphens and an underscore —, and seven that are not: a register identifier, a title with a part, a person's name, an account without its server, a repository's path, a web address, the empty item
 // input: namesAccount(each); and sourceFindings of a requirement naming each, over a product that links no source
 // expect: true for the three, which sourceFindings passes; false for the seven, each of which sourceFindings names
 test("namesAccount — an item that is <server>/<account>, alone or with its part, and nothing else", () => {

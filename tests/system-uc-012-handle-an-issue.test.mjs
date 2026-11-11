@@ -69,7 +69,11 @@ test("TST-585201: UC-012 every flow has a system test that walks it", () => {
 // ---------------------------------------------------------------- the main flow, the change path
 
 const NAMING = "The export is cut off after the second page; FIRST RULE says nothing about page counts (UC-001, TST-001).";
-const CANDIDATE = { name: "EVERY EXPORT KEEPS ALL PAGES", rule: "An export holds every page of the document.", check: "tests/unit.test.mjs", constrains: "product", passage: "the export is cut off after the second page", class: "new" };
+// The participant's draft of the change (the kind change-requirements: the new text of each section it changes, with why): the section "1. Section" with EVERY EXPORT KEEPS ALL PAGES added, naming the person's account.
+const ADDED = "EVERY EXPORT KEEPS ALL PAGES";
+const CHANGE = { sections: [`${["## 1. Section", "", ["**FIRST RULE** *(Product Owner)*", "The first rule holds.", "*Check:* `tests/unit.test.mjs`"].join("\n"),
+  ["**SECOND RULE** *(Product Owner)*", "The second rule holds.", "*Check:* no automatic check; at review."].join("\n"),
+  [`**${ADDED}** *(github.com/alice)*`, "An export holds every page of the document.", "*Check:* `tests/unit.test.mjs`"].join("\n")].join("\n\n")}\n`], why: "An export is cut off after the second page." };
 const PROPOSE_CHANGE = { class: "change", reasoning: "The SPEC says nothing about how many pages an export keeps: a requirement is missing." };
 
 // TST-585202 · level: system · module: system
@@ -78,7 +82,7 @@ const PROPOSE_CHANGE = { class: "change", reasoning: "The SPEC says nothing abou
 // input: step 2 — the author opens the issue and has local-llm analyse it; step 4 — confirms the class change with one click; step 6 — drafts the change with local-llm and saves it; then Move to backlog
 // expect: step 2: the analysis sends the issue's title and text, FIRST RULE's rule "The first rule holds.", the use case UC-001's file and the test file of TST-001; step 3: the page shows "The participant proposes: change" and the reasoning; step 4: the issue carries the label change and neither defect nor not-reproducible, the page says "Confirmed as change."; it offers the change and no fix; step 6: Save writes one queue under docs/spec-freigaben/ whose index names "**Issue:** #5 of https://github.com/alice/product" and whose entry holds EVERY EXPORT KEEPS ALL PAGES; SPEC.md is not written; the issue stays open; the move then prefills an item whose origin is https://github.com/alice/product/issues/5 and which realises EVERY EXPORT KEEPS ALL PAGES
 test("TST-585202: UC-012 a change is analysed, confirmed with one click, saved as a queue naming the issue, and moved to the backlog with what it changes", async () => {
-  const w = start({ issues: [issueOf(5, NAMING)], analysis: PROPOSE_CHANGE, change: { candidates: [CANDIDATE] } });
+  const w = start({ issues: [issueOf(5, NAMING)], analysis: PROPOSE_CHANGE, change: CHANGE });
   const detail = await analysed(await open(w, 5));
   const sent = JSON.stringify(w.kept.endpoint[0].body);
   for (const wanted of ["Export loses pages 5", "cut off after the second page", "The first rule holds.", "# UC-001 First", "a store reads"]) assert.ok(sent.includes(wanted), `the analysis receives ${wanted}`);
@@ -97,7 +101,7 @@ test("TST-585202: UC-012 a change is analysed, confirmed with one click, saved a
   const index = files.find((entry) => entry.path.endsWith("/index.md"));
   assert.ok(index, `a queue is written: ${files.map((entry) => entry.path)}`);
   assert.ok(files.some((entry) => entry.path.endsWith(".begruendung.md") && entry.content.includes(`**Issue:** #5 of ${PRODUCT_URL}`)), "the entry's rationale names the issue");
-  assert.ok(files.some((entry) => /\/\d\d-[^/]*\.md$/.test(entry.path) && !entry.path.endsWith(".begruendung.md") && entry.content.includes(CANDIDATE.name)), "the entry holds the requirement");
+  assert.ok(files.some((entry) => /\/\d\d-[^/]*\.md$/.test(entry.path) && !entry.path.endsWith(".begruendung.md") && entry.content.includes(ADDED)), "the entry holds the requirement");
   assert.ok(!writtenFiles(w).some((entry) => entry.path === "SPEC.md"), "the SPEC is not written");
   assert.equal(issueNow(w, 5).state, "open");
 
@@ -107,7 +111,7 @@ test("TST-585202: UC-012 a change is analysed, confirmed with one click, saved a
   assert.equal(byClass(move, "issue-problem").length, 0, textOf(move));
   const field = (key) => walk(walk(move, (node) => node.getAttribute?.("data-key") === key)[0], (node) => node.localName === "input")[0];
   assert.equal(field("origin").value, ADDRESS(5));
-  assert.equal(field("realises").value, CANDIDATE.name);
+  assert.equal(field("realises").value, ADDED);
 });
 
 // ---------------------------------------------------------------- step 4: a class corrected

@@ -36,7 +36,7 @@ const WORDS = "Which model are you, and where do you run?";
 // guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
 // given: a dashboard browser that keeps the Bridge lab (the real composed Bridge) and a model server on the loopback address that the browser cannot call, which calls the tool it is offered and answers a conversation "I am the campus model."
 // input: the author configures campus on Settings with the key sk-campus-job-key-2718, the place "Campus cluster, Germany", the context 200000 and the Bridge lab, and presses Save and test; then, on the prompt bar's page over the records Settings stored, the bar is read and the author writes "Which model are you, and where do you run?" and presses Send
-// expect: known positive — the test request reached the model server once, through lab; the bar offers "campus — Campus cluster, Germany" before anything is sent and, after Send, names "Sent to: campus — Campus cluster, Germany"; the page sent its requests only to the Bridge's address, POST /v1/ask and GET /v1/ask/<id>, each with lab's pairing token and the key in none of them as an address; the model server received a second request, from the Bridge (no Origin header, the key as the Authorization header) holding the author's words; the answer "I am the campus model." stands in the conversation; no request left the fixtures, and the repository servers got no write
+// expect: known positive — the test request reached the model server once, through lab; the bar offers "campus · tiny-model — Campus cluster, Germany" before anything is sent and, after Send, names "Sent to: campus — Campus cluster, Germany"; the page sent its requests only to the Bridge's address, POST /v1/ask and GET /v1/ask/<id>, each with lab's pairing token and the key in none of them as an address; the model server received a second request, from the Bridge (no Origin header, the key as the Authorization header) holding the author's words; the answer "I am the campus model." stands in the conversation; no request left the fixtures, and the repository servers got no write
 test("TST-266221: UC-003 2a a job's request to an endpoint configured through a Bridge goes through the same Bridge", async (t) => {
   const bridge = await startBridge(t);
   const model = await modelServer(t, (request) => (Array.isArray(request.body?.tools) && request.body.tools.some((tool) => tool?.function?.name === "agent_m_probe") ? callsTool() : conversation("I am the campus model.")));
@@ -52,7 +52,7 @@ test("TST-266221: UC-003 2a a job's request to an endpoint configured through a 
   assert.equal(records["endpoint:campus"].bridge, "lab");
 
   const { s, seen } = await barOver(records, { forward: toTheBridge(bridge) });
-  assert.match(barOf(s).textContent, new RegExp(`campus — ${PLACE}`), "the bar offers the endpoint with its place");
+  assert.match(barOf(s).textContent, new RegExp(`campus · tiny-model — ${PLACE}`), "the bar offers the endpoint with its place");
   assert.deepEqual(seen.map((request) => `${request.method} ${request.path}`).filter((each) => each.startsWith("POST")), [], "nothing is sent while the bar is only read");
   await sendMessage(s, "campus", WORDS);
   assert.match(statusOf(s).textContent, new RegExp(`^Sent to:campus — ${PLACE}`));

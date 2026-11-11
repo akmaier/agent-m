@@ -123,12 +123,12 @@ const listing = (pages) => (r) => {
 };
 const where = (r) => { const url = new URL(r.href); return [r.method, `${url.origin}${url.pathname}`, url.searchParams.get("page"), url.searchParams.get("per_page")]; };
 
-// TST-2026110901 · level: unit · module: MOD-repository-hosts
+// TST-20261111902 · level: unit · module: MOD-repository-hosts
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a GitHub repository with the person's token, whose secrets GitHub lists on two pages — a full page of 100 names, KEY_0 … KEY_99, then KEY_7 again and AGENT_M_TOKEN
 // input: ciSecretNames()
 // expect: GET …/actions/secrets with per_page=100, page 1 and then page 2, each with the token as a Bearer header and to GitHub's API of that repository alone; the names KEY_0 … KEY_99 and AGENT_M_TOKEN, each once, as texts
-test("TST-2026110901: ciSecretNames on GitHub — the names of the repository's Actions secrets, page after page, each once", async () => {
+test("TST-20261111902: ciSecretNames on GitHub — the names of the repository's Actions secrets, page after page, each once", async () => {
   const first = Array.from({ length: 100 }, (_, at) => `KEY_${at}`);
   const host = connect(GITHUB, { token: TOKEN });
   const { result, requests } = await serving(listing([first, ["KEY_7", "AGENT_M_TOKEN"]]), () => host.ciSecretNames());
@@ -139,12 +139,12 @@ test("TST-2026110901: ciSecretNames on GitHub — the names of the repository's 
   assert.equal(requests.some((r) => r.href.includes(TOKEN)), false, "the token is in no address");
 });
 
-// TST-2026110902 · level: unit · module: MOD-repository-hosts
+// TST-20261111903 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
-// given: known positive TST-2026110901; then a server that answers 403 to the listing (a token without the permission Secrets); a GitHub repository without a token; a GitLab project with its token
+// given: known positive TST-20261111902; then a server that answers 403 to the listing (a token without the permission Secrets); a GitHub repository without a token; a GitLab project with its token
 // input: ciSecretNames() on each
 // expect: PermissionMissing whose permission is "Secrets" for the 403; NotSupported for the other two, each before any request
-test("TST-2026110902: ciSecretNames — a token without Secrets is PermissionMissing; without a token and on GitLab NotSupported before any request", async () => {
+test("TST-20261111903: ciSecretNames — a token without Secrets is PermissionMissing; without a token and on GitLab NotSupported before any request", async () => {
   assert.deepEqual((await serving(listing([["AGENT_M_TOKEN"]]), () => connect(GITHUB, { token: TOKEN }).ciSecretNames())).result.value, ["AGENT_M_TOKEN"], "known positive");
   const refused = await serving(() => json(403, { message: "Resource not accessible by personal access token" }), () => connect(GITHUB, { token: TOKEN }).ciSecretNames());
   assert.equal(refused.result.error?.name, "PermissionMissing");
@@ -159,12 +159,12 @@ test("TST-2026110902: ciSecretNames — a token without Secrets is PermissionMis
 // The requests among `requests` that hold `value` in the clear, in their address or their body: the failure of A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT.
 const inTheClear = (requests, value) => requests.filter((r) => r.href.includes(value) || JSON.stringify(r.body ?? {}).includes(value));
 
-// TST-2026110903 · level: unit · module: MOD-runtimes
+// TST-20261111904 · level: unit · module: MOD-runtimes
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the GitHub product carol/sprint-tool connected with the person's token TOKEN — its secret listing, public key and PUT made by the adapter's own requests to a fake GitHub —, which holds the job workflow already and no secret; this browser keeps TOKEN under github-token:carol/sprint-tool; an instance in memory with no participant
 // input: MOD-runtimes' actionsSetup for the product, then setUp
 // expect: setUp stores AGENT_M_TOKEN alone; every request goes to GitHub's API of carol/sprint-tool with TOKEN as its Bearer header; the PUT of AGENT_M_TOKEN carries TOKEN sealed, opening to it with the repository's secret key; TOKEN in the clear is in no address and no body; counter-proof: a request with TOKEN in the clear in its body, and one with it in its address, are each found
-test("TST-2026110903: a product's token stored as AGENT_M_TOKEN reaches only its own server, sealed in the body of the request that stores the secret", async () => {
+test("TST-20261111904: a product's token stored as AGENT_M_TOKEN reaches only its own server, sealed in the body of the request that stores the secret", async () => {
   const instanceRepository = { server: "github", origin: "https://github.com", path: "carol/instance", web: "https://github.com/carol/instance" };
   const instance = { async repositoryInfo() { return { defaultBranch: "main" }; },
     async readSnapshot(ref) { return { repository: instanceRepository, ref, commit: "9".repeat(40), paths: [], blob: () => null, async read() { return null; } }; } };

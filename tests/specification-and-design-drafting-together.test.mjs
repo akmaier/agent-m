@@ -370,7 +370,7 @@ const QUEUED = { ...PRODUCT,
 // The section 3. Export as the drafter returns it: EXPORT IS A PDF's rule changed, `source` its sources, or the Product Owner alone.
 const drafted = (source) => SECTION.replace(`**${EXPORT}** *(Product Owner)*\n${EXPORT_RULE}`, `**${EXPORT}** *(Product Owner${source ? `; ${source}` : ""})*\nA report can be exported as one PDF file.`);
 
-// TST-476065 · level: component · module: MOD-spec-changes
+// TST-20261111916 · level: component · module: MOD-spec-changes
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE; A SPEC EDIT IS SAVED AS A PROPOSAL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: the product with its SPEC and an open queue proposing EXPORT IS A PDF/A; the instruction; the person's source SRC-alice; a drafter that first returns the section 3. Export with EXPORT IS A PDF's rule changed and without the source, then with it
 // input: prepareJob of change-requirements for EXPORT IS A PDF and A REPORT HAS A TITLE; runJob attended; then writeResult
@@ -403,7 +403,7 @@ test("change-requirements — a drafted section that does not name the person's 
   assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 2));
 });
 
-// TST-476066 · level: component · module: MOD-spec-changes
+// TST-20261111917 · level: component · module: MOD-spec-changes
 // guards: UC-019 6b; A CI AGENT'S DRAFT ENTERS AS OPEN; A SPEC EDIT IS SAVED AS A PROPOSAL
 // given: the same job run as a CI agent's — not attended — with a drafter that answers at once the section with the person's source
 // input: runJob

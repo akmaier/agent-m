@@ -140,12 +140,12 @@ test("currentJob — null while no message runs", () => {
   assert.equal(currentJob(), null);
 });
 
-// TST-1201002 · level: unit · module: MOD-prompt-bar
+// TST-20261111915 · level: unit · module: MOD-prompt-bar
 // guards: A CONNECTION DECLARES ITS CAPABILITIES; UC-049
 // given: an endpoint whose last test found that the model calls tools, one named with a CI secret — its work runs on GitHub Actions — and one without
 // input: endpointsOffered over a store holding both
 // expect: the endpoint with the CI secret is offered with *reach the web* beside *draft text*, *read the repository* and *use tools*, so that its job on GitHub Actions has the tool webfetch; the one without, whose work runs in this tab, is offered without it. Counter-proof: on the offer as it stood, neither had *reach the web*, and Nemotron could not read issue #2 on github.com.
-test("TST-1201002: an endpoint whose work runs on GitHub Actions and that uses tools reaches the web", () => {
+test("TST-20261111915: an endpoint whose work runs on GitHub Actions and that uses tools reaches the web", () => {
   const store = freshStore();
   const base = { url: "https://example.invalid/v1", kind: "openai-compatible", model: "model-x", place: "Example, USA", context: 128000 };
   writeSetting(store, "endpoint:ci", { ...base, secret: "MODEL_KEY" });

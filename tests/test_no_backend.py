@@ -234,7 +234,7 @@ ENDPOINT_SENDERS = {
 # driver's driverRequest and the exchange's `request`, both providerRequest's; the short test's requestFor, providerRequest's too; and the
 # model listings' address, which endpointUrl builds from the configuration's baseUrl.
 ENDPOINT_REQUESTS = (
-    ("driverRequest(config, ", ("function driverRequest(config, prompt, signal) {\n  return providerRequest(config, ",)),
+    ("driverRequest(config, ", ("function driverRequest(config, prompt, signal, stream = false) {\n  return providerRequest(config, ",)),
     ("request, ", ("  const request = providerRequest(config, ",)),
     ("{ url, init }, ", ("  const { url, init } = requestFor(config);", "function requestFor(config) {\n  return providerRequest(config, ")),
     ("{ url: endpointUrl(config.baseUrl, ", ()),
@@ -632,7 +632,7 @@ class NoServer(unittest.TestCase):
                     "  if (config.key !== null) headers.Authorization = `Bearer ${config.key}`;\n"
                     "  return { url: endpointUrl(config.baseUrl, \"/chat/completions\"), init: { method: \"POST\", headers, signal } };\n"
                     "}\n"
-                    "function driverRequest(config, prompt, signal) {\n"
+                    "function driverRequest(config, prompt, signal, stream = false) {\n"
                     "  return providerRequest(config, prompt, { signal });\n"
                     "}\n"
                     "async function sentWithRetries(config, { url, init }, where, signal) {\n"

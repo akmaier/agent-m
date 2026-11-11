@@ -364,14 +364,13 @@ test("TST-2026110822 the bar is handed the products this browser manages, each w
   assert.ok(page.location.hash.startsWith("#draft/subject=") && page.location.hash.endsWith(`/product=${encoded(GADGET)}`), page.location.hash);
 });
 
-// TST-2026111506 · level: unit · module: MOD-site-frame
+// TST-20261111909 · level: unit · module: MOD-site-frame
 // guards: UC-049; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
-// given: the route beta (entry tests), whose subject names beta itself as its draft route, as the review pages' route draft does; an endpoint that answers {"answer":"ok"} with an edit; the
-//   fixture's location, whose hash a page writes without a hashchange, as a browser fires none for the fragment it shows
+// given: the route beta (entry tests), whose subject names beta itself as its draft route, as the review pages' route draft does; an endpoint that answers {"answer":"ok"} with an edit; the fixture's location, whose hash a page writes without a hashchange, as a browser fires none for the fragment it shows
 // input: the review page at #beta: Send "again", press "Review the draft"; then the same with beta's `leave` answering false
 // expect: the fragment stays #beta, and beta is drawn once more after the click than before it; with `leave` false, beta is asked and not drawn again
 // counter-proof: on the code before, startPage's go only wrote location.hash, and beta was not drawn again (red)
-test("TST-2026111506 Review the draft whose route is the one shown draws it again, after asking it with leave", async () => {
+test("TST-20261111909 Review the draft whose route is the one shown draws it again, after asking it with leave", async () => {
   const subject = () => ({ key: "beta", title: "Beta", kind: "converse", entry: null, paramsFor: () => ({ page: "beta page" }), draftRoute: "beta", withhold: null, refuses: [] });
   const drawnBeta = () => rendered.filter((each) => each.name === "beta").length;
   const page = await start({ fragment: "#beta", views: [route("beta", "tests", { subject })] });
@@ -397,12 +396,9 @@ test("TST-2026111506 Review the draft whose route is the one shown draws it agai
 
 // TST-2026111010 · level: unit · module: MOD-site-frame
 // guards: UC-049; UC-010; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: the browser of start(), which keeps the product https://github.com/acme/widget and its own token under github-token:acme/widget, and also the endpoint nvidia, which runs through
-//   GitHub Actions (the CI secret NVIDIA_API_KEY, no Bridge) and whose key it keeps; the widget's repository holds no job workflow and no Actions secret; the route alpha
+// given: the browser of start(), which keeps the product https://github.com/acme/widget and its own token under github-token:acme/widget, and also the endpoint nvidia, which runs through GitHub Actions (the CI secret NVIDIA_API_KEY, no Bridge) and whose key it keeps; the widget's repository holds no job workflow and no Actions secret; the route alpha
 // input: the review page at #alpha/product=<the widget>; nvidia chosen; a person's click on Spawn job with the message "look at it"
-// expect: startPage hands the bar the chosen product with its tokenKey, so that the bar knows this browser keeps the value of AGENT_M_TOKEN: it says "Nothing was handed over:
-//   acme/widget is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY", offers Set up GitHub Actions, and names no secret as kept no value for;
-//   no request to a repository carried a body (nothing was written; GraphQL queries read); counter-proof: with the product handed without its tokenKey, AGENT_M_TOKEN is named as kept no value for
+// expect: startPage hands the bar the chosen product with its tokenKey, so that the bar knows this browser keeps the value of AGENT_M_TOKEN: it says "Nothing was handed over: acme/widget is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY", offers Set up GitHub Actions, and names no secret as kept no value for; no request to a repository carried a body (nothing was written; GraphQL queries read); counter-proof: with the product handed without its tokenKey, AGENT_M_TOKEN is named as kept no value for
 test("TST-2026111010 startPage hands the bar the chosen product's tokenKey, by which the bar finds the product's own token for AGENT_M_TOKEN", async () => {
   const page = await start({ fragment: `#alpha/product=${encoded(WIDGET)}`, views: [route("alpha", "requirements")], settings: {
     "endpoint:nvidia": { kind: "openai-compatible", url: "https://integrate.api.nvidia.com/v1", model: "nvidia/nemotron", key: "nvapi-FIXTURE-0123", place: "NVIDIA, USA",

@@ -176,11 +176,9 @@ const ABOUT = "About alice/AlienInvasion — named in your message.";
 
 // TST-2026110814 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the page of A LOAN HAS A DUE DATE of thesis-tool, whose subject gives no `source`; the instance alice/agent-m on GitHub; an endpoint that answers the
-//   conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE] } and the change of requirements with the new text of the section that changes it, and why
+// given: the page of A LOAN HAS A DUE DATE of thesis-tool, whose subject gives no `source`; the instance alice/agent-m on GitHub; an endpoint that answers the conversation with a hand-over { kind change-requirements, works_on [A LOAN HAS A DUE DATE] } and the change of requirements with the new text of the section that changes it, and why
 // input: Send "the loan should say when it is overdue"
-// expect: the conversation's request, then change-requirements'; the draft kept in the tab names the source github.com/alice — the account personAccount gives for the
-//   instance — though the subject gave none
+// expect: the conversation's request, then change-requirements'; the draft kept in the tab names the source github.com/alice — the account personAccount gives for the instance — though the subject gave none
 test("TST-2026110814: a hand-over run in the tab takes the person's account as its source, though the page's subject gives none", async () => {
   // The draft of change-requirements (src/job-catalogue/kinds/change-requirements/answer.schema.json): the new text of the section "1. Lending", from its heading line to its end, and why.
   const section = `## 1. Lending\n\n**${LOAN}** *(SRC-alice; ${ACCOUNT})*\nEvery loan states its due date and says when it is overdue.\n*Check:* \`tests/loan.test.mjs\`\n`;
@@ -265,8 +263,7 @@ test("TST-2026110817: without a token for the product named, nothing is sent and
 // TST-2026110818 · level: component · module: MOD-prompt-bar
 // guards: UC-049
 // given: the same page; the products include the instance itself, alice/agent-m
-// input: Send "what does the thesis tool page say?" (the page's own product); then "what does the agent m repo hold?" (the instance, which no message names this way);
-//   then "and what of the shelf?" (none)
+// input: Send "what does the thesis tool page say?" (the page's own product); then "what does the agent m repo hold?" (the instance, which no message names this way); then "and what of the shelf?" (none)
 // expect: for each, one request of converse whose page is the page shown — its planted text —; no line "About …"
 test("TST-2026110818: a message that names the page's own product, the instance, or none is about the page", async () => {
   for (const words of ["what does the thesis tool page say?", "what does the agent m repo hold?", "and what of the shelf?"]) {

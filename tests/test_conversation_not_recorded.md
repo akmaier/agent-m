@@ -20,7 +20,7 @@ the conversation records of that repository hold it), `commits` and `strayReques
 
 ```json
 {
-  "given": "The instance does not record conversations. On a page of the product the person asks tooler (an endpoint of this browser whose last test found that it uses tools), which reads SPEC.md, then asks for a change of the notes and saves the edit, then asks handy (an endpoint of this browser, called through the Bridge lab-pc, that names the CI secret KEY_A) to run the tests; the answer proposes handing the task to GitHub Actions, which goes on without a further click.",
+  "given": "The instance does not record conversations. On a page of the product the person asks tooler (an endpoint of this browser whose last test found that it uses tools), which reads SPEC.md, then asks for a change of the notes and saves the edit, then asks handy (an endpoint of this browser, called through the Bridge lab-pc, that names the CI secret KEY_A) to run the tests; the answer proposes handing on a derivation of the use case of the product's one requirement, a kind that takes a task and does not run in this tab, to GitHub Actions, which goes on without a further click.",
   "input": {
     "recording": false,
     "page": "product",
@@ -46,11 +46,11 @@ the conversation records of that repository hold it), `commits` and `strayReques
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
         "handOver": [
           {
-            "kind": "converse",
+            "kind": "derive-use-cases",
             "works_on": [
               "A LOAN HAS A DUE DATE"
             ],
-            "task": "run the tests of the notes",
+            "task": "derive the use case of the due date",
             "after": []
           }
         ]
@@ -138,11 +138,11 @@ the conversation records of that repository hold it), `commits` and `strayReques
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
         "handOver": [
           {
-            "kind": "converse",
+            "kind": "derive-use-cases",
             "works_on": [
               "A LOAN HAS A DUE DATE"
             ],
-            "task": "run the tests of the notes",
+            "task": "derive the use case of the due date",
             "after": []
           }
         ]

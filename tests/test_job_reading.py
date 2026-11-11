@@ -591,12 +591,9 @@ class FormGiven(unittest.TestCase):
 
     # TST-1792070 · level: component · module: MOD-job-runner
     # guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
-    # given: every kind of the job catalogue whose definition names requirement-form or document-schema, for the fixture instance — this repository's
-    #   SPEC.md — and the fixture product, whose SPEC.md has a paragraph of its own; in the browser and in a checkout of the instance
-    # input: the input each kind's driver sends in its first exchange, against the paragraph and the six cited requirements cut from the instance's SPEC.md,
-    #   and the four schema files
-    # expect: the kinds of both checks are among them (derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture,
-    #   change-architecture); each input gives, word for word, every piece its kind's checks name; none gives the product's paragraph
+    # given: every kind of the job catalogue whose definition names requirement-form or document-schema, for the fixture instance — this repository's SPEC.md — and the fixture product, whose SPEC.md has a paragraph of its own; in the browser and in a checkout of the instance
+    # input: the input each kind's driver sends in its first exchange, against the paragraph and the six cited requirements cut from the instance's SPEC.md, and the four schema files
+    # expect: the kinds of both checks are among them (derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture, change-architecture); each input gives, word for word, every piece its kind's checks name; none gives the product's paragraph
     def test_each_drafting_kind_receives_the_form_of_its_checks_word_for_word(self):
         self.assertTrue({"derive-requirements", "change-requirements", "derive-use-cases", "change-use-case", "derive-architecture",
                          "change-architecture"} <= set(self.drafting), self.drafting)
@@ -613,9 +610,7 @@ class FormGiven(unittest.TestCase):
     # TST-1792071 · level: component · module: MOD-job-runner
     # guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
     # given: the inputs change-requirements and derive-use-cases sent in the browser
-    # input: the check over each as sent; over change-requirements' with the paragraph left out, with ONE STATEMENT PER REQUIREMENT left out, and with the
-    #   product's SPEC.md given in the instance's place — its paragraph and its A REQUIREMENT HAS FOUR FIELDS for the instance's —; over derive-use-cases'
-    #   with the module schema left out
+    # input: the check over each as sent; over change-requirements' with the paragraph left out, with ONE STATEMENT PER REQUIREMENT left out, and with the product's SPEC.md given in the instance's place — its paragraph and its A REQUIREMENT HAS FOUR FIELDS for the instance's —; over derive-use-cases' with the module schema left out
     # expect: the inputs as sent pass; each of the others fails, naming what it lacks
     def test_counter_proof_an_input_without_a_piece_or_with_the_products_spec_fails(self):
         spec = (ROOT / "SPEC.md").read_text(encoding="utf-8")

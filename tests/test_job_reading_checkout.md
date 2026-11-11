@@ -24,7 +24,7 @@ file's SHA-256 equals the hash recorded in `docs/sources/SRC-vibe-coding.md`.
         "chapters": [8]
       },
       "tests": {
-        "kinds": ["propose-tests", "write-tests", "fix-bug"],
+        "kinds": ["propose-tests", "write-tests"],
         "chapters": [13]
       },
       "the architecture": {
@@ -32,7 +32,7 @@ file's SHA-256 equals the hash recorded in `docs/sources/SRC-vibe-coding.md`.
         "chapters": [9, 10, 11, 12]
       },
       "implementation": {
-        "kinds": ["implement"],
+        "kinds": ["implement", "fix-bug"],
         "chapters": [9, 11, 12, 13]
       }
     }
