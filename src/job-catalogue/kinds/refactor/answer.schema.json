@@ -9,14 +9,10 @@
       "items": {
         "type": "string"
       }
-    },
-    "pullRequest": {
-      "type": "string"
     }
   },
   "required": [
     "branch",
-    "commits",
-    "pullRequest"
+    "commits"
   ]
 }

@@ -10,9 +10,6 @@
         "type": "string"
       }
     },
-    "pullRequest": {
-      "type": "string"
-    },
     "tests": {
       "type": "array",
       "items": {
@@ -44,7 +41,6 @@
   "required": [
     "branch",
     "commits",
-    "pullRequest",
     "tests"
   ]
 }

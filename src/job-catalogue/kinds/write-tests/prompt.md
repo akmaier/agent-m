@@ -4,7 +4,10 @@ Write each test exactly as its case says — identifier, level, what it guards, 
 Show each new test failing on a fault you plant, record that counter-proof, and remove the fault; a test you cannot show
 failing is not written — say why in `notWritten`. A test that fails on the current code awaits its implementation;
 report its `outcome` as `failed`. Mock every paid service with the recorded or constructed response its case names.
-Push your branch, open a pull request, and report the `branch`, its `commits`, the `pullRequest`, and each test with its
+Red and green are the product's CI run on the commit you pushed, never a run of your own, which you may make as often as
+you like but which decides nothing. Push your branch, open its pull request, follow its CI and merge it once the
+Definition of Done holds, as the description of where you work says; where that description offers none of this, push
+your branch, and the pull request is opened for you. Report the `branch`, its `commits`, and each test with its
 `outcome` and its `counterProof`.
 
 ## The task as the person gave it
