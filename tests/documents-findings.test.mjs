@@ -706,14 +706,14 @@ test("documentFindings — a key the schema does not list, keys out of order and
   assert.deepEqual(rulesOf(every, RESOURCE_PATH, misplaced), [[4, schema], [5, schema], [13, schema]]);
 });
 
-// TST-2026111003 · level: unit · module: MOD-documents
+// TST-20261111910 · level: unit · module: MOD-documents
 // guards: A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES; A FINDING READS LIKE A COMPILER MESSAGE
 // given: a module file whose front matter provides GameCommands and whose ## Interfaces begins its bullet with the name in bold, `- **GameCommands**`
 // input: documentFindings with the module schema
 // expect: one finding naming GameCommands, its fix showing the bullet to write literally — `- \`GameCommands\`` — and saying that a name in bold does not describe it;
 //   with the bullet `- \`GameCommands\` — the player's intent`, none. Counter-proof: on the fix as it stood, "add to ## Interfaces a bullet that begins with `GameCommands`",
 //   a model read the backticks as formatting, kept the bold name, answered "fixed" and the round ended unchanged (akmaier/AlienInvasion, JOB-20261110-0803-9719).
-test("TST-2026111003: documentFindings — the fix of an undescribed interface shows the bullet to write, backticks and all", () => {
+test("TST-20261111910: documentFindings — the fix of an undescribed interface shows the bullet to write, backticks and all", () => {
   const path = "docs/architecture/MOD-input.md";
   const schema = documents.artifactSchemaOf(path);
   const text = (bullet) => ["---", "id: MOD-input", "title: Input", "folder: src/input", "realises:", "  - UC-001", "follows:", "  - ARC-001", "uses: []", "provides:",

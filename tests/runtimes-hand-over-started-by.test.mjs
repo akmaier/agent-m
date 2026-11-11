@@ -43,12 +43,12 @@ async function withConversation() {
   return run;
 }
 
-// TST-2026114905 · level: unit · module: MOD-runtimes
+// TST-20261111906 · level: unit · module: MOD-runtimes
 // guards: A RUN IS A JOB THAT NAMES ITS JOBS; UC-049
 // given: a head holding the record of the conversation's job JOB-20261016-0900-c0c0; known positive first: a start whose startedBy is the person alice commits the piece's record alone
 // input: handOverJob of a piece whose start's startedBy is JOB-20261016-0900-c0c0, on the CI route, and on a Bridge route
 // expect: one commit each, holding two files — the piece's record, whose started_by is the conversation's job, and the conversation's record, which then reads with one `Job started` part: job the piece's identifier, kind write-tests, works on ITM-495 —; on the CI route the workflow is started after that commit, with the inputs job and task
-test("TST-2026114905: a piece whose start names the conversation's job appends that job's Job started part in the same commit", async () => {
+test("TST-20261111906: a piece whose start names the conversation's job appends that job's Job started part in the same commit", async () => {
   const person = await withConversation();
   await runtimes.handOverJob(preparedOf(), CI_HOSTED, START, person.host, person.head(), TASK, NO_ENDPOINT);
   assert.deepEqual(person.writes[0].files.map((file) => file.path), [`docs/jobs/${START.id}.md`], "known positive: a person's start commits the piece's record alone");
@@ -72,7 +72,7 @@ test("TST-2026114905: a piece whose start names the conversation's job appends t
 
 // TST-2026114906 · level: unit · module: MOD-runtimes
 // guards: A RUN IS A JOB THAT NAMES ITS JOBS
-// given: a head that holds no record of JOB-20261016-0900-c0c0; the known positive of TST-2026114905, whose head holds it
+// given: a head that holds no record of JOB-20261016-0900-c0c0; the known positive of TST-20261111906, whose head holds it
 // input: handOverJob of the piece whose startedBy is JOB-20261016-0900-c0c0, on the CI route
 // expect: rejects with RuntimeError NotFound naming docs/jobs/JOB-20261016-0900-c0c0.md; nothing committed, no workflow started
 test("TST-2026114906: a piece whose start names a job the head does not hold is refused before anything is written", async () => {

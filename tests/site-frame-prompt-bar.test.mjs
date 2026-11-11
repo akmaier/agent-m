@@ -364,14 +364,14 @@ test("TST-2026110822 the bar is handed the products this browser manages, each w
   assert.ok(page.location.hash.startsWith("#draft/subject=") && page.location.hash.endsWith(`/product=${encoded(GADGET)}`), page.location.hash);
 });
 
-// TST-2026111506 · level: unit · module: MOD-site-frame
+// TST-20261111909 · level: unit · module: MOD-site-frame
 // guards: UC-049; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: the route beta (entry tests), whose subject names beta itself as its draft route, as the review pages' route draft does; an endpoint that answers {"answer":"ok"} with an edit; the
 //   fixture's location, whose hash a page writes without a hashchange, as a browser fires none for the fragment it shows
 // input: the review page at #beta: Send "again", press "Review the draft"; then the same with beta's `leave` answering false
 // expect: the fragment stays #beta, and beta is drawn once more after the click than before it; with `leave` false, beta is asked and not drawn again
 // counter-proof: on the code before, startPage's go only wrote location.hash, and beta was not drawn again (red)
-test("TST-2026111506 Review the draft whose route is the one shown draws it again, after asking it with leave", async () => {
+test("TST-20261111909 Review the draft whose route is the one shown draws it again, after asking it with leave", async () => {
   const subject = () => ({ key: "beta", title: "Beta", kind: "converse", entry: null, paramsFor: () => ({ page: "beta page" }), draftRoute: "beta", withhold: null, refuses: [] });
   const drawnBeta = () => rendered.filter((each) => each.name === "beta").length;
   const page = await start({ fragment: "#beta", views: [route("beta", "tests", { subject })] });

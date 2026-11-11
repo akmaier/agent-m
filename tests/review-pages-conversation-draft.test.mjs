@@ -308,12 +308,12 @@ test("TST-2026110910: draft — each drafted text of requirements opens in the e
   assert.equal(written(fake).length, 0);
 });
 
-// TST-2026110911 · level: component · module: MOD-review-pages
+// TST-20261111918 · level: component · module: MOD-review-pages
 // guards: UC-019 step 9; A SPEC EDIT IS SAVED AS A PROPOSAL; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: the draft of TST-2026110910
 // input: a click on Save
 // expect: one commit, an entry of the queue lending whose proposal is the drafted section byte for byte, SPEC.md byte-identical; its rationale's Why the draft's why; the message holds Agent-M-Kind: change-requirements, Agent-M-Participant: drafter-a, Agent-M-Rounds: 1 and no line with the instruction; the page links the commit; the draft is dropped
-test("TST-2026110911: draft — Save writes the drafted section as an entry of its queue, with the provenance lines", async () => {
+test("TST-20261111918: draft — Save writes the drafted section as an entry of its queue, with the provenance lines", async () => {
   const fake = fakeProduct();
   const shown = await showRequirements(fake);
   const { target } = shown;
@@ -332,12 +332,12 @@ test("TST-2026110911: draft — Save writes the drafted section as an entry of i
   await assertDropped(shown, REQUIREMENTS_KEY);
 });
 
-// TST-2026110912 · level: component · module: MOD-review-pages
+// TST-20261111919 · level: component · module: MOD-review-pages
 // guards: UC-019 9a; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: the draft drawn; then the section 1. Lending changes on the default branch; and, apart, a draft whose job read an older section (its version the blob of "an older section")
 // input: a click on Save in each
 // expect: nothing written in either; the section as it stands now is beside the draft (<div class="newer"> naming the change), and the editor still holds the draft
-test("TST-2026110912: draft — a section changed meanwhile refuses the save, and the draft stays", async () => {
+test("TST-20261111919: draft — a section changed meanwhile refuses the save, and the draft stays", async () => {
   const fake = fakeProduct();
   const { target } = await showRequirements(fake);
   fake.land({ "SPEC.md": SPEC.replace("Every book stands on a shelf.", "Every book stands on a shelf, tidily.") });
@@ -352,12 +352,12 @@ test("TST-2026110912: draft — a section changed meanwhile refuses the save, an
   assert.equal(written(older).length, 0, "nothing written");
 });
 
-// TST-2026110913 · level: component · module: MOD-review-pages
+// TST-20261111920 · level: component · module: MOD-review-pages
 // guards: UC-019 8c; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the draft of requirements in the page
 // input: a click on Discard
 // expect: the editors are gone and the page says the draft was discarded; nothing written; the draft is dropped
-test("TST-2026110913: draft — Discard drops the requirements and writes nothing", async () => {
+test("TST-20261111920: draft — Discard drops the requirements and writes nothing", async () => {
   const fake = fakeProduct();
   const shown = await showRequirements(fake);
   const { target } = shown;

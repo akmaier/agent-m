@@ -424,7 +424,7 @@ test("writeResult — on a main that moved, the commits are picked onto it and t
   });
 });
 
-// TST-2026111007 · level: unit · module: MOD-workflow-entries
+// TST-20261111914 · level: unit · module: MOD-workflow-entries
 // guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: the same run, and someone pushes a commit to the origin's main that writes the gate file the writer writes too, while the agent works
 // input: onRecordsChanged and leaveResult on the agent's machine, the other commit, writeResult

@@ -234,12 +234,12 @@ test("acceptEntries — entries 05 and 06, 06's anchor created by 05, are accept
   assert.equal((await fake.snapshot(read).read("SPEC.md")), SPEC, "the replaced text stands in the head that was read");
 });
 
-// TST-472960 · level: unit · module: MOD-spec-changes
+// TST-20261111922 · level: unit · module: MOD-spec-changes
 // guards: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; STATUS IS DERIVED FROM THE RECORDS; UC-006
 // given: the product above, whose queue has no decisions file — a queue drafted by hand, not by proposing
 // input: acceptEntries(host, [06 shown, 05 shown], "alice", now, sources)
 // expect: the decisions file is written with its title `# Decisions — queue 2026-03-01_sample Reading` and the line `Append-only.`, then 05's row and 06's, so that queue-decisions.schema.md reads it and the two entries count as in the SPEC. Counter-proof: on the code as it stood, the file held the two rows alone, which the schema does not read, and the accepted entries showed as approved or stale and were offered again (akmaier/agent-m, queues runtimes, requirements and three more, 2026-11-09).
-test("TST-472960: acceptEntries writes a queue's missing decisions file with its title", async () => {
+test("TST-20261111922: acceptEntries writes a queue's missing decisions file with its title", async () => {
   const files = productFiles({ entries: [E05, E06] });
   delete files[`${QUEUE}/entscheidungen.md`];
   const fake = fakeHost({ files });

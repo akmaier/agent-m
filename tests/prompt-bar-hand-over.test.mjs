@@ -1187,7 +1187,7 @@ const MOVES_LOG = (id) => ["Agent M jobs on hosted", `2026-10-16T12:18:00.000000
   ...JSON.stringify({ moves: MOVES }, null, 2).split("\n").map((line) => `2026-10-16T12:18:00.0000000Z ${line}`), `2026-10-16T12:18:00.0000000Z --- end of the answer of ${id} ---`, ""].join("\n");
 const RUN_8 = "https://github.com/alice/thesis-tool/actions/runs/8";
 
-// TST-2026110901 · level: component · module: MOD-prompt-bar
+// TST-20261111901 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-021; A REGROUPING IS COMMITTED DIRECTLY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the page of TST-1200002, nvidia chosen; Spawn job with the message TASK, whose job — the endpoint's own — ends done listing `handed over: propose-groups — <piece>`; the
 //   piece's record — kind propose-groups, participant nvidia, route ci hosted, its task with the hand-over, its parameters { useCases: [UC-001, UC-002], kind: "use-cases",

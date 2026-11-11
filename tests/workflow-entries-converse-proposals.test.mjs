@@ -441,7 +441,7 @@ test("TST-8048007: a piece of a kind that takes no instruction is not handed ove
   });
 });
 
-// TST-2026111002 · level: component · module: MOD-runtimes · MOD-workflow-entries
+// TST-20261111912 · level: component · module: MOD-runtimes · MOD-workflow-entries
 // guards: UC-049; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: a hosted converse job whose endpoint answers the conversation in its first round with the plan [{ implement, works_on [], "build the ship selection" }] — an
 //   implementation that names no step, item or module —, and in every later round with the answer alone
@@ -450,7 +450,7 @@ test("TST-8048007: a piece of a kind that takes no instruction is not handed ove
 //   the implementation's refusal "an implementation job names the steps, the items or the modules it implements"; the end lists no `not run: implement`, and the job workflow
 //   is not started. Counter-proof: on the check as it stood, the prompt was sent once and the end said `not run: implement — an implementation job names the steps…` — the
 //   model never read why (akmaier/AlienInvasion, JOB-20261110-0752-df6b).
-test("TST-2026111002: a piece whose job could not start goes back to the conversation's participant in its round", async () => {
+test("TST-20261111912: a piece whose job could not start goes back to the conversation's participant in its round", async () => {
   await withWorkspace({}, async (w) => {
     const world = fakeWorld({ converse: [answer({ kind: "implement", works_on: [], task: "build the ship selection" }), answer(null)] }, w);
     const status = await run(w);

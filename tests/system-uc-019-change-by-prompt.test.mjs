@@ -78,7 +78,7 @@ const FLOW_EVIDENCE = {
   },
   "main-9-entries-with-places": {
     uc: "each changed section is written as an entry of its queue, with the places of its new requirements beside it (UC-005, step 8), and each changed proposal is saved in its entry (UC-018 1a); the SPEC and `docs/groups/requirements.md` stay unchanged",
-    evidence: [[DRAFT, "TST-2026110911"], [RELEASE_REQUIREMENTS, "TST-418128"]],
+    evidence: [[DRAFT, "TST-20261111918"], [RELEASE_REQUIREMENTS, "TST-418128"]],
   },
   "6b-entries-with-places-no-group-file": {
     uc: "each changed section as an entry of its queue with its places and each changed proposal in its entry; `SPEC.md` and `docs/groups/requirements.md` are not touched",
