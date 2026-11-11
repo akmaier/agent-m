@@ -5,8 +5,8 @@
 // and routesFor (routes.mjs): the routes a participant offers, with the reason of each that cannot be taken. ITM-322 builds
 // jobWorkflowFiles (ci.mjs) with the templates workflow/github.yml and workflow/gitlab.yml. bridgeAgentDriver
 // is not part of
-// this item (UC-010, UC-011, UC-036) and is not built yet; nor is a job of a run
-// (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
+// this item (UC-010, UC-011, UC-036) and is not built yet. A job of a run (start.run) appends the run's `Job started` part in the commit of its start
+// (startedParts, ci.mjs; MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 // ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
 // ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; ITM-973 builds retryJob (retry.mjs).
 // ITM-567 builds routeStrategies: the writer branch-and-pull-request (pull-request.mjs), beside which stands the check plan-works-on (hand-over.mjs). ITM-790 builds resumeJob. ITM-1280 builds liveStates: one listing of a repository's job workflow runs for all its records.
@@ -19,7 +19,7 @@
 import { appendToRecord } from "../job-ledger/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { gateSchema } from "../product-process/index.mjs";
-import { cancelRun, jobWorkflowRuns, queueOnCi, runOfAddress } from "./ci.mjs";
+import { cancelRun, jobWorkflowRuns, queueOnCi, runOfAddress, startedParts } from "./ci.mjs";
 import { abortOnTab, browserStore, dropOnTab, endOnTab, heldOnTab, queueOnTab, requireWaitingOnTab, tookOnTab } from "./tab.mjs";
 import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, handOverAgain, listedOnBridge, queueOnBridge } from "./bridge.mjs";
@@ -61,9 +61,12 @@ export { RuntimeError } from "./ci.mjs";
  * @returns {Promise<{ path: string, commit: string }>}
  */
 export async function queueJob(host, start, route, head, bridge) {
-  if (route.kind === "ci") return queueOnCi(host, start, head, browserStore());
-  if (route.kind === "tab") return queueOnTab(host, start, head);
-  if (route.kind === "bridge") return queueOnBridge(host, start, head, bridge);
+  if (!["ci", "tab", "bridge"].includes(route.kind)) throw new Error(`queueJob: the "${route.kind}" route is not built yet (UC-010, UC-011)`);
+  // A job of a run (`start.run`): the same commit appends the run's `Job started` part (MOD-job-ledger's appendToRecord), so that two starts of one job cannot both land.
+  const also = await startedParts(host, start, head);
+  if (route.kind === "ci") return queueOnCi(host, start, head, browserStore(), also);
+  if (route.kind === "tab") return queueOnTab(host, start, head, also);
+  if (route.kind === "bridge") return queueOnBridge(host, start, head, bridge, undefined, also);
   throw new Error(`queueJob: the "${route.kind}" route is not built yet (UC-010, UC-011)`);
 }
 
