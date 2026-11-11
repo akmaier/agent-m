@@ -277,24 +277,26 @@ test("TST-585314: UC-012 the change drafted from an issue is given the section o
 // ---------------------------------------------------------------- a changed text against the text it replaces
 
 // TST-585310 · level: release · module: system
-// guards: UC-012; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-012; A CHANGE IS PROPOSED UNDER THE EXISTING NAME
 // given: the open issue 5, confirmed as a change; the participant drafts the new text of the section "1. Section", in which FIRST RULE's rule is "The first rule holds for every page of an export."
 // input: the author drafts the change and saves it
-// expect: the page shows the one changed text, the section "## 1. Section", with its difference against the current section — "The first rule holds." removed, the new rule added —, the draft's why, and no class of a candidate; the saved entry proposes the new rule under the name FIRST RULE and adds no requirement of another name
-test("TST-585310: UC-012 a changed section is shown against its current text and proposed under the requirement's name", async () => {
+// expect: the page offers Save and shows no comparison of its own and no class of a candidate; the saved entry proposes the new rule under the name FIRST RULE, adds no requirement of another name, its rationale holds the draft's why, and the page links the entry to its page on the route spec-entry, where it is accepted
+test("TST-585310: UC-012 a changed section is saved as an entry under the requirement's name, linked to the page where it is accepted", async () => {
   const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: CHANGED });
   const detail = await drafted(await confirmed(w, "change"));
-  const texts = byClass(changeOf(detail), "changed-text");
-  assert.equal(texts.length, 1, "one changed text");
-  assert.ok(textOf(texts[0]).startsWith("## 1. Section"), `the changed text is the section, by its heading: ${textOf(texts[0])}`);
-  assert.ok(textOf(texts[0]).includes("- The first rule holds.") && textOf(texts[0]).includes(`+ ${CHANGED_RULE}`), `the difference against the current section: ${textOf(texts[0])}`);
-  assert.match(textOf(one(changeOf(detail), "change-why")), /The first rule says nothing about page counts\./);
+  assert.ok(buttonsOf(changeOf(detail), "Save")[0], "known positive: the drafted change offers Save");
+  assert.equal(byClass(changeOf(detail), "changed-text").length, 0, "the issue page shows no comparison of its own");
   assert.equal(byClass(changeOf(detail), "candidate").length, 0, "no candidate with a class");
   await saved(detail);
   const entry = queueFiles(w).find((file) => /\/\d\d-[^/]*\.md$/.test(file.path) && !file.path.endsWith(".begruendung.md"));
   assert.ok(entry, `an entry is written: ${queueFiles(w).map((file) => file.path)}`);
   assert.ok(entry.content.includes("**FIRST RULE**") && entry.content.includes(CHANGED_RULE), entry.content);
   assert.deepEqual([...entry.content.matchAll(/^\*\*([A-Z][A-Z' ,-]+)\*\*/gm)].map((match) => match[1]).filter((name) => !["FIRST RULE", "SECOND RULE"].includes(name)), [], "no requirement of another name");
+  const rationale = queueFiles(w).find((file) => file.path.endsWith(".begruendung.md"));
+  assert.ok(rationale && rationale.content.includes("The first rule says nothing about page counts."), `the rationale holds the draft's why: ${rationale?.content}`);
+  const [, queue, number] = /^docs\/spec-freigaben\/([^/]+)\/(\d\d)-/.exec(entry.path);
+  const links = byClass(changeOf(detail), "change-entry").map((link) => link.getAttribute("href"));
+  assert.deepEqual(links, [`#spec-entry/id=${encodeURIComponent(`spec-${queue}-${number}`)}/product=${encodeURIComponent(PRODUCT_URL)}`], "the entry is linked to its page");
 });
 
 // ---------------------------------------------------------------- one click per decision

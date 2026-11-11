@@ -75,7 +75,11 @@ test("TST-804201: UC-033 every flow has a system test that walks it", () => {
 
 const AS_BUG = { class: "bug", reasoning: "FIRST RULE holds, and the code breaks it: the export drops pages.", wrong: ["src/store/read.mjs"] };
 const AS_CHANGE = { class: "change", reasoning: "The SPEC says nothing about page counts: a requirement is missing." };
-const NEW = { name: "EVERY EXPORT KEEPS ALL PAGES", rule: "An export holds every page of the document.", check: "tests/unit.test.mjs", constrains: "product", passage: "cut off after the second page", class: "new" };
+const NEW = { name: "EVERY EXPORT KEEPS ALL PAGES", rule: "An export holds every page of the document.", check: "tests/unit.test.mjs" };
+// The participant's draft of the change (the kind change-requirements: the new text of each section it changes, with why): the section "1. Section" with NEW added, naming the person's account.
+const CHANGE = { sections: [`${["## 1. Section", "", ["**FIRST RULE** *(Product Owner)*", "The first rule holds.", "*Check:* `tests/unit.test.mjs`"].join("\n"),
+  ["**SECOND RULE** *(Product Owner)*", "The second rule holds.", "*Check:* no automatic check; at review."].join("\n"),
+  [`**${NEW.name}** *(github.com/alice)*`, NEW.rule, `*Check:* \`${NEW.check}\``].join("\n")].join("\n\n")}\n`], why: "An export is cut off after the second page." };
 const LINK = (path) => `${PRODUCT_URL}/blob/main/${path}`;
 const NOTE = (id, path) => `Backlog item \`${id}\` added: ${LINK(path)}`;
 const idOf = (entry) => /^docs\/backlog\/(ITM-\d{3,})-/.exec(entry.path)[1];
@@ -146,7 +150,7 @@ test("TST-804202: UC-033 a confirmed bug is moved into the backlog with one Add,
 // expect: the form is prefilled with realises EVERY EXPORT KEEPS ALL PAGES, the entry of the queue that names issue 5, and not SECOND RULE, which the queue of issue 6 changes, and with origin the issue's address; Add writes the item file alone, SPEC.md and the queues unchanged by it; the item is waiting for acceptance, the reason names EVERY EXPORT KEEPS ALL PAGES, and no job can start for it, the reason naming it; once the product has accepted EVERY EXPORT KEEPS ALL PAGES the same item is ready, by itself, and nothing of its file changed
 test("TST-804203: UC-033 a change is moved into the backlog with the requirements its queue changes, waits for their acceptance, and is ready by itself once they are accepted", async () => {
   const other = queueOf("2026-10-20c_other-issue", 6, [{ name: "FIRST RULE", text: "The first rule holds." }, { name: "SECOND RULE", text: "The second rule holds on every page." }]);
-  const w = startWorld({ analysis: AS_CHANGE, change: { candidates: [NEW] }, product: other });
+  const w = startWorld({ analysis: AS_CHANGE, change: CHANGE, product: other });
   const detail = await analysed(await openIssue(w, 5));
   await decided(detail, "change");
   await saved(await drafted(detail));
