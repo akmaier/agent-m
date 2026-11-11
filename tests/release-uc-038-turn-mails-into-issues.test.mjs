@@ -62,7 +62,7 @@ const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 test("TST-965201: UC-038 release coverage names every automatic requirement and the system tests walk every flow", () => {
   const realised = ucRealises();
   const checks = specChecks();
-  assert.equal(realised.length, 28, "known positive: the use case realises twenty-eight requirements");
+  assert.equal(realised.length, 30, "known positive: the use case realises thirty requirements");
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
   const reviewOnly = realised.filter((name) => /^no automatic check; at review/.test(checks.get(name) ?? ""));
   assert.deepEqual(REVIEW_ONLY.toSorted(), reviewOnly.toSorted());
