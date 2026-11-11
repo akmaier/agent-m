@@ -65,8 +65,10 @@ value).
 `ProgramFiles(x86)`, `ProgramW6432`, `ProgramData`, `CommonProgramFiles`; set: `HOME` and the XDG folders below the home
 (on Windows `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `HOMEDRIVE`, `HOMEPATH`), `TMPDIR` (on Windows `TEMP` and `TMP`) in
 the home, `GIT_TERMINAL_PROMPT=0`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
-from the computer's git configuration (`user.name`, `user.email`), where it names them, and every variable `kept.json`
-of the home keeps — Claude Code's `CLAUDE_CODE_OAUTH_TOKEN` on macOS.
+from the computer's git configuration (`user.name`, `user.email`), where it names them, on macOS `SSL_CERT_FILE` naming
+the system's certificate bundle `/etc/ssl/cert.pem` — the keychain's services are refused, and a program that asks them for
+the trusted roots, as Codex does, then trusts no server; the bundle holds the same roots without the keychain —, and every
+variable `kept.json` of the home keeps — Claude Code's `CLAUDE_CODE_OAUTH_TOKEN` on macOS.
 
 **The Windows account**: `agentm-` followed by the first twelve hexadecimal digits of the SHA-256 of the Bridge's data
 folder's path — twenty characters, the most a local account's name may have, one account per Bridge of an instance —,
