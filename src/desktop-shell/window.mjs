@@ -70,6 +70,8 @@ function agentState(agent, enclosed) {
 async function agents(target, context) {
   const state = await window.bridge.state("agents"), selected = new Map((state.selected ?? []).map((agent) => [agent.name, agent]));
   const result = made("div", ""), rows = [], panels = [], missing = [];
+  // Reading the installed agents anew: what Check again and an agent's Check result both do.
+  const readAgain = () => agents(target, context);
   // The one folder that holds the working folder of each ticked agent, <folder>/<agent>, which the Bridge makes (UC-044 step 3).
   const folder = field("Folder of the agents' working folders ", state.folder ?? "");
   folder.input.size = 48;
@@ -95,8 +97,10 @@ async function agents(target, context) {
       panel.append(made("p", "", `Not enclosed: ${enclosed.reason}. One-time step: ${enclosed.setup}. `,
         button("Set up", async () => { const done = await window.bridge.state("enclosure-setup", { name: agent.name }); result.textContent = done.done ? "Set up." : `Not set up: ${done.reason}`; }, "small")));
     } else if (enclosed && !enclosed.loggedIn) {
+      // Beside its login step, Check result reads the agents anew as Check again does, so that the login's result is checked where it was started.
       panel.append(made("p", "", "Not logged in in its enclosure. ",
-        button("Log in", async () => { await window.bridge.state("agent-login", { name: agent.name }); result.textContent = `A terminal runs ${agent.name}'s own login step; press Check again when it is done.`; }, "small")));
+        button("Log in", async () => { await window.bridge.state("agent-login", { name: agent.name }); result.textContent = `A terminal runs ${agent.name}'s own login step; press Check result when it is done.`; }, "small"),
+        button("Check result", readAgain, "small")));
     } else if (enclosed) panel.append(made("p", "muted small", "Enclosed and logged in."));
     // Its declaration as a connection (UC-044 step 5): the place where it processes data, this machine preset; its capabilities, every one preset; each model it can
     // run with its context in tokens, one per line as `<model> <context>`.
@@ -129,7 +133,7 @@ async function agents(target, context) {
   }, "primary");
   checkedOut(result, state.checkout);
   // Check again reads the installed agents anew, so that one installed meanwhile is listed without the Bridge restarting (UC-044 3a).
-  const again = button("Check again", () => agents(target, context));
+  const again = button("Check again", readAgain);
   target.replaceChildren(made("h1", "", "Bridge agents"), navigation(context), explain("bridge-own-login"), place, ...panels, ...absent, made("p", "", save, again), result);
 }
 // The Jobs view (UC-044 step 6; THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE): the jobs this Bridge took, and the console of the one chosen — by default the one running, else the one
