@@ -1,6 +1,5 @@
 // MOD-personal-data — the recipe `report-data` and the check `people-search`, offered to the job runner as `Strategies`.
 
-import { eligible } from "../participant-list/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { personHits } from "./people.mjs";
 
@@ -16,7 +15,7 @@ const PLACES = "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED";
 async function reportData(context, params) {
   const { participant, pieces } = params;
   const allowed = context.places?.mailbox ?? null;
-  if (allowed && participant && eligible([participant], { capabilities: [], places: [{ from: "the mailbox", allowed }] }).leftOut.length) {
+  if (allowed && participant && !allowed.includes(participant.place)) {
     throw Object.assign(new Error(`${participant.name} processes at ${participant.place}, which the mailbox does not allow (${allowed.join(", ")}); ${PLACES}`),
       { name: "PlaceNotAllowed", participant: participant.name, place: participant.place, allowed });
   }
