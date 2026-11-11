@@ -74,12 +74,25 @@ function stoppedAt(body, error) {
 // character where reading stopped, the text just before it and the text found there.
 function whereReadingStopped(body, error) {
   const at = stoppedAt(body, error);
-  if (at < body.length) return `reading stopped at character ${at + 1} of ${body.length}, after «${body.slice(Math.max(0, at - 40), at)}», at «${body.slice(at, at + 40)}»`;
+  if (at < body.length) {
+    const expected = /^Expected (.+?) (?:after|in) /.exec(String(error?.message))?.[1];
+    const open = openContainers(body.slice(0, at)).at(-1);
+    return `reading stopped at character ${at + 1} of ${body.length}, after «${body.slice(Math.max(0, at - 40), at)}», at «${body.slice(at, at + 40)}»`
+      + (expected ? `, where ${expected} was expected` : "")
+      + (open && !open.list && open.last ? `; ${containerName(open)}, opened at character ${open.at + 1}, is not closed there, and \`${open.last}\` is the last key it holds` : "");
+  }
   const innermost = openContainers(body).at(-1);
-  const what = !innermost ? "" : innermost.key === null ? `the ${innermost.list ? "outermost list" : "outermost object"}` : `the ${innermost.list ? "list" : "object"} of \`${innermost.key}\``;
+  const what = innermost ? containerName(innermost) : "";
   const named = innermost ? `; ${what}, opened at character ${innermost.at + 1}, is never closed`
     + (innermost.last ? `, and \`${innermost.last}\` is the last key it holds — a key written after \`${innermost.last}\`'s value and meant beside it stands inside it` : "") : "";
   return `the text, ${body.length} characters long, ends before its object is closed${named}: close each object and list it opens, in order`;
+}
+
+// How a finding names an object or list that is still open: by the key whose value it is, by the list of a key it stands in, or as the outermost one.
+function containerName({ list, key, inList }) {
+  const kind = list ? "list" : "object";
+  if (key !== null) return `the ${kind} of \`${key}\``;
+  return inList !== null ? `the ${kind} in the list of \`${inList}\`` : `the outermost ${kind}`;
 }
 
 // The objects and lists still open at the end of a text, outermost first, each with the key whose value it is, where it opens, and the last key it holds.
@@ -96,7 +109,10 @@ function openContainers(body) {
     }
     if (ch === '"') { inString = true; text = ""; }
     else if (ch === ":" && stack.length) stack.at(-1).last = lastString;
-    else if (ch === "{" || ch === "[") stack.push({ list: ch === "[", at, key: stack.length && !stack.at(-1).list ? stack.at(-1).last ?? null : null, last: null });
+    else if (ch === "{" || ch === "[") {
+      const parent = stack.at(-1);
+      stack.push({ list: ch === "[", at, key: parent && !parent.list ? parent.last ?? null : null, inList: parent?.list ? parent.key : null, last: null });
+    }
     else if (ch === "}" || ch === "]") stack.pop();
   }
   return stack;

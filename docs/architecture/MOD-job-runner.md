@@ -194,7 +194,8 @@ answer:1: error: the answer cannot be read: it is not JSON [A DRAFT THAT FAILS A
 Of an answer that is not empty, `it is not JSON` goes on with where its reading stopped: at its end, that the text — its
 length named — ends before its object is closed, with the innermost object or list still open: the key whose value it is,
 or the outermost one, the character it opens at and the last key it holds; elsewhere, the character, counted from 1, the
-text just before it and the text found there. Where JSON.parse names no position — an unexpected token, of which it quotes
+text just before it, the text found there, what JSON.parse expected there where it names it, and the object still open
+there — the key whose value it is or the list of a key it stands in, the character it opens at and its last key. Where JSON.parse names no position — an unexpected token, of which it quotes
 only the characters around it —, the character is found from that quote.
 
 A reviewing kind's draft is a list of findings, each with `artifact`, `line`, `rule`, `what` and `fix`; the runner reads

@@ -77,3 +77,18 @@ test("TST-2026111503: an unexpected token is named at its own character, not as 
   const [shortBad] = await findingsOf('{"draft": x}');
   assert.match(shortBad, /at character 11 of 12\b/);
 });
+
+// TST-2026111504 · level: unit · module: MOD-job-runner
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: a drafter whose last object in a list is not closed before the list closes: its last value is followed by "]"
+// input: runJob attended, limit 1
+// expect: the finding names what JSON.parse expected where it stopped — ',' or '}' — and the object still open there: the list it stands in, the character it
+//   opens at and its last key. Counter-proof: the finding named only the character and the text around it, and Nemotron left the last edit's object open in
+//   the same way in four rounds running (akmaier/AlienInvasion, 2026-11-11).
+test("TST-2026111504: where reading stopped, the finding names what was expected and the object still open there", async () => {
+  const body = '{"draft": {"edits": [{"path": "a.md", "text": "x"}, {"path": "b.md", "text": "y"\n  ]}, "answers": []}';
+  const [one] = await findingsOf(body);
+  assert.match(one, /where ',' or '}' was expected/);
+  assert.match(one, new RegExp(`the object in the list of \`edits\`, opened at character ${body.indexOf('{"path": "b.md"') + 1}, is not closed`));
+  assert.match(one, /`text` is the last key it holds/);
+});
