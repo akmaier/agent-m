@@ -4,13 +4,16 @@
 // Module: MOD-mail-protocols
 
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { mailId } from "../mail-records/index.mjs";
 import { sha256 } from "../text-tools/index.mjs";
 
 const requireBridgePackage = createRequire(new URL("../bridge-build/package.json", import.meta.url));
 const { ImapFlow } = requireBridgePackage("imapflow");
 const PostalMime = requireBridgePackage("postal-mime").default;
-const { htmlToText } = requireBridgePackage(new URL("../bridge-build/node_modules/postal-mime/dist/cjs/text-format.js", import.meta.url).pathname);
+// postal-mime's own text of an HTML part, from the folder the package resolves to — src/bridge-build/node_modules in the source folder, the app's own
+// node_modules in the packaged Bridge, which carries no src/bridge-build (MOD-bridge-build, What the app carries).
+const { htmlToText } = requireBridgePackage(join(dirname(requireBridgePackage.resolve("postal-mime/package.json")), "dist", "cjs", "text-format.js"));
 
 export const STARTTLS = "starttls";
 export const TLS = "tls";

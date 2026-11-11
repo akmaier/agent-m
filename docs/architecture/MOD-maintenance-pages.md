@@ -88,9 +88,10 @@ provides:
 
 ## Responsibility
 
-It belongs to the Site (ARC-038). Its one responsibility is the menu entry Maintenance: a product's issues — their
-analysis as bug, change or not reproducible, the confirmed class, the fix, the change through the SPEC, the move into the
-backlog —; mail read into issues; and the replies to the mails of an issue, with the questions to reporters. Everything a
+It belongs to the Site (ARC-038). Its one responsibility is the menu entry Maintenance, on two tabs: **Mail** — mail
+read into issues, and the replies to the mails of an issue, with the questions to reporters —, and **Issues** — a
+product's issues, open and closed: their analysis as bug, change or not reproducible, the confirmed class, the fix, the
+change through the SPEC, the move into the backlog. Everything a
 mail contains stays in the mailbox and on this page; what is written to an issue passes Issues and mail's search for the
 mail's people first, and every outgoing mail is sent only on the person's click on the complete mail shown.
 
@@ -103,6 +104,9 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
 - `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
   strategies, only when a job is prepared (`loadStrategies`).
+- `tabs.mjs` — the strip of the entry's two tabs, which every route draws at its head: **Mail**, leading to `mail`, and
+  **Issues**, leading to `issues`, the tab the route stands under marked as the current one; two links in the look's
+  styles, with no style of its own.
 - `issues.mjs` — issues, their analysis, class, fix, change and move into the backlog.
 - `mail.mjs` — reading mail into issues.
 - `replies.mjs` — replies to answer, answers received, drafts, sending, asking a reporter.
@@ -114,7 +118,9 @@ person reviews it. Its formats are those of the modules it uses.
 
 ## Interfaces
 
-- `view: View` — its routes, and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
+- `view: View` — its routes, in the order of the tabs, so that the entry opens on Mail, the first of its routes
+  (MOD-site-frame's `startPage`): under **Mail**, `mail`, `replies` and `replies/<issue>`; under **Issues**, `issues` and
+  `issue/<number>`; and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
   `privacyStrategies`, `specStrategies`, `routeStrategies`:
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
@@ -125,13 +131,18 @@ person reviews it. Its formats are those of the modules it uses.
     instance's snapshot, or, where it gives none, what its precondition names as required —; *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
     `moveToBacklog`, or names the comment to copy
-    when the token may not comment; closing an issue with links once its pull request is merged. The list reads the open
-    issues without their comments (`listIssues` with `comments: false`); `issue/<number>` and `replies/<issue>` read
-    their one issue with `readIssue`.
-  - `mail` — the mailbox read when the page is drawn and again every five minutes while it stays drawn, never while a
+    when the token may not comment; closing an issue with links once its pull request is merged; for an issue that lists
+    mails, each of its mails named by its identifier (`listedMailIds`), as a link to `mail/<id>`. The list reads the
+    product's open and closed issues without their comments (`listIssues` with `state: "all"` and `comments: false`),
+    each with its state; `issue/<number>` and `replies/<issue>` read their one issue with `readIssue`.
+  - `mail`, `mail/<id>` — the mailbox read when the page is drawn and again every five minutes while it stays drawn, never while a
     reading runs. An inbox list in this browser only, the newest first, one line per mail with sender, subject and date:
     the proposable mails in bold, the attached and decided ones not, each of these with its issue or its mark *not an
-    issue*. The mail clicked shows its details beside the list on a wide screen, and in place of the list, with a way
+    issue*; each mail that `repliesDue`, read with each reading, gives under `toAnswer` with `noted` false marked *to
+    answer*, its details offering *Answer*, which opens `replies/<issue>` of its issue; and a link *Replies* to
+    `replies`. With `<id>`, a `MAIL-` identifier, the mail of that identifier is opened — the one of the list, or else
+    the one the mailbox's `find` gives, a mail older than 30 days among them — as a mail clicked; one the mailbox does
+    not hold is shown as *not found in the mailbox*. The mail clicked shows its details beside the list on a wide screen, and in place of the list, with a way
     back to it, on a narrow one: the mail in full and, for a proposable mail, its proposal, its text editable, every hit
     of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*; after an issue of the kind *change* is created,
     *Propose SPEC change*, which puts the request to change the requirements as that issue asks into the prompt bar
@@ -199,8 +210,8 @@ instance's participants.
   and the product's resources; MOD-documents.readDocument — the product's `docs/settings.md`, with `settingsSchemas`;
   MOD-resource-list.resourceSchema, MOD-resource-list.reachableBy — the routes that reach the product's resources, for
   the route of `fix-bug`.
-- MOD-mail-routes.mailbox, MOD-mail-routes.signIn — the mailbox, and signing in again when the provider's sign-in has
-  expired.
+- MOD-mail-routes.mailbox, MOD-mail-routes.signIn — the mailbox, a mail found in it by its identifier (`find`), and
+  signing in again when the provider's sign-in has expired.
 - MOD-mail-records.listedMailIds, MOD-mail-records.notesOf, MOD-mail-records.noteText — an issue's mails, its notes, and
   the text of a note offered again.
 - MOD-personal-data.peopleIn — the people of a mail `repliesDue` gives, which carries none;
