@@ -126,3 +126,29 @@ test("TST-367003: desktop composition starts, pauses, resumes and quits Bridge j
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// TST-2026111506 · level: component · module: MOD-desktop-shell
+// guards: UC-044; A PRODUCT THAT CANNOT BE READ IS SKIPPED WITH ITS REASON (MOD-bridge-jobs)
+// given: the Bridge's job runtime created as compose creates it, with no onSkipped of its own
+// input: the watcher skips a served product with a reason
+// expect: the reason reaches the Bridge's error output, naming the product. Counter-proof: compose created the runtime without onSkipped, the watcher's skip
+//   called nothing, and a handed-over implement job stayed queued for forty minutes with no trace of why (akmaier/AlienInvasion, JOB-20261111-0634-3568).
+test("TST-2026111506: a product the watcher skips is reported with its reason", async () => {
+  const root = mkdtempSync(join(tmpdir(), "agent-m-skip-"));
+  const said = [], error = console.error;
+  try {
+    const mod = await desktopShellModule(root);
+    let config = null;
+    const runtime = mod.createBridgeJobRuntime(settings, { instance: "https://github.com/acme/agent-m", paused: () => false,
+      startWatching: (given) => { config = given; }, stopWatching: async () => {} });
+    runtime.start();
+    assert.equal(typeof config?.onSkipped, "function", "failure node: the watch configuration carries a reporter for skipped products");
+    console.error = (...args) => said.push(args.join(" "));
+    config.onSkipped({ product: "https://github.com/acme/product-a", reason: "the participant list cannot be read" });
+    console.error = error;
+    assert.ok(said.some((line) => line.includes("https://github.com/acme/product-a") && line.includes("the participant list cannot be read")), said.join("\n"));
+  } finally {
+    console.error = error;
+    rmSync(root, { recursive: true, force: true });
+  }
+});

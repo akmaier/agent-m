@@ -68,7 +68,10 @@ export function composeWatchConfig(settings, instance, onSkipped) {
   };
 }
 
-export function createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching, onSkipped, enclosures = null }) {
+// A served product the watcher skips is reported with its reason on the Bridge's error output, where nothing else is told of it.
+const reportSkipped = ({ product, reason }) => console.error(`Bridge: ${product} is skipped until the next interval: ${reason}`);
+
+export function createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching, onSkipped = reportSkipped, enclosures = null }) {
   const config = { ...composeWatchConfig(settings, instance, onSkipped), ...(enclosures ? { enclosures } : {}) };
   let watching = false;
   const start = () => {
