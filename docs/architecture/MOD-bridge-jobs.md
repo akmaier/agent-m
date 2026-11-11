@@ -10,6 +10,8 @@ uses:
   - MOD-agent-enclosure.AgentEnclosure
   - MOD-agent-processes.Enclosure
   - MOD-repository-hosts.PullRequest
+  - MOD-repository-hosts.PullRequestFacts
+  - MOD-repository-hosts.CiRun
   - MOD-repository-hosts.HostError
   - MOD-bridge-http.bridgeApi
   - MOD-bridge-http.BridgeHandlers
@@ -44,7 +46,9 @@ uses:
   - MOD-job-ledger.jobCost
   - MOD-progress-measures.productFacts
   - MOD-runtimes.queueJob
+  - MOD-runtimes.routeStrategies
   - MOD-product-process.declarationSchema
+  - MOD-product-process.productWorkflow
   - MOD-product-process.gateStates
   - MOD-work-plans.sprintFacts
   - MOD-work-plans.sprintsToClose
@@ -71,7 +75,9 @@ the same job runner, catalogue and ledger as the page and CI, and the agent's ow
 USES THE PERSON'S OWN LOGIN`). Every process of an agent it starts runs in that agent's enclosure (ARC-054); the
 repositories are reached only by the Bridge, outside it, with the repository tokens the paired browser handed it, which
 it keeps — or, for a repository it holds none for, with the computer's own git login (`NO MODEL READS A CREDENTIAL`, `A
-TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). It checks out every working folder as soon as the Bridge's agents, its
+TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`): it forwards each push of the agent to the origin at once, and makes the
+calls to the server the agent asks of it for its pull request — open it, read it with its CI, read a CI run's log, merge
+it —, the relay. It checks out every working folder as soon as the Bridge's agents, its
 folder, its served products or its tokens change (UC-044, step 3). For a job of the page, it also calls a model endpoint the page cannot call. While no tab is open, it starts an agent's sprint close when the sprint ends (`A SPRINT CLOSED BY AN AGENT STARTS BY
 ITSELF`). It answers the agents, jobs, ask and probe routes of the Bridge's API. It runs in Node, in the Bridge's main
 process.
@@ -81,8 +87,11 @@ process.
 - `index.mjs` — the interface.
 - `handlers.mjs` — the agents, jobs, ask and probes routes.
 - `watch.mjs` — reading the served products, taking and resuming jobs, sprint ends.
-- `workfolders.mjs` — the clones of a working folder, a working clone per job, its outbox, and the branches published
-  from it; the host of a repository through its clone.
+- `workfolders.mjs` — the clones of a working folder, a working clone per job, its outbox and its relay's folders, and
+  the branches forwarded from the outbox; the host of a repository through its clone.
+- `relay.mjs` — the relay of a running job: the outbox looked at and its pushes forwarded, the agent's requests carried
+  out and answered.
+- `relay.md` — what the agent of a job with a relay is told of it, data like a kind's prompt.
 - `checkout.mjs` — the checkout of every working folder: the instance and each served product (`checkOut`).
 - `tokens.mjs` — the repository tokens' file, the Bridge's git told to read it, and a repository's token read back from
   it (`keepRepositoryTokens`, `useRepositoryTokens`).
@@ -92,7 +101,8 @@ process.
 
 ## Data
 
-It keeps no state of a job beyond its record and its log: in memory, the jobs it runs and the asks in flight, and, of each
+It keeps no state of a job beyond its record and its log: in memory, the jobs it runs and the asks in flight, of each
+running job what its relay last forwarded of each branch and the requests it answered, and, of each
 job it took since it started, the last lines of its log, so that a reader that keeps up is answered without reading the
 log's file; on
 disk, the repository tokens' file, the jobs' logs, and the working folder of each agent it offers — `<folder>/<agent>`, `<folder>` the
@@ -108,7 +118,8 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
   a served product there at its checkout, and a product a job connects to when the job connects to it; the agent,
   which cannot write the folder, clones none. A product whose folder holds a clone of another repository of the same
   name is refused, naming both;
-- **one working clone per running job of that agent in `jobs/<id>/`**, with its outbox, both removed when the job ends;
+- **one working clone per running job of that agent in `jobs/<id>/`**, with its outbox and, for a job with a relay, the
+  relay's two folders, all removed when the job ends;
 - **the agent's home `home/`** (MOD-agent-enclosure).
 
 `home/` and `jobs/` are excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there
@@ -148,14 +159,90 @@ credential helpers, as it would without the Bridge.
 **The outbox.** The Bridge makes the job's working clone with its credentials, then the outbox beside it —
 `jobs/<id>.out.git`, a bare repository cloned from the working clone — and sets the outbox as the working clone's push
 address, before the agent starts; the outbox's branches at that moment are the job's base. The agent may write the
-working clone and the outbox and nothing else of the working folder: the clones of the instance and of the products, in
-which the Bridge runs git with its credentials, are read-only to it. After the agent has answered, the Bridge fetches
-the outbox's branches into its clone of the product, under `refs/agent-m/<job id>/`, pushes every branch that is new or
-moved against the base to the origin under its name, never forced, and points the clone's own branch of that name at
-it, so that the job's writer reads it there; the branch checked out in the clone is pushed and not pointed. A push the
-origin refuses fails the job, naming the branch and what git said. The Bridge runs git in the working clone and the
-outbox only before the agent starts; afterwards it only fetches the outbox's objects from its own clone, which runs no
-command the outbox's configuration names: a hook or a command written there would run with the person's rights. Which agents it offers with their declarations, the folder that holds their working folders, which products it serves, and the
+working clone, the outbox and its relay's requests (below), and nothing else of the working folder: the clones of the
+instance and of the products, in which the Bridge runs git with its credentials, are read-only to it.
+
+**Each push is forwarded at once.** While the agent's process runs, the Bridge looks at the outbox's branches every two
+seconds. A branch that is new or moved against what the Bridge last forwarded of it — at first, against the base — is
+fetched into the Bridge's clone of the product, under `refs/agent-m/<job id>/`, pushed to the origin under its name,
+never forced, and the clone's own branch of that name pointed at it, so that the relay and the job's writer read it
+there; the branch checked out in the clone is pushed and not pointed. So the product's CI runs on every commit the agent
+pushes, its tests-only first commit among them (`AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST`). A forward the
+origin refuses is kept, with what git said, for the relay's answers, and tried again once the branch moves in the
+outbox; it fails nothing yet. After the agent has answered, the Bridge forwards once more what the outbox holds; a
+branch the origin still refuses then fails the job, naming the branch and what git said. Once the job is cancelled or
+the Bridge quit, nothing more is forwarded (`A CANCELLED JOB WRITES NOTHING MORE`). The Bridge runs git in the working
+clone and the outbox only before the agent starts; afterwards it only fetches the outbox's objects from its own clone,
+which runs no command the outbox's configuration names: a hook or a command written there would run with the person's
+rights.
+
+**The relay** — the calls to the server a job's agent asks for its pull request, which the Bridge makes outside the
+enclosure through the host of the product, with the token it holds for it (`NO MODEL READS A CREDENTIAL`, `A TOKEN GOES
+ONLY TO THE SERVER THAT ISSUED IT`). A job has a relay when its kind's writer is `branch-and-pull-request` (MOD-runtimes),
+the kinds that deliver a branch. Before the agent starts, the Bridge makes two empty folders beside the working clone:
+`jobs/<id>.requests/`, which the agent may write, and `jobs/<id>.answers/`, which it may read and only the Bridge writes,
+so that no answer is written where the agent could have put a link. The agent asks by writing one request as a file
+`<name>.json` into the requests, `<name>` of letters, digits, `-` and `_`. Every two seconds, while its process runs, the
+Bridge takes each request it has not answered whose file is a regular file with one link and whose text stayed the same
+since the look before — a file being written is taken at the next look —, reads it without following a link, carries
+it out, and writes the answer as `<name>.json` into the answers, written beside and renamed into place, so that the agent
+reads an answer whole or not at all. A request is one JSON object, `{ "call": …, … }`:
+
+| `call` | Its fields | What the Bridge does |
+|---|---|---|
+| `read` | `branch` | reads the branch's state, below |
+| `open` | `branch` | opens the branch's pull request — on GitLab the merge request — through MOD-runtimes' writer `branch-and-pull-request`, with this job's context, the branch as the draft's `branch`, the job's participant as its drafter and no rounds yet: the writer takes the one open or merged, or opens it into the branch the job's step or item goes to, with the one description Agent M gives a job's pull request |
+| `log` | `run`, the `id` of a CI run a `read` answer named | reads the run's log (`ciRunLog`) |
+| `merge` | `branch` | merges the branch's pull request, as *The merge* allows |
+
+`branch` names a branch the agent has made or moved in the outbox in this job; any other is refused. The answer is one JSON
+object, `{ "call", "done": boolean, "reason": string | null, "state", "log" }`: `reason` why the call was not done — the
+refusal, or the failure MOD-repository-hosts names, `TokenRefused`, `PermissionMissing`, `RateLimited` with its reset,
+`NotMergeable` with the server's reason, `Unreachable` —, `null` where it was done; `state`, for every call but `log`,
+the branch as it stands after the call — `{ branch, outbox, origin, refused, pullRequest, commits, checks, runs }`: the
+commit the outbox holds of it, the commit the origin holds or `null`, the forward the origin refused with what git said
+or `null`, so that the agent sees whether its push has reached the origin; its pull request, MOD-repository-hosts'
+`PullRequest`, or `null`; and, with a pull request, the CI result of each of its commits and the checks of its head —
+`PullRequestFacts`' `commits`, without their files, and `checks` —, without one, the branch's CI runs (`listCiRuns`);
+`log`, for `log`, the run's log, `null` where the server keeps it no longer. A request that cannot be read is answered
+with what is wrong in it, and no answer holds anything of a request's file but the fields above, read as their schema
+reads them. Before an answer is written, every token the repository tokens' file holds is replaced in it by `***`, so
+that nothing the server sends — a log among it — carries a credential to the agent. For a product the Bridge holds no
+token for, every call is answered with its forwarding state alone and `NotSupported`'s words: its branches are pushed
+with the computer's own login, and no pull request is opened. Once the job is cancelled or the Bridge quit, no request
+is carried out. Every call crosses the network to the server, but for the forwarding state, which the Bridge keeps; a
+server that cannot be reached is an answer not done, never a failure of the job.
+
+**The merge.** The Bridge merges only where all of these hold, and otherwise answers which of them does not:
+- the job's `## Parameters` do not say `merges: person`, the author's choice that a person merges (UC-024 step 6, UC-034
+  step 8); without the parameter the agent merges, as every job of a run does (UC-043 step 5);
+- the branch's pull request is open and no draft, and the origin holds what the outbox holds of the branch: nothing of
+  it waits to be forwarded;
+- every gate of the job's `gates` at the point `before-merge` is passed (`A JOB STOPS AT EVERY GATE`);
+- the check `agent-m done` of the product's CI (MOD-test-schedule) succeeded on the pull request's head, among
+  `PullRequestFacts`' `checks` — the Definition of Done checked in the product's CI (`A PULL REQUEST IS MERGED ONLY WHEN
+  THE DEFINITION OF DONE HOLDS`), the same check the page's *Merge* waits for (MOD-implementation-pages).
+
+It then merges with `mergePullRequest` on that head, so that a commit pushed after the check is not merged with it;
+the server's branch protection stays in force. The Bridge itself checks no condition of the Definition of Done.
+
+**What the agent is told of the relay.** `relay.md` is text, held once (`ONE DEFINITION, THREE DRIVERS`), with named
+places for the two folders, the job's branch — named by the job's identifier — and who merges. For a job with a relay,
+the Bridge's driver adds it, filled in, after the prompt it sends, as the description of where the agent works, the way
+MOD-checkout-tools' `checkoutPrompt` describes a checkout to a model endpoint on CI. It says that the agent's pushes go
+to the outbox, which the Bridge forwards, and that the agent holds no token; how to write each request and where its
+answer appears; whether the agent merges or a person does; and that a branch whose pull request `read` already shows is
+the job's work so far, which the agent goes on with.
+
+**Gates.** A job's context carries the gates of the product's workflow at its kind's gate points — the workflow
+MOD-product-process' `productWorkflow` gives from the declaration at the head the job was taken on and the instance at
+the commit it names, each gate with whether a record passes it (`gateStates`). At `before-merge`, MOD-job-runner stops
+the job after its writer while such a gate is not passed; the Bridge appends that the job waits at the gate (`onGate`,
+MOD-job-ledger's `appendToRecord`), and the job's run ends without an end. Resumed once a record passes the gate (`A JOB
+STOPS AT EVERY GATE`), the job runs again from its record as a job taken does, with a relay: its agent finds its branch
+and pull request through `read` and goes on to the merge.
+
+Which agents it offers with their declarations, the folder that holds their working folders, which products it serves, and the
 Bridge's name — the name the route of its jobs' records carries, `bridge <name> agent <agent>` (MOD-job-ledger) —, come from the Bridge's
 settings (MOD-desktop-shell).
 
@@ -260,12 +347,13 @@ which the page shows it.
 An endpoint configuration and its key — of a test, of a models listing or of an ask — exist only for that request. The handler retains
 neither in a clone, job record, log, disk file, shell setting nor process command.
 
-Through the host of a product with the token the Bridge holds for it, the job's writer opens the pull request of the
-branch the Bridge pushed — on GitLab the merge request —, as it does in the page, through the server's API, outside every
-enclosure. For a product the Bridge holds no token for, `listPullRequests` and `openPullRequest` fail with
-`NotSupported`, and the writer records the branch without a pull request. The Bridge records the branch and the pull
-request in the job's end record, and the Definition-of-Done check in the product's CI (MOD-workflow-entries'
-`onDoneCheck`) verifies it.
+Through the host of a product with the token the Bridge holds for it, the relay opens, reads and merges the agent's pull
+request — on GitLab the merge request —, and, after the agent has answered, the job's writer takes the one open or
+merged of the branch the agent reports, or opens it where the agent did not, as it does in the page, through the
+server's API, outside every enclosure. For a product the Bridge holds no token for, `listPullRequests` and
+`openPullRequest` fail with `NotSupported`, and the writer records the branch without a pull request. The Bridge records
+the branch and the pull request in the job's end record, and the Definition-of-Done check in the product's CI
+(MOD-workflow-entries' `onDoneCheck`) verifies it.
 
 **No enclosure, no agent.** The agents' enclosures are given by the composing program, one per working folder
 (`enclosures`). Without them, or where an agent's enclosure answers that it does not work, no process of that agent is
@@ -281,9 +369,11 @@ commit the clone does not hold is fetched from its origin with the Bridge's cred
 
 In each served product, through Access's local clone: reads `docs/process.md`, the plan or backlog, `docs/jobs/` and
 `docs/gates/`, and the instance's `docs/participants.md`; appends to job records; pushes the branches the agent made, from
-the job's outbox, and opens their pull requests through the server's API. Through its clone of the instance, which fetches that commit: the instance's
+the job's outbox, as the agent pushes them, and, through the server's API, opens, reads and merges their pull requests
+and reads their CI runs and logs. Through its clone of the instance, which fetches that commit: the instance's
 process models at the commit a served product's declaration names. In the working folder of each agent it offers: the
-clones. In the Bridge's data folder: `repository-tokens.gitconfig` and `job-logs/`. Nothing else.
+clones, and of each running job its outbox, its relay's requests, which it reads, and its relay's answers, which it
+writes. Its own `relay.md`. In the Bridge's data folder: `repository-tokens.gitconfig` and `job-logs/`. Nothing else.
 
 ## Uses
 
@@ -291,8 +381,12 @@ clones. In the Bridge's data folder: `repository-tokens.gitconfig` and `job-logs
 - `MOD-agent-enclosure.AgentEnclosure` — whether an agent's enclosure works, its preparation before a start, its home;
   `MOD-agent-processes.Enclosure` — the part of it given to the agent's driver, to the list of installed agents and to the
   probe.
-- `MOD-repository-hosts.PullRequest`, `MOD-repository-hosts.HostError` — the form in which the host of a product answers
-  its pull or merge requests, and `NotSupported` where the Bridge holds no token for it.
+- `MOD-repository-hosts.PullRequest`, `MOD-repository-hosts.PullRequestFacts`, `MOD-repository-hosts.CiRun`,
+  `MOD-repository-hosts.HostError` — the form in which the host of a product answers its pull or merge requests, their
+  commits' CI and their head's checks, and its CI runs, which the relay's answers carry; `NotSupported` where the Bridge
+  holds no token for it. The relay calls the host's `listPullRequests`, `pullRequestFacts`, `listCiRuns`, `ciRunLog` and
+  `mergePullRequest`.
+- `MOD-runtimes.routeStrategies` — the writer `branch-and-pull-request`, through which the relay opens a pull request.
 - `MOD-repository-hosts.connect`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.parseAddress` — the served
   products, each connected by its address, through the local clone and with the token the Bridge holds for it; the
   instance at the commit a declaration or a job's record names, through its clone, which fetches the commit with the
@@ -311,6 +405,7 @@ clones. In the Bridge's data folder: `repository-tokens.gitconfig` and `job-logs
 - `MOD-runtimes.queueJob` — queueing the close of a sprint one of this Bridge's agents closes.
 - `MOD-progress-measures.productFacts` — the facts of a served product, read through the local clone, from which the
   sprints to close are found.
-- `MOD-product-process.gateStates` — whether a waiting job's gate is decided.
+- `MOD-product-process.productWorkflow`, `MOD-product-process.gateStates` — the gates of a job's context, and whether a
+  waiting job's gate is decided.
 - `MOD-work-plans.sprintFacts`, `MOD-work-plans.sprintsToClose` — a sprint's facts, and whether it has ended and who
   closes it.

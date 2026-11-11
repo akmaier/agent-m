@@ -18,7 +18,7 @@ provides:
 
 It belongs to the Bridge (ARC-040), as ARC-054 decides. It states, for the platform the Bridge runs on, what a coding
 agent's processes may read, write and reach: nothing that holds a credential of the Bridge or of the computer's git
-login, nothing to write but the agent's own home, the job's checkout and temporary files, and the network
+login, nothing to write but the agent's own home, the folders of the job the Bridge names and temporary files, and the network
 (`NO MODEL READS A CREDENTIAL`). It builds the command that starts a CLI inside the enclosure — a Seatbelt profile on
 macOS, bubblewrap's arguments on Linux, the Bridge's own account on Windows — and the environment the CLI receives; it
 says whether the enclosure works on this computer and, where it does not, names the one-time step that makes it work;
@@ -50,7 +50,7 @@ It runs in Node, in the Bridge's main process, and keeps nothing but what it wri
 | the system's credential store | the keychain: `~/Library/Keychains/` hidden, and its services `com.apple.SecurityServer`, `com.apple.securityd.xpc` and `com.apple.secd` refused | the user's runtime folder (`XDG_RUNTIME_DIR`, else `/run/user/<uid>`), where the session bus with the secret service and the SSH and GPG agents listen, replaced by an empty folder | the account's own Credential Manager; the person's is another user's |
 | the SSH agent | a connection to the socket the Bridge's `SSH_AUTH_SOCK` names, and to launchd's `/private/tmp/com.apple.launchd.*/Listeners`, refused | in the runtime folder, or the socket `SSH_AUTH_SOCK` names, hidden | the person's agent is another user's |
 | the Bridge's process | its memory is refused by macOS to every other process; its environment is not, so the Bridge puts no credential into one (ARC-054) | not seen: a PID namespace of its own | another user's |
-| what may be written | the agent's home, the writable folders the Bridge names — the job's checkout and its outbox —, `/private/tmp`, `/dev` | the same, with a private `/tmp` | the account's own profile; the writable folders the Bridge names, granted to the account for writing; the clone of the instance, granted for reading |
+| what may be written | the agent's home, the writable folders the Bridge names — the job's checkout, its outbox and its relay's requests —, `/private/tmp`, `/dev` | the same, with a private `/tmp` | the account's own profile; the writable folders the Bridge names, granted to the account for writing; the readable folders it names — the clone of the instance and the relay's answers —, granted for reading |
 
 **The agent's home**: `home/` in the agent's working folder, with `tmp/`, `.config/`, `.local/share/`, `.cache/` and
 `.local/state/` below it; on Windows the account's own profile, `C:\Users\<account>`. The agent keeps its configuration

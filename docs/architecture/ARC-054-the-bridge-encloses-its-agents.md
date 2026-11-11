@@ -17,7 +17,13 @@ forced_by:
   - A REUSE DECISION RECORDS ITS DUE DILIGENCE
   - DUE DILIGENCE IS FETCHED, NOT RECALLED
   - A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S
+  - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
+  - AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST
+  - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
+  - A JOB STOPS AT EVERY GATE
   - UC-011
+  - UC-024
+  - UC-034
   - UC-044
 designs:
   - MOD-agent-enclosure
@@ -50,12 +56,18 @@ model as another OS user beside a key holder (ARC-046); on a Bridge it was not m
 The Bridge ships for macOS, Windows and Linux (`THE BRIDGE IS ONE FILE PER PLATFORM`) to a person who may never have used
 a terminal, often without administrator rights on a computer they do not administer.
 
+An implementation job's agent delivers through the server: its tests-only first commit must be red in the product's CI
+(`AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST`), its code reaches the default branch through a pull request with
+green CI, merged only once the Definition of Done holds (`CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH
+GREEN CI`, `A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS`), and by the agent itself where the author
+leaves the merge to it (UC-024, UC-034). Each of these is a call to the server with a credential.
+
 ## Decision
 
 **Every process of a coding agent that the Bridge starts runs in an enclosure the operating system enforces; the Bridge
 itself does not.** Inside the enclosure the agent reads everything except the places that hold a credential of the
-Bridge or of the computer's git login, writes only its own home, the job's checkout and temporary files, and reaches the
-network. The enclosure is the new module MOD-agent-enclosure of the Bridge (ARC-040); MOD-agent-processes starts a CLI
+Bridge or of the computer's git login, writes only its own home, the job's checkout with the folders the Bridge makes for
+the job beside it, and temporary files, and reaches the network. The enclosure is the new module MOD-agent-enclosure of the Bridge (ARC-040); MOD-agent-processes starts a CLI
 through the enclosure it is given, and MOD-bridge-jobs gives every agent process one — a job, an ask, the check whether
 the agent is logged in and the harmless probe.
 
@@ -102,14 +114,24 @@ the agent is logged in and the harmless probe.
   its home keeps for it, and nothing else: no key variable, no SSH agent, no session bus.
 - **Git stays with the Bridge** (`NO MODEL READS A CREDENTIAL`; nothing twice — the push address of CI's agent machine,
   MOD-workflow-entries). The Bridge clones the job's checkout with its credentials before the agent starts and
-  sets its push address to an outbox, a bare repository beside it, in which the agent's pushes land. After the agent has
-  answered, the Bridge fetches the outbox's branches into its own clone of the product — which the agent cannot write —
-  and pushes every branch the agent made or moved to the origin, never forced; the job's writer then reads the branch and
-  opens the pull request through the Bridge's host of the product, which opens it — a pull request on GitHub, a merge
-  request on GitLab — through MOD-repository-hosts' adapter of the server's API, with the token the Bridge holds for the
-  product, outside the enclosure. The Bridge never runs git with its credentials in a repository the agent can write: a
+  sets its push address to an outbox, a bare repository beside it, in which the agent's pushes land. **Each push is
+  forwarded at once**: while the agent works, the Bridge looks at the outbox every few seconds, fetches its branches
+  into its own clone of the product — which the agent cannot write — and pushes every branch the agent made or moved to
+  the origin, never forced, so that the product's CI runs on each commit the agent pushes, the tests-only first one
+  among them. The Bridge never runs git with its credentials in a repository the agent can write: a
   hook or a command in that repository's configuration would run with the person's rights, the alternative ARC-046
   rejects for CI.
+- **The Bridge relays the agent's pull-request calls** (`NO MODEL READS A CREDENTIAL`; nothing twice — the outbox's
+  pattern: the agent writes where it may, the Bridge, outside the enclosure, carries it to the server). The agent opens
+  its pull request, reads it with its CI and a run's log, and merges it by asking: it writes a request into a folder of
+  the job it may write, the Bridge makes the call through MOD-repository-hosts' adapter of the server's API, with the
+  token it holds for the product — a pull request on GitHub, a merge request on GitLab —, and writes the answer into a
+  folder the agent may only read. The Bridge reads a request without following a link and answers with nothing of the
+  request's file and no token. It opens through the job's writer, so that the pull request has the description Agent M
+  gives every job's; it merges only on the head on which the product's CI found the Definition of Done to hold, where
+  the job leaves the merge to the agent and every gate before the merge is passed, and the server's branch protection
+  stays in force — the relay cannot merge what the SPEC forbids. Since every read goes through the Bridge, a private
+  product is served as a public one. The forwards and the relay are MOD-bridge-jobs'.
 - **The repository tokens stay in the Bridge's data folder, and reach only the Bridge's own git** (`NO MODEL READS A
   CREDENTIAL`, `A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). The browser hands the Bridge its repository tokens,
   each with its repository, over the paired channel (UC-044, step 4); the Bridge keeps them in one file of its data
@@ -195,6 +217,21 @@ to the lower layer, never the other way.
   platform that reads the token from a file anyway.
 - **A token written into a clone's remote address or a credential store beside the clone.** Rejected: the clones are
   readable by the agent (`A CREDENTIAL IS NEVER PLACED IN A URL`).
+- **The Bridge pushing the agent's branches only after the agent's answer, and opening the pull request then.**
+  Rejected: nothing reaches the origin while the agent works, so the agent cannot see its tests-only commit red in the
+  product's CI, follow its CI or merge (`AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST`, `A PULL REQUEST IS MERGED ONLY
+  WHEN THE DEFINITION OF DONE HOLDS`).
+- **The agent reading the server itself, without a token, and asking the Bridge only to open and merge.** Rejected: a
+  private product's pull requests and runs are not read without a token; one way serves every product (`KEEP IT
+  SIMPLE`).
+- **A route of the Bridge's API for the agent, with a token of the job.** Rejected: that token is a credential the
+  Bridge holds that reaches the model (`NO MODEL READS A CREDENTIAL`), and the Bridge's API would answer a process inside
+  the enclosure.
+- **The requests as refs the agent pushes into the outbox, the answers as refs it fetches.** Rejected: an answer cannot
+  come back through the outbox, in which the Bridge runs no git once the agent has started, and a ref that carries a
+  call or a state is not what a model expects of git (`LEAST ASTONISHMENT`).
+- **A command the Bridge puts on the agent's path that makes the calls (`agent-m pr open`).** Rejected: one program per
+  platform that would only write the same requests and read the same answers (`KEEP IT SIMPLE`).
 - **The servers' command-line clients logged in as the person (`gh`, `glab`).** Rejected: a second login on the Bridge's
   computer for each server, which the person sets up; `glab` is a further program, and the API adapters MOD-repository-hosts
   already has open pull and merge requests with the token.
@@ -248,9 +285,16 @@ No candidate is marked: every licence is known to be compatible with MIT for the
   and Credential Manager (Windows), and cannot write where the Bridge or the person would run what it wrote.
 - Every agent a Bridge offers needs one login of its own, in its enclosure; a Windows computer needs an administrator
   once, a Linux computer without bubblewrap too. Until then the Bridge offers the agent as not ready and says why.
-- The agent no longer pushes or opens its pull request: the Bridge does, with the token this browser handed it for the
-  product — a pull request on GitHub, a merge request on GitLab. For a product it holds no token for, git pushes with the
-  computer's own login where it has one, and the job ends with its branch pushed and no pull request, and says so.
+- The agent reaches the server only through the Bridge: each of its pushes is forwarded at once, and its pull-request
+  calls are made with the token this browser handed the Bridge for the product — a pull request on GitHub, a merge
+  request on GitLab. For a product it holds no token for, git pushes with the computer's own login where it has one, the
+  relay answers every call to the server as not supported, and the job ends with its branch pushed and no pull request,
+  and says so.
+- The agent learns of its pushes, its pull request and its CI only from the relay's answers, a few seconds after the
+  fact; it polls them while it waits for CI.
+- The forwards and the relay are tested with a fixture outbox, a fixture server and the requests a fixture agent writes:
+  a push reaches the server before the agent has answered, a merge is refused for each condition that does not hold, and
+  no answer holds a token; counter-proof: with every condition holding, the merge is made.
 - A Bridge reached at the jump host's HTTPS address receives the repository tokens through the jump host's web server, as
   it receives its pairing token.
 - What remains within an enclosed agent's reach, stated rather than closed: on macOS the environment the Bridge was

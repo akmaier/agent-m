@@ -102,12 +102,12 @@ Agent M prepares no job of the kind.
 | `propose-items` | UC-032 | draft text | `rests-on-accepted` | `backlog-inputs` | `backlog-checks`, `candidate-classes` | | | `person` · `backlog-items` | items |
 | `check-affected-modules` | UC-008 | draft text | `rests-on-accepted` | `use-case-with-neighbours`, `whole-architecture` | `backlog-checks` | | `leave-out-named-modules` | `none` · `backlog-items` | items, one for each module whose implementation the accepted use case's text changes, each realising the use case and naming that module |
 | `close-sprint` | UC-041 | draft text, read the repository, write to the repository | | `sprint-facts` | `sprint-record-checks` | | | `none` · `sprint-record` | the review, the retrospective, the proposed changes |
-| `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request |
+| `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits |
 | `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the same |
 | `decide-gate` | UC-034, UC-036 | read the repository | | `gate-inputs` | | | | `none` · `gate-record` | the decision and its reasoning |
 | `set-up-ci` | UC-043, UC-027 | — | | | | | | `none` · `ci-configuration` | — |
 | `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `test-selection`, `chapters-for-tests` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
-| `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `draft`, `test-selection`, `chapters-for-tests`, `resource-pins` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
+| `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `draft`, `test-selection`, `chapters-for-tests`, `resource-pins` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits; each test with its outcome and its counter-proof, or why it was not written |
 | `run-tests` | UC-028, UC-013 | run code and tests | | `instruction?`, `commit-and-levels`, `resource-pins` | | | | `none` · `result-record` | the outcomes |
 | `analyse-issue` | UC-012 | draft text | | `issue-context` | | | | `none` · `return-draft` | the class and its reasoning |
 | `fix-bug` | UC-012 | write to the repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report |
@@ -167,6 +167,18 @@ add, which keeps its place (UC-019 step 6): moving a requirement to another grou
 input (`A REGROUPING IS COMMITTED DIRECTLY`), whose moves `propose-groups` drafts for the person to save (UC-021 1b),
 started on the Arrange page with the kind as its parameter `kind`, or handed over from a conversation with the items its
 task is about, from which MOD-job-runner's `handOverParams` gives that parameter (UC-049 4a).
+
+The prompts of the kinds whose writer is `branch-and-pull-request` — `implement`, `refactor`, `fix-bug` and
+`write-tests` — say the work, not the route it runs on. In `implement` and `fix-bug`, the job's first commit holds only
+its tests and is pushed before any code is written (`AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST`); in `refactor`,
+every commit pushed keeps the tests green (`A REFACTORING JOB BEGINS WITHOUT A FAILING TEST`); and *red* and *green* are
+the product's CI run on the commit pushed, never a run of the agent's own, which it may make as often as it likes but
+which decides nothing. The agent pushes its branch and opens its pull request, follows its CI and merges it once the
+Definition of Done holds, as the description of its route says — a Bridge's relay (MOD-bridge-jobs) —; where its route
+offers none of this, the writer opens the pull request. The answer reports the branch and its commits, and for
+`write-tests` its tests, but no pull request: the writer takes that from the host. The CI those runs belong to is the
+product's own, which `set-up-ci` generates before a run's first implementation (MOD-run-planner); no prompt asks the
+agent to write it.
 
 For `derive-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the
