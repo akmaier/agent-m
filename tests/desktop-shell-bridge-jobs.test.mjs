@@ -62,14 +62,19 @@ const git = (cwd, ...args) => {
 };
 const script = (bin, name, body) => writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
 
-const ROW = (name, route) => `| ${name} | CLI agent | example-model | 200000 | — | draft text, read the repository, write to the repository | this machine | ${route} |`;
-const PARTICIPANTS = `# Participants of this instance\n\n**REGISTER**\n\nThe participants of the test instance.\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n${[ROW("drafter", "bridge lab-pc agent opencode"), ROW("codex-drafter", "bridge lab-pc agent codex")].join("\n")}\n`;
+// Each participant's connection: the route of a coding agent this Bridge offers or has installed, `bridge <name> agent <agent>`, and what it declares for its model. A job's record carries both (MOD-job-ledger,
+// `route` and `declares`), as the instance's list does.
+const CAPABILITIES = ["draft text", "read the repository", "write to the repository"];
+const ROUTES = { drafter: "bridge lab-pc agent opencode", "codex-drafter": "bridge lab-pc agent codex" };
+const ROW = (name) => `| ${name} | CLI agent | example-model | 200000 | — | ${CAPABILITIES.join(", ")} | this machine | ${ROUTES[name]} |`;
+const PARTICIPANTS = `# Participants of this instance\n\n**REGISTER**\n\nThe participants of the test instance.\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n${Object.keys(ROUTES).map(ROW).join("\n")}\n`;
 const SPRINT = (number) => `---\nsprint: ${number}\ngoal: The fixture sprint\nstart: 2026-10-12\nend: 2026-10-19\ncloser: alice\nbranch:\nselection:\n---\n# team1 Sprint ${number}\n`;
 const SPRINT_FILE = (number) => `docs/backlog/sprints/team1/0${number}.md`;
 // The close the fixture opencode answers with: the sprint it closes, and, as the source of its feedback, the folder it was started in (the placeholder is replaced by the executable).
 const CLOSE = (number) => ({ draft: { sprint: `team1/0${number}`, review: { feedback: [{ line: "No stakeholder took part", goes: "noted", item: null }], tookPart: [], sources: ["@PWD@"] },
   unfinished: [], retrospective: [{ text: `Closed by the fixture agent of sprint ${number}`, kind: "went well", goes: null }], newItems: [] }, answers: [] });
-const JOB = (id, participant, number) => ({ id, kind: "close-sprint", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route: "bridge lab-pc", run: null, retries: null,
+const JOB = (id, participant, number) => ({ id, kind: "close-sprint", worksOn: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"], participant, model: "example-model", route: ROUTES[participant],
+  declares: { context: 200000, capabilities: CAPABILITIES }, run: null, retries: null,
   startedBy: "alice", start: new Date("2026-10-11T09:00:00Z"), agentM: { version: "2026.10.0", commit: null }, inputs: [], limit: 3,
   destinations: [{ participant, place: "this machine", parts: [SPRINT_FILE(number)] }], params: { sprint: `team1/0${number}` } });
 
