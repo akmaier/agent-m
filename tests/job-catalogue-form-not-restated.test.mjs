@@ -36,9 +36,7 @@ const stated = (prompt, form) => WORDINGS[form].filter((wording) => wording.test
 
 // TST-1792050 · level: unit · module: MOD-job-catalogue
 // guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
-// given: the prompts of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture and change-architecture; known
-//   positives, one sentence of each form: "Each candidate has a `name` in capitals", "its actors, its precondition, its main flow", "with context, decision,
-//   alternatives and consequences"
+// given: the prompts of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture and change-architecture; known positives, one sentence of each form: "Each candidate has a `name` in capitals", "its actors, its precondition, its main flow", "with context, decision, alternatives and consequences"
 // input: the wordings of its form each prompt holds
 // expect: the detector names each known positive; no prompt holds a wording of its form
 test("a drafting kind's prompt states nothing of the form its draft is checked by", async () => {

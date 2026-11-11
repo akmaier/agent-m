@@ -127,12 +127,9 @@ const numbered = (from, to) => Array.from({ length: to - from + 1 }, (_, at) => 
 
 // TST-2026111402 · level: unit · module: MOD-desktop-shell
 // guards: THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE; THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX WEEKS; UC-044
-// given: the app started over a Bridge that watches a product with one queued job of the fixture opencode, and the window drawn on #jobs, its requests answered by the entry's
-//   own ipc handler; the agent writes its first event line and 1500 lines, waits, then writes 100 more and `working` without a line break
+// given: the app started over a Bridge that watches a product with one queued job of the fixture opencode, and the window drawn on #jobs, its requests answered by the entry's own ipc handler; the agent writes its first event line and 1500 lines, waits, then writes 100 more and `working` without a line break
 // input: wait until the console pane shows `line 1500`; then let the agent write on, and wait — the view not drawn anew — until the pane shows `working`
-// expect: the jobs table names the job and running; first the pane's lines are `line 501` … `line 1500`, exactly 1000; then `line 601` … `line 1600` and `working` as the last,
-//   1000 lines and the one being written; the Bridge's log of the job, asked from line 0, still holds every line, `line 1` among them. Counter-proof: `line 1` and `line 600`,
-//   and the event line the agent wrote first, are not shown
+// expect: the jobs table names the job and running; first the pane's lines are `line 501` … `line 1500`, exactly 1000; then `line 601` … `line 1600` and `working` as the last, 1000 lines and the one being written; the Bridge's log of the job, asked from line 0, still holds every line, `line 1` among them. Counter-proof: `line 1` and `line 600`, and the event line the agent wrote first, are not shown
 // Planted fault: a view drawn once, that asks nothing after it was drawn, never shows `working`; a console that holds every line shows `line 1` and 1601 lines.
 test("the window's Jobs view shows the console of the running job as its agent writes, holding its last 1000 lines", async () => {
   await world(async (w) => {

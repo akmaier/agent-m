@@ -77,11 +77,9 @@ async function sentBy(prepared, context, reviewers = []) {
 
 // TST-1792060 · level: unit · module: MOD-job-runner
 // guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
-// given: the fixture instance, whose SPEC.md is Agent M's own; kinds whose checks name requirement-form (derive-requirements, change-requirements), document-schema
-//   (derive-use-cases, change-use-case, derive-architecture, change-architecture, converse), and neither (propose-groups, review-architecture)
+// given: the fixture instance, whose SPEC.md is Agent M's own; kinds whose checks name requirement-form (derive-requirements, change-requirements), document-schema (derive-use-cases, change-use-case, derive-architecture, change-architecture, converse), and neither (propose-groups, review-architecture)
 // input: prepareJob of each with a drafter; the prepared `form`
-// expect: requirement-form gives the heading, then "### The form of a requirement" and requirementForm of the instance's SPEC.md; document-schema the heading,
-//   then each schema under "### <its path>" with its text; neither gives null; the form carries no source, and no job is blocked under the rule
+// expect: requirement-form gives the heading, then "### The form of a requirement" and requirementForm of the instance's SPEC.md; document-schema the heading, then each schema under "### <its path>" with its text; neither gives null; the form carries no source, and no job is blocked under the rule
 test("prepareJob — the job's form is chosen from the kind's checks and given in full", async () => {
   const expected = { "derive-requirements": formText([REQUIREMENT_PIECE]), "change-requirements": formText([REQUIREMENT_PIECE]),
     "derive-use-cases": formText(SCHEMA_PIECES), "change-use-case": formText(SCHEMA_PIECES), "derive-architecture": formText(SCHEMA_PIECES),
@@ -131,8 +129,7 @@ test("prepareJob — the form is counted in the drafter's size", async () => {
 // guards: A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY
 // given: an instance whose SPEC.md lacks the paragraph Form of a requirement, while the product's SPEC.md holds one of its own; and an instance with no SPEC.md
 // input: prepareJob of change-requirements for each; runJob of the first
-// expect: each is blocked by an error under the rule naming what the SPEC.md lacks, the paragraph among it; runJob refuses it (NotStartable); the product's
-//   paragraph is given nowhere; a kind of document-schema alone on the same instance is not blocked
+// expect: each is blocked by an error under the rule naming what the SPEC.md lacks, the paragraph among it; runJob refuses it (NotStartable); the product's paragraph is given nowhere; a kind of document-schema alone on the same instance is not blocked
 test("prepareJob — FormMissing blocks a job whose instance's SPEC.md lacks a piece of the form", async () => {
   const lacking = contextOf({ "AGENTS.md": RULES, "SPEC.md": AGENT_M_SPEC.replace("**Form of a requirement:**", "**The form:**") });
   const prepared = await prepareJob("change-requirements", lacking, { drafter: DRAFTER, reviewers: [] });

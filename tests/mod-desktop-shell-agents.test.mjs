@@ -185,12 +185,9 @@ const click = async (root, label, index = 0) => {
 
 // TST-407002 · level: unit · module: MOD-desktop-shell
 // guards: UC-044; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
-// given: the production Bridge window entry with two installed agents, one of them kept with its working folder in the one folder /tmp/old, one missing supported
-//   agent, a constructed folder-dialog result, and a checkout that answers one repository checked out and one not reached
+// given: the production Bridge window entry with two installed agents, one of them kept with its working folder in the one folder /tmp/old, one missing supported agent, a constructed folder-dialog result, and a checkout that answers one repository checked out and one not reached
 // input: the Agents view is rendered, the one folder is chosen, and agents are saved
-// expect: the ticked agent is saved with its declaration and without a folder of its own, beside the chosen folder; the unticked installed agent is not offered;
-//   the missing agent shows an install link; after the save the checkout's result shows the commit of the repository checked out and the other with git's
-//   reason; counter-proof: the view offers no Test access and no field of an agent's own working folder
+// expect: the ticked agent is saved with its declaration and without a folder of its own, beside the chosen folder; the unticked installed agent is not offered; the missing agent shows an install link; after the save the checkout's result shows the commit of the repository checked out and the other with git's reason; counter-proof: the view offers no Test access and no field of an agent's own working folder
 // Planted fault: omitting the Agents route leaves no Save agents control and this case fails before any save.
 // A kept agent's declaration: the place, the capabilities ticked and each model with its context.
 const DECLARED = { place: "this machine", capabilities: ["draft text"], models: [{ model: "claude-opus-5-5", context: 200000 }] };
