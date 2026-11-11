@@ -182,7 +182,11 @@ sequenceDiagram
      draft before it is saved or discarded.
   2. Any other piece is spawned as a job of the endpoint or CLI session itself, the conversation itself handed on
      among them; several are spawned at once, each a job of its own. An endpoint's configuration names the CI secret
-     that holds its key (UC-003).
+     that holds its key (UC-003). A piece whose kind has no participant — a **run** over steps of the plan or backlog
+     items (UC-043), setting up CI (UC-027) — is no job of the endpoint or CLI session: its record is committed for the
+     product's job workflow, which carries it out, and its task stands only in the plan's line. Work over steps or
+     items that is to go on from job to job without a click — CI first, then the implementation — is one piece of kind
+     *run*, not pieces that rest on each other.
   3. Agent M commits the record of each job in the product repository that names who does it, the page and the commit
      it read, and none of the conversation's messages; it starts the product's job workflow (UC-010) for each, with its
      task as the workflow's input, or hands it to the Bridge with its task (UC-011). The agent in the workflow reaches

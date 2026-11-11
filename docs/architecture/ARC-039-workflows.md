@@ -5,6 +5,7 @@ refines: ARC-037
 forced_by:
   - ONE DEFINITION, THREE DRIVERS
   - A RUNTIME IS INTERCHANGEABLE
+  - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
   - AGENT M WORKS WITHOUT A LOCAL INSTALLATION
   - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
   - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
@@ -53,7 +54,8 @@ file names; it reads the person's token and the participant's key only from the 
 
 ### Responsibility within the system
 
-Running in a product's CI: taking and running the queued jobs of CI routes, resuming them after their gate, recording the decision of gates a CI check decides, running a test job's share
+Running in a product's CI: taking and running the queued jobs of CI routes, resuming them after their gate, advancing
+runs — starting their next jobs and merging their jobs' pull requests once the Definition of Done holds —, recording the decision of gates a CI check decides, running a test job's share
 of the product's tests with its own command, recording each test run's outcomes, checking pull requests against the
 Definition of Done, and the events in time — a sprint's end. Running in the CI of a product and of the instance alike: storing,
 for each commit of the default branch, what its pages read. Running in the instance's CI: applying approved

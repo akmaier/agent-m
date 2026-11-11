@@ -46,9 +46,14 @@ uses:
   - MOD-job-ledger.jobState
   - MOD-progress-measures.productFacts
   - MOD-runtimes.queueJob
+  - MOD-runtimes.resumeJob
   - MOD-runtimes.handOverJob
   - MOD-runtimes.routeStrategies
   - MOD-run-planner.runStrategies
+  - MOD-run-planner.runOf
+  - MOD-run-planner.nextActions
+  - MOD-trace-graph.traceGraph
+  - MOD-repository-hosts.mergePullRequest
   - MOD-product-process.declarationSchema
   - MOD-product-process.productWorkflow
   - MOD-product-process.gateSchema
@@ -198,6 +203,27 @@ agent with its own tools, thus run as a user that holds no key and no token. A m
 Linux, or neither root nor allowed sudo without a password — runs the entry as its own user, and the entry's summary says
 so; a model's command there reaches what that user can.
 
+**Runs** (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`, UC-043). On the writing machine, where the person's
+token is, the entries advance every run of the product that has not ended — after `writeResult` has written the
+result of a push to `docs/jobs/` or `docs/gates/` or found none, in `onPullRequestClosed`, and in `onCheckCompleted` —:
+the product's facts read once (`productFacts`, with its trace graph), each run read with MOD-run-planner's `runOf`
+from its record and the rows of its jobs, and its `nextActions` carried out, each committed on the head read:
+- `start` of a kind with a participant: the job's start record, prepared with `prepareJob` for the action's
+  participant, its parameters what `handOverParams` gives for the step or item and `rounds` its limit, `run` and
+  `started_by` the run, queued on the action's route with MOD-runtimes' `queueJob`, which appends the run's
+  `Job started` part in the same commit; the route that takes it runs it as it runs any job;
+- `start` of a kind without a participant (`set-up-ci`): its start record queued the same way on this route, and the
+  job run here at once — its kind's writer, `ci-configuration`, with no draft —, its end appended with what the writer
+  wrote;
+- `resume`: MOD-runtimes' `resumeJob`;
+- `finish`: the run's `## End`, `done`; `refuse`: its `## End`, `failed`, the refusal its reason.
+
+A commit refused because the branch moved is dropped: the push that moved it starts the entries again, which read the
+records anew, so that two entries never start the same job. A pull request of a job of a run whose head the check
+`agent-m done` of the test configuration passed is merged by `onCheckCompleted`, with `mergePullRequest` on that head
+(`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS`), unless the job's parameters say `merges: person`;
+one its participant merged already is left as it is.
+
 ## Interfaces
 
 - `CiEnvironment` — what an entry reads: the entry's name; the CI service (`github` or `gitlab`) and its event with its
@@ -266,11 +292,13 @@ so; a model's command there reaches what that user can.
   written by `agent-m records`, which runs no code of the product.
 - `onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus>` — run by the job workflow when a pull request of a
   product is merged or closed: on a merge, the issues it names closed with links, and, on a GitLab server, when it is the
-  pull request that set up a run's CI, the project's pipeline schedule of the nightly run set from the merged schedule.
+  pull request that set up a run's CI, the project's pipeline schedule of the nightly run set from the merged schedule;
+  then the runs advanced (*Runs*).
 - `onCheckCompleted(env: CiEnvironment) -> Promise<EntryStatus>` — on a completed CI check that a gate of the product's
   workflow names as its decider: the gate's record — decided by that check, passed or not, on which commit (`A GATE NAMES
   WHO DECIDES IT`, `THE GATE IS RECORDED`) —, written through Process's `recordGateDecision`, whose push resumes the
-  waiting job.
+  waiting job; on a completed run of the test configuration on a pull request of a job of a run, its merge where
+  `agent-m done` passed on its head, and the runs advanced (*Runs*).
 - `onSchedule(env: CiEnvironment) -> Promise<EntryStatus>` — on the product's schedule: the events in time. Each sprint
   that MOD-work-plans' `sprintsToClose` names — its time box ended, or, without one, every selected item done or the
   Product Owner's `## Ended` — whose closer is an agent gets its close, a job of kind `close-sprint` queued for the
@@ -458,7 +486,11 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   context carries.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `newJobId`, `startRecord`, `takeJob`, `appendToRecord`, `jobState` — the
   records of the jobs it takes, their parameters, and their ends with a draft handed back.
-- `MOD-runtimes.queueJob` — queueing the close of a sprint an agent closes, in `onSchedule`; `MOD-runtimes.handOverJob`
+- `MOD-runtimes.queueJob` — queueing the close of a sprint an agent closes, in `onSchedule`, and the jobs a run starts;
+  `MOD-runtimes.resumeJob` — a run's job resumed; `MOD-run-planner.runOf`, `nextActions` — the runs and their next
+  actions; `MOD-trace-graph.traceGraph` — the graph the facts of a run's next actions carry;
+  `MOD-repository-hosts.mergePullRequest` — a run's job's pull request merged once the Definition of Done holds;
+  `MOD-runtimes.handOverJob`
   — each piece of a plan handed over as a job of its own, on the writing machine.
 - `MOD-progress-measures.productFacts` — the product's facts, read once per entry.
 - `MOD-trace-graph.publishGraph`, `MOD-approvals.statuses`, `lastAcceptedText`, `MOD-progress-measures.publishOverview` —

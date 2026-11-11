@@ -4,7 +4,6 @@ title: Run the process over a selection
 area: 5 implementation
 actors:
   - Author
-  - Run's participant
   - Participants of the product's roles
   - CI
   - Product repository
@@ -38,8 +37,8 @@ realises:
 # UC-043 Run the process over a selection
 
 **Goal.** The author selects what to build — steps of the implementation plan in a model that plans its
-work (UC-045), backlog items in Scrum or Kanban (UC-032) — and starts one **run**, which an agent carries out in a
-session of its own the way the product's process model (UC-002, UC-031) prescribes: the CI configuration if it is
+work (UC-045), backlog items in Scrum or Kanban (UC-032) — and starts one **run** — in the prompt bar, by asking for it (UC-049) —, which the product's CI carries out by
+itself the way the product's process model (UC-002, UC-031) prescribes: the CI configuration if it is
 missing, the steps in the plan's order or the items after those they build on, the test battery, and at the end the
 validation of what was built. The author is asked only where the model puts a gate that a person decides, or when a
 limit fixed at the start is reached. For a critical step, the single parts remain: UC-024, UC-026 and UC-027 can
@@ -59,11 +58,11 @@ work-in-progress limit (UC-034), and each item's job includes its tests.
 ## Actors
 
 - **Author** — selects, sets the limits, starts the run, decides where a gate names a person.
-- **Run's participant** — the agent the author hands the run to, in a session of its own; it records the run and
-  starts its jobs.
 - **Participants of the product's roles** — the agents and people assigned in UC-048; each job goes to a
   holder of its role.
-- **CI** — the product's continuous integration, which runs the tests of every push.
+- **CI** — the product's continuous integration, which runs the tests of every push, and Agent M's job workflow in it,
+  which carries the run out: on every change of the product's job records and pull requests it starts the run's next
+  jobs.
 - **Product repository** — holds architecture, code, tests, job records.
 
 ## Precondition
@@ -76,51 +75,51 @@ work-in-progress limit (UC-034), and each item's job includes its tests.
 
 1. The author selects the steps of the implementation plan the run builds — those not done, as their derived states
    give them (UC-045), all of them or down to one step.
-2. The author sets the **limits**: jobs at once (the model's work-in-progress limit, or 3), the cost limit (counted only
-   from costs the runtimes report), and the correction rounds per draft (5).
-3. The author hands the run to its participant, which plans it from the model: the parts of the run in their order,
-   the jobs they consist of, the participant of each role that will do them, and every gate on the way and who decides
-   it.
-4. The run's participant writes the run's job record, naming the selection, the limits and the author who started it,
-   and starts the first jobs.
+2. The limits are those of the start: jobs at once (the model's work-in-progress limit, or 3), the cost limit (none;
+   counted only from costs the runtimes report), and the correction rounds per draft (5).
+3. The author asks for the run in the prompt bar — "build ITM-001, with CI first" —; the endpoint or CLI session plans
+   it as one piece of kind *run* that works on the selection (UC-049 4a), and the author's *Send* is the start.
+4. Agent M writes the run's job record, naming the selection, the limits and the author who started it. Its commit
+   starts the product's job workflow, which plans the run from the model — the parts of the run in their order, the
+   jobs they consist of, the holder of each role that will do them, every gate on the way and who decides it — and
+   starts the first jobs, each naming the run, the run's record naming each.
 5. The run proceeds without a click:
    1. **CI** — if the product has no CI configuration, the job of UC-027 generates it from the schedule
-      (the book's default where none is declared) and its pull request is merged once green;
+      (the book's default where none is declared), and CI merges its pull request once green;
    2. **Implementation** — one job per step (UC-024), each starting as soon as the steps it waits for are
       done, and a phase's steps once the gate before it is recorded; up to the limit of jobs at once;
    3. **Tests** — the job of UC-026 for the selection, at every level the schedule names; release tests
       go to a participant other than the one who implemented;
    4. **Validation** — UC-025 for the selection.
 
-   Every job merges its pull request once the Definition of Done holds, writes its own record naming the
-   run, and goes through the correction loop where it drafts; the run's record names every job it started.
+   Every job's pull request is merged once the Definition of Done holds — by its participant where its route lets it
+   merge, else by CI —; every job writes its own record naming the run, and goes through the correction loop where it
+   drafts; the run's record names every job it started. After every job's end and every merge, CI starts the jobs
+   that may now start.
 6. The job dashboard (UC-036) and the process dashboard (UC-035) show the run's jobs, their states and what waits. No
    click is needed between jobs.
-7. The run ends. Its participant completes the run's record. The validation of the selection — what each module
+7. The run ends: once every selected step is done, CI completes the run's record. The validation of the selection — what each module
    realises, its code, its tests, every gap — is the view of UC-025 for the modules of the selection.
 
 ```mermaid
 sequenceDiagram
     actor A as Author
-    participant R as Run's participant
     participant P as Participants
     participant C as CI
     participant G as Product repository
-    A->>R: run, selection, limits
-    R->>G: run record (job naming its jobs)
+    A->>G: run, selection (prompt bar, Send): run record
+    G->>C: job workflow: the run's next jobs
     opt no CI configuration
-        R->>P: CI job (UC-027)
-        P->>G: pull request, merged on green
+        C->>G: CI job (UC-027): pull request, merged on green
     end
     loop steps in the plan's order, up to the limit at once
-        R->>P: implementation job (UC-024)
+        C->>G: start record of the next implementation job (UC-024)
+        G->>P: the job, taken on its route
         P->>G: failing tests, code, pull request
         G->>C: run
         C-->>G: green, Definition of Done holds, merged
     end
-    R->>P: test battery (UC-026), release tests by another participant
-    P->>G: pull request with tests and counter-proofs
-    R->>G: run record completed
+    C->>G: run record completed
     A->>G: validation of the selection (UC-025)
 ```
 
@@ -130,16 +129,18 @@ sequenceDiagram
   in Scrum, the ready items of the current sprint of the author's team, each team starting runs of its own; in Kanban,
   as many as the work-in-progress limit allows. Each item's job
   is that of UC-034, including its tests; the rest of this use case applies unchanged.
-- **1b. A selected step's module file or decision is not accepted.** It is not built: the run's participant names what
-  is open (UC-022, UC-023).
+- **1b. A selected step's module file or decision is not accepted.** It is not built: the step's line on the job
+  dashboard names what is open (UC-022, UC-023).
 - **1c. The author wants only one part for one step** — for example a critical module implemented and
   reviewed by hand. They start UC-024, UC-026 or UC-027 on its own; no run is created.
 - **1d. The product has no implementation plan, or no ready backlog item.** Nothing starts; the plan is made in UC-045,
   the backlog in UC-032.
-- **3a. The interfaces form a cycle.** The run starts nothing; its participant names the modules of the cycle, and the
-  architecture is changed in UC-023.
-- **3b. No participant holds a role the plan needs.** The run's participant names the role and the missing capability
-  (UC-017, UC-002); nothing starts.
+- **3a. The interfaces form a cycle.** The run starts nothing; its record ends failed, naming the modules of the cycle,
+  and the architecture is changed in UC-023.
+- **3b. No participant holds a role the plan needs.** Nothing starts; the step stays ready, and the job dashboard names
+  the role (UC-048).
+- **3c. The product has no job workflow** (UC-010). The prompt bar offers to set it up, as UC-049 4c does, before it
+  writes the run's record.
 - **5a. A job reaches a gate its model gives to a person** — a security review, a documented verification
   required by IEC 62304. The run waits there; the jobs that do not depend on it go on. The gate appears on
   the job dashboard with what it checks; the person decides with one click (UC-036), and the run continues.
@@ -149,7 +150,7 @@ sequenceDiagram
 - **5c. A limit is reached** — cost, or rounds. The run starts no further job, lets the running ones
   finish, and its record says which limit stopped it. The author may raise the limit; the run then goes on with the
   remaining jobs under the same record.
-- **5d. The author stops the run.** Its participant starts no further job, and every running job is cancelled
+- **5d. The author stops the run** (UC-036, *Cancel*). CI starts no further job, and every running job is cancelled
   (`A CANCELLED JOB WRITES NOTHING MORE`, UC-036); what was merged stays.
 
 ## Postcondition
