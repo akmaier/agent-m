@@ -1,9 +1,10 @@
 // The writer `branch-and-pull-request` of MOD-runtimes' `routeStrategies` (ITM-567), as the accepted text of docs/architecture/MOD-runtimes.md states it: "`routeStrategies` —
 // `Partial<Strategies>` with the writer `branch-and-pull-request`. reads the branch named after the job and its commits. With a host of a server's API, it opens the pull request
 // if the coding participant has not — into the default branch the host's `repositoryInfo` names —, gives it a description that names the job, the plan step or backlog item, its
-// modules, the requirements its new tests guard — read with MOD-test-document's `testDeclarations` — and the provenance lines, and returns its address. With a local host — a
-// Bridge's clone, which makes no server requests and throws `NotSupported` for them — it opens nothing and returns the branch and the pull request the agent reports. [...] It
-// never merges [...]. Fails with `NoBranch`, `NoCommits`, and what the host names." With UC-024 steps 7 and 11 and UC-049 4a.
+// modules, the requirements its new tests guard — read with MOD-test-document's `testDeclarations` — and the provenance lines, and returns its address." and, as the file
+// now states it: "A host that reaches no server's API for pull requests — a Bridge's clone of a product it holds no token for, which throws `NotSupported` for them — has no
+// pull request to give: the writer opens nothing and returns the branch with no pull request. [...] The writer never merges [...]. Fails with `NoBranch`, `NoCommits`, and
+// what the host names." With UC-024 steps 7 and 11 and UC-049 4a.
 // Run: node --test tests/runtimes-pull-request.test.mjs
 //
 // Module: MOD-runtimes
@@ -168,16 +169,19 @@ test("the writer opens no pull request where the branch has one", async () => {
 // TST-567003 · level: unit · module: MOD-runtimes
 // guards: UC-049; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a local host, a Bridge's clone: it holds the branch at c1, and every server request (listPullRequests, repositoryInfo, openPullRequest) throws NotSupported
-// input: the writer with the answer { branch: the job's id, commits: ["c1"], pullRequest: "https://github.com/acme/product/pull/3" }
-// expect: no openPullRequest call; the outcome's pullRequest is "https://github.com/acme/product/pull/3", its commits ["c1"]; and the same host with an answer that reports no pull request ("") gives pullRequest null
-test("the writer on a local host opens nothing and returns the branch and the pull request the agent reports", async () => {
-  const server = fakeHost({ local: true });
-  const outcome = await write(server.host, { branch: JOB, commits: ["c1"], pullRequest: "https://github.com/acme/product/pull/3" });
-  assert.equal(server.calls.filter(([name]) => name === "openPullRequest").length, 0, "nothing opened");
-  assert.equal(outcome.pullRequest, "https://github.com/acme/product/pull/3");
-  assert.deepEqual(outcome.commits, ["c1"]);
-  const silent = await write(fakeHost({ local: true }).host, { branch: JOB, commits: ["c1"], pullRequest: "" });
-  assert.equal(silent.pullRequest, null, "no pull request reported");
+// input: the writer with the answer { branch: the job's id, commits: ["c1"] }, and with an answer that still names a pull request, "https://github.com/acme/product/pull/3"
+// expect: no openPullRequest call; the outcome's pullRequest is null and its commits ["c1"], for both answers: the writer takes no pull request from the answer; counter-proof: the server
+//   host with an open pull request #5 of the branch gives that one's address
+test("the writer on a host without the server's API for pull requests opens nothing and returns the branch with no pull request", async () => {
+  for (const draft of [{ branch: JOB, commits: ["c1"] }, { branch: JOB, commits: ["c1"], pullRequest: "https://github.com/acme/product/pull/3" }]) {
+    const server = fakeHost({ local: true });
+    const outcome = await write(server.host, draft);
+    assert.equal(server.calls.filter(([name]) => name === "openPullRequest").length, 0, "nothing opened");
+    assert.equal(outcome.pullRequest, null, "no pull request to give");
+    assert.deepEqual(outcome.commits, ["c1"]);
+  }
+  const served = await write(fakeHost({ pulls: [{ number: 5, url: "https://github.com/acme/product/pull/5", branch: JOB, base: "develop", state: "open" }] }).host, { branch: JOB, commits: ["c1"] });
+  assert.equal(served.pullRequest, "https://github.com/acme/product/pull/5", "counter-proof: a server's host gives the branch's pull request");
 });
 
 // TST-567004 · level: unit · module: MOD-runtimes
