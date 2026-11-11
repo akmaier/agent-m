@@ -76,8 +76,8 @@ USES THE PERSON'S OWN LOGIN`). Every process of an agent it starts runs in that 
 repositories are reached only by the Bridge, outside it, with the repository tokens the paired browser handed it, which
 it keeps — or, for a repository it holds none for, with the computer's own git login (`NO MODEL READS A CREDENTIAL`, `A
 TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`): it forwards each push of the agent to the origin at once, and makes the
-calls to the server the agent asks of it for its pull request — open it, read it with its CI, read a CI run's log, merge
-it —, the relay. It checks out every working folder as soon as the Bridge's agents, its
+calls to the server the agent asks of it — fetch the origin into its clone of the product, from which the agent fetches
+and pulls, and, for its pull request, open it, read it with its CI, read a CI run's log, merge it —, the relay. It checks out every working folder as soon as the Bridge's agents, its
 folder, its served products or its tokens change (UC-044, step 3). For a job of the page, it also calls a model endpoint the page cannot call. While no tab is open, it starts an agent's sprint close when the sprint ends (`A SPRINT CLOSED BY AN AGENT STARTS BY
 ITSELF`). It answers the agents, jobs, ask and probe routes of the Bridge's API. It runs in Node, in the Bridge's main
 process.
@@ -87,8 +87,9 @@ process.
 - `index.mjs` — the interface.
 - `handlers.mjs` — the agents, jobs, ask and probes routes.
 - `watch.mjs` — reading the served products, taking and resuming jobs, sprint ends.
-- `workfolders.mjs` — the clones of a working folder, a working clone per job, its outbox and its relay's folders, and
-  the branches forwarded from the outbox; the host of a repository through its clone.
+- `workfolders.mjs` — the clones of a working folder, a working clone per job fetching from the Bridge's clone of its
+  product, its outbox and its relay's folders, and the branches forwarded from the outbox; the host of a repository
+  through its clone.
 - `relay.mjs` — the relay of a running job: the outbox looked at and its pushes forwarded, the agent's requests carried
   out and answered.
 - `relay.md` — what the agent of a job with a relay is told of it, data like a kind's prompt.
@@ -118,8 +119,8 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
   a served product there at its checkout, and a product a job connects to when the job connects to it; the agent,
   which cannot write the folder, clones none. A product whose folder holds a clone of another repository of the same
   name is refused, naming both;
-- **one working clone per running job of that agent in `jobs/<id>/`**, with its outbox and, for a job with a relay, the
-  relay's two folders, all removed when the job ends;
+- **one working clone per running job of that agent in `jobs/<id>/`**, made from the Bridge's clone of the job's
+  product, with its outbox and, for a job with a relay, the relay's two folders, all removed when the job ends;
 - **the agent's home `home/`** (MOD-agent-enclosure).
 
 `home/` and `jobs/` are excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there
@@ -156,11 +157,24 @@ on a command line, in a remote address, in a clone's configuration or in an envi
 chosen by its enclosure and names no such file. For an address the file holds no section for, git asks the computer's own
 credential helpers, as it would without the Bridge.
 
-**The outbox.** The Bridge makes the job's working clone with its credentials, then the outbox beside it —
-`jobs/<id>.out.git`, a bare repository cloned from the working clone — and sets the outbox as the working clone's push
-address, before the agent starts; the outbox's branches at that moment are the job's base. The agent may write the
-working clone, the outbox and its relay's requests (below), and nothing else of the working folder: the clones of the
-instance and of the products, in which the Bridge runs git with its credentials, are read-only to it.
+**The working clone's fetch address.** The working clone fetches from the Bridge's clone of the job's product
+(`products/<name>/`), never from the product's server, for every product alike — public or private, on GitHub or on a
+GitLab server. Before the agent starts, after the Bridge has brought its clone up to the origin as it does to take the
+job, the Bridge makes the working clone: an empty repository with the Bridge's clone as its `origin`, the fetch refspec
+`+refs/remotes/origin/*:refs/remotes/origin/*` together with `^refs/remotes/origin/HEAD`, fetched once, `origin/HEAD`
+set to the branch the Bridge's clone names as the origin's default, and that branch checked out, tracking it. So the
+agent's `git fetch` and `git pull` read the origin's branches and tags as the Bridge last fetched them — never the
+Bridge's own branches or the `refs/agent-m/` it forwards through —, over a local path and with no credential: the
+tokens stay in the Bridge's tokens' file, which the agent's git does not include. A branch the Bridge forwarded is among
+them, since the forward's push updates the clone's `refs/remotes/origin/` of that branch. The relay's `fetch` (below)
+brings the Bridge's clone up to the origin. The Bridge names that clone to the agent's enclosure among the folders it
+may read, beside the instance's (MOD-agent-enclosure).
+
+**The outbox.** The Bridge then makes the outbox beside the working clone — `jobs/<id>.out.git`, a bare repository
+cloned from the working clone — and sets the outbox as the working clone's push address, before the agent starts; the
+outbox's branches at that moment are the job's base. The agent may write the working clone, the outbox and its relay's
+requests (below), and nothing else of the working folder: the clones of the instance and of the products, in which the
+Bridge runs git with its credentials, are read-only to it.
 
 **Each push is forwarded at once.** While the agent's process runs, the Bridge looks at the outbox's branches every two
 seconds. A branch that is new or moved against what the Bridge last forwarded of it — at first, against the base — is
@@ -176,7 +190,7 @@ clone and the outbox only before the agent starts; afterwards it only fetches th
 which runs no command the outbox's configuration names: a hook or a command written there would run with the person's
 rights.
 
-**The relay** — the calls to the server a job's agent asks for its pull request, which the Bridge makes outside the
+**The relay** — the calls to the server a job's agent asks for its fetch and its pull request, which the Bridge makes outside the
 enclosure through the host of the product, with the token it holds for it (`NO MODEL READS A CREDENTIAL`, `A TOKEN GOES
 ONLY TO THE SERVER THAT ISSUED IT`). A job has a relay when its kind's writer is `branch-and-pull-request` (MOD-runtimes),
 the kinds that deliver a branch. Before the agent starts, the Bridge makes two empty folders beside the working clone:
@@ -190,15 +204,19 @@ reads an answer whole or not at all. A request is one JSON object, `{ "call": �
 
 | `call` | Its fields | What the Bridge does |
 |---|---|---|
+| `fetch` | none | fetches the origin into the Bridge's clone of the product — its branches, pruned, and its tags — as the watching does (`cloneOrFetch`, workfolders.mjs), one at a time with that clone's forwards, its watching and the fetches of the other jobs of the agent that share it, with the token the Bridge holds for the product, or, without one, with the computer's own login, as its pushes are |
 | `read` | `branch` | reads the branch's state, below |
 | `open` | `branch` | opens the branch's pull request — on GitLab the merge request — through MOD-runtimes' writer `branch-and-pull-request`, with this job's context, the branch as the draft's `branch`, the job's participant as its drafter and no rounds yet: the writer takes the one open or merged, or opens it into the branch the job's step or item goes to, with the one description Agent M gives a job's pull request |
 | `log` | `run`, the `id` of a CI run a `read` answer named | reads the run's log (`ciRunLog`) |
 | `merge` | `branch` | merges the branch's pull request, as *The merge* allows |
 
 `branch` names a branch the agent has made or moved in the outbox in this job; any other is refused. The answer is one JSON
-object, `{ "call", "done": boolean, "reason": string | null, "state", "log" }`: `reason` why the call was not done — the
-refusal, or the failure MOD-repository-hosts names, `TokenRefused`, `PermissionMissing`, `RateLimited` with its reset,
-`NotMergeable` with the server's reason, `Unreachable` —, `null` where it was done; `state`, for every call but `log`,
+object, `{ "call", "done": boolean, "reason": string | null, "state", "log", "branches" }`: `reason` why the call was
+not done — the refusal, the failure MOD-repository-hosts names, `TokenRefused`, `PermissionMissing`, `RateLimited` with
+its reset, `NotMergeable` with the server's reason, `Unreachable`, or, for `fetch`, what git said —, `null` where it was
+done; `branches`, for `fetch`, the origin's branches, each with its commit, as the Bridge's clone holds them after the
+call — `{ "<branch>": commit }`, what the agent's own `git fetch` then reads —, `null` for every other call; `state`,
+for `read`, `open` and `merge`,
 the branch as it stands after the call — `{ branch, outbox, origin, refused, pullRequest, commits, checks, runs }`: the
 commit the outbox holds of it, the commit the origin holds or `null`, the forward the origin refused with what git said
 or `null`, so that the agent sees whether its push has reached the origin; its pull request, MOD-repository-hosts'
@@ -208,8 +226,9 @@ or `null`, so that the agent sees whether its push has reached the origin; its p
 with what is wrong in it, and no answer holds anything of a request's file but the fields above, read as their schema
 reads them. Before an answer is written, every token the repository tokens' file holds is replaced in it by `***`, so
 that nothing the server sends — a log among it — carries a credential to the agent. For a product the Bridge holds no
-token for, every call is answered with its forwarding state alone and `NotSupported`'s words: its branches are pushed
-with the computer's own login, and no pull request is opened. Once the job is cancelled or the Bridge quit, no request
+token for, `fetch` is carried out with the computer's own login, and every other call is answered with its forwarding
+state alone and `NotSupported`'s words: its branches are fetched and pushed with the computer's own login, and no pull
+request is opened. Once the job is cancelled or the Bridge quit, no request
 is carried out. Every call crosses the network to the server, but for the forwarding state, which the Bridge keeps; a
 server that cannot be reached is an answer not done, never a failure of the job.
 
@@ -230,7 +249,9 @@ the server's branch protection stays in force. The Bridge itself checks no condi
 places for the two folders, the job's branch — named by the job's identifier — and who merges. For a job with a relay,
 the Bridge's driver adds it, filled in, after the prompt it sends, as the description of where the agent works, the way
 MOD-checkout-tools' `checkoutPrompt` describes a checkout to a model endpoint on CI. It says that the agent's pushes go
-to the outbox, which the Bridge forwards, and that the agent holds no token; how to write each request and where its
+to the outbox, which the Bridge forwards, and that the agent holds no token; that its `git fetch` and `git pull` read
+the origin's branches as the Bridge last fetched them, and that it asks `fetch` before them where it needs the origin as
+it stands — to bring its branch up to a default branch that moved, for one; how to write each request and where its
 answer appears; whether the agent merges or a person does; and that a branch whose pull request `read` already shows is
 the job's work so far, which the agent goes on with.
 
@@ -370,9 +391,11 @@ commit the clone does not hold is fetched from its origin with the Bridge's cred
 In each served product, through Access's local clone: reads `docs/process.md`, the plan or backlog, `docs/jobs/` and
 `docs/gates/`, and the instance's `docs/participants.md`; appends to job records; pushes the branches the agent made, from
 the job's outbox, as the agent pushes them, and, through the server's API, opens, reads and merges their pull requests
-and reads their CI runs and logs. Through its clone of the instance, which fetches that commit: the instance's
+and reads their CI runs and logs; fetches the origin into its clone of the product as a job's agent asks. Through its
+clone of the instance, which fetches that commit: the instance's
 process models at the commit a served product's declaration names. In the working folder of each agent it offers: the
-clones, and of each running job its outbox, its relay's requests, which it reads, and its relay's answers, which it
+clones, and of each running job its working clone, made from its clone of the product before the agent starts, its
+outbox, its relay's requests, which it reads, and its relay's answers, which it
 writes. Its own `relay.md`. In the Bridge's data folder: `repository-tokens.gitconfig` and `job-logs/`. Nothing else.
 
 ## Uses
