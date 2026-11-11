@@ -49,6 +49,21 @@ async function using(fetchFn, run) {
 }
 // The failure a promise ends in, or null when it does not fail.
 const failure = (p) => Promise.resolve(p).then(() => null, (e) => e);
+// What `run()` ends in, on the test's mock clock: setTimeout is mocked (node:test MockTimers), and the clock moves on a second at
+// a time while the promise is pending, so that a wait the code under test takes — a Retry-After — costs no real time.
+async function onMockClock(t, run) {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    let pending = true;
+    const outcome = Promise.resolve().then(run).finally(() => { pending = false; });
+    outcome.catch(() => {});
+    for (let step = 0; step < 400 && pending; step++) {
+      await new Promise((resolve) => setImmediate(resolve));
+      t.mock.timers.tick(1000);
+    }
+    return await outcome;
+  } finally { t.mock.timers.reset(); }
+}
 // Every place a request could carry a credential: its address, each header, its body.
 const carries = (r, secret) => r.href.includes(secret) || Object.values(r.headers).some((v) => v.includes(secret))
   || JSON.stringify(r.body ?? "").includes(secret);
@@ -507,7 +522,7 @@ test("TST-475208: GitLab 401 preserves its identity and renewal without guessing
 // given: a fake GitHub answering 403 or 429 with X-RateLimit-Remaining 0 and Limit 5000 (60 without a token), and a fake GitLab answering 429 with and without RateLimit-Reset; counter-cases: a 403 without those headers or with a limit not used up, GitLab's 403, a 401 even with a used-up limit's headers
 // input: repositoryInfo, readSnapshot and commitFiles on each
 // expect: RateLimited { limit: account or network } with the reset time the server sent, never TokenRefused or PermissionMissing, and the write writes nothing; the counter-cases are PermissionMissing, and a 401 is TokenRefused naming the stored token and the page where it is renewed
-test("A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN — GitHub's 403 with a used-up limit is that limit, never the token", async () => {
+test("A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN — GitHub's 403 with a used-up limit is that limit, never the token", async (t) => {
   const named = "Agent M · alice/agent-m";
   const calls = (host) => [() => host.repositoryInfo(), () => host.readSnapshot("main"),
     () => host.commitFiles({ branch: "main", expectedHead: "a".repeat(40), message: "m", files: [{ path: "a.md", text: "a\n" }] })];
@@ -535,16 +550,17 @@ test("A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN — GitHub's 403 wi
   const refused = await using(fakeGitHub({ answer: githubLimit(401, 60) }).fetch,
     () => failure(connect(GITHUB, { token: GH_TOKEN, tokenName: named }).repositoryInfo()));
   assert.deepEqual([refused?.name, refused?.tokenName, refused?.renewal], ["TokenRefused", named, GH_TOKENS], "a 401 is the token");
-  // A GitLab server.
+  // A GitLab server. Its 429 carries Retry-After: 60, a brief wait that the read takes once before it names the limit: the wait
+  // passes on the test's mock clock, not in real time.
   const gitlabLimit = (headers = {}) => () => json(429, { message: "Retry later" }, { "Retry-After": "60", ...headers });
-  const withToken = await using(fakeGitLab({ answer: gitlabLimit() }).fetch,
-    () => failure(connect(GITLAB, { token: GL_TOKEN }).readSnapshot("main")));
+  const withToken = await onMockClock(t, () => using(fakeGitLab({ answer: gitlabLimit() }).fetch,
+    () => failure(connect(GITLAB, { token: GL_TOKEN }).readSnapshot("main"))));
   assert.deepEqual([withToken?.name, withToken?.limit, withToken?.resetsAt], ["RateLimited", "account", null], "GitLab, with a token");
-  const timed = await using(fakeGitLab({ answer: gitlabLimit({ "RateLimit-Remaining": "0", "RateLimit-Reset": String(RESET) }) }).fetch,
-    () => failure(connect(GITLAB, { token: GL_TOKEN }).repositoryInfo()));
+  const timed = await onMockClock(t, () => using(fakeGitLab({ answer: gitlabLimit({ "RateLimit-Remaining": "0", "RateLimit-Reset": String(RESET) }) }).fetch,
+    () => failure(connect(GITLAB, { token: GL_TOKEN }).repositoryInfo())));
   assert.deepEqual([timed?.name, timed?.resetsAt?.getTime()], ["RateLimited", RESET * 1000], "GitLab, with the reset time");
-  const without = await using(fakeGitLab({ visibility: "public", answer: gitlabLimit() }).fetch,
-    () => failure(connect(GITLAB, {}).repositoryInfo()));
+  const without = await onMockClock(t, () => using(fakeGitLab({ visibility: "public", answer: gitlabLimit() }).fetch,
+    () => failure(connect(GITLAB, {}).repositoryInfo())));
   assert.deepEqual([without?.name, without?.limit], ["RateLimited", "network"], "GitLab, without a token");
   const forbidden = await using(fakeGitLab({ answer: () => json(403, { message: "403 Forbidden" }) }).fetch,
     () => failure(connect(GITLAB, { token: GL_TOKEN }).repositoryInfo()));
@@ -552,6 +568,83 @@ test("A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN — GitHub's 403 wi
   const expired = await using(fakeGitLab({ answer: () => json(401, { message: "401 Unauthorized" }) }).fetch,
     () => failure(connect(GITLAB, { token: GL_TOKEN, tokenName: "GitLab project token" }).repositoryInfo()));
   assert.deepEqual([expired?.name, expired?.tokenName, expired?.renewal], ["TokenRefused", "GitLab project token", GL_TOKENS]);
+});
+
+// A read limited for a moment is asked once more — Expected, as src/repository-hosts/failures.mjs `send` states it: "A read the
+// server limits for a moment — 403 or 429 with a Retry-After of at most a minute — is read once more after that wait; a longer
+// wait is not taken, and the limit is named as before." A GET answered 403 or 429 with a used-up limit and Retry-After 1 or 60
+// is asked again only once that many seconds have passed — not a millisecond before —, and an answer then served is the read's
+// result; a second limited answer is named as the limit (RateLimited { limit: "account" }), and nothing is asked a third time.
+// Counter-proofs: Retry-After 61 is not waited for — the read fails as RateLimited at once, asked once; a POST answered 403 or
+// 429 with Retry-After 1 is never asked again and fails as RateLimited at once.
+// TST-2026111150 · level: unit · module: MOD-repository-hosts
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// given: a fake GitHub whose repository record (GET /repos/alice/thesis-tool) or issue creation (POST /repos/alice/thesis-tool/issues) is answered 403 or 429 with X-RateLimit-Remaining 0, X-RateLimit-Limit 5000 and a Retry-After of 1, 60 or 61 seconds — once, or every time; setTimeout on the test's mock clock
+// input: repositoryInfo and createIssue, the mock clock moved to one millisecond before the Retry-After, then to it, then a minute further
+// expect: Retry-After 1 or 60: one GET until the time, two from it, and repositoryInfo returns the record when the second is served, fails as RateLimited { account } when it is limited too, with no third GET; Retry-After 61: one GET and RateLimited at once; a POST: asked once and RateLimited at once
+test("TST-2026111150: a read limited for a moment is asked once more after its Retry-After; a longer wait and a write are not asked again", async (t) => {
+  const limited = (status, after) => json(status, { message: "You have exceeded a secondary rate limit." }, {
+    "Retry-After": String(after), "X-RateLimit-Limit": "5000", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": String(RESET) });
+  // A fake GitHub whose request `which` is answered `limited(status, after)` the first `times` times it arrives.
+  const limiting = (which, status, after, times) => {
+    let asked = 0;
+    const gh = fakeGitHub({ answer: (r) => (which(r) && ++asked <= times ? limited(status, after) : null) });
+    return { fetch: gh.fetch, asked: () => gh.requests.filter(which).length };
+  };
+  const record = (r) => r.method === "GET" && r.path === "/repos/alice/thesis-tool";
+  const issues = (r) => r.method === "POST" && r.path === "/repos/alice/thesis-tool/issues";
+  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve)); };
+  // The call started on the mock clock -> { done, outcome }: outcome { value } or { error } once it has ended.
+  const start = (gh, call) => {
+    const s = { done: false, outcome: null };
+    globalThis.fetch = gh.fetch;
+    Promise.resolve().then(call).then((value) => ({ value }), (error) => ({ error }))
+      .then((o) => { s.done = true; s.outcome = o; });
+    return s;
+  };
+  const host = () => connect(GITHUB, { token: GH_TOKEN });
+  const real = globalThis.fetch;
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    for (const status of [403, 429]) {
+      for (const after of [1, 60]) {
+        for (const times of [1, 2]) {
+          const label = `${status}, Retry-After ${after}, limited ${times === 1 ? "once" : "every time"}`;
+          const gh = limiting(record, status, after, times);
+          const s = start(gh, () => host().repositoryInfo());
+          await settle();
+          t.mock.timers.tick(after * 1000 - 1);
+          await settle();
+          assert.equal(gh.asked(), 1, `${label}: not asked again before the Retry-After`);
+          assert.equal(s.done, false, `${label}: still waiting`);
+          t.mock.timers.tick(1);
+          await settle();
+          assert.equal(gh.asked(), 2, `${label}: asked once more at the Retry-After`);
+          assert.equal(s.done, true, `${label}: ended after the second answer`);
+          if (times === 1) assert.equal(s.outcome.value?.defaultBranch, "main", `${label}: the second answer is the read's result`);
+          else assert.deepEqual([s.outcome.error?.name, s.outcome.error?.limit], ["RateLimited", "account"], `${label}: the second limit is named`);
+          t.mock.timers.tick(60_000);
+          await settle();
+          assert.equal(gh.asked(), 2, `${label}: never asked a third time`);
+        }
+      }
+      // Counter-proofs: a wait longer than a minute is not taken; a write is never asked again.
+      const long = limiting(record, status, 61, Infinity);
+      const l = start(long, () => host().repositoryInfo());
+      await settle();
+      assert.equal(l.done, true, `${status}, Retry-After 61: ends without waiting`);
+      assert.equal(l.outcome.error?.name, "RateLimited", `${status}, Retry-After 61: named as the limit`);
+      assert.equal(long.asked(), 1, `${status}, Retry-After 61: asked once`);
+      const write = limiting(issues, status, 1, Infinity);
+      const w = start(write, () => host().createIssue({ title: "t", body: "b", labels: [] }));
+      await settle();
+      assert.equal(w.done, true, `${status}, a POST: ends without waiting`);
+      assert.equal(w.outcome.error?.name, "RateLimited", `${status}, a POST: named as the limit`);
+      t.mock.timers.tick(60_000);
+      await settle();
+      assert.equal(write.asked(), 1, `${status}, a POST: never asked again`);
+    }
+  } finally { t.mock.timers.reset(); globalThis.fetch = real; }
 });
 
 // ---------------------------------------------------------------- UC-001 5a: a write the repository refuses
