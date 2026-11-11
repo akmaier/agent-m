@@ -81,8 +81,7 @@ def result(case: dict) -> dict:
 class TestPromptedSource(unittest.TestCase):
     # TST-416100 · level: release · module: system
     # guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS A REGISTERED SOURCE
-    # given: Markdown fixture cases: an instance owned by alice, a register with only bob's person entry, a product that links only bob,
-    #   a product SPEC and the section a prompted change drafts, one requirement changed and one added
+    # given: Markdown fixture cases: an instance owned by alice, a register with only bob's person entry, a product that links only bob, a product SPEC and the section a prompted change drafts, one requirement changed and one added
     # input: personAccount, the check requirement-form over the drafted section, then sourceFindings over it
     # expect: every drafted requirement names github.com/alice and passes both; counter-proof: with another source in its place, each fails both
     def test_prompted_requirement_changes_use_the_persons_account(self):

@@ -141,12 +141,9 @@ class Identifiers(unittest.TestCase):
 
     # TST-1792001 · level: unit · module: MOD-identifiers
     # guards: EVERY ARTIFACT HAS AN IDENTIFIER
-    # given: the fixture product's SPEC, a requirement of it renamed in turn to A_NAME_WITH_UNDERSCORES, to one with a lowercase letter and to one with
-    #   two spaces in a row; and, as the known positives, renamed to EVERY MODEL READS AGENT M'S AGENTS.MD FIRST and to
-    #   A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
+    # given: the fixture product's SPEC, a requirement of it renamed in turn to A_NAME_WITH_UNDERSCORES, to one with a lowercase letter and to one with two spaces in a row; and, as the known positives, renamed to EVERY MODEL READS AGENT M'S AGENTS.MD FIRST and to A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
     # input: carried() over each copy — requirementFindings under EVERY ARTIFACT HAS AN IDENTIFIER for SPEC.md
-    # expect: each of the first three is reported as a name that is no requirement's name, at its line; the two known positives pass, each carried as a
-    #   requirement on its line
+    # expect: each of the first three is reported as a name that is no requirement's name, at its line; the two known positives pass, each carried as a requirement on its line
     def test_a_requirement_name_outside_the_scheme_is_reported_and_names_in_its_form_pass(self):
         head = "**EVERY FILE HAS A STATUS**"
         for name in ["A_NAME_WITH_UNDERSCORES", "EVERY FILE HAS A STATUs", "EVERY FILE  HAS A STATUS"]:

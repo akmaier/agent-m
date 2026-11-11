@@ -73,11 +73,9 @@ class RequirementHasSource(unittest.TestCase):
 
     # TST-2026110812 · level: unit · module: MOD-source-register
     # guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE PERSON WHO PROMPTS IS A SOURCE
-    # given: the fixture SPEC with THE EXPORT IS A PDF naming only the account github.com/akmaier, a register that holds no entry of that account, and a product
-    #   that links no source at all
+    # given: the fixture SPEC with THE EXPORT IS A PDF naming only the account github.com/akmaier, a register that holds no entry of that account, and a product that links no source at all
     # input: sourceFindings of THE EXPORT IS A PDF
-    # expect: no finding; counter-proof: the same requirement naming SRC-other, which is neither linked nor an account, is an error under
-    #   A REQUIREMENT HAS A REGISTERED SOURCE
+    # expect: no finding; counter-proof: the same requirement naming SRC-other, which is neither linked nor an account, is an error under A REQUIREMENT HAS A REGISTERED SOURCE
     def test_an_account_is_a_source_without_entry_or_link(self):
         as_account = SPEC.replace(PDF_SOURCE, "*(github.com/akmaier)*")
         self.assertEqual(findings(as_account, [PDF], []), [], "github.com/akmaier, neither registered nor linked")

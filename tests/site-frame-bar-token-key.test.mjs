@@ -59,11 +59,9 @@ const sourceOf = (text, name) => {
 
 // TST-2026111012 · level: unit · module: MOD-site-frame
 // guards: UC-049; UC-010
-// given: src/site-frame/dashboard-app.mjs, whose startBar attaches the bar on the review pages; known positive: the same reading finds `products: managedProducts(` there, which TST-2026111011
-//   shows hands the tokenKey
+// given: src/site-frame/dashboard-app.mjs, whose startBar attaches the bar on the review pages; known positive: the same reading finds `products: managedProducts(` there, which TST-2026111011 shows hands the tokenKey
 // input: the source of startBar
-// expect: the product it hands the bar carries `tokenKey: tokenKeyOf(parseAddress(T.product.address))` — the key computed by tokenKeyOf, spelled nowhere else in startBar; counter-proof: the
-//   reading finds no `tokenKey` in the source as it stood before (`{ address: T.product.address, host: pagesHost() }`)
+// expect: the product it hands the bar carries `tokenKey: tokenKeyOf(parseAddress(T.product.address))` — the key computed by tokenKeyOf, spelled nowhere else in startBar; counter-proof: the reading finds no `tokenKey` in the source as it stood before (`{ address: T.product.address, host: pagesHost() }`)
 test("TST-2026111012: the live page's startBar hands the bar the product shown with the tokenKey tokenKeyOf gives", () => {
   const startBar = sourceOf(readFileSync(new URL("../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8"), "startBar");
   assert.ok(startBar.includes("products: managedProducts("), "known positive: the products are handed through managedProducts");

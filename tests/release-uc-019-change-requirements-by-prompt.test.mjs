@@ -634,12 +634,9 @@ test("TST-418126: a finding left on the draft page reads like a compiler message
 // level: release
 // module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages; MOD-artifact-edits; MOD-spec-changes
 // guards: UC-019; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A SPEC EDIT IS SAVED AS A PROPOSAL
-// given: the product's hierarchy docs/groups/requirements.md holds the group "Lending" with both requirements; the drafter adds A RETURN IS RECORDED to the section Lending and names its
-//   place, a new group "Returns" in "Lending" (UC-019 step 6: "Each requirement a section adds also names its place in the requirement hierarchy")
+// given: the product's hierarchy docs/groups/requirements.md holds the group "Lending" with both requirements; the drafter adds A RETURN IS RECORDED to the section Lending and names its place, a new group "Returns" in "Lending" (UC-019 step 6: "Each requirement a section adds also names its place in the requirement hierarchy")
 // input: Send, Review the draft, Save
-// expect: step 4 — the request carries the hierarchy; one exchange; step 8 — one drafted text, the section "## Lending", with A RETURN IS RECORDED and its place "in a new group “Returns” in
-//   “Lending”" beside it; step 9 — one proposal commit for the section whose places file names A RETURN IS RECORDED in "Lending" with the new group "Returns"; SPEC.md and
-//   docs/groups/requirements.md byte-identical, and no commit writes the group file ("the SPEC and `docs/groups/requirements.md` stay unchanged")
+// expect: step 4 — the request carries the hierarchy; one exchange; step 8 — one drafted text, the section "## Lending", with A RETURN IS RECORDED and its place "in a new group “Returns” in “Lending”" beside it; step 9 — one proposal commit for the section whose places file names A RETURN IS RECORDED in "Lending" with the new group "Returns"; SPEC.md and docs/groups/requirements.md byte-identical, and no commit writes the group file ("the SPEC and `docs/groups/requirements.md` stay unchanged")
 test("TST-418128: a drafted place stands beside its section and is saved in the section's entry, the SPEC and the group file untouched", async () => {
   const RETURN = "A RETURN IS RECORDED";
   const added = draft(candidate({ name: RETURN, rule: "Every return is recorded with its date.", check: "`tests/return.test.mjs`", replaces: null }));

@@ -35,8 +35,7 @@ const rulesOf = (sources) => sourceFindings([requirement(...sources)], links(), 
 // TST-2026110801 · level: unit · module: MOD-source-register
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the register and links above — no entry names an account, the product links SRC-book alone
-// input: sourceFindings of a requirement whose only source item is each of: github.com/akmaier; github.com/akmaier, issue 12; gitlab.example.org:8443/akmaier, issue 12;
-//   gitlab.rrze.fau.de/a.maier_2-x — and, as known positives, of SRC-book, which the product links, and of SRC-other, which names no entry
+// input: sourceFindings of a requirement whose only source item is each of: github.com/akmaier; github.com/akmaier, issue 12; gitlab.example.org:8443/akmaier, issue 12; gitlab.rrze.fau.de/a.maier_2-x — and, as known positives, of SRC-book, which the product links, and of SRC-other, which names no entry
 // expect: no finding for any of the accounts, nor for SRC-book; one error under A REQUIREMENT HAS A REGISTERED SOURCE for SRC-other
 test("TST-2026110801: an item that is an account is a source of the product without a register entry or a link", () => {
   assert.deepEqual(rulesOf(["SRC-book"]), [], "known positive: a linked source passes");
@@ -49,9 +48,7 @@ test("TST-2026110801: an item that is an account is a source of the product with
 // TST-2026110802 · level: unit · module: MOD-source-register
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE
 // given: the register and links above
-// input: sourceFindings of a requirement whose only source item is each of these, none an account by the grammar: akmaier (no server); github/akmaier (a server of one label);
-//   github.com/ (no account); github.com/ak maier (a space); github.com/akmaier/agent-m (a second `/`); github.com/akmaier,issue (no space after the comma);
-//   https://github.com/akmaier (a scheme); github.com:port/akmaier (a port that is no number); and, as the known positive, github.com/akmaier
+// input: sourceFindings of a requirement whose only source item is each of these, none an account by the grammar: akmaier (no server); github/akmaier (a server of one label); github.com/ (no account); github.com/ak maier (a space); github.com/akmaier/agent-m (a second `/`); github.com/akmaier,issue (no space after the comma); https://github.com/akmaier (a scheme); github.com:port/akmaier (a port that is no number); and, as the known positive, github.com/akmaier
 // expect: one error under A REQUIREMENT HAS A REGISTERED SOURCE for each, which names the item; none for github.com/akmaier
 test("TST-2026110802: an item that only resembles an account is no source", () => {
   assert.deepEqual(rulesOf(["github.com/akmaier"]), [], "known positive: an account");

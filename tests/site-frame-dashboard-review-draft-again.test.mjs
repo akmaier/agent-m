@@ -68,11 +68,9 @@ async function sendFromBar(server, text) {
 
 // TST-2026111505 · level: unit · module: MOD-site-frame
 // guards: UC-049; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
-// given: the tab keeps the conversation's draft "earlier draft" (an edit of docs/earlier.md) for the subject use-case/id=UC-001; the endpoint ep1 answers the next message with the draft
-//   "newer draft" (an edit of docs/newer.md)
+// given: the tab keeps the conversation's draft "earlier draft" (an edit of docs/earlier.md) for the subject use-case/id=UC-001; the endpoint ep1 answers the next message with the draft "newer draft" (an edit of docs/newer.md)
 // input: the review pages at #draft/subject=use-case%2Fid%3DUC-001; the person sends "follow up" from the bar and presses Review the draft, whose route is the fragment shown
-// expect: known positive: before the follow-up the page shows "earlier draft" and docs/earlier.md; after Review the draft the fragment is still #draft/subject=use-case%2Fid%3DUC-001 and the
-//   page shows "newer draft" with docs/newer.md, and neither "earlier draft" nor docs/earlier.md
+// expect: known positive: before the follow-up the page shows "earlier draft" and docs/earlier.md; after Review the draft the fragment is still #draft/subject=use-case%2Fid%3DUC-001 and the page shows "newer draft" with docs/newer.md, and neither "earlier draft" nor docs/earlier.md
 // counter-proof: on the code before, the bar's go only wrote location.hash, which fires no hashchange for the fragment shown, and the page kept "earlier draft" (red)
 test("TST-2026111505 Review the draft on the draft route already shown draws the route again with the tab's newer draft", async () => {
   const earlier = { subject: SUBJECT, kind: "converse", participant: "ep1", params: {}, result: resultOf(draftOf("earlier draft", "docs/earlier.md")) };

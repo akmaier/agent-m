@@ -596,12 +596,9 @@ const GROUPS_PATH = "docs/groups/use-cases.md";
 
 // TST-507060 · level: component · module: MOD-review-pages
 // guards: UC-049; UC-021; A REGROUPING IS COMMITTED DIRECTLY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; REGROUPING LEAVES THE GROUPED FILE UNCHANGED
-// given: the product of UC-007 and UC-008, which has no group file of use cases; the conversation's draft of the kind propose-groups for the page of UC-007, its parameter `kind`
-//   "use-cases", its result's draft the two moves of REVIEW_MOVES — as the prompt bar keeps it from a job's answer on CI
+// given: the product of UC-007 and UC-008, which has no group file of use cases; the conversation's draft of the kind propose-groups for the page of UC-007, its parameter `kind` "use-cases", its result's draft the two moves of REVIEW_MOVES — as the prompt bar keeps it from a job's answer on CI
 // input: the route draft for that subject; then a click on Save arrangement
-// expect: before the click, the two moves stand as the pending changes beside the hierarchy — "Add the group “Review”" and "Move UC-008 from the top level to “Review”" — and nothing is
-//   written; the click writes one commit, of the group file docs/groups/use-cases.md only, which holds the group Review with UC-008 in it; no use case's file is in it; afterwards the tab
-//   keeps no draft for the subject, and the route says there is none
+// expect: before the click, the two moves stand as the pending changes beside the hierarchy — "Add the group “Review”" and "Move UC-008 from the top level to “Review”" — and nothing is written; the click writes one commit, of the group file docs/groups/use-cases.md only, which holds the group Review with UC-008 in it; no use case's file is in it; afterwards the tab keeps no draft for the subject, and the route says there is none
 test("draft — the moves of propose-groups are shown as the pending changes of Arrange and saved with the group file only, in one commit", async () => {
   const fake = fakeProduct();
   const shown = await showDraft(fake, { kind: "propose-groups", params: { kind: "use-cases" }, result: resultOf({ moves: REVIEW_MOVES }) });

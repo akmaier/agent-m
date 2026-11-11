@@ -866,11 +866,9 @@ const jobRecordOf = (it) => it.product.attempts.flatMap((attempt) => attempt.fil
 
 // TST-1129001 · level: component · module: MOD-prompt-bar
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
-// given: a page whose subject gives the text of the page, a target, a draft that holds the participant's answer, and a source SRC-person-alice of its own; the instance
-//   alice/agent-m on GitHub; the participant proposes a hand-over of the kind implement, queued since the participant's tab cannot run it
+// given: a page whose subject gives the text of the page, a target, a draft that holds the participant's answer, and a source SRC-person-alice of its own; the instance alice/agent-m on GitHub; the participant proposes a hand-over of the kind implement, queued since the participant's tab cannot run it
 // input: Send, whose answer proposes the hand-over
-// expect: the queued job's record holds `"source": "github.com/alice"` — the bar's, the account personAccount gives for the instance — among its parameters, not the
-//   subject's SRC-person-alice, and no other parameter of the subject — no `page`, no `draft`, no `target`, no text of the page and no text of the answer anywhere
+// expect: the queued job's record holds `"source": "github.com/alice"` — the bar's, the account personAccount gives for the instance — among its parameters, not the subject's SRC-person-alice, and no other parameter of the subject — no `page`, no `draft`, no `target`, no text of the page and no text of the answer anywhere
 test("a queued hand-over takes only the bar's source, the person's account, into its record", async () => {
   const it = open({ subject: subjectGiving() });
   await proposes(it, ITEM("ITM-004"));
@@ -1189,13 +1187,9 @@ const RUN_8 = "https://github.com/alice/thesis-tool/actions/runs/8";
 
 // TST-20261111901 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-021; A REGROUPING IS COMMITTED DIRECTLY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the page of TST-1200002, nvidia chosen; Spawn job with the message TASK, whose job — the endpoint's own — ends done listing `handed over: propose-groups — <piece>`; the
-//   piece's record — kind propose-groups, participant nvidia, route ci hosted, its task with the hand-over, its parameters { useCases: [UC-001, UC-002], kind: "use-cases",
-//   refuses: [hand-over] } — taken by the run 8, which left the moves of MOVES as its answer in its log, and ended done with that run's address; 15 seconds pass
+// given: the page of TST-1200002, nvidia chosen; Spawn job with the message TASK, whose job — the endpoint's own — ends done listing `handed over: propose-groups — <piece>`; the piece's record — kind propose-groups, participant nvidia, route ci hosted, its task with the hand-over, its parameters { useCases: [UC-001, UC-002], kind: "use-cases", refuses: [hand-over] } — taken by the run 8, which left the moves of MOVES as its answer in its log, and ended done with that run's address; 15 seconds pass
 // input: then a click on Review the draft under the piece
-// expect: the tab keeps the conversation's draft { subject: the page's key, kind: propose-groups, participant: nvidia, params: the piece's parameters, result whose draft is
-//   { moves: MOVES } } — the answer read by the kind's schema of its draft —; under the piece stands Review the draft, whose click goes to draft/subject=<the key, encoded>;
-//   nothing more was written than the spawned job's record and what the fixture wrote
+// expect: the tab keeps the conversation's draft { subject: the page's key, kind: propose-groups, participant: nvidia, params: the piece's parameters, result whose draft is { moves: MOVES } } — the answer read by the kind's schema of its draft —; under the piece stands Review the draft, whose click goes to draft/subject=<the key, encoded>; nothing more was written than the spawned job's record and what the fixture wrote
 test("a handed-over job of propose-groups that ends on CI leaves its moves as the conversation's draft, which Review the draft leads to", async () => {
   const it = open({ endpoints: ON_ACTIONS });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");

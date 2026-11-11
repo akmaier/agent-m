@@ -20,11 +20,9 @@ const route = pages.view.routes.find((candidate) => candidate.name === "spec-ent
 
 // TST-844201 · level: system · module: MOD-review-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE PERSON WHO PROMPTS IS A SOURCE
-// given: a product on GitHub with the links file docs/sources.md; an instance alice/agent-m whose register docs/sources/ holds SRC-alice, of the account github.com/alice, and SRC-bob;
-//   the reviewer's token is stored
+// given: a product on GitHub with the links file docs/sources.md; an instance alice/agent-m whose register docs/sources/ holds SRC-alice, of the account github.com/alice, and SRC-bob; the reviewer's token is stored
 // input: open the SPEC-entry page of entry 07 of the product, then ask the route for the parameters of a message
-// expect: no request names a file of the instance's register — no batch names one, and none is read on its own —; the parameters hold no `source` key, though the register holds the
-//   author's entry; known positive: the page is drawn, the product's files read in batches
+// expect: no request names a file of the instance's register — no batch names one, and none is read on its own —; the parameters hold no `source` key, though the register holds the author's entry; known positive: the page is drawn, the product's files read in batches
 test("TST-844201: drawing a product's entry page reads no file of the instance's register, and its subject gives no source", async () => {
   const product = fakeGitHub(productWithLinks(10)), instance = fakeGitHub(instanceFiles(), { repo: INSTANCE_REPO });
   await openPage(product, { id: ENTRY_ID }, { instance });

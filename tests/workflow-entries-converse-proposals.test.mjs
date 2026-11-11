@@ -298,11 +298,9 @@ test("TST-1360102: a piece of change-requirements without the person's own sourc
 
 // TST-2026110813 · level: component · module: MOD-workflow-entries
 // guards: UC-049; THE PERSON WHO PROMPTS IS A SOURCE; A FINDING READS LIKE A COMPILER MESSAGE
-// given: the job of TST-1360102 — a hosted converse job whose parameters hold no `source`, the endpoint answering a plan of change-requirements —, so that the
-//   precondition person-source keeps the piece from starting (UC-049 4a.5)
+// given: the job of TST-1360102 — a hosted converse job whose parameters hold no `source`, the endpoint answering a plan of change-requirements —, so that the precondition person-source keeps the piece from starting (UC-049 4a.5)
 // input: onRecordsChanged
-// expect: the end lists one line `not run: change-requirements — <what> [THE PERSON WHO PROMPTS IS A SOURCE] — <fix>`: the finding's what, its rule in brackets, then ` — `
-//   and its fix, which names what the piece requires — the owner of the instance's repository —; the fix is not cut away
+// expect: the end lists one line `not run: change-requirements — <what> [THE PERSON WHO PROMPTS IS A SOURCE] — <fix>`: the finding's what, its rule in brackets, then ` — ` and its fix, which names what the piece requires — the owner of the instance's repository —; the fix is not cut away
 test("TST-2026110813: a piece kept from starting by a finding lists the finding as <what> [<rule>] — <fix>", async () => {
   await withWorkspace({ source: undefined }, async (w) => {
     fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }), "change-requirements": { sections: [], why: "none" } }, w);
@@ -443,13 +441,9 @@ test("TST-8048007: a piece of a kind that takes no instruction is not handed ove
 
 // TST-20261111912 · level: component · module: MOD-runtimes · MOD-workflow-entries
 // guards: UC-049; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
-// given: a hosted converse job whose endpoint answers the conversation in its first round with the plan [{ implement, works_on [], "build the ship selection" }] — an
-//   implementation that names no step, item or module —, and in every later round with the answer alone
+// given: a hosted converse job whose endpoint answers the conversation in its first round with the plan [{ implement, works_on [], "build the ship selection" }] — an implementation that names no step, item or module —, and in every later round with the answer alone
 // input: onRecordsChanged
-// expect: outcome `done`; the conversation's prompt is sent twice: the record's first round names, on the answer, piece 1 of the plan as one whose job cannot start, with
-//   the implementation's refusal "an implementation job names the steps, the items or the modules it implements"; the end lists no `not run: implement`, and the job workflow
-//   is not started. Counter-proof: on the check as it stood, the prompt was sent once and the end said `not run: implement — an implementation job names the steps…` — the
-//   model never read why (akmaier/AlienInvasion, JOB-20261110-0752-df6b).
+// expect: outcome `done`; the conversation's prompt is sent twice: the record's first round names, on the answer, piece 1 of the plan as one whose job cannot start, with the implementation's refusal "an implementation job names the steps, the items or the modules it implements"; the end lists no `not run: implement`, and the job workflow is not started. Counter-proof: on the check as it stood, the prompt was sent once and the end said `not run: implement — an implementation job names the steps…` — the model never read why (akmaier/AlienInvasion, JOB-20261110-0752-df6b).
 test("TST-20261111912: a piece whose job could not start goes back to the conversation's participant in its round", async () => {
   await withWorkspace({}, async (w) => {
     const world = fakeWorld({ converse: [answer({ kind: "implement", works_on: [], task: "build the ship selection" }), answer(null)] }, w);

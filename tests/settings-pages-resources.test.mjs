@@ -601,13 +601,9 @@ test("resources — Check through a Bridge sends no resource key, and an endpoin
 
 // TST-1031001 · level: unit · module: MOD-settings-pages
 // guards: UC-040; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
-// given: the product's list holds dlls (a repository), shared-llm (an endpoint at http://workstation.example.org:8000/v1 serving example-model, its Pin) and coder (an agent at https://agents.example.org/coder serving
-//   coder-model, its Pin); this browser keeps no endpoint at either address
+// given: the product's list holds dlls (a repository), shared-llm (an endpoint at http://workstation.example.org:8000/v1 serving example-model, its Pin) and coder (an agent at https://agents.example.org/coder serving coder-model, its Pin); this browser keeps no endpoint at either address
 // input: the resources route drawn for the product; Add as participant pressed on shared-llm and on coder
-// expect: an endpoint and an agent each have an Add as participant button, and a repository has none (known positive: the other buttons of the entry are there); pressing it opens `participants` with the type agent and the model the
-//   resource serves, filled in (MOD-settings-pages, `resources`; UC-040 2a: "a link opens UC-017 with the type *agent* and the served model prefilled"), the served model being the resource's Pin (MOD-resource-list, Data: Pin, "the
-//   identifier of the served model for an endpoint and an agent"): go("participants", { type: "agent", model: "example-model" }) on shared-llm and go("participants", { type: "agent", model: "coder-model" }) on coder — one call each,
-//   nothing written, no request to any server
+// expect: an endpoint and an agent each have an Add as participant button, and a repository has none (known positive: the other buttons of the entry are there); pressing it opens `participants` with the type agent and the model the resource serves, filled in (MOD-settings-pages, `resources`; UC-040 2a: "a link opens UC-017 with the type *agent* and the served model prefilled"), the served model being the resource's Pin (MOD-resource-list, Data: Pin, "the identifier of the served model for an endpoint and an agent"): go("participants", { type: "agent", model: "example-model" }) on shared-llm and go("participants", { type: "agent", model: "coder-model" }) on coder — one call each, nothing written, no request to any server
 test("resources — an endpoint or an agent that also works on the product opens the participants route with the type agent and the model it serves", async (t) => {
   const CODER = "| coder | agent | https://agents.example.org/coder | coder-model | — | — | bridge workstation | the group's workstation | no | — |";
   const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, LLM, CODER) } });

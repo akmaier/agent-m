@@ -323,8 +323,7 @@ test("acceptEntries — a requirement that names no linked source: nothing is wr
 
 // TST-2026110811 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE PERSON WHO PROMPTS IS A SOURCE; UC-006; UC-019
-// given: entry 07, whose proposal's requirement names only the account github.com/alice — no register entry names it and the product links none of it —; and, as the
-//   known positive that the same fixture refuses, entry 07 naming "An unlinked source"; entry 05, whole, shown beside each
+// given: entry 07, whose proposal's requirement names only the account github.com/alice — no register entry names it and the product links none of it —; and, as the known positive that the same fixture refuses, entry 07 naming "An unlinked source"; entry 05, whole, shown beside each
 // input: acceptEntries(host, [05 shown, 07 shown], ...) for each, with the product's links and the register of sources()
 // expect: the entry naming the account accepted in one commit; the one naming the unlinked source refused, nothing written
 test("TST-2026110811: acceptEntries — a requirement whose source is the person's account is accepted without a register entry or a link", async () => {

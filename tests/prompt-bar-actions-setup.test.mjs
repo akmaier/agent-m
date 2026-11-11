@@ -241,11 +241,9 @@ const repoWith = (web, files, options) => ({ ...repoOf(web, files, options), web
 
 // TST-2026111001 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the GitHub product alice/thesis-tool without Agent M's job workflow, whose repository holds the Actions secret NVIDIA_API_KEY and not AGENT_M_TOKEN; this browser keeps the product's token
-//   and nvidia's key; nvidia chosen, so that the button reads Spawn job; known positive: the same bar spawns at once on a product that has both (TST-20261111907)
+// given: the GitHub product alice/thesis-tool without Agent M's job workflow, whose repository holds the Actions secret NVIDIA_API_KEY and not AGENT_M_TOKEN; this browser keeps the product's token and nvidia's key; nvidia chosen, so that the button reads Spawn job; known positive: the same bar spawns at once on a product that has both (TST-20261111907)
 // input: a person's click on Spawn job with the message TASK
-// expect: the bar says "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN" and shows one button "Set up GitHub Actions" and no
-//   link "Set up the job workflow"; nothing was written — no commit on the product or the instance, no workflow started, no secret stored —; the secrets were listed once
+// expect: the bar says "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN" and shows one button "Set up GitHub Actions" and no link "Set up the job workflow"; nothing was written — no commit on the product or the instance, no workflow started, no secret stored —; the secrets were listed once
 test("TST-2026111001: Spawn job toward a GitHub product lacking the job workflow and AGENT_M_TOKEN writes nothing and offers Set up GitHub Actions", async () => {
   const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
   const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n" }, { secrets: ["NVIDIA_API_KEY"] });
@@ -310,11 +308,9 @@ test("TST-2026111003: one person's click on Set up GitHub Actions sets up once a
 
 // TST-20261111907 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010
-// given: the GitHub product holding the job workflow's files as this instance commit gives them and the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY; this browser also keeps the endpoint
-//   other, whose CI secret OTHER_KEY the repository lacks — a secret the run of nvidia does not read; known positive: TST-2026111001, where the bar holds the job back
+// given: the GitHub product holding the job workflow's files as this instance commit gives them and the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY; this browser also keeps the endpoint other, whose CI secret OTHER_KEY the repository lacks — a secret the run of nvidia does not read; known positive: TST-2026111001, where the bar holds the job back
 // input: a person's click on Spawn job with the message TASK
-// expect: the job is spawned at once — one commit adds the job's record, the job workflow is started once, the bar says "Spawned as" —, with no "Nothing was handed over" and no button Set up
-//   GitHub Actions; no secret was stored. (An outdated file of the job workflow holds the job back: TST-2026111202, TST-2026111204.)
+// expect: the job is spawned at once — one commit adds the job's record, the job workflow is started once, the bar says "Spawned as" —, with no "Nothing was handed over" and no button Set up GitHub Actions; no secret was stored. (An outdated file of the job workflow holds the job back: TST-2026111202, TST-2026111204.)
 test("TST-20261111907: a product that has what the run reads spawns at once; a missing secret the run does not read holds nothing back", async () => {
   const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
   const files = workflowFiles(instance, ["NVIDIA_API_KEY", "OTHER_KEY"]);
@@ -377,11 +373,9 @@ test("TST-2026111006: after the setup a secret the run reads that this browser c
 
 // TST-2026111007 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: a page of the instance alice/agent-m (no product), whose repository has no job workflow and no Actions secret; this browser keeps the instance's token under github-token and
-//   nvidia's key
+// given: a page of the instance alice/agent-m (no product), whose repository has no job workflow and no Actions secret; this browser keeps the instance's token under github-token and nvidia's key
 // input: a person's click on Spawn job with TASK; then a person's click on Set up GitHub Actions
-// expect: the bar names "alice/agent-m is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY", with no secret named as kept no value for; the click stores
-//   AGENT_M_TOKEN with the instance's token and NVIDIA_API_KEY with nvidia's key, in the instance's repository, and the job is spawned there once
+// expect: the bar names "alice/agent-m is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN · NVIDIA_API_KEY", with no secret named as kept no value for; the click stores AGENT_M_TOKEN with the instance's token and NVIDIA_API_KEY with nvidia's key, in the instance's repository, and the job is spawned there once
 test("TST-2026111007: on a page of the instance the bar sets up the instance's repository with the instance's token", async () => {
   const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
   const it = open({ product: null, instance });
@@ -416,12 +410,9 @@ async function proposesHandOver(it) {
 
 // TST-2026111008 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the GitHub product without the job workflow, holding the Actions secret NVIDIA_API_KEY and not AGENT_M_TOKEN; the endpoint relay — called through the Bridge lab, naming the CI secret
-//   NVIDIA_API_KEY of its key — whose answer hands the conversation itself on ({ kind: "converse", works_on: [the product's address], task: TASK }), which takes GitHub Actions
+// given: the GitHub product without the job workflow, holding the Actions secret NVIDIA_API_KEY and not AGENT_M_TOKEN; the endpoint relay — called through the Bridge lab, naming the CI secret NVIDIA_API_KEY of its key — whose answer hands the conversation itself on ({ kind: "converse", works_on: [the product's address], task: TASK }), which takes GitHub Actions
 // input: the person's Send; then one person's click on Set up GitHub Actions
-// expect: after Send the hand-over shows "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN", the button, and no link
-//   "Set up the job workflow"; nothing is queued; after the click the setup commits the job workflow and stores AGENT_M_TOKEN, and the hand-over is assessed again and queued at once — one
-//   commit adds the job's record (route ci hosted endpoint relay secret NVIDIA_API_KEY), the job workflow is started once with the task TASK
+// expect: after Send the hand-over shows "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions. Missing: the job workflow · AGENT_M_TOKEN", the button, and no link "Set up the job workflow"; nothing is queued; after the click the setup commits the job workflow and stores AGENT_M_TOKEN, and the hand-over is assessed again and queued at once — one commit adds the job's record (route ci hosted endpoint relay secret NVIDIA_API_KEY), the job workflow is started once with the task TASK
 test("TST-2026111008: a hand-over on the CI route toward a product not set up is held back, and one click sets up and queues it", async () => {
   const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
   const product = repoWith(PRODUCT_WEB, { "SPEC.md": "# Spec\n" }, { secrets: ["NVIDIA_API_KEY"] });
@@ -467,12 +458,9 @@ test("TST-2026111009: on GitLab a hand-over without the job workflow keeps the l
 
 // TST-2026111202 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the GitHub product holding the job workflow's two files as the older Agent M commit OLD_COMMIT gives them, and the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY; this browser keeps
-//   the product's token and nvidia's key; known positive: the same product holding the files as this instance's commit gives them spawns at once (TST-20261111907)
+// given: the GitHub product holding the job workflow's two files as the older Agent M commit OLD_COMMIT gives them, and the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY; this browser keeps the product's token and nvidia's key; known positive: the same product holding the files as this instance's commit gives them spawns at once (TST-20261111907)
 // input: a person's click on Spawn job with the message TASK
-// expect: the bar says "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions." and "Outdated: .github/workflows/agent-m-jobs.yml,
-//   .github/workflows/agent-m-main-changed.yml: the job workflow pins fedcba9, this instance is <the instance's head, seven digits>", says no "Missing:", and shows one button "Set up GitHub
-//   Actions"; nothing was written — no commit, no workflow started, no secret stored —; the secrets were listed once
+// expect: the bar says "Nothing was handed over: alice/thesis-tool is not set up for GitHub Actions." and "Outdated: .github/workflows/agent-m-jobs.yml, .github/workflows/agent-m-main-changed.yml: the job workflow pins fedcba9, this instance is <the instance's head, seven digits>", says no "Missing:", and shows one button "Set up GitHub Actions"; nothing was written — no commit, no workflow started, no secret stored —; the secrets were listed once
 test("TST-2026111202: Spawn job toward a product whose job workflow pins another Agent M commit writes nothing, names both commits, and offers Set up GitHub Actions", async () => {
   const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);
   const older = olderWorkflowFiles();
@@ -519,12 +507,9 @@ test("TST-2026111203: one person's click on Set up GitHub Actions writes the out
 
 // TST-2026111204 · level: component · module: MOD-prompt-bar
 // guards: UC-049; UC-010
-// given: two GitHub products holding the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY: one holding the job workflow file as this instance's commit gives it and agent-m-main-changed.yml
-//   with another text (the pins are equal); one holding agent-m-main-changed.yml as this instance's commit gives it and agent-m-jobs.yml with a text that pins no commit; known positive: with both
-//   files as this instance's commit gives them the job is spawned at once (TST-20261111907)
+// given: two GitHub products holding the Actions secrets AGENT_M_TOKEN and NVIDIA_API_KEY: one holding the job workflow file as this instance's commit gives it and agent-m-main-changed.yml with another text (the pins are equal); one holding agent-m-main-changed.yml as this instance's commit gives it and agent-m-jobs.yml with a text that pins no commit; known positive: with both files as this instance's commit gives them the job is spawned at once (TST-20261111907)
 // input: a person's click on Spawn job with the message TASK, on each
-// expect: on the first the bar says "Outdated: .github/workflows/agent-m-main-changed.yml: it stands with another text than this instance gives", on the second "Outdated:
-//   .github/workflows/agent-m-jobs.yml: it stands with another text than this instance gives"; neither says "the job workflow pins"; each shows one button Set up GitHub Actions; nothing was written
+// expect: on the first the bar says "Outdated: .github/workflows/agent-m-main-changed.yml: it stands with another text than this instance gives", on the second "Outdated: .github/workflows/agent-m-jobs.yml: it stands with another text than this instance gives"; neither says "the job workflow pins"; each shows one button Set up GitHub Actions; nothing was written
 test("TST-2026111204: an outdated file whose job workflow pins this instance's commit, or none, is named as standing with another text, and holds the job back", async () => {
   for (const [changed, text] of [[".github/workflows/agent-m-main-changed.yml", "name: an older text\n"], [".github/workflows/agent-m-jobs.yml", "name: agent-m-jobs\n"]]) {
     const instance = repoOf(INSTANCE_WEB, INSTANCE_FILES);

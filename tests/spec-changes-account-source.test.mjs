@@ -73,11 +73,8 @@ test("TST-2026110809: person-source refuses a change without the person's accoun
 // TST-2026110810 · level: unit · module: MOD-spec-changes · MOD-source-register
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS A REGISTERED SOURCE; UC-019
 // given: the fixture product, which links no source, and an instance whose register holds no entry; a result of change-requirements with one change of A SAMPLE RULE
-// input: the writer queue-entries with the job's parameter `source` github.com/alice; then sourceFindings of the requirements of the entry it wrote, over the product's
-//   empty links and the empty register; and, as the known positive that the same check refuses, of the entry with the account replaced by SRC-nowhere
-// expect: one commit with one entry, whose A SAMPLE RULE names the account github.com/alice alone among its sources — no passage after it, though the draft
-//   holds one (MOD-spec-changes, entrySections: "a person's account … stands alone whatever passage the draft holds") —; no finding for it; one error under
-//   A REQUIREMENT HAS A REGISTERED SOURCE for SRC-nowhere
+// input: the writer queue-entries with the job's parameter `source` github.com/alice; then sourceFindings of the requirements of the entry it wrote, over the product's empty links and the empty register; and, as the known positive that the same check refuses, of the entry with the account replaced by SRC-nowhere
+// expect: one commit with one entry, whose A SAMPLE RULE names the account github.com/alice alone among its sources — no passage after it, though the draft holds one (MOD-spec-changes, entrySections: "a person's account … stands alone whatever passage the draft holds") —; no finding for it; one error under A REQUIREMENT HAS A REGISTERED SOURCE for SRC-nowhere
 test("TST-2026110810: a change by prompt is written with the person's account as its source, and that entry passes the source check without a link", async () => {
   const context = contextWith({ source: ACCOUNT });
   await specStrategies.writers["queue-entries"](resultOf([CHANGE]), context);
@@ -100,8 +97,7 @@ const NEW = { name: "A NEW SAMPLE RULE", rule: "A reader names the file it reads
 // TST-1792040 · level: unit · module: MOD-spec-changes · MOD-source-register
 // guards: THE PERSON WHO PROMPTS IS A SOURCE
 // given: the fixture SPEC; a draft of one new candidate whose class names the passage "the instruction"
-// input: entrySections with the job's source github.com/alice, the person's account; and, as the counter-proof that a passage stays a locator into a
-//   registered source, with the source SRC-sample-book and the passage "ch. 3"
+// input: entrySections with the job's source github.com/alice, the person's account; and, as the counter-proof that a passage stays a locator into a registered source, with the source SRC-sample-book and the passage "ch. 3"
 // expect: the account stands alone as the source, *(github.com/alice)*, with no passage; the registered source is followed by its passage, *(SRC-sample-book, ch. 3)*
 test("TST-1792040: entrySections writes a person's account alone, whatever passage the draft holds; a registered source keeps its passage", () => {
   const sectionOf = (source, passage) => entrySections(SPEC, { candidates: [{ ...NEW, passage }] },
