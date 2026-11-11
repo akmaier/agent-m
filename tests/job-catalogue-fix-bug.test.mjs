@@ -1,14 +1,14 @@
 // The kind `fix-bug` through the job runner (ITM-583) — MOD-job-catalogue's definition and prompt of the kind and MOD-issue-handling's recipe `fix-inputs`, prepared by MOD-job-runner, as docs/architecture/MOD-job-catalogue.md states the kind ("`fix-bug` | UC-012 | write to the
-// repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-tests`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report") and docs/architecture/MOD-issue-handling.md the recipe; UC-012 step 5.
+// repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report"; "`fix-bug` and `refactor` change code and name the one for implementation, which holds the chapter on testing as well") and docs/architecture/MOD-issue-handling.md the recipe; UC-012 step 5.
 // Run: node --test tests/job-catalogue-fix-bug.test.mjs
 //
 // Module: MOD-job-catalogue; MOD-issue-handling; MOD-job-runner
-// Guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A TEST JOB RECEIVES THE CHAPTER ON TESTING; A CONNECTION DECLARES ITS CAPABILITIES; UC-012
+// Guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING; A CONNECTION DECLARES ITS CAPABILITIES; UC-012
 // Level: component
 //
 // The kind and its prompt are the catalogue's own, the recipes are those of MOD-issue-handling, MOD-run-planner, MOD-source-register, MOD-resource-list and MOD-runtimes (the writer) registered with the runner, the runner is the real one. The product is a fixture of this file, its host a fixture that lists
 // one issue; the instance's register is the book's, read from this repository's files. Readings the texts leave open, which the tests state (the pull request names them):
-//   - The kind is prepared for a participant that declares write to the repository and run code and tests, whose parts are, in the order of the kind's recipes, those of `fix-inputs`, then the chapter 13 of the book (`chapters-for-tests`), and none of `resource-pins` where the product
+//   - The kind is prepared for a participant that declares write to the repository and run code and tests, whose parts are, in the order of the kind's recipes, those of `fix-inputs`, then the chapters 9, 11, 12 and 13 of the book (`chapters-for-implementation`), and none of `resource-pins` where the product
 //     declares no resource a route reaches.
 //   - The participant of the job is not offered the issue's mail: the issue's part holds the issue's text and nothing else of an issue created from a mail.
 // The counter-proofs are recorded in the pull request.
@@ -61,20 +61,21 @@ async function prepared(drafter = FIXER, params) {
 }
 
 // TST-583151 · level: component · module: MOD-job-catalogue
-// guards: A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; UC-012
+// guards: AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; UC-012
 // given: known positive first — the kind is read; the strategies of MOD-issue-handling, MOD-run-planner, MOD-source-register, MOD-resource-list and MOD-runtimes are registered; a participant that declares write to the repository and run code and tests
 // input: prepareJob of fix-bug for issue 5 with the confirmed analysis (the violated requirement, the file wrong, the module MOD-reader), with that participant as the drafter
-// expect: the kind is prepared — its recipe fix-inputs is registered, no UnknownStrategy —, nothing blocks, and the parts are, by recipe in the order of the kind's: those of fix-inputs (the issue, the requirement it names, the confirmed analysis, the module's inputs, the instruction), then the one of chapters-for-tests, chapter 13
-test("fix-bug — is prepared over the recipe fix-inputs: the issue, the confirmed analysis, the module's inputs, the instruction and chapter 13 are the participant's parts", async () => {
+// expect: the kind is prepared — its recipe fix-inputs is registered, no UnknownStrategy —, nothing blocks, and the parts are, by recipe in the order of the kind's: those of fix-inputs (the issue, the requirement it names, the confirmed analysis, the module's inputs, the instruction), then those of chapters-for-implementation, chapters 9, 11, 12 and 13, in that order
+test("fix-bug — is prepared over the recipe fix-inputs: the issue, the confirmed analysis, the module's inputs, the instruction and chapters 9, 11, 12 and 13 are the participant's parts", async () => {
   const { job } = await prepared();
   assert.equal(job.kind.name, "fix-bug");
   assert.deepEqual(job.blocking, []);
   const fixInputs = job.parts.filter((part) => part.recipe === "fix-inputs").map((part) => part.name);
   assert.deepEqual(fixInputs, ["issue #5", RULE, "confirmed analysis", "docs/architecture/MOD-reader.md", "SPEC.md", "src/reader/index.mjs", "tests/reader.test.mjs", "regression test first"]);
-  const chapters = job.parts.filter((part) => part.recipe === "chapters-for-tests");
-  assert.equal(chapters.length, 1);
-  assert.match(chapters[0].name, /^13_software-testing\.md/);
-  assert.deepEqual(job.parts.map((part) => part.recipe), [...fixInputs.map(() => "fix-inputs"), "chapters-for-tests"]);
+  const chapters = job.parts.filter((part) => part.recipe === "chapters-for-implementation");
+  assert.equal(chapters.length, 4);
+  ["09_system-modeling", "11_agentic-design-and-control-patterns", "12_implementation-and-version-control", "13_software-testing"]
+    .forEach((file, index) => assert.ok(chapters[index].name.startsWith(`${file}.md`), chapters[index].name));
+  assert.deepEqual(job.parts.map((part) => part.recipe), [...fixInputs.map(() => "fix-inputs"), ...chapters.map(() => "chapters-for-implementation")]);
   assert.deepEqual(job.destinations.map((each) => [each.participant.name, each.role, each.place]), [["fixer-a", "drafter", "this machine"]]);
 });
 
@@ -101,5 +102,5 @@ test("fix-bug — the prompt is filled with the issue, the confirmed analysis an
     assert.ok(all.includes(wanted), `the parts hold "${wanted}"`);
   }
   const kind = await kindOf("fix-bug");
-  for (const place of ["{{fix-inputs}}", "{{chapters-for-tests}}", "{{resource-pins}}"]) assert.ok(kind.prompt.includes(place), `the prompt has the place ${place}`);
+  for (const place of ["{{fix-inputs}}", "{{chapters-for-implementation}}", "{{resource-pins}}"]) assert.ok(kind.prompt.includes(place), `the prompt has the place ${place}`);
 });

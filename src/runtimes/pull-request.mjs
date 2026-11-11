@@ -1,5 +1,5 @@
-// pull-request.mjs — the writer `branch-and-pull-request` (MOD-runtimes, Parts: pull-request.mjs; Interfaces: routeStrategies): it reads the branch a coding participant reports, opens the
-// pull request for it if the participant has not, and gives it a description. It never merges: a pull request is merged once the Definition of Done holds.
+// pull-request.mjs — the writer `branch-and-pull-request` (MOD-runtimes, Parts: pull-request.mjs; Interfaces: routeStrategies): it reads the branch a coding participant reports, takes its
+// pull request where one is open or merged, and otherwise opens it with a description. It never merges: a pull request is merged once the Definition of Done holds.
 //
 // Module: MOD-runtimes
 //
@@ -93,7 +93,8 @@ function describe(result, context, { modules, realises, issues }, tests) {
 /**
  * The writer branch-and-pull-request(result, context) -> Promise<WriteOutcome> — reads the branch the participant's answer reports (`result.draft.branch`) through `context.product.host`;
  * with a host of a server's API it opens the pull request into the branch baseOf gives, unless the branch has one open or merged, and gives it the description of
- * `describe`; with a local host — one whose `listPullRequests` throws NotSupported — it opens nothing. It returns the pull request's address, or the one the agent reported. Throws NoBranch
+ * `describe`; a host that reaches no server's API for pull requests — one whose `listPullRequests` throws NotSupported, a Bridge's clone of a product it holds no token for — has no pull request
+ * to give: it opens nothing. It returns the pull request's address, or null where there is none; the answer names none. A Bridge's relay opens a pull request through this writer too. Throws NoBranch
  * for a branch the host does not hold, NoCommits for one with no commit beyond the job's snapshot, and what the host throws.
  */
 export async function branchAndPullRequest(result, context) {
@@ -116,7 +117,7 @@ export async function branchAndPullRequest(result, context) {
   try {
     existing = (await host.listPullRequests({ branch: name, state: "all" })).find((pull) => pull.state === "open" || pull.state === "merged");
   } catch (error) {
-    if (error?.name === "NotSupported") return outcome(draft.pullRequest || null);
+    if (error?.name === "NotSupported") return outcome(null);
     throw error;
   }
   if (existing) return outcome(existing.url);

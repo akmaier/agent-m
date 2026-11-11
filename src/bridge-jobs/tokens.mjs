@@ -10,7 +10,7 @@
 // own matching of addresses, so that one file and one rule say which token goes where.
 
 import { execFile } from "node:child_process";
-import { chmod, mkdir, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 
@@ -81,4 +81,18 @@ export function tokenOf(address) {
       resolve(pair.slice(pair.indexOf(":") + 1) || null);
     });
   });
+}
+
+/**
+ * heldTokens() -> Promise<string[]> — every token the file of Data holds, each once, read back from its headers; none before useRepositoryTokens, and none where
+ * the file does not exist. For the relay, which replaces each of them in its answers (MOD-bridge-jobs, Data: The relay). Private to the module.
+ */
+export async function heldTokens() {
+  if (!included) return [];
+  const text = await readFile(included, "utf8").catch(() => "");
+  const tokens = [...text.matchAll(/^\s*extraHeader = Authorization: Basic (\S+)\s*$/gm)].map(([, basic]) => {
+    const pair = Buffer.from(basic, "base64").toString("utf8");
+    return pair.slice(pair.indexOf(":") + 1);
+  });
+  return [...new Set(tokens.filter(Boolean))];
 }

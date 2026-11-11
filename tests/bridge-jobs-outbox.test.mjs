@@ -1,4 +1,4 @@
-// MOD-bridge-jobs — the job's outbox, and the branches the Bridge publishes from it (ARC-054), as docs/architecture/MOD-bridge-jobs.md states it: "The
+// MOD-bridge-jobs — the job's outbox, and the branches the Bridge forwards from it (ARC-054), as docs/architecture/MOD-bridge-jobs.md states it: "The
 // Bridge runs git in the working clone and the outbox only before the agent starts; afterwards it only fetches the outbox's objects from its own clone,
 // which runs no command the outbox's configuration names: a hook or a command written there would run with the person's rights."
 // Run: node --test tests/bridge-jobs-outbox.test.mjs
@@ -17,7 +17,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { makeOutbox, publish } from "../src/bridge-jobs/workfolders.mjs";
+import { forward, forwarding, makeOutbox } from "../src/bridge-jobs/workfolders.mjs";
 
 const git = (cwd, ...args) => {
   const done = spawnSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null", GIT_AUTHOR_NAME: "A",
@@ -29,9 +29,9 @@ const git = (cwd, ...args) => {
 // TST-1381004 · level: unit · module: MOD-bridge-jobs
 // guards: NO MODEL READS A CREDENTIAL
 // given: an origin with main, the Bridge's clone of it, the job's working clone with its outbox made by makeOutbox; the agent commits on agent/work, pushes it into the outbox, and then plants in the outbox's configuration a credential helper, core.fsmonitor, core.sshCommand, uploadpack.packObjectsHook and core.hooksPath with every hook, each touching its own mark
-// input: publish({ outbox, clone, job: "JOB-1" })
+// input: forward(forwarding(outbox), { clone, job: "JOB-1" })
 // expect: agent/work is on the origin at the agent's commit and the clone's agent/work points there; main is not moved; no mark exists; the clone holds no ref below refs/agent-m/; counter-proof: git asked for a credential inside the outbox runs the planted helper, whose mark then exists
-test("TST-1381004: the Bridge publishes the agent's branch from the outbox and runs nothing the outbox's configuration names", (t) => {
+test("TST-1381004: the Bridge forwards the agent's branch from the outbox and runs nothing the outbox's configuration names", (t) => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "am-outbox-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const origin = join(root, "origin.git"), seed = join(root, "seed"), clone = join(root, "clone"), working = join(root, "jobs", "JOB-1"), marks = join(root, "marks");
@@ -71,8 +71,8 @@ test("TST-1381004: the Bridge publishes the agent's branch from the outbox and r
     git(outbox.path, "config", "uploadpack.packObjectsHook", join(hooks, "post-update"));
     git(outbox.path, "config", "core.hooksPath", hooks);
 
-    const pushed = await publish({ outbox, clone, job: "JOB-1" });
-    assert.deepEqual(pushed, [{ branch: "agent/work", commit }]);
+    const { forwarded, refused } = await forward(forwarding(outbox), { clone, job: "JOB-1" });
+    assert.deepEqual([forwarded["agent/work"], refused], [commit, {}]);
     assert.equal(git(root, "--git-dir", origin, "rev-parse", "agent/work"), commit);
     assert.equal(git(root, "--git-dir", origin, "rev-parse", "main"), main, "main is not moved");
     assert.equal(git(clone, "rev-parse", "refs/heads/agent/work"), commit, "the clone's branch points at what was pushed");

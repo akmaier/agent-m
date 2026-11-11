@@ -50,7 +50,8 @@ function computer() {
   const log = `printf '%s\\n' "$0 $*" >> ${calls}`;
   script(bin, "claude", `${log}\ncase "$*" in '--version') echo '2.1.300';; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) exit 64;; esac`);
   script(bin, "codex", `${log}\ncase "$*" in '--version') echo 'codex 1.2.3';; 'login status') echo 'Logged in';; *) exit 64;; esac`);
-  const folders = { claude: join(root, "work-claude"), codex: join(root, "work-codex") };
+  // The agents' working folders as the Bridge lays them out in its one folder, the root: <folder>/<agent> (MOD-desktop-shell, `folder`).
+  const folders = { claude: join(root, "claude"), codex: join(root, "codex") };
   for (const folder of Object.values(folders)) mkdirSync(folder);
   return { root, bin, folders, calls: () => readFileSync(calls, "utf8").trim().split("\n").filter(Boolean) };
 }
@@ -70,7 +71,7 @@ async function onComputer(machine, work) {
 // guards: UC-011; UC-044; THE BRIDGE FINDS THE INSTALLED AGENTS; THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
 // given: a temporary Bridge data folder whose settings tick only Claude with a working folder, while fixture Claude and Codex executables are installed and OpenCode is missing
 // input: MOD-desktop-shell's composition builds the job handlers from the persisted settings and GET /v1/agents is called
-// expect: the Bridge offers Claude with its version and readiness; installed but unticked Codex is not offered; missing OpenCode is still listed as missing
+// expect: the Bridge offers Claude with its version and readiness, and its declaration as the settings keep it — place *this machine* and every capability preset, no model yet (MOD-bridge-jobs, GET /v1/agents; MOD-desktop-shell, `agents`); installed but unticked Codex is not offered; missing OpenCode is still listed as missing
 // Planted fault: leaving compose.mjs to call jobHandlers without the persisted agents makes the offered list empty.
 test("TST-407001: composition offers only selected installed agents with their folders", async () => {
   const machine = computer();
@@ -93,7 +94,8 @@ test("TST-407001: composition offers only selected installed agents with their f
     assert.equal(typeof composeJobHandlers, "function", "failure node: composition exposes the job-handler wiring for unit evidence");
     const answer = await composeJobHandlers(loadSettings(dataFolder), openEnclosures())["GET /v1/agents"]({ params: {}, query: {}, body: {} });
     assert.deepEqual(answer, {
-      agents: [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true }],
+      agents: [{ name: "claude", version: "2.1.300", ready: true, loggedIn: true, place: "this machine",
+        capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"], models: [] }],
       missing: [{ name: "opencode" }],
     }, "failure node: only the ticked installed agent is offered; the missing supported agent is named");
     assert.equal(machine.calls().some((line) => /codex exec\b/.test(line)), false,
@@ -183,12 +185,9 @@ const click = async (root, label, index = 0) => {
 
 // TST-407002 · level: unit · module: MOD-desktop-shell
 // guards: UC-044; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
-// given: the production Bridge window entry with two installed agents, one of them kept with its working folder in the one folder /tmp/old, one missing supported
-//   agent, a constructed folder-dialog result, and a checkout that answers one repository checked out and one not reached
+// given: the production Bridge window entry with two installed agents, one of them kept with its working folder in the one folder /tmp/old, one missing supported agent, a constructed folder-dialog result, and a checkout that answers one repository checked out and one not reached
 // input: the Agents view is rendered, the one folder is chosen, and agents are saved
-// expect: the ticked agent is saved with its declaration and without a folder of its own, beside the chosen folder; the unticked installed agent is not offered;
-//   the missing agent shows an install link; after the save the checkout's result shows the commit of the repository checked out and the other with git's
-//   reason; counter-proof: the view offers no Test access and no field of an agent's own working folder
+// expect: the ticked agent is saved with its declaration and without a folder of its own, beside the chosen folder; the unticked installed agent is not offered; the missing agent shows an install link; after the save the checkout's result shows the commit of the repository checked out and the other with git's reason; counter-proof: the view offers no Test access and no field of an agent's own working folder
 // Planted fault: omitting the Agents route leaves no Save agents control and this case fails before any save.
 // A kept agent's declaration: the place, the capabilities ticked and each model with its context.
 const DECLARED = { place: "this machine", capabilities: ["draft text"], models: [{ model: "claude-opus-5-5", context: 200000 }] };

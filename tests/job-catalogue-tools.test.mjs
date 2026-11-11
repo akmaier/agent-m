@@ -73,13 +73,13 @@ test("toolsOf — a name tools.md lacks is refused as UnknownTool, naming it", a
 // guards: ONE DEFINITION, THREE DRIVERS; A CONNECTION DECLARES ITS CAPABILITIES
 // given: the catalogue as shipped
 // input: kindOf("converse"), and kindOf of change-requirements, change-use-case and change-architecture
-// expect: converse has the five tools in the stated order and a toolLimit of 30; each of the other three has the three reading tools in the stated order and then hand-over, and a toolLimit that is a positive whole number
-test("kindOf — converse offers all five tools with a limit of 30, the change kinds the three that read and hand-over", async () => {
+// expect: converse has the five tools in the stated order, then webfetch, and a toolLimit of 30; each of the other three has the three reading tools in the stated order, then hand-over, then webfetch, and a toolLimit that is a positive whole number — webfetch since MOD-prompt-bar's accepted endpointsOffered gives an endpoint whose work runs on GitHub Actions *reach the web*, "whose runner fetches web pages for it with the tool `webfetch`", beside the tools MOD-job-catalogue names for these kinds
+test("kindOf — converse offers all five tools and webfetch with a limit of 30, the change kinds the three that read, hand-over and webfetch", async () => {
   const converse = await kindOf("converse");
-  assert.deepEqual([converse.tools, converse.toolLimit], [NAMES, 30]);
+  assert.deepEqual([converse.tools, converse.toolLimit], [[...NAMES, "webfetch"], 30]);
   for (const name of ["change-requirements", "change-use-case", "change-architecture"]) {
     const kind = await kindOf(name);
-    assert.deepEqual(kind.tools, [...READING, "hand-over"], name);
+    assert.deepEqual(kind.tools, [...READING, "hand-over", "webfetch"], name);
     assert.ok(Number.isInteger(kind.toolLimit) && kind.toolLimit > 0, `${name} has a limit of tool calls`);
   }
 });

@@ -32,10 +32,8 @@ const folder = () => mkdtemp(join(tmpdir(), "agent-m-shell-tokens-"));
 // TST-20261110501 · level: unit · module: MOD-desktop-shell
 // guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044
 // given: an empty data folder of a Bridge
-// input: saveSettings with folder /work/agents and the agents claude and codex with their declarations; loadSettings; then saveSettings with no folder; then a
-//   settings file written with an agent's own folder /old/claude and no folder
-// expect: the file holds folder /work/agents and the agents without any folder of their own; loaded, claude's working folder is /work/agents/claude and codex's
-//   /work/agents/codex; without the folder each agent's working folder is null; counter-proof: the agent's own /old/claude is not its working folder
+// input: saveSettings with folder /work/agents and the agents claude and codex with their declarations; loadSettings; then saveSettings with no folder; then a settings file written with an agent's own folder /old/claude and no folder
+// expect: the file holds folder /work/agents and the agents without any folder of their own; loaded, claude's working folder is /work/agents/claude and codex's /work/agents/codex; without the folder each agent's working folder is null; counter-proof: the agent's own /old/claude is not its working folder
 test("TST-20261110501: the Bridge's settings keep one folder, and each agent's working folder is <folder>/<agent>", async () => {
   const data = await folder();
   saveSettings(data, { ...loadSettings(data), folder: "/work/agents", agents: [{ name: "claude", ...DECLARED }, { name: "codex", ...DECLARED }] });
@@ -54,11 +52,8 @@ test("TST-20261110501: the Bridge's settings keep one folder, and each agent's w
 // TST-20261110502 · level: unit · module: MOD-desktop-shell; MOD-bridge-client; MOD-bridge-http
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE LOCAL BRIDGE REQUIRES A TOKEN; UC-044
 // given: a Bridge served on loopback with the shell's settings handlers, whose checkOutAgain is counted
-// input: MOD-bridge-client's handTokens with the instance's token; then a list with a GitLab token for a GitHub repository; then PUT /v1/repository-tokens with a
-//   wrong pairing token; then handTokens with an empty list
-// expect: { kept: 1 }, the file repository-tokens.gitconfig in the data folder naming the instance, and checkOutAgain called once; the refused list rejected with
-//   BridgeFailed invalid-request naming the repository and not the token, the file unchanged and no checkout; the wrong pairing token answered 401 and nothing
-//   kept; the empty list { kept: 0 }, the file holding no section, and checkOutAgain called a second time
+// input: MOD-bridge-client's handTokens with the instance's token; then a list with a GitLab token for a GitHub repository; then PUT /v1/repository-tokens with a wrong pairing token; then handTokens with an empty list
+// expect: { kept: 1 }, the file repository-tokens.gitconfig in the data folder naming the instance, and checkOutAgain called once; the refused list rejected with BridgeFailed invalid-request naming the repository and not the token, the file unchanged and no checkout; the wrong pairing token answered 401 and nothing kept; the empty list { kept: 0 }, the file holding no section, and checkOutAgain called a second time
 test("TST-20261110502: PUT /v1/repository-tokens keeps the tokens a paired browser hands the Bridge, and the Bridge checks out again", async (t) => {
   const data = await folder();
   const settings = saveSettings(data, { ...loadSettings(data), folder: "/work/agents", agents: [{ name: "claude", ...DECLARED }] });

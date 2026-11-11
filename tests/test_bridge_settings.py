@@ -133,7 +133,8 @@ async function setInTheWindow(input) {
     await app.drawnAnew("Tunnels", () => app.press("Save jump host"));
     out.jumpHost = app.settingsFile().jumpHost;
     await app.goTo("Agents");
-    const rowOfClaude = () => app.descendants(app.body, (node) => node.localName === "p" && app.descendants(node, (child) => child.localName === "strong" && child.textContent === "claude").length)[0];
+    // An installed agent's panel, headed by its name, its version and its state (MOD-desktop-shell, the window's views: Agents).
+    const rowOfClaude = () => app.descendants(app.body, (node) => node.localName === "section" && app.descendants(node, (child) => child.localName === "h2" && child.textContent.startsWith("claude ")).length)[0];
     await until(() => rowOfClaude());
     const row = rowOfClaude();
     assert.ok(row, "the installed agent is listed");
@@ -150,7 +151,9 @@ async function setInTheWindow(input) {
     // The agent's working folder is derived from the one folder, not stored: the window, drawn anew, shows where the ticked agent works.
     await app.goTo("Agents");
     await until(() => rowOfClaude());
-    out.workingFolderShown = named(rowOfClaude().textContent.match(/working in (\S+)/)?.[1] ?? null);
+    // The panel's paragraph with the tick names where it works; the panel's other paragraphs follow it.
+    const offering = app.descendants(rowOfClaude(), (node) => node.localName === "p" && node.textContent.includes("working in"))[0];
+    out.workingFolderShown = named(offering?.textContent.match(/working in (\S+)/)?.[1] ?? null);
     await app.goTo("Pairing");
     await app.press("Pair anew"); await app.press("Pair anew", true);
     // Pair anew writes the new token and then draws the window anew: wait until the window shows a token other than the first, the one written.

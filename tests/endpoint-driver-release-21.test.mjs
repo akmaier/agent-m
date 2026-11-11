@@ -27,7 +27,7 @@ function withFetch(t, fetch) { const prior = globalThis.fetch; globalThis.fetch 
   });
   }
 const FAULTS = {
-  "TST-316901": ['driverRequest(config, driverPrompt(input), options.signal)', 'driverRequest(config, `${input.prompt} ${input.parts[0].text}`, options.signal)'],
+  "TST-316901": ['driverRequest(config, driverPrompt(input), options.signal, streamed(config, where))', 'driverRequest(config, `${input.prompt} ${input.parts[0].text}`, options.signal, streamed(config, where))'],
   "TST-316902": ['return { text, usage: usageOf(body?.usage) };', 'return { text, usage: { inputTokens: 0, outputTokens: 0, minutes: null, cost: null } };'],
   "TST-316903": ['if (error?.name === "AbortError") throw error;\n      diagnosis = diagnoseEndpoint(error, config, where);', 'if (error?.name === "AbortError") return {};\n      diagnosis = diagnoseEndpoint(error, config, where);'],
   "TST-316904": ['throw new EndpointFailed(diagnosis);', 'return {};'],
@@ -118,7 +118,7 @@ test("TST-316904: refused key and length remain diagnosed single requests", asyn
 after(() => { if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_316_RELEASE_FAULT_CHILD) return;
   const temporary = mkdtempSync(join(tmpdir(), "agent-m-316-release-fault-")), copied = join(temporary, "repo"), digest = (value) => createHash("sha256").update(value).digest("hex");
   try { cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
-  for (const [id, [needle, replacement]] of Object.entries(FAULTS)) { const source = join(copied, "src/endpoint-calls/index.mjs"), original = readFileSync(source), argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/endpoint-driver-release-21.test.mjs"];
+  for (const [id, [needle, replacement]] of Object.entries(FAULTS)) { const source = join(copied, "src/endpoint-calls/index.mjs"), original = readFileSync(source), argv = [process.execPath, "--test", "--test-reporter=tap", "--test-name-pattern", id, "tests/endpoint-driver-release-21.test.mjs"];
   assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
   const invoke = () => { const env = { ...process.env, AGENT_M_316_RELEASE_FAULT_CHILD: "1" };
   delete env.NODE_TEST_CONTEXT;

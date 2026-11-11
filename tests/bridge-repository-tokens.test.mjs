@@ -29,7 +29,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { keepRepositoryTokens, useRepositoryTokens } from "../src/bridge-jobs/index.mjs";
-import { cloneOrFetch, defaultHead, hostOf, makeOutbox, publish, workingClone } from "../src/bridge-jobs/workfolders.mjs";
+import { cloneOrFetch, defaultHead, forward, forwarding, hostOf, makeOutbox, workingClone } from "../src/bridge-jobs/workfolders.mjs";
 import { agentEnvironment, hiddenPaths } from "../src/agent-enclosure/holders.mjs";
 
 process.env.GIT_CONFIG_GLOBAL = "/dev/null";
@@ -131,13 +131,8 @@ async function smartHttpServer(root, expected, t) {
 // TST-20261110101 · level: unit · module: MOD-bridge-jobs
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; CONFIGURATION LIVES IN THE BROWSER; UC-044
 // given: an empty data folder of a Bridge
-// input: keepRepositoryTokens(data, [the instance https://github.com/acme/agent-m with github_pat_A, the project https://gitlab.example.org/group/sub/project with glpat-B]);
-//   then keepRepositoryTokens(data, [the project alone]); then a list naming a GitLab token for a GitHub repository, a list naming one repository twice, and one
-//   naming no repository's address
-// expect: 2, then 1; the file repository-tokens.gitconfig is readable by its user only and holds, first, for each repository a section for its address and one for
-//   it with .git, each with `Authorization: Basic` of x-access-token:github_pat_A for GitHub and oauth2:glpat-B for GitLab, then only the project's two sections —
-//   the instance's token forgotten; counter-proof: each refused list rejects with the code invalid-request, its message naming the repository and never the token,
-//   and the file holds the bytes it held before
+// input: keepRepositoryTokens(data, [the instance https://github.com/acme/agent-m with github_pat_A, the project https://gitlab.example.org/group/sub/project with glpat-B]); then keepRepositoryTokens(data, [the project alone]); then a list naming a GitLab token for a GitHub repository, a list naming one repository twice, and one naming no repository's address
+// expect: 2, then 1; the file repository-tokens.gitconfig is readable by its user only and holds, first, for each repository a section for its address and one for it with .git, each with `Authorization: Basic` of x-access-token:github_pat_A for GitHub and oauth2:glpat-B for GitLab, then only the project's two sections — the instance's token forgotten; counter-proof: each refused list rejects with the code invalid-request, its message naming the repository and never the token, and the file holds the bytes it held before
 test("TST-20261110101: keepRepositoryTokens keeps each repository's header for git in the data folder, and the browser's set replaces what was kept", async (t) => {
   const data = join(world(t), "data");
   const file = join(data, "repository-tokens.gitconfig");
@@ -164,13 +159,9 @@ test("TST-20261110101: keepRepositoryTokens keeps each repository's header for g
 
 // TST-20261110102 · level: component · module: MOD-bridge-jobs
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO MODEL READS A CREDENTIAL; A CREDENTIAL IS NEVER PLACED IN A URL; UC-011
-// given: two projects behind the fixture server, group/widget and group/other, each answering only its own token's header; the Bridge's data folder keeping
-//   glpat-WIDGET for widget and glpat-OTHER for other, included by useRepositoryTokens; git reached through the recording wrapper
-// input: cloneOrFetch of each into a clone of the Bridge; for widget a job's workingClone, its outbox, a commit the agent pushes into the outbox with a git that is
-//   given no include, publish of the outbox's branch, and a commit through hostOf(widget)'s commitFiles; then, with the include taken away, a fresh clone of widget
-// expect: every request for widget carried Basic oauth2:glpat-WIDGET and every request for other Basic oauth2:glpat-OTHER, none the other's; the agent's branch and
-//   the host's commit are on widget's main and branch; no clone's or outbox's .git/config, remote address, command line or environment of a git holds a token or
-//   its header's encoding; counter-proof: without the include the clone is refused by the server and git names it
+// given: two projects behind the fixture server, group/widget and group/other, each answering only its own token's header; the Bridge's data folder keeping glpat-WIDGET for widget and glpat-OTHER for other, included by useRepositoryTokens; git reached through the recording wrapper
+// input: cloneOrFetch of each into a clone of the Bridge; for widget a job's workingClone, its outbox, a commit the agent pushes into the outbox with a git that is given no include, the forward of the outbox's branch, and a commit through hostOf(widget)'s commitFiles; then, with the include taken away, a fresh clone of widget
+// expect: every request for widget carried Basic oauth2:glpat-WIDGET and every request for other Basic oauth2:glpat-OTHER, none the other's; the agent's branch and the host's commit are on widget's main and branch; no clone's or outbox's .git/config, remote address, command line or environment of a git holds a token or its header's encoding; counter-proof: without the include the clone is refused by the server and git names it
 test("TST-20261110102: the Bridge's git clones, fetches and pushes with each repository's own token, which stays out of every clone, command line and environment", async (t) => {
   restoredEnvironment(t);
   const root = world(t);
@@ -186,7 +177,7 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
 
   const clone = await cloneOrFetch(widget.address, join(root, "work", "products", "widget"));
   await cloneOrFetch(other.address, join(root, "work", "products", "other"));
-  const working = await workingClone(widget.address, join(root, "work", "jobs", "JOB-1"));
+  const working = await workingClone(clone, join(root, "work", "jobs", "JOB-1"));
   const outbox = await makeOutbox(working);
   writeFileSync(join(working, "change.md"), "the agent's change\n");
   // The agent's own git: an environment of its own, as its enclosure gives it, which names no include.
@@ -196,7 +187,8 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
     const r = spawnSync(REAL_GIT, args, { cwd: working, env: agentEnv, encoding: "utf8" });
     assert.equal(r.status, 0, `the agent's git ${args[0]}: ${r.stderr}`);
   }
-  const pushed = await publish({ outbox, clone, job: "JOB-1" });
+  const { forwarded } = await forward(forwarding(outbox), { clone, job: "JOB-1" });
+  const pushed = Object.entries(forwarded).filter(([branch]) => !(branch in outbox.base)).map(([branch, commit]) => ({ branch, commit }));
   assert.deepEqual(pushed.map(({ branch }) => branch), ["agent-branch"]);
   assert.equal(git(root, "--git-dir", widget.origin, "rev-parse", "agent-branch"), pushed[0].commit, "the agent's branch reached the project");
   const host = await hostOf(widget.address, clone);
@@ -230,13 +222,9 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
 
 // TST-20261110103 · level: component · module: MOD-bridge-jobs
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-011; UC-044
-// given: a Bridge clone of the fixture project group/widget; the data folder keeping glpat-WIDGET for that project and github_pat_A for https://github.com/acme/agent-m,
-//   included by useRepositoryTokens; a fixture fetch answering GitLab's "Create MR" and GitHub's "Create a pull request" with 201
-// input: openPullRequest of hostOf(widget) for the branch agent-branch into main; openPullRequest of hostOf(https://github.com/acme/agent-m) through the same clone;
-//   and openPullRequest of hostOf for https://github.com/acme/no-token, which the file holds no token for
-// expect: one POST to https://127.0.0.1:<port>/api/v4/projects/group%2Fwidget/merge_requests with PRIVATE-TOKEN glpat-WIDGET, answered as merge request !7, and one POST
-//   to https://api.github.com/repos/acme/agent-m/pulls with Authorization Bearer github_pat_A, answered as pull request #9; counter-proof: the product without a token
-//   is NotSupported and no request is sent for it, and neither token was sent to the other's server
+// given: a Bridge clone of the fixture project group/widget; the data folder keeping glpat-WIDGET for that project and github_pat_A for https://github.com/acme/agent-m, included by useRepositoryTokens; a fixture fetch answering GitLab's "Create MR" and GitHub's "Create a pull request" with 201
+// input: openPullRequest of hostOf(widget) for the branch agent-branch into main; openPullRequest of hostOf(https://github.com/acme/agent-m) through the same clone; and openPullRequest of hostOf for https://github.com/acme/no-token, which the file holds no token for
+// expect: one POST to https://127.0.0.1:<port>/api/v4/projects/group%2Fwidget/merge_requests with PRIVATE-TOKEN glpat-WIDGET, answered as merge request !7, and one POST to https://api.github.com/repos/acme/agent-m/pulls with Authorization Bearer github_pat_A, answered as pull request #9; counter-proof: the product without a token is NotSupported and no request is sent for it, and neither token was sent to the other's server
 test("TST-20261110103: the host of a repository on a Bridge opens merge requests on GitLab and pull requests on GitHub with the token the Bridge holds for it", async (t) => {
   restoredEnvironment(t);
   const root = world(t);
@@ -281,8 +269,7 @@ test("TST-20261110103: the host of a repository on a Bridge opens merge requests
 // guards: NO MODEL READS A CREDENTIAL
 // given: the Bridge's environment after useRepositoryTokens(data), which names the file of the repository tokens in GIT_CONFIG_*
 // input: agentEnvironment of an agent on Linux and on macOS with that environment; hiddenPaths of the Bridge with that data folder
-// expect: neither environment names any GIT_CONFIG_ variable or the file, and the places every enclosure hides begin with the data folder that holds the file;
-//   counter-proof: the Bridge's own environment does name the file
+// expect: neither environment names any GIT_CONFIG_ variable or the file, and the places every enclosure hides begin with the data folder that holds the file; counter-proof: the Bridge's own environment does name the file
 test("TST-20261110104: an agent's environment names no file of the repository tokens, and its enclosure hides the data folder that holds it", (t) => {
   restoredEnvironment(t);
   const data = join(world(t), "data");
