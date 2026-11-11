@@ -1,6 +1,6 @@
 // Release tests of ITM-1067 — the review pages find the register's entries through MOD-source-register's `registerPaths`, so that a file under `docs/sources/` that is no `SRC-` entry is read as no entry of the register, and the files the SPEC entry page asks for in its batches are those `registerPaths` names. The behaviour is
 // docs/architecture/MOD-source-register.md's (`registerPaths(paths)`: "the paths among `paths` that are register entries, `docs/sources/SRC-<slug>.md`, in their order: a caller that holds a tree's paths names the register's files without a copy of the pattern"; `personSource`: "the register entry of kind `person` whose `identifier` is the account [...] and which the product links")
-// and docs/architecture/MOD-review-pages.md's (the SPEC entry's page and Review all; "a participant asked to change [...]: the subject's parameters carry the person's own source, which `personSource` names among the product's linked sources; without one, the change does not start and names the step that is missing (UC-004, UC-015, UC-019 4b)"), and the SPEC's DEVELOP AGAINST INTERFACES,
+// and docs/architecture/MOD-review-pages.md's (the SPEC entry's page and Review all; "For a change of requirements, the person's account is its `source`, which the prompt bar gives (MOD-prompt-bar); no subject of these routes gives one"), and the SPEC's DEVELOP AGAINST INTERFACES,
 // THE INSTANCE KEEPS THE SOURCE REGISTER ("An instance lists every requirement source it knows in `docs/sources/` of its own repository, one file per source") and THE PERSON WHO PROMPTS IS A SOURCE.
 // Run: node --test tests/release-itm-1067-register-entries.test.mjs
 //
@@ -39,13 +39,13 @@ const ANCHOR = "## 1. Section";
 const entry = (id, account) => text("---", `id: ${id}`, `title: ${id}`, "kind: person", `identifier: ${account}`, "authority: informational", "licence: may be republished - fixture",
   "---", `# ${id} ${id}`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `2026-10-13` | 2026-10-13 | fixture | this repository | one file, hashed only |");
 const linksTo = (id) => text("# Requirement sources of the product", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| ${id} | 2026-10-13 | ${"0".repeat(64)} | |`);
-// One queue of one open entry, on the section of smallProduct's SPEC.
-const queue = () => ({
+// One queue of one open entry, on the section of smallProduct's SPEC; its two requirements name `source`.
+const queue = (source = "Product Owner") => ({
   [`${SPEC_DIR}${QUEUE}/index.md`]: text(`# SPEC approvals — queue 2026-10-29 · register`, "", `**Zieldatei aller Einträge:** ${TICK}SPEC.md${TICK}`, "",
     "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", `| 01 | ${TICK}SPEC.md${TICK} | ${ANCHOR} | — | — |`),
   [`${SPEC_DIR}${QUEUE}/entscheidungen.md`]: text("# Decisions — queue 2026-10-29", "", "Append-only."),
-  [`${SPEC_DIR}${QUEUE}/01-entry.md`]: text(ANCHOR, "", "**FIRST RULE** *(Product Owner)*", "The first rule holds on every page.", "*Check:* no automatic check; at review.", "",
-    "**SECOND RULE** *(Product Owner)*", "The second rule holds.", "*Check:* no automatic check; at review."),
+  [`${SPEC_DIR}${QUEUE}/01-entry.md`]: text(ANCHOR, "", `**FIRST RULE** *(${source})*`, "The first rule holds on every page.", "*Check:* no automatic check; at review.", "",
+    `**SECOND RULE** *(${source})*`, "The second rule holds.", "*Check:* no automatic check; at review."),
   [`${SPEC_DIR}${QUEUE}/01-entry.begruendung.md`]: text(`# ${ANCHOR}: a change`, "", "**The change.** A fixture.", "", "**Why.** Clearer."),
 });
 // Files under docs/sources/ that are no register entry: no SRC- in the name.
@@ -70,29 +70,44 @@ const askedFor = (mark, kind) => [...new Set(net.server.log.slice(mark).filter((
   .filter((path) => path.startsWith("docs/sources/")))].sort();
 // The source the page gives the prompt bar for the entry, in the context the entry's page was drawn in.
 const sourceOf = (context) => entryRoute.subject({ id: ID }, context)?.paramsFor().source;
+// The person presses Accept on the entry's page — a click of the person, as the page takes it — and the page's answer once it stands there: the result line.
+async function pressAccept(page) {
+  const accept = find(page, (node) => node.localName === "button" && node.className === "btn accept")[0];
+  assert.ok(accept, "known positive: the entry's page offers Accept");
+  const click = new Event("click");
+  Object.defineProperty(click, "isTrusted", { value: true });
+  accept.dispatchEvent(click);
+  for (let turn = 0; turn < 500 && !byClass(page, "result").length; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+  return byClass(page, "result").map((node) => node.textContent).join(" ");
+}
 
 // TST-1067301 · level: release · module: MOD-review-pages
 // guards: DEVELOP AGAINST INTERFACES; THE INSTANCE KEEPS THE SOURCE REGISTER; THE PERSON WHO PROMPTS IS A SOURCE; UC-019
-// given: the product has an open entry and links the source SRC-notes in its docs/sources.md; the instance alice/agent-m holds under docs/sources/ the register entry SRC-bob, README.md, and notes.md, which is no SRC- entry but is shaped like one: id SRC-notes, kind person, identifier github.com/alice, the instance owner's account; known positive first — the same instance with that text in docs/sources/SRC-notes.md in place of notes.md
-// input: a person opens the entry's page on the product (the route spec-entry with id=spec-2026-10-29_register-01); the subject the page gives the prompt bar is read in that context
-// expect: with the text in SRC-notes.md the subject's source is SRC-notes (known positive) and the server is asked for both of the register's entries, docs/sources/SRC-bob.md and docs/sources/SRC-notes.md; with it in notes.md the subject has no source — the change names the missing step — and the server is asked for docs/sources/SRC-bob.md and for no other file of docs/sources/, README.md and notes.md not among them
-// Planted fault: the old rule back in sourcesOf (`registerPaths(holder.paths)` replaced by `holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path))` in src/review-pages/spec-entries.mjs) reads notes.md as an entry, gives the prompt bar the source SRC-notes, asks for README.md and notes.md, and the case fails on the source (TST-1067302 fails on the files asked for).
+// given: the product has an open entry whose two requirements name the source SRC-notes, and links SRC-notes in its docs/sources.md; the instance alice/agent-m holds under docs/sources/ the register entry SRC-bob, README.md, and notes.md, which is no SRC- entry but is shaped like one: id SRC-notes, kind person, identifier github.com/alice, the instance owner's account; known positive first — the same instance with that text in docs/sources/SRC-notes.md in place of notes.md
+// input: a person opens the entry's page on the product (the route spec-entry with id=spec-2026-10-29_register-01), the subject the page gives the prompt bar is read in that context, and the person presses Accept, which checks every requirement's source against the product's links and the register (sourcesOf)
+// expect: in both worlds the subject carries no source — the person's account is the source the prompt bar gives —; with the text in SRC-notes.md the Accept reads SRC-notes as a register entry: it refuses no requirement for its source (known positive) and the server is asked for both of the register's entries, docs/sources/SRC-bob.md and docs/sources/SRC-notes.md; with it in notes.md the Accept is refused, FIRST RULE naming no source the product links, and the server is asked for docs/sources/SRC-bob.md and for no other file of docs/sources/, README.md and notes.md not among them
+// Planted fault: the old rule back in sourcesOf (`registerPaths(holder.paths)` replaced by `holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path))` in src/review-pages/spec-entries.mjs) reads notes.md as an entry, accepts the entry in the stray world, asks for README.md and notes.md, and the case fails on the refusal (TST-1067302 fails on the files asked for).
 // Planted fault: registerPaths itself taking any file of docs/sources/ (the pattern REGISTER_ENTRY of src/source-register/index.mjs loosened to `^docs/sources/[^/]+\.md$`) names README.md and notes.md as entries too, and the case fails on its known positive (the files asked for), as TST-1067302 does on its own.
 test("TST-1067301 the entry page reads no file of docs/sources/ that is no SRC- entry as the person's source, and asks the server for no such file", async () => {
-  const product = { ...smallProduct({ accepted: ["UC-001", "UC-002"] }), ...queue(), "docs/sources.md": linksTo("SRC-notes") };
+  const product = { ...smallProduct({ accepted: ["UC-001", "UC-002"] }), ...queue("SRC-notes"), "docs/sources.md": linksTo("SRC-notes") };
   const register = { ...instanceFiles(), ...README, "docs/sources/SRC-bob.md": entry("SRC-bob", "github.com/bob") };
 
   const named = worldWith({ product, instance: { ...register, "docs/sources/SRC-notes.md": entry("SRC-notes", "github.com/alice") } });
   const positive = await draw(entryRoute, named.context, { id: ID });
   assert.equal(byClass(positive, "badge")[0]?.textContent, "open", "known positive: the entry is drawn");
-  assert.equal(sourceOf(named.context), "SRC-notes", "known positive: an entry named SRC-notes.md is the person's source");
+  assert.ok(entryRoute.subject({ id: ID }, named.context), "known positive: the entry's page gives the prompt bar a subject");
+  assert.equal(sourceOf(named.context), undefined, "no subject of the review pages gives a source: the person's account is the one the prompt bar gives");
+  const accepted = await pressAccept(positive);
+  assert.ok(accepted, "known positive: Accept gives its answer");
+  assert.doesNotMatch(accepted, /names no source the product links/, "known positive: an entry named SRC-notes.md is a register entry the requirements' source is found in");
   assert.deepEqual(askedFor(named.mark).filter((path) => registerPaths([path]).length), ["docs/sources/SRC-bob.md", "docs/sources/SRC-notes.md"], "known positive: the register's two entries are asked for");
   net.restore(); net = null; timers.restore(); document.body.replaceChildren();
 
   const stray = worldWith({ product, instance: { ...register, "docs/sources/notes.md": entry("SRC-notes", "github.com/alice") } });
   const page = await draw(entryRoute, stray.context, { id: ID });
   assert.equal(byClass(page, "badge")[0]?.textContent, "open", "the entry is drawn");
-  assert.equal(sourceOf(stray.context), undefined, "failure node: a file that is no SRC- entry was read as the person's source");
+  assert.equal(sourceOf(stray.context), undefined, "no subject of the review pages gives a source");
+  assert.match(await pressAccept(page), /FIRST RULE \(no source item names a source the product links/, "failure node: a file that is no SRC- entry was read as a register entry");
   assert.deepEqual(askedFor(stray.mark), ["docs/sources/SRC-bob.md"], "failure node: the server was asked for a file of docs/sources/ that registerPaths does not name");
 });
 
