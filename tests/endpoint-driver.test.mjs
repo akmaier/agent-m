@@ -20,7 +20,7 @@ const FAULTS = {
   "TST-316-001": ["src/endpoint-calls/index.mjs", "maxTokens === null ?", "false ?"],
   "TST-316-002": ["src/endpoint-calls/index.mjs", 'config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null', 'false ? DRIVER_MAX_TOKENS : null'],
   "TST-316-003": ["src/endpoint-calls/index.mjs", "throw new EndpointFailed(diagnosis);", "return {};"],
-  "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, driverPrompt(input), options.signal), where, options.signal)", "driverRequest(config, driverPrompt(input)), where)"],
+  "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, driverPrompt(input), options.signal, streamed(config, where)), where, options.signal)", "driverRequest(config, driverPrompt(input), undefined, streamed(config, where)), where)"],
 };
 
 const OPENAI = { name: "example", kind: "openai-compatible", baseUrl: "https://models.example.test/v1", model: "tiny-model", key: "secret-key" };
@@ -249,7 +249,8 @@ after(() => {
       const source = join(copied, file), original = readFileSync(source), digest = (value) => createHash("sha256").update(value).digest("hex");
       assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
       const invoke = () => { const env = { ...process.env, AGENT_M_316_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
-        return spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/endpoint-driver.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
+        // The TAP reporter by name, whose `ok`/`not ok` lines the checks below read: node's default reporter of a child differs between releases.
+        return spawnSync(process.execPath, ["--test", "--test-reporter=tap", "--test-name-pattern", id, "tests/endpoint-driver.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
       const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/endpoint-driver.test.mjs")));
       let faultHash, failed, faultEnded, restoreStarted, restoredHash, passed, positiveEnded, restoredEnded; const faultStarted = new Date().toISOString();
       try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); faultEnded = new Date().toISOString(); }

@@ -90,10 +90,11 @@ export function createBridgeJobRuntime(settings, { instance, paused, startWatchi
 
 export async function compose({ instance, origin, dataFolder, port = bridgeApi.defaultPort, paused = () => false, version = null }) {
   const settings = loadSettings(dataFolder, port === 0 ? {} : { port });
+  // The key pair first, as the Start names it: a data folder that cannot be written is refused there, by name (NotWritable), before anything else is written into it.
+  const key = await ensureKey(dataFolder);
   // Every git of this process reads the repository tokens the paired browser handed the Bridge, before anything reaches a repository.
   useRepositoryTokens(dataFolder);
   keepJobLogs(dataFolder);
-  const key = await ensureKey(dataFolder);
   const enclosures = bridgeEnclosures(dataFolder);
   const checkout = checkoutRunner(settings, instance);
   // The pair answer names the Bridge by the settings in force and its release by build.json's version, null for a start without it.

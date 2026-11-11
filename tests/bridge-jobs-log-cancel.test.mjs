@@ -299,12 +299,9 @@ test("the log and the cancel are answered in the form the protocol gives", async
 
 // TST-2026111401 · level: unit · module: MOD-bridge-jobs
 // guards: THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX WEEKS; THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE; UC-044; UC-036
-// given: a Bridge that keeps its jobs' logs in a data folder (keepJobLogs), and a job whose agent has written its first event line, then 1500 lines `line 1` … `line 1500`, then
-//   `working` without a line break, and waits for a gate
+// given: a Bridge that keeps its jobs' logs in a data folder (keepJobLogs), and a job whose agent has written its first event line, then 1500 lines `line 1` … `line 1500`, then `working` without a line break, and waits for a gate
 // input: jobLog from 0 and from -1000, through the interface of MOD-bridge-jobs; GET /v1/jobs/{id}/log with no from and from 1400; the files of job-logs/
-// expect: jobLog from 0 gives every line — the event line, `line 1` … `line 1500` —, first 0, next 1501, partial `working`, ended false; from -1000 the last 1000, `line 501` …
-//   `line 1500`, first 501; the route answers the same lines with only the keys lines, next and ended; job-logs/<id>.log holds what the agent wrote, `working` included, and
-//   job-logs/<id>.json the job, running, both readable by their owner only. Counter-proof: from -1000, `line 500` is not given
+// expect: jobLog from 0 gives every line — the event line, `line 1` … `line 1500` —, first 0, next 1501, partial `working`, ended false; from -1000 the last 1000, `line 501` … `line 1500`, first 501; the route answers the same lines with only the keys lines, next and ended; job-logs/<id>.log holds what the agent wrote, `working` included, and job-logs/<id>.json the job, running, both readable by their owner only. Counter-proof: from -1000, `line 500` is not given
 // Planted fault: a log that keeps only its last lines gives from 0 no `line 1`.
 const DATA = mkdtempSync(join(tmpdir(), "agent-m-job-logs-"));
 const numbered = (from, to) => Array.from({ length: to - from + 1 }, (_, at) => `line ${from + at}`);
@@ -330,11 +327,9 @@ test("a job's log keeps every line its agent wrote, on disk too, and gives its l
 
 // TST-2026111403 · level: unit · module: MOD-bridge-jobs
 // guards: THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX WEEKS; UC-044; UC-036
-// given: the data folder of TST-2026111401, and a job that wrote three lines and ended; MOD-bridge-jobs' watch.mjs loaded anew, as a start of the Bridge that holds nothing in
-//   memory; a kept job JOB-20260930-0900-a41d whose files were last written 41 days ago
+// given: the data folder of TST-2026111401, and a job that wrote three lines and ended; MOD-bridge-jobs' watch.mjs loaded anew, as a start of the Bridge that holds nothing in memory; a kept job JOB-20260930-0900-a41d whose files were last written 41 days ago
 // input: listJobs and jobLog of the new start; then the ended job's files set to 43 days ago and keepJobLogs called again, as at the Bridge's next start
-// expect: the new start lists the ended job, in the state it ended in, and the job of 41 days ago, and gives the ended job's whole log, ended; after keepJobLogs the job of 43 days ago is neither listed
-//   nor its log given (not-found) and its files are gone, while the job of 41 days ago is still listed. Counter-proof: the job of 41 days ago, kept
+// expect: the new start lists the ended job, in the state it ended in, and the job of 41 days ago, and gives the ended job's whole log, ended; after keepJobLogs the job of 43 days ago is neither listed nor its log given (not-found) and its files are gone, while the job of 41 days ago is still listed. Counter-proof: the job of 41 days ago, kept
 // Planted fault: a log kept in memory only gives the new start not-found; removing nothing keeps the job of 43 days ago.
 test("the jobs' logs outlive the Bridge's start for six weeks, and no longer", async () => {
   const kept = join(DATA, "job-logs"), day = 24 * 60 * 60 * 1000;
