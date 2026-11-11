@@ -1,7 +1,7 @@
 // Release coverage for UC-003 Configure a model endpoint, one or more cases for each requirement the use case realises, written from the requirements and the use case as an auditor reads them, not from the code: the map (TST-266301)
-// names for each of the six requirements the release cases that guard it, and the cases check the requirement on the dashboard as a person meets it on Settings -> Endpoints & Agents — the configuration lives in the browser and in
+// names for each of the nine requirements the release cases that guard it, and the cases check the requirement on the dashboard as a person meets it on Settings -> Endpoints & Agents — the configuration lives in the browser and in
 // no other store (TST-266302), sets no cookie in any flow (TST-266303), appears in no address, link or request line (TST-266304), a browser's refusal is told apart from the endpoint's own failures and named with the runtimes
-// that work instead (TST-266305), Clear leaves no credential in the browser whichever route the endpoint took (TST-266306), and no key, token or secret reaches a repository (TST-266307). The page is the real dashboard (tests/uc-003-harness.mjs);
+// that work instead (TST-266305), Clear leaves no credential in the browser whichever route the endpoint took (TST-266306), and no key, token or secret reaches a repository (TST-266307); the endpoint is offered with the model it names and its context (TST-266308), with the capabilities its test found (TST-266309) and with its place, and not without one (TST-266310). The page is the real dashboard (tests/uc-003-harness.mjs);
 // a Bridge is the real composed program of MOD-desktop-shell; a model server is a controlled HTTP server on the loopback address; a server the browser may call is a handler of the harness. No paid service is called.
 // The Bridge over the jump host's HTTPS address is tests/release-uc-003-a-job-through-the-https-route.test.mjs'.
 // Run: node --test tests/release-uc-003-configure-a-model-endpoint.test.mjs
@@ -13,6 +13,7 @@
 // Module: MOD-bridge-http
 // Module: MOD-bridge-jobs
 // Module: MOD-desktop-shell
+// Module: MOD-prompt-bar
 // Guards: UC-003
 // Level: release
 //
@@ -30,8 +31,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
-import { PREFIX, answers, callsTool, configure, dump, everythingDrawn, fill, forwardTo, holding, json, keptBridge, lineOf, modelServer, openSettings, press, refusesBrowser, repositoryRequests,
-  saveAndTest, startBridge, stored } from "./uc-003-harness.mjs";
+import { openStore } from "../src/browser-store/index.mjs";
+import { endpointsOffered } from "../src/prompt-bar/index.mjs";
+import { INSTANCE, PREFIX, answers, callsTool, configure, dump, everythingDrawn, fill, forwardTo, holding, json, keptBridge, lineOf, modelServer, openSettings, press, refusesBrowser, repositoryRequests,
+  saysText, saveAndTest, startBridge, stored } from "./uc-003-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const UC = "docs/use-cases/UC-003-configure-a-model-endpoint.md";
@@ -43,7 +46,7 @@ const HOST = "https://models.example.test";
 const CAMPUS = { name: "campus", url: `${HOST}/v1`, model: "tiny-model", key: KEY, place: "Campus cluster, Germany", context: "32000" };
 const REFUSAL = (host, said) => `✗ ${host} does not accept calls from a web page; run it through GitHub Actions (CI secret) or a Bridge. (The browser said: ${said})`;
 
-// The six requirements UC-003 realises, each with the release cases that guard it: this file's, the release cases of the direct endpoint (ITM-270) and of the HTTPS route.
+// The nine requirements UC-003 realises, each with the release cases that guard it: this file's, the release cases of the direct endpoint (ITM-270) and of the HTTPS route.
 const REQUIREMENT_CASES = {
   "CONFIGURATION LIVES IN THE BROWSER": [[SELF, "TST-266302"], [DIRECT, "TST-292005"], [OLDER_HTTPS, "TST-266002"]],
   "CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE": [[SELF, "TST-266303"], [DIRECT, "TST-292005"], [OLDER_HTTPS, "TST-266002"]],
@@ -51,17 +54,20 @@ const REQUIREMENT_CASES = {
   "AN UNSUPPORTED ENDPOINT SAYS SO": [[SELF, "TST-266305"], [DIRECT, "TST-292007"], [HTTPS, "TST-266312"]],
   "A CLEAR IS A REAL CLEAR": [[SELF, "TST-266306"], [DIRECT, "TST-292008"]],
   "NO SECRET IN THE REPOSITORY": [[SELF, "TST-266307"], [DIRECT, "TST-292006"], [HTTPS, "TST-266311"]],
+  "A CONNECTION NAMES THE MODELS IT OFFERS": [[SELF, "TST-266308"]],
+  "A CONNECTION DECLARES ITS CAPABILITIES": [[SELF, "TST-266309"]],
+  "A CONNECTION DECLARES WHERE IT PROCESSES DATA": [[SELF, "TST-266310"]],
 };
 
 // TST-266301 · level: release · module: system
 // guards: UC-003
-// given: UC-003 as committed text, which realises six requirements, and the release cases that guard them: this file's, tests/release-uc-003-direct-endpoint.test.mjs', tests/release-uc-003-a-job-through-the-https-route.test.mjs' and tests/release-uc-003-dashboard-https-bridge.test.mjs'
+// given: UC-003 as committed text, which realises nine requirements, and the release cases that guard them: this file's, tests/release-uc-003-direct-endpoint.test.mjs', tests/release-uc-003-a-job-through-the-https-route.test.mjs' and tests/release-uc-003-dashboard-https-bridge.test.mjs'
 // input: compare the requirements UC-003 realises with the requirements mapped to release cases, and each mapped case with its declaration
-// expect: known positive — UC-003 realises exactly CONFIGURATION LIVES IN THE BROWSER, CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE, A CREDENTIAL IS NEVER PLACED IN A URL, AN UNSUPPORTED ENDPOINT SAYS SO, A CLEAR IS A REAL CLEAR and NO SECRET IN THE REPOSITORY; each has at least one case of this file; every mapped case is declared in its file at the level release and names the requirement among its guards
+// expect: known positive — UC-003 realises exactly CONFIGURATION LIVES IN THE BROWSER, CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE, A CREDENTIAL IS NEVER PLACED IN A URL, AN UNSUPPORTED ENDPOINT SAYS SO, A CLEAR IS A REAL CLEAR, NO SECRET IN THE REPOSITORY, A CONNECTION NAMES THE MODELS IT OFFERS, A CONNECTION DECLARES ITS CAPABILITIES and A CONNECTION DECLARES WHERE IT PROCESSES DATA; each has at least one case of this file; every mapped case is declared in its file at the level release and names the requirement among its guards
 test("TST-266301: UC-003 each requirement it realises has a release case", () => {
   const front = /^realises:\n((?:  - .+\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^  - /, "").trim());
-  assert.deepEqual([...realised].sort(), Object.keys(REQUIREMENT_CASES).sort(), "known positive: the six requirements");
+  assert.deepEqual([...realised].sort(), Object.keys(REQUIREMENT_CASES).sort(), "known positive: the nine requirements");
   for (const [requirement, cases] of Object.entries(REQUIREMENT_CASES)) {
     assert.ok(cases.some(([file]) => file === SELF), `${requirement}: a case of this file`);
     for (const [file, id] of cases) {
@@ -271,4 +277,60 @@ test("TST-266307: UC-003 no key, token or endpoint credential reaches a reposito
   assert.ok(repositoryRequests(world).some((request) => request.method === "POST" && request.url.endsWith("/graphql")), "known positive: the filter sees a request that is no GET");
   assert.deepEqual(holding(repositoryRequests(world), ...keys, bridge.token, CAMPUS.url, model.url), [], "no request to a repository server holds a key, the token or an endpoint's address");
   assert.deepEqual(world.server.writes, [], "the repository server got no write");
+});
+
+// What the prompt bar offers of this browser's endpoints after Settings stored them (MOD-prompt-bar's endpointsOffered over this browser's store, which Settings wrote): name, model,
+// context, capabilities and place of each.
+const offeredNow = () => endpointsOffered(openStore(INSTANCE)).map(({ name, model, context, capabilities, place }) => ({ name, model, context, capabilities, place }));
+
+// TST-266308 · level: release · module: system
+// guards: UC-003; A CONNECTION NAMES THE MODELS IT OFFERS
+// given: a dashboard browser and a server the browser may call that calls the tool it is offered
+// input: the author configures campus with the model tiny-model and the context 32000 on Settings and presses Save and test; then the author changes the model to small-model and the context to 8000 and presses Save and test again
+// expect: known positive — the test works; campus is offered once, with the model tiny-model and its context 32000; after the change it is offered once, with small-model and 8000, and tiny-model is no longer offered
+test("TST-266308: UC-003 the endpoint names the model it offers, with its context", async () => {
+  const world = await openSettings({ handlers: [answers(HOST, [], () => json(callsTool().body))] });
+  await configure(world);
+  fill(world.main, CAMPUS);
+  assert.equal(await saveAndTest(world), "✓ tiny-model is working, can use tools.", "known positive: the test works");
+  assert.deepEqual(offeredNow().map(({ name, model, context }) => [name, model, context]), [["campus", "tiny-model", 32000]]);
+  await world.page.go("#endpoints/campus");
+  fill(world.main, { model: "small-model", context: "8000" });
+  await saveAndTest(world);
+  assert.deepEqual(offeredNow().map(({ name, model, context }) => [name, model, context]), [["campus", "small-model", 8000]], "the model it now names, with its context, and no other");
+});
+
+// TST-266309 · level: release · module: system
+// guards: UC-003; A CONNECTION DECLARES ITS CAPABILITIES
+// given: a dashboard browser and two servers the browser may call: tools.example.test, whose model calls the tool it is offered, and text.example.test, whose model answers with text and calls no tool
+// input: the author configures the endpoint tooler at the first and the endpoint plain at the second on Settings and presses Save and test for each
+// expect: known positive — the form shows tooler as "can use tools" and plain as "text only"; tooler is offered with the capabilities draft text, read the repository and use tools; counter-proof: plain, whose test found no tool call, is offered with draft text and read the repository only
+test("TST-266309: UC-003 the endpoint declares the capabilities its test found", async () => {
+  const world = await openSettings({ handlers: [answers("https://tools.example.test", [], () => json(callsTool().body)), answers("https://text.example.test", [], () => json(saysText("ok").body))] });
+  await configure(world);
+  fill(world.main, { ...CAMPUS, name: "tooler", url: "https://tools.example.test/v1" });
+  assert.match(await saveAndTest(world), /can use tools/, "known positive: the model called the tool");
+  await configure(world);
+  fill(world.main, { ...CAMPUS, name: "plain", url: "https://text.example.test/v1" });
+  assert.match(await saveAndTest(world), /text only/, "known positive: the model answered with text");
+  const capabilities = Object.fromEntries(offeredNow().map(({ name, capabilities: each }) => [name, each]));
+  assert.deepEqual(capabilities.tooler, ["draft text", "read the repository", "use tools"]);
+  assert.deepEqual(capabilities.plain, ["draft text", "read the repository"], "counter-proof: no use tools where the test found none");
+});
+
+// TST-266310 · level: release · module: system
+// guards: UC-003; A CONNECTION DECLARES WHERE IT PROCESSES DATA
+// given: a dashboard browser and a server the browser may call that calls the tool it is offered
+// input: the author configures campus with the place "Campus cluster, Germany" on Settings and presses Save and test; then the author configures nowhere the same way with the place left empty and presses Save and test
+// expect: known positive — campus is offered with its place "Campus cluster, Germany"; counter-proof: nowhere, which names no place, is not offered
+test("TST-266310: UC-003 the endpoint declares where it processes data, and one without a place is not offered", async () => {
+  const world = await openSettings({ handlers: [answers(HOST, [], () => json(callsTool().body))] });
+  await configure(world);
+  fill(world.main, CAMPUS);
+  await saveAndTest(world);
+  assert.deepEqual(offeredNow().map(({ name, place }) => [name, place]), [["campus", "Campus cluster, Germany"]], "known positive: offered with its place");
+  await configure(world);
+  fill(world.main, { ...CAMPUS, name: "nowhere", place: "" });
+  await saveAndTest(world);
+  assert.deepEqual(offeredNow().map(({ name }) => name), ["campus"], "counter-proof: an endpoint naming no place is not offered");
 });
