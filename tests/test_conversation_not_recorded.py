@@ -94,12 +94,12 @@ function repoOf(web, files) {
         return { commit: head, url: web + "/commit/" + head };
       },
       async startWorkflow(workflow, ref, inputs) { starts.push({ workflow, ref, inputs: structuredClone(inputs) }); return null; },
+      // The repository's Actions secrets: the person's token and the key handy names, so that the job workflow's setup is complete.
+      async ciSecretNames() { return ["AGENT_M_TOKEN", "KEY_A"]; },
       async listCiRuns() { return []; },
       async ciRunLog() { return null; },
       webLinks: () => ({ secrets: web + "/settings/secrets/actions" }),
       async cancelCiRun() {},
-      // The Actions secrets the repository holds: AGENT_M_TOKEN and the one the endpoint handy names (MOD-repository-hosts' ciSecretNames).
-      async ciSecretNames() { return ["AGENT_M_TOKEN", "KEY_A"]; },
     },
   };
 }
@@ -142,16 +142,18 @@ globalThis.fetch = async (url, init = {}) => {
   if (next.calls) return completion({ content: null, tool_calls: next.calls.map(({ id, name, args }) => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } })) });
   return completion({ content: envelope(next) });
 };
-// The page's frame registers the bar's hand-over sets (MOD-site-frame's registerViews), with which a message's job and a hand-over are prepared:
-// among them converse's check plan-works-on (MOD-runtimes) and its recipe chapters-for-page (MOD-source-register).
-for (const set of await promptBar.loadHandOverStrategies()) jobRunner.registerStrategies("MOD-prompt-bar", set);
+// The strategy sets the bar hands to the frame for a hand-over (MOD-prompt-bar's handOverStrategies), registered as the frame registers them;
+// their recipes chapters-for-… stand in for the book's chapters, which the fixture instance does not hold, with none.
+const noChapters = (recipes) => Object.fromEntries(Object.entries(recipes).map(([name, recipe]) => [name, name.startsWith("chapters-for-") ? async () => [] : recipe]));
+promptBarHandOver.handOverStrategies.forEach((strategies, at) => jobRunner.registerStrategies(`tests/test_conversation_not_recorded.py#${at}`,
+  { ...strategies, ...(strategies.recipes ? { recipes: noChapters(strategies.recipes) } : {}) }));
 
 // ---------------------------------------------------------------- the page and the bar
 const onInstance = input.page === "instance";
-const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": REGISTER, ...BOOK,
+const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": REGISTER,
   ...(input.recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
-const product = repoOf(PRODUCT_WEB, { "SPEC.md": "# Spec\n\n## 1. Loans\n\n**A LOAN HAS A DUE DATE** *(PO A)*\nEvery loan names the date it is due.\n*Check:* `tests/loans.test.mjs`\n", "docs/notes.md": "# Notes\n\nOld text.\n",
-  // The job workflow as this instance gives it for the secrets the endpoints name (MOD-runtimes' jobWorkflowFiles): the product is set up for GitHub Actions.
+const product = repoOf(PRODUCT_WEB, { "SPEC.md": "# Spec\n\n**A LOAN HAS A DUE DATE** *(PO A. Maier)*\nEvery loan has a due date.\n*Check:* no automatic check; at review.\n", "docs/notes.md": "# Notes\n\nOld text.\n",
+  // The job workflow as this instance gives it, for the token and the key handy names: the product is set up for GitHub Actions.
   ...Object.fromEntries(runtimes.jobWorkflowFiles("github", { repository: "alice/agent-m", commit: instance.head() }, { token: "AGENT_M_TOKEN", keys: ["KEY_A"] }, []).map((file) => [file.path, file.text])) });
 const store = browserStore.openStore("alice/agent-m");
 browserStore.writeSetting(store, "endpoint:tooler", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-t", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000 });
@@ -170,9 +172,7 @@ const person = [], said = [];
 for (const step of input.steps) {
   if (step.send !== undefined) {
     person.push(step.send);
-    // The bar names each connection with its model (MOD-prompt-bar): the person picks the one named after the case's participant.
-    const chooser = one(target, "participant"), to = step.to ?? "tooler";
-    chooser.value = chooser.childNodes.find((option) => option.textContent.startsWith(`${to} · `))?.value ?? to;
+    one(target, "participant").value = step.to ?? "tooler";
     one(target, "instruction").value = step.send;
     const asked = replies.length;
     one(target, "send").dispatchEvent(personal());
@@ -232,15 +232,8 @@ def cases(section: str, data: Path = DATA) -> list[dict]:
     return found
 
 
-# The instance holds the book as Agent M's own repository does — the register entry SRC-vibe-coding and the files of its version, whose
-# hashes the recipes of the book's chapters check —, read from this repository.
-ROOT = Path(__file__).resolve().parents[1]
-BOOK = {path.relative_to(ROOT).as_posix(): path.read_text(encoding="utf-8") for path in
-        [ROOT / "docs/sources/SRC-vibe-coding.md", *sorted((ROOT / "docs/sources/SRC-vibe-coding/2026-10-05").iterdir())]}
-
-
 def run_world(argument: dict) -> dict:
-    return js(f"const input = {json.dumps(argument)};\nconst BOOK = {json.dumps(BOOK)};\n{WORLD}")
+    return js(f"const input = {json.dumps(argument)};\n{WORLD}")
 
 
 def check(test: unittest.TestCase, section: str) -> None:
