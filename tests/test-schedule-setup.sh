@@ -37,13 +37,15 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 fi
 
 apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=$archives -o Dir::State::lists=$lists"
-# fetch <package>…: from the mirror into the archives, nothing installed. azure.archive.ubuntu.com sometimes sends one file so
-# slowly that apt neither fails nor tries the next mirror: the first download is bounded, and when it fails archive.ubuntu.com
-# becomes the mirror. The install that follows is not bounded: a kill while dpkg unpacks would leave dpkg interrupted.
+# fetch <package>…: from the mirror into the archives, nothing installed. azure.archive.ubuntu.com sometimes answers so slowly
+# that apt neither fails nor tries the next mirror, for its package lists as for one file: the first contact, the update and the
+# download, is bounded, and when it fails archive.ubuntu.com becomes the mirror and both run again. The install that follows is
+# not bounded: a kill while dpkg unpacks would leave dpkg interrupted.
 fetch() {
-  sudo apt-get $apt_options update
-  if ! sudo timeout 15 apt-get $apt_options install --download-only --yes --no-install-recommends "$@"; then
+  if ! { sudo timeout 15 apt-get $apt_options update \
+    && sudo timeout 15 apt-get $apt_options install --download-only --yes --no-install-recommends "$@"; }; then
     echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt
+    sudo apt-get $apt_options update
     sudo apt-get $apt_options install --download-only --yes --no-install-recommends "$@"
   fi
 }
