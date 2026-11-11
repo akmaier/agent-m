@@ -40,8 +40,10 @@ specification first, and only then into code.
 ## Main flow
 
 1. The contributor files an issue.
-2. The author opens it in Agent M and chooses a participant to **analyse** it. Agent M sends the
-   issue with the requirements, use cases and tests it touches.
+2. The author opens it on the tab **Issues** of Maintenance, which lists the product's open and closed issues, and
+   chooses a participant to **analyse** it. Agent M sends the issue with the requirements, use cases and tests it
+   touches. An issue from mail (UC-038) names each of its mails by its `MAIL-` identifier, as a link that opens that mail
+   on the tab **Mail**, where its reply is drafted once the issue is closed (UC-039).
 3. The participant proposes a class with its reasoning:
    - **bug** — the specification is right; the code or a test is wrong, and it names which;
    - **change** — the specification is wrong, incomplete or unclear for this case;

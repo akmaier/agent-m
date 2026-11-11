@@ -14,7 +14,9 @@ realises:
   - MAIL STAYS IN THE MAILBOX
   - THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
   - A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER
+  - A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
   - AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS
+  - CLOSING AN ISSUE PREPARES ITS REPLIES
   - A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN
   - THE PRODUCT ISSUE CARRIES NO PERSONAL DATA
   - A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK
@@ -76,8 +78,8 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 ## Main flow
 
-1. The author opens **Mail** on the dashboard, and Agent M reads the mailbox at once, and again every five minutes while
-   Mail stays open.
+1. The author opens **Maintenance**, which opens on its tab **Mail** (UC-046, step 2), and Agent M reads the mailbox at
+   once, and again every five minutes while Mail stays open.
 2. Agent M reads the mails of the last 30 days in the named folders, as the mail server selects them — through the provider's web API, or on the IMAP route through the
    connection's Bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
    SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
@@ -86,7 +88,8 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    decided: they get no proposal. A mail whose `In-Reply-To` or `References` names a listed mail is attached to that issue
    at once, without a participant — its identifier added to the issue — and shown there (UC-039).
 4. The mails are listed as a mail program lists its inbox — one line per mail with sender, subject and date,
-   the newest first, the undecided ones in bold —, visible only in this browser. The author opens an undecided mail
+   the newest first, the undecided ones in bold, the ones to answer marked *to answer* (step 7) —, visible only in this
+   browser. The author opens an undecided mail
    and picks the participant for its proposal; Agent M offers only participants on a connection whose
    processing place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
@@ -110,8 +113,9 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    as a compiler-like message, and it corrects the text, within the round limit (UC-019, step 7). What
    is still found after the last round is marked in the text.
 7. The author clicks a mail in the list. Its details show: the mail in full, its proposal with the text editable, and
-   what can be done with it — for a decided mail, the issue that lists it or its mark *not an issue* instead. The
-   author decides an undecided mail with one click:
+   what can be done with it — for a decided mail, the issue that lists it or its mark *not an issue* instead. A decided
+   mail of a closed issue that has no reply note for it is *to answer*: its details offer **Answer**, which opens that
+   issue's replies (UC-039, step 2). The author decides an undecided mail with one click:
    - **Create issue** — possible only when the check of step 6 finds nothing;
    - **Add to #n** — the mail describes an existing issue;
    - **Not an issue** — the mail is marked in this browser by its identifier and not proposed again.
@@ -175,6 +179,9 @@ sequenceDiagram
   author's choice is what is written; the participant's proposal is not kept as the decision.
 - **7b. The mail mixes several concerns.** The author splits it: **Create issue** once per concern;
   each issue lists the same identifier.
+- **7c. The mail is opened from its issue's link** (UC-012, step 2). Agent M finds it in the mailbox by its identifier,
+  also when it is older than 30 days, and shows its details as in step 7; a mail no longer in the named folders is
+  shown as *not found in the mailbox* (UC-039, 2b).
 - **8a. The issue cannot be created** — the token does not reach the product, or lacks the permission
   to create issues. Agent M says which and links the token step of UC-001; nothing is written.
 - **3a. A mail in a known thread belongs to a closed issue.** It is attached and shown under that

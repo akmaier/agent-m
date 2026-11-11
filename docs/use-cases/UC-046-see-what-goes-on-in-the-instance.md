@@ -53,7 +53,8 @@ to the pages where its work is reviewed and done.
    name, one sentence on what Agent M is — requirements-driven software engineering with people and agents —, and what to
    do first, with a folded **What is this?** for people new to it.
 2. The menu leads through the process in its order — **Requirements**, **Use cases**, **Architecture**, **Implementation**,
-   **Tests**, **Releases** —, followed by **Maintenance** — issues and mail — and **Settings**. Every page of the site
+   **Tests**, **Releases** —, followed by **Maintenance** — mail and issues — and **Settings**. Maintenance holds two
+   tabs, **Mail** first and **Issues** second, and opens on **Mail**. Every page of the site
    carries the same menu; each entry opens the page under `docs/` where that stage's work is reviewed and done, for the
    product chosen. On a screen up to 760 px wide, the menu is one button: a click unfolds the eight entries, and a
    second click folds them again. On a wider screen the entries stand in a row.
