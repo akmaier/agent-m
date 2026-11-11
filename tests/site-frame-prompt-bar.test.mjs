@@ -364,6 +364,37 @@ test("TST-2026110822 the bar is handed the products this browser manages, each w
   assert.ok(page.location.hash.startsWith("#draft/subject=") && page.location.hash.endsWith(`/product=${encoded(GADGET)}`), page.location.hash);
 });
 
+// TST-2026111506 · level: unit · module: MOD-site-frame
+// guards: UC-049; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: the route beta (entry tests), whose subject names beta itself as its draft route, as the review pages' route draft does; an endpoint that answers {"answer":"ok"} with an edit; the
+//   fixture's location, whose hash a page writes without a hashchange, as a browser fires none for the fragment it shows
+// input: the review page at #beta: Send "again", press "Review the draft"; then the same with beta's `leave` answering false
+// expect: the fragment stays #beta, and beta is drawn once more after the click than before it; with `leave` false, beta is asked and not drawn again
+// counter-proof: on the code before, startPage's go only wrote location.hash, and beta was not drawn again (red)
+test("TST-2026111506 Review the draft whose route is the one shown draws it again, after asking it with leave", async () => {
+  const subject = () => ({ key: "beta", title: "Beta", kind: "converse", entry: null, paramsFor: () => ({ page: "beta page" }), draftRoute: "beta", withhold: null, refuses: [] });
+  const drawnBeta = () => rendered.filter((each) => each.name === "beta").length;
+  const page = await start({ fragment: "#beta", views: [route("beta", "tests", { subject })] });
+  await drawn(page);
+  await sends(page, "again");
+  const before = drawnBeta();
+  assert.equal(before, 1, "known positive: beta was drawn when the page opened");
+  one(page.footer, "review").dispatchEvent(new Event("click"));
+  await settleLong();
+  assert.equal(page.location.hash, "#beta");
+  assert.equal(drawnBeta(), before + 1, "beta is drawn again");
+
+  let asked = 0;
+  const held = await start({ fragment: "#beta", views: [route("beta", "tests", { subject, leave: () => { asked += 1; return false; } })] });
+  await drawn(held);
+  await sends(held, "again");
+  one(held.footer, "review").dispatchEvent(new Event("click"));
+  await settleLong();
+  assert.equal(asked, 1, "beta is asked with leave");
+  assert.equal(drawnBeta(), 1, "beta, which keeps its page, is not drawn again");
+  assert.equal(held.location.hash, "#beta");
+});
+
 // TST-2026111010 · level: unit · module: MOD-site-frame
 // guards: UC-049; UC-010; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: the browser of start(), which keeps the product https://github.com/acme/widget and its own token under github-token:acme/widget, and also the endpoint nvidia, which runs through

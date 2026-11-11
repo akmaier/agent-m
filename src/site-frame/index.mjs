@@ -17,7 +17,7 @@ import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs"
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { menuOf, labelOf, linkOf, foldMenu } from "./menu.mjs";
 import { siteFooter } from "./footer.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, managedProducts, loadRoute, tokenKeyOf } from "./routing.mjs";
+import { routeOf, fragmentOf, goToFragment, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, managedProducts, loadRoute, tokenKeyOf } from "./routing.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
@@ -393,7 +393,7 @@ async function startSite({ page, views }) {
         const { product: named, ...others } = given;
         const params = named === "" ? others : product && !("product" in given) ? { ...given, product: product.address } : given;
         if (page === "main" && !routes.some((candidate) => candidate.name === name)) location.href = writeAddress(name, params, product?.address ?? repository);
-        else location.hash = fragmentOf(name, params);
+        else goToFragment(location, fragmentOf(name, params), fragmentChanged);
       } };
     if (!route) {
       shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context, fragment };
@@ -431,7 +431,8 @@ async function startSite({ page, views }) {
     }
   };
   const browser = globalThis.window ?? globalThis;
-  browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));
+  const fragmentChanged = askBeforeShowing(location, () => shown, show);
+  browser.addEventListener?.("hashchange", fragmentChanged);
   // Closing or reloading the tab: the browser asks, in its own words, while the route shown holds unsaved changes (UC-018 7a).
   browser.addEventListener?.("beforeunload", (event) => {
     if (shown?.route?.unsaved?.() === true) {

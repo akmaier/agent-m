@@ -32,7 +32,7 @@ import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs"
 import { attachPromptBar, explain, pageStarted, routeProblem } from "./index.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { foldMenu } from "./menu.mjs";
-import { fragmentOf, instanceHostFollowingStore, loadView, loadRoute, managedProducts, routeOf, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
+import { fragmentOf, goToFragment, instanceHostFollowingStore, loadView, loadRoute, managedProducts, routeOf, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
 import { registerViews } from "./register.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
@@ -1115,7 +1115,8 @@ function startBar() {
     // again (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
     instanceSnapshot: () => (isInstance() && !new URLSearchParams(location.search).get("ref") && snapshot && snapshotHost === currentHost() ? snapshot : null),
     explain,
-    go: (name, given = {}) => { location.hash = fragmentOf(name, given); } });
+    // A go to the fragment shown draws its route again, as the browser announces no change of it (Review the draft on the draft route it leads to).
+    go: (name, given = {}) => goToFragment(location, fragmentOf(name, given), route) });
 }
 
 // The subject of what the page shows (MOD-site-frame's subjectOf): a review route's own, with the review pages' context; for any other page, the default subject of

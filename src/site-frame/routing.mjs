@@ -28,6 +28,13 @@ export function fragmentOf(route, params = {}) {
   return `#${[route, ...supplied].join("/")}`;
 }
 
+// goToFragment(location, fragment, changed) -> void — writes `fragment` into the address, whose change the browser announces with `hashchange`; a fragment the address already holds
+// the browser does not announce, so for it `changed`, the page's listener of the fragment's changes, is called, and the route shown is drawn again as on a change.
+export function goToFragment(location, fragment, changed) {
+  if (location.hash === fragment) changed();
+  else location.hash = fragment;
+}
+
 // productOf(fragment) -> the address the fragment's `product` names, or null when it names none (the instance itself).
 export function productOf(fragment) {
   return routeOf(fragment).params.product ?? null;
