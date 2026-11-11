@@ -43,10 +43,11 @@ export const planWorksOn = async (draft, context) => {
   return unknown.length > 0 || !context.instance?.snapshot ? unknown : unstartable(plan, context);
 };
 
-// Each piece that rests on no other and whose job could not start for what the plan itself chose — a kind the catalogue lacks, the conversation's own kind, a kind that takes
-// no task, or what the kind's preparation refuses of what the piece names, as an implementation that names no step, item or module —, one error each, with the reason the
-// hand-over would give; prepared as the hand-over prepares it (MOD-workflow-entries), without its drafter. What the product lacks — a finding of a kind's preconditions —
-// is the hand-over's to name: the planner cannot change it.
+// Each piece that rests on no other and whose job could not start for what the plan itself chose — a kind the catalogue lacks, a kind that takes no task, or what the kind's
+// preparation refuses of what the piece names, as an implementation that names no step, item or module —, one error each, with the reason the hand-over would give; prepared
+// as the hand-over prepares it (MOD-workflow-entries), without its drafter. What the product lacks — a finding of a kind's preconditions — is the hand-over's to name: the
+// planner cannot change it. A piece of the conversation's own kind is the conversation itself handed on (UC-049 4a.2) and no error: its job refuses `hand-over`, as every
+// handed-over job does, so a conversation handed on is never handed on again.
 async function unstartable(plan, context) {
   const found = [];
   const refused = (at, why) => found.push(finding({ artifact: "answer", line: 1, kind: "error", rule: RECORDED,
@@ -56,7 +57,6 @@ async function unstartable(plan, context) {
     if ([piece?.after ?? []].flat().length > 0) continue;
     let kind;
     try { kind = await kindOf(String(piece?.kind ?? "")); } catch (error) { refused(at, error?.message ?? String(error)); continue; }
-    if (kind.name === context.kind?.name) { refused(at, "it is this conversation itself, which a hand-over does not start again"); continue; }
     const dropped = String(piece?.task ?? "").trim() ? taskRefusal(kind) : null;
     if (dropped) { refused(at, `${dropped.what} [${dropped.rule}]`); continue; }
     const params = { ...(typeof context.params?.source === "string" ? { source: context.params.source } : {}),

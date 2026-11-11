@@ -100,7 +100,7 @@ test("runJob and writeResult — an outcome without a commit is handed on as it 
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a writer that refuses by name — DueDiligenceMissing for a reuse decision without its due diligence, and a refused commit because the branch moved — after a writer that does not refuse
 // input: runJob where nobody attends; writeResult on a person's click
-// expect: the writer that does not refuse gives its outcome; each failure thrown by its own name, with its fields as the writer gave them, by both, and nothing handed on — runJob's failure may carry beside them the rounds and usage it gathered (`gathered`), which a route's end names; no accepted text forbids or states that field
+// expect: the writer that does not refuse gives its outcome; each failure thrown by its own name, with its fields as the writer gave them, by both, and nothing handed on — runJob's failure carries beside them `gathered: { rounds, usage }`, the rounds and the usage of the run before it, which a route's end names (MOD-job-runner)
 test("runJob and writeResult — a writer's failure is thrown by its name, as before", async () => {
   behaviour = async () => ({ commits: ["c0ffee"], files: [], pullRequest: null, shown: null, notes: [] });
   assert.ok((await unattended()).written, "known positive: the writer gives an outcome");
@@ -108,7 +108,8 @@ test("runJob and writeResult — a writer's failure is thrown by its name, as be
     behaviour = async () => { throw Object.assign(new Error(`${name} for the test`), { name, ...fields }); };
     await assert.rejects(unattended(), (error) => {
       const { gathered, ...own } = error;
-      return error.name === name && JSON.stringify(own) === JSON.stringify({ name, ...fields });
+      return error.name === name && JSON.stringify(own) === JSON.stringify({ name, ...fields })
+        && JSON.stringify(Object.keys(gathered ?? {})) === JSON.stringify(["rounds", "usage"]) && Array.isArray(gathered.rounds) && gathered.rounds.length > 0;
     }, name);
     const { job, waiting, context } = await attended();
     await assert.rejects(writeResult(job, DRAFT, { result: waiting, context }), (error) => error.name === name && error.message.includes("for the test"), name);

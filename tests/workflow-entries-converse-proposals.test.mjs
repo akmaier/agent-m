@@ -458,6 +458,24 @@ test("TST-20261111912: a piece whose job could not start goes back to the conver
   });
 });
 
+// TST-20261111971 · level: component · module: MOD-runtimes · MOD-workflow-entries
+// guards: UC-049; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+// given: a hosted converse job whose endpoint answers the conversation, in every round, with the plan [{ converse, works_on [UC-001], "go on" }] — a piece of the conversation's own kind, the conversation itself handed on (UC-049 4a.2) —; known positive: the piece of implement of TST-20261111912 goes back to the participant
+// input: onRecordsChanged
+// expect: outcome `done`; the conversation's prompt is sent once — the check plan-works-on finds no error in the piece, whose job refuses `hand-over` as every handed-over job does —; the record names no piece of the plan that cannot start; the end still lists `not run: converse — ` naming the conversation itself, as a hosted conversation hands no piece of its own kind on (UC-049 4f). Counter-proof: on the check as it stood, the prompt was sent twice and the record said "piece 1 of the plan cannot start: it is this conversation itself, which a hand-over does not start again"
+test("TST-20261111971: a piece of the conversation's own kind is no error of plan-works-on", async () => {
+  await withWorkspace({}, async (w) => {
+    const world = fakeWorld({ converse: answer({ kind: "converse", works_on: ["UC-001"], task: "go on" }) }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    const prompts = world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).length;
+    assert.equal(prompts, 1, "the conversation is prompted once, and nothing else");
+    assert.doesNotMatch(fileAt(w, `docs/jobs/${JOB}.md`), /cannot start/);
+    assert.match(endOf(w), /not run: converse — [^\n]*this conversation itself/);
+    assert.equal(world.dispatches.length, 0);
+  });
+});
+
 // ---------------------------------------------------------------- an answer that cannot be read
 
 // TST-2026271044 · level: component · module: MOD-workflow-entries
