@@ -75,10 +75,7 @@ const PARTICIPANTS = "# Participants of this instance\n\n**REGISTER**\n\nThe par
 // guards: NO MODEL READS A CREDENTIAL; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-011; UC-034
 // given: a queued fix-bug job of the participant fixer on the route `bridge lab-pc agent opencode`; a product the Bridge holds no token for; the fixture agent
 // input: startWatching; the test waits until the agent has kept its read answer, checks the origin, then gives the origin's main a new commit and signals the agent
-// expect: while the agent still works, the origin holds the job's branch at the agent's commit, and the read answer the agent kept shows that commit as both outbox and origin, not done with
-//   NotSupported's words; after the fetch the agent's own git fetch reads the origin's new commit; the prompt the agent was sent ends with relay.md filled in — the requests and answers folders
-//   beside its working clone, its branch, who merges; the enclosure was prepared with the working clone, its outbox and the requests writable and the instance's clone, the product's clone and
-//   the answers readable; the record ends done with the agent's commit among its results and no pull request; the relay's folders are removed
+// expect: while the agent still works, the origin holds the job's branch at the agent's commit, and the read answer the agent kept shows that commit as both outbox and origin, not done with NotSupported's words; after the fetch the agent's own git fetch reads the origin's new commit; the prompt the agent was sent ends with relay.md filled in — the requests and answers folders beside its working clone, its branch, who merges; the enclosure was prepared with the working clone, its outbox and the requests writable and the instance's clone, the product's clone and the answers readable; the record ends done with the agent's commit among its results and no pull request; the relay's folders are removed
 test("TST-2026111612: a job that delivers a branch forwards the agent's push while it works, answers its requests, and fetches for it from the Bridge's clone", async (t) => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-relay-job-")));
   const bin = join(root, "bin"), kept = join(root, "kept"), go = join(root, "go");

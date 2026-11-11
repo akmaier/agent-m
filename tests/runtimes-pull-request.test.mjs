@@ -170,8 +170,7 @@ test("the writer opens no pull request where the branch has one", async () => {
 // guards: UC-049; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a local host, a Bridge's clone: it holds the branch at c1, and every server request (listPullRequests, repositoryInfo, openPullRequest) throws NotSupported
 // input: the writer with the answer { branch: the job's id, commits: ["c1"] }, and with an answer that still names a pull request, "https://github.com/acme/product/pull/3"
-// expect: no openPullRequest call; the outcome's pullRequest is null and its commits ["c1"], for both answers: the writer takes no pull request from the answer; counter-proof: the server
-//   host with an open pull request #5 of the branch gives that one's address
+// expect: no openPullRequest call; the outcome's pullRequest is null and its commits ["c1"], for both answers: the writer takes no pull request from the answer; counter-proof: the server host with an open pull request #5 of the branch gives that one's address
 test("the writer on a host without the server's API for pull requests opens nothing and returns the branch with no pull request", async () => {
   for (const draft of [{ branch: JOB, commits: ["c1"] }, { branch: JOB, commits: ["c1"], pullRequest: "https://github.com/acme/product/pull/3" }]) {
     const server = fakeHost({ local: true });

@@ -27,8 +27,7 @@ const folded = (text) => text.replace(/\s+/g, " ");
 // guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; ONE DEFINITION, THREE DRIVERS
 // given: the catalogue's kinds implement, refactor, fix-bug and write-tests, each with the writer branch-and-pull-request
 // input: kindOf(name) for each
-// expect: each answer schema requires `branch` and `commits` — write-tests also `tests` — and neither requires nor declares `pullRequest`; no prompt asks to report a `pullRequest`; counter-proof: the
-//   prompt still names `branch` and `commits` as the fields of its answer
+// expect: each answer schema requires `branch` and `commits` — write-tests also `tests` — and neither requires nor declares `pullRequest`; no prompt asks to report a `pullRequest`; counter-proof: the prompt still names `branch` and `commits` as the fields of its answer
 test("TST-2026111601: the coding kinds' answers report the branch and its commits, and no pull request", async () => {
   for (const name of KINDS) {
     const kind = await kindOf(name);
@@ -44,10 +43,7 @@ test("TST-2026111601: the coding kinds' answers report the branch and its commit
 // guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A REFACTORING JOB BEGINS WITHOUT A FAILING TEST; A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
 // given: the prompts of implement, refactor, fix-bug and write-tests
 // input: kindOf(name).prompt for each, whitespace folded
-// expect: implement and fix-bug say that the first commit holds only the tests and is pushed before any code is written; refactor that every commit pushed keeps the tests green; every one that red and
-//   green are the product's CI run on the commit pushed, never a run of the agent's own, which decides nothing; that the agent pushes its branch, opens its pull request, follows its CI and merges it once
-//   the Definition of Done holds, as the description of where it works says, and that otherwise the pull request is opened for it; none names a Bridge, a relay or an outbox, and none asks the agent to
-//   write the CI; counter-proof: implement's prompt does not say what refactor's says of every commit, nor refactor's what implement's says of the first
+// expect: implement and fix-bug say that the first commit holds only the tests and is pushed before any code is written; refactor that every commit pushed keeps the tests green; every one that red and green are the product's CI run on the commit pushed, never a run of the agent's own, which decides nothing; that the agent pushes its branch, opens its pull request, follows its CI and merges it once the Definition of Done holds, as the description of where it works says, and that otherwise the pull request is opened for it; none names a Bridge, a relay or an outbox, and none asks the agent to write the CI; counter-proof: implement's prompt does not say what refactor's says of every commit, nor refactor's what implement's says of the first
 test("TST-2026111602: the coding kinds' prompts say red and green are the product's CI run, and that the agent pushes, opens, follows and merges as its route says", async () => {
   const prompts = Object.fromEntries(await Promise.all(KINDS.map(async (name) => [name, folded((await kindOf(name)).prompt)])));
   const FIRST = "Your first commit holds only the tests, and you push it before you write any code";

@@ -134,11 +134,8 @@ const factsOf = (pull, checks) => ({ pullRequest: pull, commits: [{ sha: pull.he
 // TST-2026111606 · level: component · module: MOD-bridge-jobs
 // guards: NO MODEL READS A CREDENTIAL; A CANCELLED JOB WRITES NOTHING MORE
 // given: a job whose agent pushed its branch into the outbox; its relay's folders
-// input: a read request r1.json, then looks; r1.json rewritten after its answer; r2.json whose text changes between two looks; r3.json a link to a request outside the folders;
-//   r4.json a request with a second link; a request named `bad name.json`; after the job is cancelled, r5.json
-// expect: r1 is answered at the second look and not at the first, and its rewrite gets no second answer; r2 is answered only after its text stood still for a look; r3, r4 and
-//   `bad name.json` are never answered; the answers folder holds nothing but r1.json and r2.json — no file written beside; after the cancel r5 is not answered and the host is asked
-//   nothing more
+// input: a read request r1.json, then looks; r1.json rewritten after its answer; r2.json whose text changes between two looks; r3.json a link to a request outside the folders; r4.json a request with a second link; a request named `bad name.json`; after the job is cancelled, r5.json
+// expect: r1 is answered at the second look and not at the first, and its rewrite gets no second answer; r2 is answered only after its text stood still for a look; r3, r4 and `bad name.json` are never answered; the answers folder holds nothing but r1.json and r2.json — no file written beside; after the cancel r5 is not answered and the host is asked nothing more
 test("TST-2026111606: a request is taken when it is a regular file with one link whose text stood still since the look before, and answered once, whole", async (t) => {
   const w = await world(t);
   w.push("test.txt");
@@ -180,15 +177,9 @@ test("TST-2026111606: a request is taken when it is a regular file with one link
 
 // TST-2026111607 · level: component · module: MOD-bridge-jobs
 // guards: NO MODEL READS A CREDENTIAL; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; UC-024
-// given: the Bridge's tokens' file holding a token for the product, included by useRepositoryTokens; the agent pushed its tests-only commit c1 on its branch; the fixture host lists one CI
-//   run of the branch, whose log holds the token
-// input: read, log of that run, log of a run no read named, open, read, then a read of main (not moved), of a branch the agent did not make, a request that is not JSON, one whose call is
-//   none of the five, one that carries a planted field; then read while the server cannot be reached; then fetch after the origin gained a commit
-// expect: the first read is done with the state { branch, outbox c1, origin c1, refused null, pullRequest null, commits null, checks null, runs [the run] } and log and branches null; the log
-//   answer holds the log with the token replaced by *** and not the token; the unnamed run is refused without the host being asked; open calls the writer with the branch and answers the pull
-//   request #3 with its commits without their files and its head's checks; every refused request has done false, a reason, and no state, the host not asked, and no answer holds the planted
-//   text; the unreachable server is an answer not done naming Unreachable, with the forwarding state; fetch is done, its branches the origin's main at the new commit and the job's branch, and
-//   the agent's git fetch then reads that commit
+// given: the Bridge's tokens' file holding a token for the product, included by useRepositoryTokens; the agent pushed its tests-only commit c1 on its branch; the fixture host lists one CI run of the branch, whose log holds the token
+// input: read, log of that run, log of a run no read named, open, read, then a read of main (not moved), of a branch the agent did not make, a request that is not JSON, one whose call is none of the five, one that carries a planted field; then read while the server cannot be reached; then fetch after the origin gained a commit
+// expect: the first read is done with the state { branch, outbox c1, origin c1, refused null, pullRequest null, commits null, checks null, runs [the run] } and log and branches null; the log answer holds the log with the token replaced by *** and not the token; the unnamed run is refused without the host being asked; open calls the writer with the branch and answers the pull request #3 with its commits without their files and its head's checks; every refused request has done false, a reason, and no state, the host not asked, and no answer holds the planted text; the unreachable server is an answer not done naming Unreachable, with the forwarding state; fetch is done, its branches the origin's main at the new commit and the job's branch, and the agent's git fetch then reads that commit
 test("TST-2026111607: the relay answers read, log, open and fetch with the answer's fields alone, and no answer carries a token", async (t) => {
   const w = await world(t);
   const data = join(w.root, "data");
@@ -263,11 +254,8 @@ test("TST-2026111607: the relay answers read, log, open and fetch with the answe
 // TST-2026111608 · level: component · module: MOD-bridge-jobs
 // guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; A JOB STOPS AT EVERY GATE; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; UC-024; UC-034
 // given: the agent's branch at c2 on the origin, its pull request #3 open and no draft at head c2, the check agent-m done succeeded on that head
-// input: merge requests, each with one condition not holding — the job's parameters say merges: person; the pull request a draft; no pull request; agent-m done failed; agent-m done missing;
-//   a gate at before-merge not passed (and one at before-write not passed beside it); a push of the agent the origin refused, so that the outbox holds c3 and the origin c2 —; then with every
-//   condition holding
-// expect: each of the first is answered not done, its reason naming the condition that does not hold, and mergePullRequest is never called; with every condition holding, mergePullRequest is
-//   called once, with #3 and the head c2, and the answer is done
+// input: merge requests, each with one condition not holding — the job's parameters say merges: person; the pull request a draft; no pull request; agent-m done failed; agent-m done missing; a gate at before-merge not passed (and one at before-write not passed beside it); a push of the agent the origin refused, so that the outbox holds c3 and the origin c2 —; then with every condition holding
+// expect: each of the first is answered not done, its reason naming the condition that does not hold, and mergePullRequest is never called; with every condition holding, mergePullRequest is called once, with #3 and the head c2, and the answer is done
 test("TST-2026111608: the relay merges only where the job leaves the merge to the agent, the pull request is open, nothing waits to be forwarded, the gates before the merge are passed and agent-m done succeeded on the head", async (t) => {
   const cases = [
     { name: "person", setup: { merges: "person" }, reason: /merges: person/ },
@@ -318,8 +306,7 @@ test("TST-2026111608: the relay merges only where the job leaves the merge to th
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO MODEL READS A CREDENTIAL
 // given: a product the Bridge holds no token for, its host hostOf(address, clone); the agent pushed c1 on its branch
 // input: read, open and merge requests; then fetch after the origin gained a commit
-// expect: read, open and merge are answered not done with NotSupported's words and the forwarding state alone — outbox c1, origin c1, pullRequest null —, and the writer is not called; fetch
-//   is done with the computer's own login, its branches naming the origin's new commit; counter-proof: the branch reached the origin with that same login
+// expect: read, open and merge are answered not done with NotSupported's words and the forwarding state alone — outbox c1, origin c1, pullRequest null —, and the writer is not called; fetch is done with the computer's own login, its branches naming the origin's new commit; counter-proof: the branch reached the origin with that same login
 test("TST-2026111609: for a product the Bridge holds no token for, the relay fetches with the computer's own login and answers every other call with its forwarding state and NotSupported", async (t) => {
   const address = "https://github.com/acme/tokenless";
   const w = await world(t, { address });
@@ -349,10 +336,8 @@ test("TST-2026111609: for a product the Bridge holds no token for, the relay fet
 // TST-2026111610 · level: component · module: MOD-bridge-jobs
 // guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A CANCELLED JOB WRITES NOTHING MORE
 // given: the relay looking every 50 ms while a fixture agent's work runs
-// input: during(work), where the work pushes its tests-only commit into the outbox and waits until the origin holds it; then last(); then, with the origin refusing, a push and last();
-//   then, after the cancel, a push, during and last
-// expect: the work ends — the push reached the origin before the agent's answer —; last() forwards nothing new and succeeds; with the origin refusing, last() fails naming the branch and what
-//   git said; after the cancel nothing is forwarded and last() does nothing
+// input: during(work), where the work pushes its tests-only commit into the outbox and waits until the origin holds it; then last(); then, with the origin refusing, a push and last(); then, after the cancel, a push, during and last
+// expect: the work ends — the push reached the origin before the agent's answer —; last() forwards nothing new and succeeds; with the origin refusing, last() fails naming the branch and what git said; after the cancel nothing is forwarded and last() does nothing
 test("TST-2026111610: while the agent works its pushes reach the origin, the forward after its answer fails the job only for a branch still refused, and nothing is forwarded after a cancel", async (t) => {
   const w = await world(t);
   const c1 = await w.relay.during(async () => {
@@ -379,9 +364,7 @@ test("TST-2026111610: while the agent works its pushes reach the origin, the for
 // guards: ONE DEFINITION, THREE DRIVERS; NO MODEL READS A CREDENTIAL; A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
 // given: relay.md, the one text of what the agent is told of the relay
 // input: relayText({ folders, branch, merges }) for a job the agent merges and for one whose parameters say merges: person
-// expect: each names the requests and answers folders and the branch, says that pushes go to the outbox, which the Bridge forwards, that the agent holds no token, that git fetch and git pull
-//   read the origin as the Bridge last fetched it and to ask fetch before them, how each of the five calls is written, and that a branch whose pull request read shows is the job's work so far;
-//   the first says the agent merges, the second that a person does; no named place is left unfilled; counter-proof: the two texts differ only where they say who merges
+// expect: each names the requests and answers folders and the branch, says that pushes go to the outbox, which the Bridge forwards, that the agent holds no token, that git fetch and git pull read the origin as the Bridge last fetched it and to ask fetch before them, how each of the five calls is written, and that a branch whose pull request read shows is the job's work so far; the first says the agent merges, the second that a person does; no named place is left unfilled; counter-proof: the two texts differ only where they say who merges
 test("TST-2026111611: relay.md tells the agent where its pushes go, how it asks, and who merges", async () => {
   const folders = { requests: "/work/claude/jobs/JOB-1.requests", answers: "/work/claude/jobs/JOB-1.answers" };
   const agent = await relayText({ folders, branch: JOB, merges: null });

@@ -77,9 +77,7 @@ async function world(t, { refusing = "^refs/heads/refused/" } = {}) {
 // guards: NO MODEL READS A CREDENTIAL; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-011
 // given: an origin with main, feature and the tag v1; the Bridge's clone of it, which also holds its own branch bridge-own and refs/agent-m/JOB-0/left
 // input: workingClone(clone, jobs/JOB-1); then the origin gains a commit on main; the agent's git fetch, before and after the Bridge's cloneOrFetch of its clone; then the agent's git pull
-// expect: the working clone's origin is the Bridge's clone's path, its fetch refspecs are exactly +refs/remotes/origin/*:refs/remotes/origin/* and ^refs/remotes/origin/HEAD; it holds
-//   refs/remotes/origin/main and feature and the tag v1, origin/HEAD names origin/main, and main is checked out tracking it; it holds no bridge-own and nothing below refs/agent-m/; the agent's fetch
-//   before the Bridge's fetch leaves origin/main where it was (counter-proof: the origin moved), after it origin/main is the new commit, and the agent's pull brings main there
+// expect: the working clone's origin is the Bridge's clone's path, its fetch refspecs are exactly +refs/remotes/origin/*:refs/remotes/origin/* and ^refs/remotes/origin/HEAD; it holds refs/remotes/origin/main and feature and the tag v1, origin/HEAD names origin/main, and main is checked out tracking it; it holds no bridge-own and nothing below refs/agent-m/; the agent's fetch before the Bridge's fetch leaves origin/main where it was (counter-proof: the origin moved), after it origin/main is the new commit, and the agent's pull brings main there
 test("TST-2026111603: the job's working clone fetches the origin's branches and tags from the Bridge's clone, as the Bridge last fetched them, over a local path", async (t) => {
   const w = await world(t);
   const working = await workingClone(w.clone, join(w.root, "work", "jobs", "JOB-1"));
@@ -109,9 +107,7 @@ test("TST-2026111603: the job's working clone fetches the origin's branches and 
 // guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; NO MODEL READS A CREDENTIAL
 // given: the working clone of TST-2026111603 with its outbox; the agent pushes a commit on JOB-1 into the outbox
 // input: forward(state, { clone, job: "JOB-1" }) — once after the push, once more with nothing new, once after a second commit, and once after the agent rewrote the branch
-// expect: after the first look the origin holds JOB-1 at the agent's commit, the Bridge's clone's JOB-1 and refs/remotes/origin/JOB-1 point there, and the working clone's fetch reads it as
-//   origin/JOB-1; the look with nothing new offers the origin nothing; the second commit is forwarded; the rewritten branch is refused by the origin as a forward that is not forced, kept with
-//   what git said, and the origin keeps the second commit; main is never pushed; nothing is left below refs/agent-m/ in the clone
+// expect: after the first look the origin holds JOB-1 at the agent's commit, the Bridge's clone's JOB-1 and refs/remotes/origin/JOB-1 point there, and the working clone's fetch reads it as origin/JOB-1; the look with nothing new offers the origin nothing; the second commit is forwarded; the rewritten branch is refused by the origin as a forward that is not forced, kept with what git said, and the origin keeps the second commit; main is never pushed; nothing is left below refs/agent-m/ in the clone
 test("TST-2026111604: each branch the agent pushes into the outbox is forwarded to the origin at the next look, never forced", async (t) => {
   const w = await world(t);
   const working = await workingClone(w.clone, join(w.root, "work", "jobs", "JOB-1"));
@@ -155,8 +151,7 @@ test("TST-2026111604: each branch the agent pushes into the outbox is forwarded 
 // guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST
 // given: an origin whose pre-receive hook refuses every branch below refused/; the working clone with its outbox; the agent pushes refused/one into the outbox
 // input: forward three times while the branch stands still, then once after it moved, then with `again`, the forward after the agent's answer
-// expect: the first look offers the origin refused/one and keeps the refusal with the hook's words, failing nothing; the next two looks offer the origin nothing; the look after the move offers it
-//   once more and keeps the new commit as refused; `again` offers it once more although it has not moved, and it stays refused; counter-proof: a branch outside refused/ is forwarded at the same look
+// expect: the first look offers the origin refused/one and keeps the refusal with the hook's words, failing nothing; the next two looks offer the origin nothing; the look after the move offers it once more and keeps the new commit as refused; `again` offers it once more although it has not moved, and it stays refused; counter-proof: a branch outside refused/ is forwarded at the same look
 test("TST-2026111605: a forward the origin refuses is kept with what git said, and tried again once the branch moves, or after the answer", async (t) => {
   const w = await world(t);
   const working = await workingClone(w.clone, join(w.root, "work", "jobs", "JOB-2"));
