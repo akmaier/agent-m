@@ -136,6 +136,13 @@ function world({ mails, issues = [], bridge = null, refuse = null, marked = null
 }
 
 const FIVE_MINUTES = 5 * 60 * 1000;
+// Each reading also asks repliesDue (MOD-maintenance-pages, `mail`: "each mail that `repliesDue`, read with each reading, gives under `toAnswer`"), which reads Drafts and Sent and finds each listed mail:
+// a Bridge that counts the readings answers those operations here, empty and not found, and counts only the operation `read`.
+const notARead = (url) => {
+  if (url.pathname === "/v1/mail/read") return null;
+  if (url.pathname === "/v1/mail/find") return new Response(JSON.stringify({ error: "not-found", message: "no such mail" }), { status: 404, headers: { "Content-Type": "application/json" } });
+  return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
+};
 async function open(world_, goes = []) {
   const target = document.createElement("div");
   document.body.append(target);
@@ -185,7 +192,7 @@ test("the mail page lists every mail as an inbox, the newest first, the undecide
   const reply = await mailOf("reply", { inReplyTo: listed.messageId, references: [listed.messageId], date: "2026-10-21T08:00:00Z" });
   const requests = [];
   const w = world({ mails: [marked, reply, listed, fresh], marked: [marked.id], issues: [{ number: 4, title: "Export fails", body: withMailIds("Export fails.", [listed.id]) }],
-    bridge: (url, init) => { requests.push(`${init.method} ${url.pathname}`); return new Response(JSON.stringify([marked, reply, listed, fresh]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+    bridge: (url, init) => { const other = notARead(url); if (other) return other; requests.push(`${init.method} ${url.pathname}`); return new Response(JSON.stringify([marked, reply, listed, fresh]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
   const target = await open(w);
   assert.deepEqual(lineIds(target), [reply.id, fresh.id, listed.id, marked.id]);
   assert.deepEqual(bold(target), [fresh.id]);
@@ -505,7 +512,7 @@ test("the view holds the route mail under the menu entry maintenance", () => {
 test("drawing the mail page reads the mailbox at once, and again every five minutes", async () => {
   const mail = await mailOf("drawn");
   const requests = [];
-  const w = world({ mails: [mail], bridge: (url, init) => { requests.push(`${init.method} ${url.pathname}`); return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+  const w = world({ mails: [mail], bridge: (url, init) => { const other = notARead(url); if (other) return other; requests.push(`${init.method} ${url.pathname}`); return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
   const target = await open(w);
   assert.deepEqual(requests, ["POST /v1/mail/read"], "drawing reads the mailbox, without a click");
   assert.ok(lineOf(target, mail.id), "the mail is listed");
@@ -530,7 +537,7 @@ test("no reading starts while one runs", async () => {
   const requests = [];
   let release;
   const held = new Promise((resolve) => { release = resolve; });
-  const w = world({ mails: [mail], bridge: async (url, init) => { requests.push(`${init.method} ${url.pathname}`); if (requests.length === 2) await held; return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+  const w = world({ mails: [mail], bridge: async (url, init) => { const other = notARead(url); if (other) return other; requests.push(`${init.method} ${url.pathname}`); if (requests.length === 2) await held; return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
   const target = await open(w);
   mock.timers.tick(FIVE_MINUTES);
   await waitFor(() => requests.length === 2);
@@ -553,7 +560,7 @@ test("no reading starts while one runs", async () => {
 test("the readings stop once the page is no longer shown", async () => {
   const mail = await mailOf("left");
   const requests = [];
-  const w = world({ mails: [mail], bridge: (url, init) => { requests.push(url.pathname); return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
+  const w = world({ mails: [mail], bridge: (url, init) => { const other = notARead(url); if (other) return other; requests.push(url.pathname); return new Response(JSON.stringify([mail]), { status: 200, headers: { "Content-Type": "application/json" } }); } });
   const target = await open(w);
   target.replaceChildren(document.createElement("p"));
   mock.timers.tick(2 * FIVE_MINUTES);

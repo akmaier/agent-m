@@ -22,6 +22,7 @@
 //   - *Draft question* (ITM-1026) opens, in the mail's item, the run panel of `draft-replies` with the person's point as the parameter `question` over the issue and that one mail: the participants are those of the drafting of replies (draft text, a place the mailbox allows),
 //     the panel appears once the point, a participant and a name are given, and the question the participant returns is stored as a draft and shown with *Send and wait*; the start record names the issue and the product, not the point.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
+//   - Both routes draw the tab strip of tabs.mjs at their head, under the tab Mail (UC-039 step 1).
 
 import { readSetting } from "../browser-store/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
@@ -36,6 +37,7 @@ import { confirmDecision, runPanel } from "../site-frame/index.mjs";
 import { peopleIn } from "../personal-data/index.mjs";
 import { connectionsOf, mailboxOf, mailSubject, offeredWith, productsOf } from "./mail.mjs";
 import { heads } from "./routes.mjs";
+import { tabsOf } from "./tabs.mjs";
 
 // The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
 // agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
@@ -378,7 +380,7 @@ async function render(target, context, params = {}) {
     }
     await draw();
   });
-  target.replaceChildren(el("h2", null, "Replies"), el("section", "replies-step-read", el("p", null, read), fold(STEP_TEXT.read)), ...(params.issue ? [] : sendingNotice(context.store)), out);
+  target.replaceChildren(tabsOf("replies", context), el("h2", null, "Replies"), el("section", "replies-step-read", el("p", null, read), fold(STEP_TEXT.read)), ...(params.issue ? [] : sendingNotice(context.store)), out);
   await draw();
 }
 

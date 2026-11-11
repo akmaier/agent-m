@@ -12,7 +12,8 @@ export const MENU = [
   { key: "implementation", label: "Implementation", views: ["progress", "backlog", "roles"] },
   { key: "tests", label: "Tests", views: ["schedule", "runs", "generate"] },
   { key: "releases", label: "Releases", views: ["release"] },
-  { key: "maintenance", label: "Maintenance", views: ["issues", "mail", "replies"], title: "Issues and mail" },
+  // Maintenance holds two tabs, Mail first and Issues second, and opens on Mail (UC-046, step 2).
+  { key: "maintenance", label: "Maintenance", views: ["mail", "replies", "issues"], title: "Mail and issues" },
   { key: "settings", label: "Settings", views: ["settings"], icon: "⚙", title: "Every setting Agent M uses" },
 ];
 

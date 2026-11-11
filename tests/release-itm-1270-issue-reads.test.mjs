@@ -151,9 +151,9 @@ async function draw(forge, server, name, params = {}) {
 // guards: UC-012
 // given: a tracker of 120 open issues, 31 of them with comments (the issue 7 with 101), one closed issue, and a number that is a pull request or a merge request; on GitHub, where the issue list holds that pull request too, and on a GitLab server in turn; a fake of fetch that records every request; for the known positive, the same host asked for the open issues without the option
 // input: the route issues drawn
-// expect: all 120 open issues are listed, each with its number, and no pull request among them; the server received exactly two requests, the pages 1 and 2 of the issue list, and none for the comments or notes of any issue; known positive: listIssues({ state: "open" }) of the same host sends 32 requests for comments — one for each of the 30 issues with one comment, and two for the issue 7
-// Planted fault: a list that reads the open issues with their comments (`comments: false` left out of the call in renderList of src/maintenance-pages/issues.mjs) sends 32 comment requests; one that reads the pages of the list one after the other with a request per issue, or lists the closed issue, fails the listing.
-test("TST-1270301 the list of open issues asks for the pages of the list and for no comment, on GitHub and on GitLab", async () => {
+// expect: all 120 open issues and the closed issue 130 are listed (UC-012 step 2: the tab Issues lists open and closed issues), each with its number, and no pull request among them; the server received exactly two requests, the pages 1 and 2 of the issue list, and none for the comments or notes of any issue; known positive: listIssues({ state: "open" }) of the same host sends 32 requests for comments — one for each of the 30 issues with one comment, and two for the issue 7
+// Planted fault: a list that reads the open issues with their comments (`comments: false` left out of the call in renderList of src/maintenance-pages/issues.mjs) sends 32 comment requests; one that reads the pages of the list one after the other with a request per issue, or leaves the closed issue out, fails the listing.
+test("TST-1270301 the list of open and closed issues asks for the pages of the list and for no comment, on GitHub and on GitLab", async () => {
   for (const forge of [GH, GL]) {
     const probe = serverOf(forge);
     await using(probe, () => hostOf(forge).listIssues({ state: "open" }));
@@ -162,7 +162,7 @@ test("TST-1270301 the list of open issues asks for the pages of the list and for
     const server = serverOf(forge);
     const target = await draw(forge, server, "issues");
     const listed = byClass(target, "issue").map((node) => node.getAttribute("data-issue"));
-    assert.deepEqual(listed, Array.from({ length: 120 }, (_, i) => String(i + 1)), forge.label);
+    assert.deepEqual(listed, [...Array.from({ length: 120 }, (_, i) => String(i + 1)), "130"], forge.label);
     assert.deepEqual(server.requests.filter(isComment(forge)), [], `${forge.label}: no comment is asked for`);
     assert.deepEqual(server.requests.map(lineOf), [`GET ${forge.prefix}/issues p1`, `GET ${forge.prefix}/issues p2`], forge.label);
   }

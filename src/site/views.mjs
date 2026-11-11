@@ -37,7 +37,8 @@ export const DASHBOARD = [
   { view: "release", builtIn: true, useCases: ["UC-013"] },
   // UC-029 and UC-030, the tests browser and the audit, are rendered by MOD-trace-pages' route trace through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "trace", builtIn: true, useCases: ["UC-029", "UC-030"] },
-  { view: "issues", file: "issues-view.mjs", useCases: ["UC-012", "UC-033"] },
+  // UC-012 and UC-033's issues are rendered by MOD-maintenance-pages through dashboard-app's public route dispatch, on Maintenance's tab Issues; they have no dashboard view file.
+  { view: "issues", builtIn: true, useCases: ["UC-012", "UC-033"] },
   // UC-038 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "mail", builtIn: true, useCases: ["UC-038"] },
   // UC-039 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.

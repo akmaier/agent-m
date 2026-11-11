@@ -973,24 +973,16 @@ async function route() {
     } else if (kind === "trace") {
       // The tests browser and the audit (UC-029, UC-030), and every other view of the route: the version the fragment names, or the one the page shows.
       await renderProductRoute(tracePages, "trace", { ref: T.ref, ...routeOf(location.hash).params });
-    } else if (kind === "mail") {
-      const mailRoute = maintenancePages.routes.find((r) => r.name === "mail");
+    } else if (kind === "mail" || kind === "replies") {
+      // MOD-maintenance-pages' routes of its tab Mail — `mail`, `mail/<id>` (#mail/id=<id>), `replies` and `replies/<issue>` —, given the address's parameters; their go writes the route as the
+      // frame writes it, with the chosen product (MOD-site-frame's ViewContext), so that the tab Issues and a mail's Answer keep the product.
+      const mailRoute = maintenancePages.routes.find((r) => r.name === kind);
       await loadRoute(mailRoute);
       await mailRoute.render(main(), {
         page: "review", instance: reviewContext().instance, product: null, store: openStore(T.instance),
         go(route, params = {}) {
           if (route === "add-product") location.hash = "#add";
-          else location.hash = params.id ? `#${route}/${encodeURIComponent(params.id)}` : `#${route}`;
-        },
-      }, {});
-    } else if (kind === "replies") {
-      const repliesRoute = maintenancePages.routes.find((r) => r.name === "replies");
-      await loadRoute(repliesRoute);
-      await repliesRoute.render(main(), {
-        page: "review", instance: reviewContext().instance, product: null, store: openStore(T.instance),
-        go(route, params = {}) {
-          if (route === "add-product") location.hash = "#add";
-          else location.hash = fragmentOf(route, params);
+          else location.hash = fragmentWithProduct(route, params);
         },
       }, routeOf(location.hash).params);
     } else if (kind === "issues" || kind === "issue") {
