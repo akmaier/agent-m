@@ -29,7 +29,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { keepRepositoryTokens, useRepositoryTokens } from "../src/bridge-jobs/index.mjs";
-import { cloneOrFetch, defaultHead, hostOf, makeOutbox, publish, workingClone } from "../src/bridge-jobs/workfolders.mjs";
+import { cloneOrFetch, defaultHead, forward, forwarding, hostOf, makeOutbox, workingClone } from "../src/bridge-jobs/workfolders.mjs";
 import { agentEnvironment, hiddenPaths } from "../src/agent-enclosure/holders.mjs";
 
 process.env.GIT_CONFIG_GLOBAL = "/dev/null";
@@ -167,7 +167,7 @@ test("TST-20261110101: keepRepositoryTokens keeps each repository's header for g
 // given: two projects behind the fixture server, group/widget and group/other, each answering only its own token's header; the Bridge's data folder keeping
 //   glpat-WIDGET for widget and glpat-OTHER for other, included by useRepositoryTokens; git reached through the recording wrapper
 // input: cloneOrFetch of each into a clone of the Bridge; for widget a job's workingClone, its outbox, a commit the agent pushes into the outbox with a git that is
-//   given no include, publish of the outbox's branch, and a commit through hostOf(widget)'s commitFiles; then, with the include taken away, a fresh clone of widget
+//   given no include, the forward of the outbox's branch, and a commit through hostOf(widget)'s commitFiles; then, with the include taken away, a fresh clone of widget
 // expect: every request for widget carried Basic oauth2:glpat-WIDGET and every request for other Basic oauth2:glpat-OTHER, none the other's; the agent's branch and
 //   the host's commit are on widget's main and branch; no clone's or outbox's .git/config, remote address, command line or environment of a git holds a token or
 //   its header's encoding; counter-proof: without the include the clone is refused by the server and git names it
@@ -186,7 +186,7 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
 
   const clone = await cloneOrFetch(widget.address, join(root, "work", "products", "widget"));
   await cloneOrFetch(other.address, join(root, "work", "products", "other"));
-  const working = await workingClone(widget.address, join(root, "work", "jobs", "JOB-1"));
+  const working = await workingClone(clone, join(root, "work", "jobs", "JOB-1"));
   const outbox = await makeOutbox(working);
   writeFileSync(join(working, "change.md"), "the agent's change\n");
   // The agent's own git: an environment of its own, as its enclosure gives it, which names no include.
@@ -196,7 +196,8 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
     const r = spawnSync(REAL_GIT, args, { cwd: working, env: agentEnv, encoding: "utf8" });
     assert.equal(r.status, 0, `the agent's git ${args[0]}: ${r.stderr}`);
   }
-  const pushed = await publish({ outbox, clone, job: "JOB-1" });
+  const { forwarded } = await forward(forwarding(outbox), { clone, job: "JOB-1" });
+  const pushed = Object.entries(forwarded).filter(([branch]) => !(branch in outbox.base)).map(([branch, commit]) => ({ branch, commit }));
   assert.deepEqual(pushed.map(({ branch }) => branch), ["agent-branch"]);
   assert.equal(git(root, "--git-dir", widget.origin, "rev-parse", "agent-branch"), pushed[0].commit, "the agent's branch reached the project");
   const host = await hostOf(widget.address, clone);

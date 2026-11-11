@@ -13,15 +13,18 @@ import { appendToRecord, jobCost, newJobId, recordsNewestFirst, takeJob } from "
 import { failedBecause, prepareJob, runJob } from "../job-runner/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
-import { queueJob } from "../runtimes/index.mjs";
+import { queueJob, routeStrategies } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
-import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, instanceClone, makeOutbox, publish, removeClone, workingClone } from "./workfolders.mjs";
+import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, instanceClone, makeOutbox, relayFolders, removeClone, workingClone } from "./workfolders.mjs";
+import { relayOf, relayText } from "./relay.mjs";
 import { enclosureOf } from "./enclosures.mjs";
 import { appendOutput, readListings, readOutput, removeOld, writeListing } from "./joblogs.mjs";
 
 const PARTICIPANTS = "docs/participants.md";
 const QUIT = "the Bridge was quit";
 const WITH_HAND_OVER = "with the hand-over";
+// The writer of the kinds that deliver a branch (MOD-runtimes): their jobs have a relay, which opens a pull request through it.
+const BRANCH_WRITER = "branch-and-pull-request";
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
 // The Bridge and agent a route names — a job record's or a connection's: `bridge <bridge> agent <agent>`, or null for any other route.
@@ -290,17 +293,26 @@ function createWatcher(config) {
           participants: await participantsAt(agent, record.agentM.commit, new Map(), participant ? [participant] : []), places: { sources: {}, mailbox: null }, gates: [],
           person: record.startedBy, now: new Date(), agentM: record.agentM, jobId: record.id,
         };
-        await workingClone(product, working);
-        // The agent pushes into its outbox; the Bridge, outside the enclosure, pushes what it made to the origin before the writer reads it.
+        // The working clone fetches from the Bridge's clone of the product, which the taking brought up to the origin; the agent pushes into its outbox, and the
+        // Bridge, outside the enclosure, forwards each push to the origin while the agent works, and once more after its answer.
+        await workingClone(folder, working);
         const outbox = await makeOutbox(working);
         cleanup.push(outbox.path);
-        const writable = [working, outbox.path];
-        await enclosure.prepare({ writable, readable: [instanceFolder] });
+        // A job whose kind delivers a branch has a relay: the requests its agent writes, the answers only the Bridge writes.
+        const folders = context.kind.writer === BRANCH_WRITER ? await relayFolders(working) : null;
+        if (folders) cleanup.push(folders.requests, folders.answers);
+        const merges = context.params?.merges ?? null;
+        const relay = relayOf({ job: record.id, address: product, clone: folder, outbox, folders, host, merges, gates: context.gates, signal: controller.signal,
+          open: (branch) => routeStrategies.writers[BRANCH_WRITER]({ draft: { branch }, drafter: participant, rounds: [] }, context) });
+        const writable = [working, outbox.path, ...(folders ? [folders.requests] : [])];
+        await enclosure.prepare({ writable, readable: [instanceFolder, folder, ...(folders ? [folders.answers] : [])] });
         const installed = (await installedAgents({ enclosure, workdir: working })).find((each) => each.name === agent.name);
         const enclosed = agentDriver(installed, { workdir: working, keyVariable: null, enclosure, writable }, participant);
+        // relay.md, filled in, follows the prompt the driver sends, as the description of where the agent works.
+        const told = folders ? await relayText({ folders, branch: record.id, merges }) : null;
         const driver = { ...enclosed, send: async (input, options) => {
-          const answer = await enclosed.send(input, options);
-          await publish({ outbox, clone: folder, job: record.id });
+          const answer = await relay.during(() => enclosed.send(told ? { ...input, prompt: `${input.prompt}\n\n${told}` } : input, options));
+          await relay.last();
           return answer;
         } };
         const prepared = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
