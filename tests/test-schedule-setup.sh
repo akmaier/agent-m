@@ -37,15 +37,23 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 fi
 
 apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=$archives -o Dir::State::lists=$lists"
-if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
-  # Nothing restored: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor
-  # tries the next mirror: the first download is bounded, and when it fails archive.ubuntu.com becomes the mirror. The install
-  # is not bounded: a kill while dpkg unpacks would leave dpkg interrupted.
+# fetch <package>…: from the mirror into the archives, nothing installed. azure.archive.ubuntu.com sometimes sends one file so
+# slowly that apt neither fails nor tries the next mirror: the first download is bounded, and when it fails archive.ubuntu.com
+# becomes the mirror. The install that follows is not bounded: a kill while dpkg unpacks would leave dpkg interrupted.
+fetch() {
   sudo apt-get $apt_options update
-  if ! sudo timeout 15 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox; then
+  if ! sudo timeout 15 apt-get $apt_options install --download-only --yes --no-install-recommends "$@"; then
     echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt
-    sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
+    sudo apt-get $apt_options install --download-only --yes --no-install-recommends "$@"
   fi
+}
+# On a runner of GitHub Actions the fetch takes bubblewrap's archive along, so that the archives the cache keeps hold it for the
+# component row below; only that row installs it.
+fetched="xvfb openbox"
+if [ -n "${GITHUB_ACTIONS:-}" ]; then fetched="$fetched bubblewrap"; fi
+if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
+  # Nothing restored: from the mirror.
+  fetch $fetched
   sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
 fi
 sudo chmod -R a+rX "$archives" "$lists"
@@ -53,10 +61,13 @@ openbox --version
 
 # The component tests start the Bridge, which runs its agents in its real enclosure (MOD-agent-enclosure, ARC-054), on Linux bubblewrap. The row
 # that runs them installs the package, and an administrator allows it to make user namespaces, which Ubuntu 23.10 and later refuse to a program
-# without an AppArmor profile — the one-time steps the enclosure names. Other rows start no agent of the Bridge and install nothing of it.
+# without an AppArmor profile — the one-time steps the enclosure names. It installs from the archives the cache restored, and fetches the package only
+# where they lack it. Other rows start no agent of the Bridge and install nothing of it.
 if [ "${AGENT_M_ROW:-}" = "component" ] && [ -n "${GITHUB_ACTIONS:-}" ]; then
-  sudo apt-get $apt_options install --yes --no-install-recommends bubblewrap \
-    || { sudo apt-get $apt_options update && sudo apt-get $apt_options install --yes --no-install-recommends bubblewrap; }
+  if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download bubblewrap; then
+    fetch bubblewrap
+    sudo apt-get $apt_options install --yes --no-install-recommends bubblewrap
+  fi
   sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
   bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --die-with-parent -- true || echo "bubblewrap cannot make its namespaces on this runner"
 fi
