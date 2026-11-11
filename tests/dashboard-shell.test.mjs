@@ -57,7 +57,7 @@ const MENU_OF_TODAY = [
   // Implementation leads to progress, a route a loaded view provides (ITM-1252).
   '<a href="#progress" id="tab-progress" data-entry="implementation">Implementation</a>',
   '<a href="#schedule" id="tab-schedule" data-entry="tests">Tests</a>',
-  '<a href="#mail" id="tab-mail" data-entry="maintenance" title="Issues and mail">Maintenance</a>',
+  '<a href="#mail" id="tab-mail" data-entry="maintenance" title="Mail and issues">Maintenance</a>',
   '<a href="#settings" id="tab-settings" data-entry="settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
 ];
 
