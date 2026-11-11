@@ -198,7 +198,7 @@ For the conversation cases, the keys are those of tests/test_conversation_not_re
         "answer": "NEEDLE-ANSWER-C I will hand this on.",
         "handOver": [
           {
-            "kind": "converse",
+            "kind": "derive-use-cases",
             "works_on": [
               "A LOAN HAS A DUE DATE"
             ],

@@ -38,8 +38,12 @@ const url = (path) => `file://${ROOT}/${path}`;
 const jobRunner = await import(url("src/job-runner/index.mjs")), runtimes = await import(url("src/runtimes/index.mjs")), ledger = await import(url("src/job-ledger/index.mjs"));
 const participantList = await import(url("src/participant-list/index.mjs")), documents = await import(url("src/documents/index.mjs")), catalogue = await import(url("src/job-catalogue/index.mjs"));
 const bridgeClient = await import(url("src/bridge-client/index.mjs")), runPlanner = await import(url("src/run-planner/index.mjs")), workflowFiles = runtimes;
-// The tab's kind needs a recipe that MOD-source-register gives in the app; the entry of CI composes that module itself, so the fixture gives it only to the other worlds.
-if (input.kind !== "ciEnd") jobRunner.registerStrategies("tests/test_job_record.py", { recipes: { "chapters-for-page": async () => [] } });
+// The tab's kind needs a recipe that MOD-source-register gives in the app, and the check plan-works-on of MOD-runtimes' routeStrategies, which the page's
+// frame registers; the entry of CI composes those modules itself, so the fixture gives them only to the other worlds.
+if (input.kind !== "ciEnd") {
+  jobRunner.registerStrategies("tests/test_job_record.py", { recipes: { "chapters-for-page": async () => [] } });
+  jobRunner.registerStrategies("MOD-runtimes", runtimes.routeStrategies);
+}
 
 const WEB = "https://github.com/alice/thesis-tool";
 function repoOf(files) {
