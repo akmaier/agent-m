@@ -246,3 +246,17 @@ test("TST-1380007: on macOS an enclosed agent reaches no credential, and the sam
   assert.equal(readFileSync(join(machine.person, ".gitconfig"), "utf8"), "x", "the plain child's write stands, the enclosed one's did not happen");
   assert.equal(existsSync(join(enclosure.home, "new.txt")), true);
 });
+
+// TST-1380012 · level: unit · module: MOD-agent-enclosure
+// guards: NO MODEL READS A CREDENTIAL
+// given: the Bridge's environment with PATH and an SSL_CERT_FILE of its own, /opt/proxy/roots.pem
+// input: agentEnvironment for macOS, for Linux and for Windows
+// expect: on macOS SSL_CERT_FILE names the system's certificate bundle /etc/ssl/cert.pem, the roots without the keychain, whose services the enclosure refuses;
+// on Linux and Windows the agent receives no SSL_CERT_FILE, the Bridge's own among it; counter-proof: /etc/ssl/cert.pem exists on this macOS computer
+test("TST-1380012: on macOS an agent finds the trusted roots in the system's bundle, not in the keychain", () => {
+  const env = { PATH: "/usr/bin:/bin", SSL_CERT_FILE: "/opt/proxy/roots.pem" };
+  assert.equal(agentEnvironment({ platform: "darwin", env, home: "/work/home" }).SSL_CERT_FILE, "/etc/ssl/cert.pem");
+  assert.equal("SSL_CERT_FILE" in agentEnvironment({ platform: "linux", env, home: "/work/home" }), false);
+  assert.equal("SSL_CERT_FILE" in agentEnvironment({ platform: "win32", env, home: "C:\\Users\\agentm-0123456789ab" }), false);
+  if (process.platform === "darwin") assert.ok(existsSync("/etc/ssl/cert.pem"), "counter-proof: the bundle exists");
+});
