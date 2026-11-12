@@ -99,7 +99,7 @@ Bridge's per-user data folder, written only by this module.
 { "agent-m-bridge-settings": 1, "name": "lab-pc", "port": 4711, "folder": "/home/alice/agent-m-work",
   "agents": [{ "name": "claude", "place": "this machine",
     "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools",
-    "reach the web"], "models": [{ "model": "claude-opus-5-5", "context": 200000 }] }],
+    "reach the web"], "models": [{ "model": "claude-opus-5-5", "context": 200000 }], "chrome": false }],
   "products": ["https://github.com/alice/example-product"], "every": 300, "paused": false,
   "jumpHost": { "hostname": "jump.example.org", "user": "alice", "sshPort": 22 },
   "tunnels": [{ "direction": "reverse", "jumpHost": "jump.example.org", "user": "alice", "sshPort": 22,
@@ -118,7 +118,10 @@ Bridge's per-user data folder, written only by this module.
   the window (`THE BRIDGE FINDS THE INSTALLED AGENTS`), with its declaration as a
   connection (UC-044 step 5): `place`, where it processes data, *this machine* preset; `capabilities`, every one preset;
   and `models`, each model it can run with its context in tokens — set in the window or from the settings page through
-  the API (MOD-bridge-http, `PUT /v1/agents/{agent}`); an agent no longer installed stays listed and is shown as missing.
+  the API (MOD-bridge-http, `PUT /v1/agents/{agent}`); and `chrome`, whether every session the Bridge starts of that
+  agent gets its Chrome integration (MOD-agent-processes' Chrome column; UC-044 step 3), `false` until the person ticks
+  it in the window, kept only here and left as it is by `PUT /v1/agents/{agent}`; an agent no longer installed stays
+  listed and is shown as missing.
 - `products` — the addresses of the product repositories whose queued jobs and runs this Bridge serves.
 - `every` — the seconds between two readings of the served products; by default 300.
 - `paused` — whether the Bridge was paused when it last ran; it starts paused again.
@@ -202,7 +205,8 @@ The rest of its surface faces the person, not another module:
     logged in there, else *Log in*, which opens a terminal in the enclosure running the agent's own login step, with
     what of its output the enclosure keeps (`Agent.keeps`). An installed agent's panel heads its tick with the agent's
     name, its version and its state — *ready*, *not logged in* or *not enclosed* — beside its *Log in* or *Set up*, and
-    lays its declaration out as a small form: the place, the capabilities as a group of ticks, the models one per line.
+    lays its declaration out as a small form: the place, the capabilities as a group of ticks, the models one per line;
+    for an agent whose `Agent.chrome` holds, a tick *Chrome* beside them, saved with *Save agents*.
   - *Jobs* — the jobs the Bridge took in the last six weeks, MOD-bridge-jobs' `listJobs`, as a table — identifier,
     kind, agent, product, state, when taken —, the CLI sessions of the prompt bar's conversations among them, whose
     console is what their terminal shows (ARC-055), and the console of the one chosen, by default the one running, else the

@@ -82,7 +82,10 @@ double-clicking it, and copying one token. Nobody types a command.
    **Check again**. A folded explanation says that the agent will use its own login on this computer, so no
    key is needed and the person's subscription pays. The person ticks the installed agents this Bridge is to offer, and
    chooses one **folder**; the Bridge makes in it the working folder of each ticked agent, `<folder>/<agent>`, in which
-   it keeps that agent's clones of the instance and of the products it serves. When the person saves, the Bridge at once
+   it keeps that agent's clones of the instance and of the products it serves. For an agent that has a Chrome
+   integration — Claude Code and Codex —, the person may also tick **Chrome**: the Bridge then starts every session of
+   that agent with its Chrome integration, so that the agent can use the person's Chrome; it is off until ticked. When
+   the person saves, the Bridge at once
    checks them out: in each working folder the instance — the working folder itself becomes its clone — and each product
    it serves in `products/<name>/`; the window shows, for each agent and repository, the commit the clone holds, or the
    repository it could not reach with git's reason. It checks out again whenever the agents, the folder, the served

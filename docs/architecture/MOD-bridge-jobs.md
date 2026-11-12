@@ -215,7 +215,8 @@ settings (MOD-desktop-shell).
 ## Interfaces
 
 - `jobHandlers({ agents, enclosures, instance, products, … })` — the handlers of the `jobs` routes of `bridgeApi`, of
-  MOD-bridge-http's type `BridgeHandlers`, for the agents the Bridge offers (`{ name, folder }`), their enclosures
+  MOD-bridge-http's type `BridgeHandlers`, for the agents the Bridge offers (`{ name, folder, chrome }`, `chrome` the
+  Bridge's setting, handed to every start of that agent's sessions — `agentDriver`'s and `startSession`'s `chrome`), their enclosures
   (`enclosures: (folder: string) -> AgentEnclosure`), the instance's address and the products it serves (`{ address }`):
   - `GET /v1/agents` — the coding agents it offers, with their versions and whether they are ready and logged in — both
     asked in the agent's enclosure, and not ready where the enclosure does not work —, each with its declaration as the
@@ -268,8 +269,8 @@ settings (MOD-desktop-shell).
     `sinfo`, or a command that fails, is `upstream-failed` naming the command and its message. An invalid endpoint-test body
     is `invalid-request`; a provider or local-endpoint failure is the returned diagnosis; `upstream-failed` names another
     probe-handler failure.
-- `startWatching(config: { bridgeName: string, agents: { name: string, folder: string, place: string, capabilities:
-  string[], models: { model: string, context: number }[] }[], products: { address: string }[], every: number,
+- `startWatching(config: { bridgeName: string, agents: { name: string, folder: string, chrome: boolean, place: string,
+  capabilities: string[], models: { model: string, context: number }[] }[], products: { address: string }[], every: number,
   enclosures: (folder: string) -> AgentEnclosure }) -> void` — with the agents the Bridge offers and their declarations,
   their working folders and their enclosures, starts reading every
   served product through Access's local clone with the Bridge's credentials, at the

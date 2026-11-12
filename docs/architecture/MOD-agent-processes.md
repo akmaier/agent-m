@@ -62,6 +62,7 @@ Workflows — and keeps nothing but the processes it started.
 | Session | the arguments that start it interactively in its auto mode — Claude Code's `--permission-mode auto`, Codex's `--approve-for-me`, opencode's `--auto` —, and the pattern of the screen line that shows it waiting for input (`waiting`) |
 | Model | the arguments that start it with a named model, as its vendor documents them, with a placeholder `{model}` — Claude Code's `--model {model}`, which its Endpoint column already gives —, or `—` where it cannot be told one |
 | Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in; under a platform's name (`macos`), where the agent cannot keep its login in the enclosure there, the login step on that platform and what of its output the enclosure keeps for it (`keeps`: the environment variable the agent reads its login from, and the pattern of the value) — Claude Code's `claude setup-token` and `CLAUDE_CODE_OAUTH_TOKEN` on macOS, whose keychain the enclosure closes (ARC-054) |
+| Chrome | the arguments that start it with its Chrome integration (`on`) and without it (`off`), as the agent's own `--help` or feature list names them — Claude Code's `--chrome` and `--no-chrome`, Codex's `--enable browser_use_external` and `--disable browser_use_external` —, or `—` for an agent that has none, as opencode |
 | Key variable | the environment variable from which it reads a key, used only in CI |
 | Endpoint | how it is made to work with a model endpoint of the kind OpenAI-compatible or Anthropic — the options or settings that name the endpoint's address and model —, or `—` where it cannot |
 | Key holder | the provider a key in its Key variable is for — its kind and address — and the options or settings that send its requests to a key holder in its place, `{keyHolder}`, with a placeholder, `{placeholder}`, as its key (`NO MODEL READS A CREDENTIAL`): Claude Code's `ANTHROPIC_BASE_URL`, Codex's `openai_base_url` given with `-c`; `—` where it cannot be, as opencode, which names no key variable of its own and whose provider Agent M does not know without an endpoint |
@@ -73,7 +74,8 @@ never an argument: it is written to the agent's standard input, so no size of a 
 ## Interfaces
 
 - `Agent` — `{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login: string,
-  keeps: { variable: string, pattern: string } | null, install: Record<"macos" | "windows" | "linux", string> }`: `login`
+  keeps: { variable: string, pattern: string } | null, chrome: boolean, install: Record<"macos" | "windows" | "linux",
+  string> }`: `chrome` whether its row's Chrome column names its integration; `login`
   is the agent's own login step on the platform from its row's Login check, which the Bridge's window shows for an agent
   that is not logged in (UC-044 3b), and `keeps` what of that step's output the enclosure keeps for it, `null` where the
   agent keeps its login itself; `name` is the Agent of a row of `agents.md`, so that a supported
@@ -97,13 +99,15 @@ never an argument: it is written to the agent's standard input, so no size of a 
   *The model's user*).
 - `agentDriver(agent: Agent, options: { workdir: string, keyVariable: string | null, endpoint: { kind:
   "openai-compatible" | "anthropic", baseUrl: string, model: string } | null, keyHolder?: string | null, enclosure?:
-  Enclosure, writable?: string[] }, participant: Participant) -> Driver` — a
+  Enclosure, writable?: string[], chrome?: boolean }, participant: Participant) -> Driver` — a
   driver whose `send` starts the agent in the working folder and writes `driverPrompt(input)`, its task, to the agent's
   standard input, with `participant.model` given by the register's Model column — where `endpoint` is
   given, made to work with that endpoint as the register's Endpoint column says, its key from `keyVariable` — CI does not
   run a model endpoint's work this way: it runs it in Agent M's own loop (MOD-workflow-entries) —; an agent whose
   Endpoint is `—` refuses it with `EndpointUnsupported`, before it starts —, streams its output
-  through `onOutput`, and returns its final answer and the usage it reported, or `null` usage. With an `enclosure`, the
+  through `onOutput`, and returns its final answer and the usage it reported, or `null` usage. With `chrome`, true or
+  false, the agent is also started with its row's Chrome `on` or `off` arguments; an agent whose Chrome is `—` is
+  started without either. With an `enclosure`, the
   agent is started through its `wrap`, with `workdir` and the folders of `writable` — `[workdir]` where none are given —
   writable. For a job that works in the
   folder — implementing, fixing, generating tests —, the agent commits and pushes to its checkout's push address and
@@ -122,9 +126,10 @@ never an argument: it is written to the agent's standard input, so no size of a 
   process group of a child started detached, so that every process it started receives it; on Windows it ends the
   child's tree with `taskkill`, whatever the signal. A group that is already gone is no failure. The driver stops an agent
   with it on a cancel; MOD-checkout-tools ends a command's process group with it at the command's timeout.
-- `startSession(agent: Agent, options: { workdir: string, enclosure?: Enclosure, writable?: string[], columns?: number,
-  rows?: number }, participant: Participant) -> Session` — starts the agent in a pseudo-terminal of `columns` by `rows`
-  (by default 200 by 50), with its row's Session arguments and `participant.model` by its Model column, in `workdir`,
+- `startSession(agent: Agent, options: { workdir: string, enclosure?: Enclosure, writable?: string[], chrome?: boolean,
+  columns?: number, rows?: number }, participant: Participant) -> Session` — starts the agent in a pseudo-terminal of `columns` by `rows`
+  (by default 200 by 50), with its row's Session arguments, `participant.model` by its Model column and `chrome` as
+  `agentDriver` takes it, in `workdir`,
   through the enclosure's `wrap` where one is given, as `agentDriver` starts it; no task is written to it. `Session` is
   `{ type(text: string) -> void, lines() -> { lines: string[], partial: string }, waiting() -> boolean, answer() ->
   string | null, onLine(listener: (line: string) -> void) -> void, exited: Promise<{ exitCode: number }>, stop() ->
