@@ -11,6 +11,7 @@ realises:
   - A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
   - A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
   - AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+  - THE TOKEN LINK IS PREFILLED
   - A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
   - CONFIGURATION LIVES IN THE BROWSER
   - CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
@@ -130,8 +131,9 @@ sequenceDiagram
 
 - **1a. A token expires within fourteen days.** Every dashboard page shows a line *Your GitHub token
   expires on …* with **Renew** — a product's pages the same line for the product's own token —; it opens
-  GitHub's page of that token, where *Regenerate token* keeps its
-  permissions and repositories, and the paste field for the new value.
+  GitHub's page for a new token prefilled as when the token was set up — the instance's as in UC-014,
+  step 7, a product's as in UC-001, step 3 — with the repositories to pick named beside it, and the paste
+  field for the new value.
 - **1b. A server refused a token.** The line says which token, and **Renew** as in 1a; for a GitLab
   project token, the project's *Access tokens* page.
 - **2a. The person clears a Bridge.** Before clearing, the page names what stops working in this browser: the
