@@ -314,10 +314,10 @@ export function graphMailbox(connection) {
       }
       return found;
     },
-    // The mailbox's Drafts, each with the reference of the draft on this route.
-    async drafts() {
+    // The mailbox's Drafts received on or after the day `from` names, as Graph selects them by their date received — all of them where it is null —, each with the reference of the draft on this route.
+    async drafts(from) {
       const accessToken = await token();
-      return (await fetchedMails(accessToken, "/me/mailFolders/drafts", "Drafts"))
+      return (await fetchedMails(accessToken, "/me/mailFolders/drafts", "Drafts", from ?? null))
         .map(({ id, mail }) => ({ ref: { route: "graph", id }, inReplyTo: mail.inReplyTo, mail }));
     },
     // The Sent Items received on or after the day `from` names, as Graph selects them by their date received — all of them where it is null.

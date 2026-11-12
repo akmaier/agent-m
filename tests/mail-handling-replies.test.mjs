@@ -39,7 +39,7 @@ function fakeMailbox({ found = {}, drafts = [], sent = [], sendFails = null, sen
     read: async () => { calls.push(["mailbox.read"]); return []; },
     // MOD-mail-routes' find(ids): every identifier asked answered with its Mail or null, in one call.
     find: async (ids) => { calls.push(["mailbox.find", ids]); return Object.fromEntries(ids.map((id) => [id, found[id] ?? null])); },
-    drafts: async () => { calls.push(["mailbox.drafts"]); if (draftsFail) throw draftsFail; return drafts; },
+    drafts: async (since) => { calls.push(["mailbox.drafts", since]); if (draftsFail) throw draftsFail; return drafts; },
     sent: async (since) => { calls.push(["mailbox.sent", since]); return sent; },
     storeDraft: async (draft) => {
       calls.push(["mailbox.storeDraft", draft]);
@@ -404,6 +404,25 @@ test("TST-20261112303 repliesDue reads the Sent mails of the last 30 days: sent 
     const log = [];
     await handling.repliesDue?.(fakeMailbox({ found: { [A.id]: mail(A) }, log }), [{ address: PRODUCT, host: fakeHost([issue(8, listing(A), { state: "closed" })]) }]);
     asked.push(...callsOf(log, "mailbox.sent").map((call) => call[1]));
+    t.mock.timers.reset();
+  }
+  assert.deepEqual(asked, ["2026-10-06", "2026-02-13"]);
+});
+
+// TST-20261112308
+// level: unit
+// module: MOD-mail-handling
+// guards: THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; UC-039
+// given: the clock at 2026-11-05T12:00:00Z (node's mocked Date), then, as counter-proof, at 2026-03-15T00:30:00Z; a closed issue listing A
+// input: repliesDue, once at each now
+// expect: the mailbox's drafts is asked once each time, with the date 30 days before now — "2026-10-06", then "2026-02-13" —, never without a date, which reads the whole folder
+test("TST-20261112308 repliesDue reads the Drafts of the last 30 days: drafts with the date 30 days before now", async (t) => {
+  const asked = [];
+  for (const now of [Date.UTC(2026, 10, 5, 12, 0, 0), Date.UTC(2026, 2, 15, 0, 30, 0)]) {
+    t.mock.timers.enable({ apis: ["Date"], now });
+    const log = [];
+    await handling.repliesDue?.(fakeMailbox({ found: { [A.id]: mail(A) }, log }), [{ address: PRODUCT, host: fakeHost([issue(8, listing(A), { state: "closed" })]) }]);
+    asked.push(...callsOf(log, "mailbox.drafts").map((call) => call[1]));
     t.mock.timers.reset();
   }
   assert.deepEqual(asked, ["2026-10-06", "2026-02-13"]);

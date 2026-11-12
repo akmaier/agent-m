@@ -387,3 +387,25 @@ test("TST-20261112301: sent with since has the IMAP server select the mails with
     assert.deepEqual(imap.logs.fetched, [{ folder: "Sent", uid: 1 }, { folder: "Sent", uid: 2 }]);
   }, { mails });
 });
+
+// TST-20261112307 · level: unit · module: MOD-mail-protocols
+// guards: THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: the fixture of TST-822001 whose Drafts hold d1 (received 6 October 2026) and d2 (9 October), and whose server answers UID SEARCH SINCE by the day each mail was received
+// input: the handler `POST /v1/mail/drafts` with args { since: "2026-10-07" }; counter-proof: with args {}
+// expect: with the day, the answer is d2 alone, the server was asked `UID SEARCH SINCE 07-Oct-2026` in Drafts and sent the body of Drafts uid 2 only — d1 is not fetched; without the day no SEARCH is sent and both bodies are fetched
+test("TST-20261112307: drafts with since has the IMAP server select the drafts with SEARCH SINCE and fetches only them", async () => {
+  const D2 = raw(["Message-ID: <d2@example.org>", "In-Reply-To: <r1@example.org>", "Date: Fri, 09 Oct 2026 09:00:00 +0000", "From: reports@example.org",
+    "To: Cy Reporter <cy@example.net>", "Subject: Re: Export is empty", "Content-Type: text/plain; charset=utf-8", "", "Which export?"]);
+  const mails = { ...MAILS, Drafts: [D1, D2] };
+  await withMails(async (imap, smtp) => {
+    assert.deepEqual((await call("drafts", connection(imap, smtp), { since: "2026-10-07" })).map((draft) => draft.mail.messageId), ["<d2@example.org>"]);
+    const lines = imap.logs.commands.map((entry) => entry.line.toUpperCase());
+    assert.ok(lines.some((line) => /\bUID SEARCH SINCE 07-OCT-2026\b/.test(line)), lines.join("\n"));
+    assert.deepEqual(imap.logs.fetched, [{ folder: "Drafts", uid: 2 }]);
+  }, { mails });
+  await withMails(async (imap, smtp) => {
+    assert.equal((await call("drafts", connection(imap, smtp), {})).length, 2);
+    assert.equal(imap.logs.commands.some((entry) => /\bSEARCH\b/i.test(entry.line)), false, "no SEARCH without since");
+    assert.deepEqual(imap.logs.fetched, [{ folder: "Drafts", uid: 1 }, { folder: "Drafts", uid: 2 }]);
+  }, { mails });
+});
