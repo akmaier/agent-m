@@ -56,8 +56,9 @@ enters the repository the way every proposal does.
 - **Author** — writes to an endpoint or a CLI session, and decides on what comes back.
 - **Endpoint** — a model endpoint configured in this browser (UC-003), called by this tab or through the Bridge its
   configuration names. It works in this tab and hands on what another kind of job owns or the tab cannot do (4a).
-- **CLI session** — a coding agent that a Bridge paired with this browser offers (UC-044), working on git in its working
-  folder (UC-011, step 3).
+- **CLI session** — a coding agent that a Bridge paired with this browser offers (UC-044), such as Claude Code or
+  opencode, working in its own checkout of the product with its own tools, as any session of that agent does (UC-011,
+  step 3).
 - **GitHub** — hosts the product repository and runs GitHub Actions (a GitLab server for a GitLab product).
 
 ## Precondition
@@ -91,9 +92,8 @@ enters the repository the way every proposal does.
    the repository's single definition: that context, Agent M's rules for what it drafts — everything is a
    proposal; a change of the SPEC is saved as a queue entry —, the chapters of the book *Vibe Coding* for the kind of work
    the page belongs to, and the tools it may use (step 4). It checks that all of this fits into the declared context.
-4. It works with the tools its declared capabilities allow, and with no other. An endpoint's capabilities are reading
-   the repository and drafting text, and using tools where its test found that it does (UC-003, step 5). A CLI session's
-   are declared in this browser (UC-044, step 5), and it works in its working folder, started with the model chosen:
+4. An endpoint works with the tools its declared capabilities allow, and with no other. Its capabilities are reading
+   the repository and drafting text, and using tools where its test found that it does (UC-003, step 5):
 
    | Capability | Tool | Where it works |
    |---|---|---|
@@ -102,15 +102,19 @@ enters the repository the way every proposal does.
    | *run code and tests* | run a command | CI, a Bridge |
    | *reach the web* | fetch a web page | CI, a Bridge |
    | always | give the answer | everywhere |
-   | always | plan a change of requirements, a use case or the architecture, or work the tab cannot do, as pieces, and hand each to the kind of job that owns it (4a) | everywhere |
+   | always | plan a change of requirements, a use case or the architecture, or work the tab cannot do, as pieces, and hand each to the kind of job that owns it (4a) | the tab, CI |
 
    - **A model endpoint that can use tools** works in a loop that runs in this tab: it asks for a tool, Agent M carries
      the call out and returns its result, until the endpoint gives its answer. The tab reads the product through the
      repository server's API with the author's token, and writes nothing.
    - **A model endpoint without the capability *use tools*** answers once: with text, or with a draft of the open artifact.
-   - **A CLI session** receives the message through its Bridge and works on git with its own tools in its working
-     folder (UC-011, step 3).
-5. The answer appears in the conversation. An edit it proposed opens in the editor of UC-018 as its
+   - **A CLI session** is bound neither by this table nor by the plan of 4a: it receives the message, with the
+     conversation so far and the page's context, through its Bridge, its input beginning with Agent M's `AGENTS.md`,
+     and does the work asked for in its own checkout with its own tools, as any session of that agent does — it reads,
+     edits, runs code and tests, reaches the web, commits and pushes, with its own tools and login; the Bridge alone
+     reaches the repositories, with the token it keeps (UC-011, steps 3 and 4). It is started with the model chosen.
+     Its answer says what it did; what it committed stands in the repository.
+5. The answer appears in the conversation. An edit an endpoint proposed opens in the editor of UC-018 as its
    difference against the current text; a change of requirements, of a use case or of the architecture it handed on
    (4a) is checked and shown as UC-019 describes.
 6. The author answers — the endpoint or CLI session receives the conversation so far — or presses **Save**, one click,
@@ -163,8 +167,8 @@ sequenceDiagram
   sent; the bar names the product, what it requires, and links where that is set up (4c).
 - **4a. The work belongs to other kinds of job, or needs what the tab cannot do.** A change of requirements, of a use
   case or of the architecture belongs to the kind that owns it, with its checks and its impact list (UC-019, UC-023);
-  running code or tests, changing code and reaching the web need what the tab cannot do. The endpoint or CLI session
-  plans the work in the round that answers the message: it selects the pieces the request needs, each
+  running code or tests, changing code and reaching the web need what the tab cannot do. The endpoint — a CLI session
+  does the work itself (step 4) — plans the work in the round that answers the message: it selects the pieces the request needs, each
   naming the kind, what it works on and the task in its words, and, for a piece that rests on the result of an earlier
   one — a use case on the requirements it realises, an architecture on the use cases it serves —, that earlier piece.
   Each piece becomes a job of its own, of its kind, run by that kind's definition and recorded (UC-036); a piece's job
@@ -175,12 +179,12 @@ sequenceDiagram
   its job, *waits for 1 to be accepted*, or *not handed over* with why. A piece that rests on an earlier one is not
   handed over: it waits until a person has accepted that piece's result. Its line says that it can start only once
   that result is accepted, and asks the author to say so in the bar when it is; the author's message then starts it (5).
-  1. Where a piece's kind leaves its result to the author and the endpoint or CLI session can do the kind — a kind
+  1. Where a piece's kind leaves its result to the author and the endpoint can do the kind — a kind
      other than the conversation itself —, it runs in this tab at once, on the page's context, with its record. Its
      draft is shown as UC-019 describes — a regrouping as the pending changes of UC-021, step 3 —, and the author saves
      it (step 6) — a regrouping as UC-021, step 5, commits it. Of several such pieces, each runs once the
      draft before it is saved or discarded.
-  2. Any other piece is spawned as a job of the endpoint or CLI session itself, the conversation itself handed on
+  2. Any other piece is spawned as a job of the endpoint itself, the conversation itself handed on
      among them; several are spawned at once, each a job of its own. An endpoint's configuration names the CI secret
      that holds its key (UC-003).
   3. Agent M commits the record of each job in the product repository that names who does it, the page and the commit
