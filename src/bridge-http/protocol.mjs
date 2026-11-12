@@ -31,6 +31,8 @@ export const bridgeApi = {
       answer: { works: [true, false], model: "string", diagnosis: { reason: endpointDiagnosisReasons, message: "string", routes: ["ci", "bridge"] } },
     } },
     { method: "POST", path: "/v1/mail/{operation}", operations: mailOperations, request: { connection: "object", args: "object" }, answer: "object",
+      // find: every MAIL- identifier of one lookup in; each of them mapped to its mail or to null out.
+      find: { args: { ids: ["string"] }, answer: { mails: "object" } },
       confirmSend: { args: { ref: "string", sha256: "string" }, answer: { confirmation: "string" } },
       send: { args: { ref: "string", sha256: "string", confirmation: "string" } },
       errors: { "confirmation-refused": 409, "no-encryption": 502, "login-refused": 502, "upstream-failed": 502 } },

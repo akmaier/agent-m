@@ -22,7 +22,7 @@ const idOf = (messageId) => (messageId ? mailId({ messageId, bytes: null }) : nu
 /**
  * repliesDue(mailbox, products) -> Promise<RepliesDue> — every issue that lists mails, grouped: closed with a listed mail that
  * has no reply or no-reply note (`toAnswer`); open, labelled waiting-for-reporter, with a mail added after the last question
- * (`answerReceived`); open (`open`). Each listed mail is found in the mailbox, with its draft in Drafts. A reply found in Sent
+ * (`answerReceived`); open (`open`). The listed mails of the issues grouped are found in the mailbox in one find, each with its draft in Drafts. A reply found in Sent
  * among the mails of the last 30 days that no issue notes yet is noted in its issue now. Errors pass unchanged.
  */
 export async function repliesDue(mailbox, products) {
@@ -45,16 +45,21 @@ export async function repliesDue(mailbox, products) {
   await noteSentReplies(await mailbox.sent(readSince()), issues);
 
   const result = { toAnswer: [], answerReceived: [], open: [] };
-  const hostFacts = new Map();
+  const grouped = [];
   for (const entry of issues) {
     const answered = (id) => entry.notes.some((note) => (note.kind === "reply-sent" || note.kind === "no-reply") && note.subject === id);
     const closed = entry.issue.state === "closed";
     let group;
     if (closed) group = entry.ids.some((id) => !answered(id)) ? result.toAnswer : null;
     else group = answerReceived(entry) ? result.answerReceived : result.open;
-    if (!group) continue;
-    const mails = [];
-    for (const id of entry.ids) mails.push({ id, mail: await mailbox.find(id), draft: draftsOf.get(id) ?? null, noted: answered(id) });
+    if (group) grouped.push({ entry, answered, closed, group });
+  }
+
+  // The listed mails of the issues grouped, all found in one find.
+  const found = await mailbox.find([...new Set(grouped.flatMap(({ entry }) => entry.ids))]);
+  const hostFacts = new Map();
+  for (const { entry, answered, closed, group } of grouped) {
+    const mails = entry.ids.map((id) => ({ id, mail: found[id] ?? null, draft: draftsOf.get(id) ?? null, noted: answered(id) }));
     const by = closedBy(entry);
     group.push({ product: entry.address, issue: entry.issue.number, closedBy: by, release: closed && by ? await releaseOf(entry.address, entry.host, by, hostFacts) : null, mails });
   }
