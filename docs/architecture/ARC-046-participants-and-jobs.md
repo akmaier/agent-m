@@ -161,7 +161,8 @@ every subsystem and both programs, that interprets every kind of job from data**
   job workflow's start, or in the request to the Bridge — and stands in no file (`A CONVERSATION IS WRITTEN TO A
   REPOSITORY ONLY WHEN RECORDING IS ON`). A model endpoint's handed-over work is done in Agent M's own loop with the
   tools of MOD-checkout-tools in the job's checkout — in CI with the endpoint's key from a CI secret —; a CLI session on
-  a Bridge keeps its own agent.
+  a Bridge keeps its own agent. A piece of a kind without a participant — a run, the setup of CI — is queued for the
+  Workflows, which carry it out with the person's token (ARC-039).
 - **A job is queued** by committing its start record to the repository of the product it works on; the route it names
   takes it by a commit made only on the head it read, so two drivers never take the same job. A job that reaches a gate
   appends that it waits there and stops; it is resumed when the gate's record exists. Its end record closes it. Its

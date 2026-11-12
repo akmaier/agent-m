@@ -13,7 +13,7 @@ import { handOverParams, prepareJob, taskRefusal } from "../job-runner/index.mjs
 import { kindOf } from "../job-catalogue/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { queueOnBridge } from "./bridge.mjs";
-import { RuntimeError, commitStart } from "./ci.mjs";
+import { RuntimeError, commitStart, startedParts } from "./ci.mjs";
 
 /**
  * planWorksOn(draft) -> Finding[] — the check plan-works-on of routeStrategies: for each piece of the draft's plan, `handOver`, whose works_on is not empty and is refused by
@@ -131,19 +131,6 @@ async function endAsFailed(host, id, path, refusal) {
   await host.commitFiles({ branch: defaultBranch, expectedHead: snapshot.commit, files: [{ path, text }], message: `Job ${id}: end` });
 }
 
-// A job's identifier, as a start's `startedBy` names the job that started it — a conversation's job that planned the piece (UC-049 4f) — rather than an account.
-const JOB_ID = /^JOB-\S+$/;
-
-// The files the commit of a start holds beside its record: for a start whose `startedBy` names a job, that job's record with a `Job started` part naming this one
-// (MOD-job-ledger's appendToRecord), read on the head that was read; none for a start by an account. Throws NotFound, naming the record, for a job the head does not hold.
-async function startedPart(host, start, head) {
-  if (!JOB_ID.test(String(start.startedBy ?? ""))) return [];
-  const path = `docs/jobs/${start.startedBy}.md`;
-  const text = await (await host.readSnapshot(head)).read(path);
-  if (text === null) throw new RuntimeError("NotFound", { what: path }, `the job ${start.startedBy} that starts ${start.id} has no record ${path} on the head that was read`);
-  return [{ path, text: appendToRecord(text, { part: "job started", at: start.start, job: start.id, kind: start.kind, worksOn: start.worksOn }) }];
-}
-
 // The CI secret of an endpoint's key, as the route of the participant `prepared` was prepared for names it — `endpoint <name> secret <NAME>`, or `ci <runner> secret <NAME>` for a
 // CI agent whose record names its endpoint, as a conversation's job in CI hands its pieces over —, or null for a route that names none.
 const secretOf = (prepared) => /^(?:endpoint\s+\S+|ci\s+\S+)\s+secret\s+(\S+)$/.exec(String(prepared.drafter?.route ?? "").trim())?.[1] ?? null;
@@ -169,7 +156,7 @@ export async function handOverJob(prepared, route, start, host, head, task, targ
   }
 
   const queuedStart = { ...start, task: "with the hand-over" };
-  const also = await startedPart(host, start, head);
+  const also = await startedParts(host, start, head);
   let queued;
   try {
     if (route.kind === "bridge") return await queueOnBridge(host, queuedStart, head, target.bridge, task, also);

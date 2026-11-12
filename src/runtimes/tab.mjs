@@ -62,11 +62,11 @@ export function tookOnTab(by) {
  * `tab <browser>`, at the job's start) in one commit, on the head that was read, as the person's commit, on the branch the host's repositoryInfo names. Fails as the host
  * fails — Moved, TokenRefused, RateLimited, Unreachable — unchanged; nothing is written then.
  */
-export async function queueOnTab(host, start, head) {
+export async function queueOnTab(host, start, head, also = []) {
   const { defaultBranch } = await host.repositoryInfo();
   const { path, text } = startRecord(start);
   const { commit } = await host.commitFiles({
-    branch: defaultBranch, expectedHead: head, files: [{ path, text: appendToRecord(text, { part: "taken", at: start.start, by: `tab ${thisBrowser(true) ?? (tabOwn ??= newIdentifier())}` }) }],
+    branch: defaultBranch, expectedHead: head, files: [{ path, text: appendToRecord(text, { part: "taken", at: start.start, by: `tab ${thisBrowser(true) ?? (tabOwn ??= newIdentifier())}` }) }, ...also],
     message: `Queue job ${start.id}: ${start.kind}`,
   });
   return { path, commit };

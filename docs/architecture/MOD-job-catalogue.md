@@ -88,6 +88,12 @@ built into MOD-job-runner. The recipe `gate-inputs` and the writer `gate-record`
 by no module: an agent decides a gate in a session of its own and writes the gate record itself (UC-034 step 7), and
 Agent M prepares no job of the kind.
 
+**The kinds without a participant**, `set-up-ci` and `run`, are carried out by the Workflows where the person's token
+is (MOD-workflow-entries, *Runs*): a job of `set-up-ci` by its writer, a job of `run` by the run's next actions
+(MOD-run-planner). `run` names no writer: its record is the run's, and what it does is the jobs it starts. A piece of a
+conversation's plan of such a kind is queued as such a job (MOD-prompt-bar); no participant receives it, so its task
+reaches no one and is not refused for that (MOD-runtimes' `plan-works-on`).
+
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
 | `derive-requirements` | UC-005 | draft text | | `instruction?`, `source-excerpt`, `spec-with-queues`, `requirement-hierarchy`, `chapters-for-requirements` | `requirement-form`, `candidate-classes`, `candidate-places` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class, and, for a new one, its place |
@@ -106,6 +112,7 @@ Agent M prepares no job of the kind.
 | `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the same |
 | `decide-gate` | UC-034, UC-036 | read the repository | | `gate-inputs` | | | | `none` · `gate-record` | the decision and its reasoning |
 | `set-up-ci` | UC-043, UC-027 | — | | | | | | `none` · `ci-configuration` | — |
+| `run` | UC-043 | — | | | | | | `none` · — | — |
 | `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `test-selection`, `chapters-for-tests` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
 | `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `draft`, `test-selection`, `chapters-for-tests`, `resource-pins` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits; each test with its outcome and its counter-proof, or why it was not written |
 | `run-tests` | UC-028, UC-013 | run code and tests | | `instruction?`, `commit-and-levels`, `resource-pins` | | | | `none` · `result-record` | the outcomes |

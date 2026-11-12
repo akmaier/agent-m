@@ -422,8 +422,9 @@ sequenceDiagram
   end
 ```
 
-**A run and a gate.** A run is a job that names its jobs; the agent that carries it out starts each of them, and each
-names the run. A job that reaches a gate appends that it waits there and stops; it resumes once the gate's decider has
+**A run and a gate.** A run is a job that names its jobs; the Workflows carry it out — on every change of a product's
+job records and pull requests they compute its next actions from the records alone and start them —, and each job names
+the run. A job that reaches a gate appends that it waits there and stops; it resumes once the gate's decider has
 recorded the decision, and the driver of its route notices the gate record (`A JOB STOPS AT EVERY GATE`).
 
 ```mermaid
@@ -623,7 +624,7 @@ the strategies it uses are named with the subsystem that offers them.
 | UC-040 | Site's form, from Sources and resources' resource schema, keeps the entry; pins and facts are read through Access and the Hugging Face Hub; a resource is checked through the Bridge client, or by a check kind on a runner; the entry is committed through Access. |
 | UC-041 | An agent's close is a kind that the Workflows or a Bridge start when the sprint ends; Process derives the sprint's increment and numbers and records the review and the retrospective; the sprint branch is merged through a pull request on the repository server. |
 | UC-042 | Site lists every setting: Access's browser store tests, clears, exports and imports the browser's; each repository setting is edited in a form from its owner's schema and committed through Access — the instance's switch of recording conversations after its notice names the public repositories Access reports. |
-| UC-043 | A run is a job record of Participants and jobs that names its jobs, which the agent carrying it out starts in the model's order — CI first, then the steps in the order of the interfaces, then the tests —; Process's run planner reads a run from its record, computes its next actions and gives an implementation job its inputs; the validation is the Artifact model's module view (UC-025). |
+| UC-043 | A run is a job record of Participants and jobs that names its jobs, started from the Site's prompt bar, which the Workflows carry out in the model's order — CI first, then the steps in the order of the interfaces, then the tests —; Process's run planner reads a run from its record, computes its next actions and gives an implementation job its inputs; the validation is the Artifact model's module view (UC-025). |
 | UC-044 | Site offers the signed file of the Bridge's release and pairs it through Access; the Bridge's window, drawn with the Site's frame, lists the agents Participants and jobs finds, shows its token and opens its own tunnels. |
 | UC-045 | The runner runs the planning kind with Process's recipe of the architecture and the model; Process checks the draft against the module order the Artifact model derives; the plan is committed through Access. |
 | UC-046 | Site's main page reads the instance's or each product's snapshot through Access; Process derives the stage shares, the build in progress and what waits for a person, with the job states of Participants and jobs. |
