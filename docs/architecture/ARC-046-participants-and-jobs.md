@@ -148,16 +148,19 @@ every subsystem and both programs, that interprets every kind of job from data**
   MOD-workflow-entries). A coding agent reaches the holder by its own base-URL setting, a placeholder in its key variable
   (MOD-agent-processes). The agent's machine keeps no token in its checkouts (MOD-runtimes). On a Bridge every coding
   agent runs in an enclosure of the operating system that hides the Bridge's credentials and the computer's git login
-  from it, and the Bridge, not the agent, reaches the server: the agent fetches from the Bridge's clone, and the Bridge
-  fetches that clone, forwards the agent's pushes and makes the pull-request calls the agent asks for (ARC-054). The separation is by user or by
-  the system's enclosure, not by what a tool may say: what the model's side can read holds no credential.
+  from it; a CLI session reaches its product's server itself, with the repository token the Bridge leaves for it in a
+  file of its checkout that git ignores and its input tells it not to read (ARC-054). The separation is by user or by
+  the system's enclosure, not by what a tool may say: what the model's side of an endpoint's job, of a coding agent on
+  CI and of an enclosed agent can read holds no credential but, for a CLI session, its token file.
 - **A conversation is a job without a record.** A message of the prompt bar (UC-049) runs as a job in the tab — of the
   kind its page names, with every rule on jobs — and leaves no job record (`A JOB IS RECORDED IN ITS PRODUCT
-  REPOSITORY`). Work another kind owns, or that it cannot do in the tab — running code or tests, changing code,
-  reaching the web —, is planned through the tool `hand-over` as pieces, each a job of an existing kind with that
-  kind's definition, and each piece that rests on no other's unaccepted result is queued on the person's click,
-  prepared with that kind's preconditions, as a job of the endpoint or CLI session itself — in the tab, attended, or on
-  its route to CI or a Bridge (Vibe Coding, ch. 12, *One Thing at a Time*). That job is recorded; its task travels with the hand-over — as an input of the
+  REPOSITORY`). For an endpoint, work another kind owns, or that it cannot do in the tab — running code or tests,
+  changing code, reaching the web —, is planned through the tool `hand-over` as pieces, each a job of an existing kind
+  with that kind's definition, and each piece that rests on no other's unaccepted result is queued on the person's click,
+  prepared with that kind's preconditions, as a job of the endpoint itself — in the tab, attended, or on its route to CI
+  (Vibe Coding, ch. 12, *One Thing at a Time*). A message to a CLI session goes to its Bridge with the page as its
+  context, and the session does the work asked for itself, in a checkout of the product, with its own tools: it plans no
+  pieces, and its answer is shown as it gives it (UC-049 step 4). That job is recorded; its task travels with the hand-over — as an input of the
   job workflow's start, or in the request to the Bridge — and stands in no file (`A CONVERSATION IS WRITTEN TO A
   REPOSITORY ONLY WHEN RECORDING IS ON`). A model endpoint's handed-over work is done in Agent M's own loop with the
   tools of MOD-checkout-tools in the job's checkout — in CI with the endpoint's key from a CI secret —; a CLI session on

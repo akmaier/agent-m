@@ -430,19 +430,18 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   `hand-over`, as every handed-over job does, so a conversation handed on is never handed on again. A draft
   without a plan has no finding. Pure. The writer reads the branch the participant's answer names — the branch named
   after the job — and its commits. It takes the branch's pull request where one is open or merged — one the coding
-  participant opened through a Bridge's relay (MOD-bridge-jobs) among them —, and otherwise opens it — into
+  participant opened itself on a Bridge (MOD-bridge-jobs) among them —, and otherwise opens it — into
   MOD-work-plans' `targetBranch` of the item or step the job works on, over the product's sprint records, plan order
   and declared branches, with the default branch the host's `repositoryInfo` names —, with
   a description that names the job, the plan step or backlog item, its modules, the requirements its new tests guard —
   read with MOD-test-document's `testDeclarations` — and the provenance lines; it returns the pull request's address. A
   host that reaches no server's API for pull requests — a Bridge's clone of a product it holds no token for, which throws
   `NotSupported` for them — has no pull request to give: the writer opens nothing and returns the branch with no pull
-  request. On CI's agent machine the host keeps the request, which the writing machine opens (MOD-workflow-entries). A
-  Bridge's relay opens a pull request through this same writer, with the branch the agent names and no rounds yet, so
-  that a job's pull request has the one description wherever it is opened. The Definition-of-Done check in CI verifies
+  request. On CI's agent machine the host keeps the request, which the writing machine opens (MOD-workflow-entries).
+  The Definition-of-Done check in CI verifies
   the pull request. The writer never merges: a pull request is merged once the Definition of Done holds (ARC-042) — by a
-  person on the page, or, where the job leaves it to its coding participant, by that participant through a Bridge's
-  relay. Fails with `NoBranch`, `NoCommits`, and what the host names.
+  person on the page, or, where the job leaves it to its coding participant, by that participant — a CLI session on a
+  Bridge merges itself (MOD-bridge-jobs). Fails with `NoBranch`, `NoCommits`, and what the host names.
 
 ## Files
 
