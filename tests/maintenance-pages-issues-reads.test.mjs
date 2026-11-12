@@ -11,7 +11,7 @@
 // one issue (GET …/issues/<n>) and its comments (GET …/issues/<n>/comments). The page, MOD-repository-hosts and MOD-mail-handling are the real ones.
 // Readings the texts leave open, which the tests state (the pull request names them):
 //   - "A listing" is a request for the issue list, GET /repos/alice/product/issues; "a comment request" one for an issue's comments, GET …/issues/<n>/comments.
-//   - The route replies/<issue> draws its issue from the last reading, which the person's click on Read replies makes with MOD-mail-handling's repliesDue — a caller of listIssues that this item leaves unchanged —; what the route reads
+//   - The route replies/<issue> draws its issue from the last reading, which drawing the route replies makes with MOD-mail-handling's repliesDue — a caller of listIssues that this item leaves unchanged —; what the route reads
 //     itself is counted after that reading.
 // Each test states its input and its expected result before it runs. The counter-proofs are recorded in the pull request.
 
@@ -66,7 +66,7 @@ test("issue — reads its one issue and that issue's comments, and asks for no l
 
 // TST-1270006 · level: component · module: MOD-maintenance-pages
 // guards: UC-039
-// given: the world's standard replies: the issue 5, labelled waiting-for-reporter with a newer mail and two comments, under answer received; the replies read by the person's click on Read replies
+// given: the world's standard replies: the issue 5, labelled waiting-for-reporter with a newer mail and two comments, under answer received; the replies read by drawing the route replies
 // input: the route replies with the issue 5 of the product is drawn after that reading
 // expect: the issue's mails are drawn; what the route asked GitHub for after the reading is no request for the issue list, one for the issue 5 and one for its comments
 test("replies/<issue> — reads its one issue and that issue's comments, and asks for no listing", async () => {

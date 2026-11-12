@@ -14,7 +14,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 /** How many days back a reading of new mail reaches (UC-038 step 2). */
 const READ_DAYS = 30;
 /** The calendar date `READ_DAYS` days before now, `YYYY-MM-DD`: the day from which the mailbox is read. */
-const readSince = () => new Date(Date.now() - READ_DAYS * 86400000).toISOString().slice(0, 10);
+export const readSince = () => new Date(Date.now() - READ_DAYS * 86400000).toISOString().slice(0, 10);
 
 /**
  * A host's `Issue` as MOD-mail-records reads an issue: a comment's `date` is its `createdAt`.

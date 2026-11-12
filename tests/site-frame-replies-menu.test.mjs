@@ -66,7 +66,7 @@ test("TST-1103002 counter-proof: without the table's entry replies is not built,
 // guards: UC-039; THE MENU FOLLOWS THE PROCESS
 // given: the live app on a product, a token stored
 // input: the dashboard opened at #replies, and at #replies/issue=7
-// expect: the main area shows the route's page: its button Read replies, not the use-case list; at #replies/issue=7 too (the route is given the parameter issue); the menu still links #mail for Maintenance
+// expect: the main area shows the route's page: its explanation "Opening Replies reads …", not the use-case list; at #replies/issue=7 too (the route is given the parameter issue); the menu still links #mail for Maintenance
 // Planted fault: an app that does not dispatch the address shows the use cases instead.
 test("TST-1103003 the live app opens #replies on MOD-maintenance-pages' route", async () => {
   const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
@@ -75,12 +75,12 @@ test("TST-1103003 the live app opens #replies on MOD-maintenance-pages' route", 
   (function walk(dir) { for (const name of readdirSync(dir)) { const path = join(dir, name); if (statSync(path).isDirectory()) walk(path); else files[relative(FIX, path).split("\\").join("/").replace(/\.fixture$/, "")] = readFileSync(path, "utf8"); } })(FIX);
   const srv = await repoServer({ files, history: [], handlers: [] });
   const page = await openDashboard({ server: srv, hash: "#replies" });
-  assert.match(page.main(), /Read replies/);
+  assert.match(page.main(), /Opening Replies reads/);
   assert.doesNotMatch(page.main(), /#use-case\/id=UC-001"/, "not the use-case list");
   const tabs = [...page.el("tabs").matchAll(/href="#([^"]+)"/g)].map((match) => match[1]);
   assert.ok(tabs.includes("mail"), `Maintenance links #mail: ${tabs.join(", ")}`);
   const issue = await openDashboard({ server: srv, hash: "#replies/issue=7" });
-  assert.match(issue.main(), /Read replies/);
+  assert.match(issue.main(), /Opening Replies reads/);
 });
 
 // TST-1105001 · level: unit · module: MOD-site-frame

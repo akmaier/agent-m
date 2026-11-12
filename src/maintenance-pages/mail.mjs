@@ -343,6 +343,23 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
   return { item, fill, product: () => chosen(), ticked: () => [...ticks].filter(([, tick]) => tick.checked === true).map(([name]) => name) };
 }
 
+// The participants offered as one select, the first chosen; each option names its place, and a place the mailbox's `places` record as outside the EU as not compliant. The page replies has the same need.
+export function participantSelect(admitted, places) {
+  const outsideEu = (place) => (places ?? []).find((each) => each.place === place)?.outsideEu === true;
+  const select = el("select", "participant");
+  for (const participant of admitted) {
+    const option = el("option", null, `${participant.name} — ${participant.place ?? "no processing place declared"}${outsideEu(participant.place) ? " — outside the EU: not compliant with the GDPR and the EU AI Act" : ""}`);
+    option.value = participant.name;
+    option.setAttribute("data-participant", participant.name);
+    if (outsideEu(participant.place)) option.className = "not-compliant";
+    select.append(option);
+  }
+  if (admitted.length) select.value = admitted[0].name;
+  return select;
+}
+// The person a job is started by: the account of the instance's token, as the prompt bar names it; no name is typed. The page replies has the same need.
+export const personOf = (store) => readSetting(store, "github-token")?.name ?? "a reviewer";
+
 // Propose: the participants the mailbox allows, the run panel and its *Propose*, one click for all proposable mails (UC-038 4, 4a, 4c); the author checks every text before it is written. `entries()` gives the proposable mails
 // as they stand; `hooks.running` is true while a proposal runs, and `hooks.changed` draws the run panel anew.
 async function proposeSection(session, entries, reviews, choice, hooks) {
@@ -353,18 +370,8 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
     section.append(el("p", "mail-no-participant", `No participant that can draft text works at a place this mailbox allows (${session.allowed.join(", ") || "none"}). Nothing is sent; you can still decide each mail by hand. `, link("#mailbox", "places-link", "The mailbox's processing places")));
     return section;
   }
-  const outsideEu = (place) => (session.places ?? []).find((each) => each.place === place)?.outsideEu === true;
-  // The participants as one select, the first chosen; each option names its place, and a place outside the EU as not compliant.
-  const select = el("select", "participant");
-  for (const participant of admitted) {
-    const option = el("option", null, `${participant.name} — ${participant.place ?? "no processing place declared"}${outsideEu(participant.place) ? " — outside the EU: not compliant with the GDPR and the EU AI Act" : ""}`);
-    option.value = participant.name;
-    option.setAttribute("data-participant", participant.name);
-    if (outsideEu(participant.place)) option.className = "not-compliant";
-    select.append(option);
-  }
-  // The person who proposes is the account of the instance's token, as the prompt bar names it; no name is typed.
-  const name = readSetting(session.store, "github-token")?.name ?? "a reviewer";
+  const select = participantSelect(admitted, session.places);
+  const name = personOf(session.store);
   const stage = el("div", "mail-stage");
   let turn = 0;
 

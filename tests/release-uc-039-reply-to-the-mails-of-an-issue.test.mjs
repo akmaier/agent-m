@@ -18,7 +18,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { mailId } from "../src/mail-records/index.mjs";
 import { CLOUD, ERIKA, LOCAL, buttonsOf, byClass, flush, issueRecord, itemOf, mailOf, one, opened, restoreWorld, start, textOf, trusted, waitFor, SECRET } from "./maintenance-pages-world.mjs";
-import { bodyOf, choose, comments, dialog, draftsOf, graphWrites, headerOf, lastly, openIssueAfterReading, openReplies, rawMail, readReplies, run, sends, writes } from "./uc-039-world.mjs";
+import { bodyOf, choose, comments, dialog, draftsOf, graphWrites, headerOf, lastly, offered, openIssueAfterReading, openReplies, rawMail, readReplies, run, sends, writes, writtenByHand } from "./uc-039-world.mjs";
 
 afterEach(() => { if (globalThis.document) restoreWorld(); });
 
@@ -169,8 +169,8 @@ test("TST-969203: a whole session leaves the mails in the mailbox and writes onl
 // TST-969204 · level: release · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER
 // given: the closed issue 4 lists three mails of three reporters (one answers to a Reply-To of another person, one has a second recipient in To and a Cc, one is a plain mail); each has been read in the mailbox
-// input: the person writes the reply for each of the three mails
-// expect: three drafts are stored in Drafts, nowhere else; each has exactly one To — the mail's Reply-To where it has one, otherwise its sender —, no Cc, no Bcc, none of the other reporters' addresses; each is threaded on its own mail: In-Reply-To is that mail's Message-ID and References end with it
+// input: the person writes the reply for each of the three mails without a participant (UC-039 3a: "The author writes the reply without a participant. An empty draft with the quoted original opens; everything from step 4 applies."): the reply's text box under each mail, left empty, and the person's click on its Save draft
+// expect: (UC-039 step 4: "to that mail's reply address — and to no other reporter; subject `Re:` the mail's subject; `In-Reply-To` and `References` set to its `Message-ID`. The draft is nowhere else.") three drafts are stored in Drafts, nowhere else; each has exactly one To — the mail's Reply-To where it has one, otherwise its sender —, no Cc, no Bcc, none of the other reporters' addresses; each is threaded on its own mail: In-Reply-To is that mail's Message-ID and References end with it; nothing is sent
 test("TST-969204: an issue with three reports yields three drafts, each to one reporter and threaded on that reporter's mail", async () => {
   const keys = ["m1", "m2", "m3"];
   const ids = await Promise.all(keys.map((key) => mailOf(key)));
@@ -178,7 +178,7 @@ test("TST-969204: an issue with three reports yields three drafts, each to one r
   const p = await openReplies({ inbox: raws, issues: [issueRecord(4, "closed", ids, { comments: ["Closed with pull request https://github.com/alice/product/pull/9."] })] });
   await lastly(p, async () => {
     await openIssueAfterReading(p, 4);
-    for (const mail of ids) await trusted(one(itemOf(p.main(), mail.id), "write-reply"));
+    for (const mail of ids) await writtenByHand(p, mail.id);
     await waitFor(() => draftsOf(p).length === 3);
     assert.equal(draftsOf(p).length, 3);
     const expected = { m1: "ada@example.invalid", m2: "cy@example.invalid", m3: "di@example.invalid" };
@@ -226,7 +226,10 @@ test("TST-969205: nothing is written and nothing is sent unless a person clicks,
 // guards: UC-039; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS
 // given: the closed issue 4 lists m1; the register lists local-llm (on the endpoint ep1, at this machine), cloud-llm (on ep2, at a provider in the USA) and checker (whose model no connection offers, so it cannot draft text)
 // input: the issue opened with a mailbox that allows only this machine; again with a mailbox that allows this machine and the USA (outside the EU); again with a mailbox that allows no place; each time local-llm and cloud-llm are chosen in turn
-// expect: where only this machine is allowed local-llm and, after it, the endpoint ep1 itself are the participants offered and the checker never is; where the USA is allowed too cloud-llm and ep2 are offered, its place named and marked as not compliant with the GDPR and the EU AI Act, and its run panel names the place the mail goes to; where no place is allowed no participant is offered and the page says why; no model endpoint is asked in any of the three until Run
+// expect: (UC-039 step 3: "Agent M offers only those whose processing place the mailbox allows"; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED: "a connection that processes data elsewhere is never given them"; THE PAGE NAMES WHERE IT
+//         SENDS: "it names every destination it will contact — a participant with the place where the connection it runs on processes data") where only this machine is allowed local-llm and, after it, the endpoint ep1 itself are the
+//         participants offered and the checker never is, local-llm offered with its place; where the USA is allowed too cloud-llm and ep2 are offered, cloud-llm with its place named, and once cloud-llm is chosen its run panel names the
+//         place the mail goes to; where no place is allowed no participant is offered and the page says why; no model endpoint is asked in any of the three until Run
 test("TST-969206: only participants at a place the mailbox allows are offered, and the page names where the mail goes", async () => {
   const M1 = await mailOf("m1");
   const issues = () => [issueRecord(4, "closed", [M1], { comments: ["Closed with pull request https://github.com/alice/product/pull/9."] })];
@@ -234,19 +237,19 @@ test("TST-969206: only participants at a place the mailbox allows are offered, a
     const p = await openReplies({ inbox: [rawMail("m1")], issues: issues(), places, rows: [LOCAL, CLOUD, "| checker | agent | model-c |"] });
     await lastly(p, async () => { await openIssueAfterReading(p, 4); await fn(p); assert.deepEqual(p.w.kept.endpoint, [], "no endpoint is asked before Run"); });
   };
+  const optionOf = (p, name) => offered(p).find((option) => option.value === name);
   await visit([{ place: "this machine", outsideEu: false }], async (p) => {
-    await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
+    await waitFor(() => offered(p).length > 0);
+    assert.deepEqual(offered(p).map((option) => option.value), ["local-llm", "ep1"]);
+    assert.match(textOf(optionOf(p, "local-llm")), /this machine/, "local-llm is offered with its place");
   });
   restoreWorld();
   await visit([{ place: "this machine", outsideEu: false }, { place: "a provider in the USA", outsideEu: true }], async (p) => {
-    await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value).sort(), ["cloud-llm", "ep1", "ep2", "local-llm"]);
-    const cloud = byClass(p.main(), "reply-participant").find((node) => node.getAttribute("data-participant") === "cloud-llm");
-    assert.match(textOf(cloud), /a provider in the USA/);
-    assert.match(textOf(one(cloud, "not-compliant")), /outside the EU.*GDPR.*EU AI Act/);
-    assert.equal(byClass(byClass(p.main(), "reply-participant").find((node) => node.getAttribute("data-participant") === "local-llm"), "not-compliant").length, 0);
-    await choose(p, "Reviewer Rae", byClass(p.main(), "participant").findIndex((radio) => radio.value === "cloud-llm"));
+    await waitFor(() => offered(p).length > 0);
+    assert.deepEqual(offered(p).map((option) => option.value).sort(), ["cloud-llm", "ep1", "ep2", "local-llm"]);
+    assert.match(textOf(optionOf(p, "cloud-llm")), /a provider in the USA/, "cloud-llm is offered with its place");
+    await choose(p, undefined, offered(p).findIndex((option) => option.value === "cloud-llm"));
+    await waitFor(() => /cloud-llm/.test(textOf(one(p.main(), "run-panel"))));
     assert.match(textOf(one(p.main(), "run-panel")), /cloud-llm.*a provider in the USA/s, "the panel names where the mail goes");
   });
   restoreWorld();

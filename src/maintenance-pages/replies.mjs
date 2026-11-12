@@ -5,13 +5,17 @@
 // Module: MOD-maintenance-pages
 //
 // Readings the texts leave open, which this file takes (the pull request names them):
-//   - Reading changes nothing without a click: the page draws *Read replies*, and the person's click calls repliesDue, which may note a reply found in Sent in its issue. The last reading is kept in memory for the route of one issue, and for nothing else.
+//   - Drawing the route replies reads at once, as UC-039 step 1 has opening Replies read: it calls repliesDue, which may note a reply found in Sent in its issue, as each reading of the route mail does. The last reading is kept in memory for
+//     the route of one issue, and for nothing else; that route reads only where none is kept — opened by Answer of the route mail.
 //   - A mail has a draft to show when repliesDue found one in Drafts; it is shown as the mailbox's showDraft gives it, its body in an editable field, and *Save draft* saves the edit with updateDraft to the same recipient and subject.
+//   - A mail of a closed issue that can be answered and has no draft shows its reply as a mail program shows a reply being written (UC-039 3a): the recipient, the subject `Re:` its subject, an empty text box and the original below it, which
+//     storeReplies quotes below the text; *Save draft* stores it with storeReplies and shows the draft; *Send* stores it and goes on as a draft's *Send*.
 //   - A mail whose reply address is missing or no address is *not sendable* (as storeReplies marks it); a mail with a note is *noted*; a mail the mailbox no longer holds is *not found in the mailbox*; none of these is offered a draft.
-//   - The participants offered are those the register lists that can draft text and whose processing place the mailbox's connection allows (`places`); an allowed place the connection records as outside the EU is marked not compliant.
+//   - The participants offered are those the register lists that can draft text and whose processing place the mailbox's connection allows (`places`), in one select with the first chosen, as the route mail offers them (participantSelect); an
+//     allowed place the connection records as outside the EU is marked not compliant. No name is asked: a job is started in the name of the account of the instance's token, as the route mail starts it (personOf).
 //   - The run panel is that of the kind `draft-replies` over the issue and the mails that have no draft and can be answered. Run is the person's click; the job runs in this tab (the route tab: its drafts are stored through the mailbox this tab holds),
 //     its start record naming the issue and the product and no mail; the texts it returns are stored as drafts through the writer `mail-drafts`, and nothing is sent.
-//   - *Send* reads the draft again (showDraft), shows it in MOD-site-frame's dialog of a decision — recipient, subject, attachments, body —, and only the dialog's confirmation calls sendReply, once, with the ShownMail the dialog showed. A failure the mailbox gives
+//   - *Send* first saves an edit of the text not yet saved (updateDraft), so that the mail shown is the one in the text box (UC-039 5a), then reads the draft again (showDraft), shows it in MOD-site-frame's dialog of a decision — recipient, subject, attachments, body —, and only the dialog's confirmation calls sendReply, once, with the ShownMail the dialog showed. A failure the mailbox gives
 //     (SendRefused with the server's answer, ConfirmationRefused, DraftChanged, a sign-in expired, a Bridge not running) leaves the draft and notes nothing; DraftChanged shows the draft again. A failure of the note after the send (Access's: a token refused,
 //     a permission missing) names the reply as sent and not noted and offers the note again; where the failure's name does not tell (Unreachable is both), the draft's presence in Drafts tells.
 //   - *No reply* is offered for every mail not yet noted, a mail not found in the mailbox and a mail not sendable included, and calls noReply once, on a click, without a dialog (one click per decision).
@@ -20,7 +24,7 @@
 //   - A mail is *new* under answer received when its mail-added note follows the last question-sent note; a mail *arrived* in a closed issue's thread when its mail-added note follows the issue's closing note (the order of the comments, which is the order of the notes).
 //     *Reopen* (setIssueState open) is the person's click; *Leave closed* calls nothing and takes the offer away; no mail reopens an issue by itself. *Close and reply* closes an open issue with setIssueState, reads the issues again and shows it under to answer.
 //   - *Draft question* (ITM-1026) opens, in the mail's item, the run panel of `draft-replies` with the person's point as the parameter `question` over the issue and that one mail: the participants are those of the drafting of replies (draft text, a place the mailbox allows),
-//     the panel appears once the point, a participant and a name are given, and the question the participant returns is stored as a draft and shown with *Send and wait*; the start record names the issue and the product, not the point.
+//     the panel appears once the point is given, and the question the participant returns is stored as a draft and shown with *Send and wait*; the start record names the issue and the product, not the point.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 //   - Both routes draw the tab strip of tabs.mjs at their head, under the tab Mail (UC-039 step 1).
 
@@ -35,7 +39,7 @@ import { readRegister } from "../documents/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { confirmDecision, runPanel } from "../site-frame/index.mjs";
 import { peopleIn } from "../personal-data/index.mjs";
-import { connectionsOf, mailboxOf, mailSubject, offeredWith, productsOf } from "./mail.mjs";
+import { connectionsOf, mailboxOf, mailSubject, offeredWith, participantSelect, personOf, productsOf } from "./mail.mjs";
 import { heads } from "./routes.mjs";
 import { tabsOf } from "./tabs.mjs";
 
@@ -56,11 +60,11 @@ const ADDRESS = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const GROUPS = [["to-answer", "toAnswer", "To answer"], ["answer-received", "answerReceived", "Answer received"], ["open", "open", "Open"]];
 
 const STEP_TEXT = {
-  read: "Read replies reads every issue of the products that lists mails, the mailbox's Drafts and Sent folders, and finds each listed mail by its identifier. A reply found in Sent that no issue notes yet is noted in its issue now. Nothing in the mailbox is changed. Book: ch. 14, Evolution Processes and Change Identification.",
+  read: "Opening Replies reads every issue of the products that lists mails, the mailbox's Drafts and Sent folders, and finds each listed mail by its identifier. A reply found in Sent that no issue notes yet is noted in its issue now. Nothing in the mailbox is changed. Book: ch. 14, Evolution Processes and Change Identification.",
   groups: "Three groups: closed issues with a listed mail that has no reply note (to answer), issues labelled waiting-for-reporter with a new mail (answer received), and the open ones. Open an issue to see what solved it and its mails.",
   issue: "The issue with what solved it, and per listed mail the mail itself, found in the mailbox through its identifier, with its draft in Drafts if there is one. A draft is shown complete and can be edited here; each edit is saved to the draft. Nothing is sent from this page.",
   question: "Draft question asks a participant to write one question to the reporter of this mail, from your point: what you want to know. Only participants whose processing place the mailbox allows are offered; the panel states where the participant processes data and exactly what it receives: the issue, your point and this mail. The question is stored as a draft in the mailbox's Drafts folder and nowhere else; you send it with Send and wait.",
-  drafting: "Draft replies asks a participant for one text per mail: what the problem was, what was done, from which version the fix is live. Only participants whose processing place the mailbox allows are offered; the panel states where the participant processes data and exactly what it receives. The texts are stored as drafts in the mailbox's Drafts folder and nowhere else. Or write a reply yourself: an empty draft opens with the original quoted.",
+  drafting: "Draft replies asks a participant for one text per mail: what the problem was, what was done, from which version the fix is live. Only participants whose processing place the mailbox allows are offered; the panel states where the participant processes data and exactly what it receives. The texts are stored as drafts in the mailbox's Drafts folder and nowhere else. Or write the reply yourself in the text box under its mail: Save draft stores it there, with the original quoted below it.",
 };
 
 function el(name, className, ...children) {
@@ -101,12 +105,13 @@ function sendingNotice(store) {
 }
 
 // A draft as the mailbox shows it, complete and editable; *Save draft* saves the edit to the draft; *Send* sends it only on the confirmation of the mail shown.
-function draftBlock(box, mail, initial, ctx) {
+function draftBlock(box, mail, initial, ctx, { sendNow = false } = {}) {
   const block = el("div", "reply-draft");
   let ref = initial;
-  async function show(shownRef, said = []) {
+  async function show(shownRef, said = [], now = false) {
     const shown = await box.showDraft(shownRef);
     ref = shown.ref ?? shownRef;
+    let stored = shown.body;
     const body = el("textarea", "draft-body");
     body.value = shown.body;
     body.textContent = shown.body;
@@ -120,10 +125,15 @@ function draftBlock(box, mail, initial, ctx) {
       }
     });
     const outcome = el("div", "reply-outcome", ...said);
-    const send = button("send-reply", ctx.mode === "ask" ? "Send and wait" : "Send", async () => {
+    const sendIt = async () => {
       outcome.replaceChildren();
       let mailShown;
       try {
+        // An edit not yet saved is saved first: the mail shown, and sent, is the one in the text box (UC-039 5a).
+        if (String(body.value ?? "") !== stored) {
+          ref = await box.updateDraft(ref, { replyTo: mail, to: shown.to[0], subject: shown.subject, body: body.value });
+          stored = String(body.value ?? "");
+        }
         mailShown = await box.showDraft(ref);
       } catch (failure) {
         outcome.append(el("p", "reply-problem", `The draft could not be read: ${failed(failure)}`));
@@ -161,12 +171,44 @@ function draftBlock(box, mail, initial, ctx) {
         const problem = el("p", "reply-not-noted", `The reply was sent, but the note could not be written in the issue: ${failed(failure)}`);
         block.replaceChildren(problem, el("p", null, again));
       }
-    });
+    };
+    const send = button("send-reply", ctx.mode === "ask" ? "Send and wait" : "Send", sendIt);
     block.replaceChildren(el("p", null, "To: ", el("span", "draft-to", shown.to.map(who).join(", ")), shown.cc?.length ? ` · Cc: ${shown.cc.map(who).join(", ")}` : ""),
       el("p", null, "Subject: ", el("span", "draft-subject", shown.subject)), el("p", null, body),
       el("ul", "draft-attachments", ...(shown.attachments ?? []).map((each) => el("li", null, `${each.name} (${each.size} bytes)`))), el("p", null, save, " ", send), ...sendingNotice(ctx.store), edited, outcome);
+    if (now) await sendIt();
   }
-  show(initial).catch((failure) => block.replaceChildren(el("p", "draft-problem", `The draft could not be read: ${failed(failure)}`)));
+  show(initial, [], sendNow).catch((failure) => block.replaceChildren(el("p", "draft-problem", `The draft could not be read: ${failed(failure)}`)));
+  return block;
+}
+
+// The reply to a mail that has no draft, written as a mail program writes one (UC-039 3a): its recipient, its subject, a text box and the original, which storeReplies quotes below the text. *Save draft* stores it in Drafts and shows the
+// draft; *Send* stores it and goes on as the draft's *Send*: the mail shown in the dialog, sent only on its confirmation.
+function composeBlock(box, mail, ctx) {
+  const block = el("div", "reply-compose");
+  const to = replyAddress(mail);
+  const body = el("textarea", "compose-body");
+  body.setAttribute("aria-label", "Your reply");
+  const outcome = el("div", "reply-outcome");
+  const store = async (sendNow) => {
+    save.disabled = true;
+    send.disabled = true;
+    outcome.replaceChildren();
+    try {
+      const [{ draft, problem }] = await storeReplies(box, [{ mail, body: String(body.value ?? "") }]);
+      if (problem) { outcome.append(el("p", "reply-not-sendable", `${problem}.`)); return; }
+      block.className = "reply-written";
+      block.replaceChildren(draftBlock(box, mail, draft, ctx, { sendNow }));
+    } catch (failure) {
+      save.disabled = false;
+      send.disabled = false;
+      outcome.append(el("p", "reply-problem", `The draft could not be stored: ${failed(failure)}`));
+    }
+  };
+  const save = button("save-draft", "Save draft", () => store(false));
+  const send = button("send-reply", "Send", () => store(true));
+  block.append(el("p", null, "To: ", el("span", "draft-to", who(to))), el("p", null, "Subject: ", el("span", "draft-subject", `Re: ${mail.subject}`)), el("p", null, body),
+    el("p", "muted", "The original, quoted below your text:"), el("pre", "compose-quoted", mail.text), el("p", null, save, " ", send), ...sendingNotice(ctx.store), outcome);
   return block;
 }
 
@@ -202,9 +244,9 @@ function mailItem(entry, due, box, host, extra) {
   if (noted) { item.append(el("p", "reply-noted", "A reply, or the decision not to answer, is noted in the issue.")); return item; }
   if (replyAddress(mail) === null) item.append(el("p", "reply-not-sendable", "not sendable: the mail has no usable reply address."));
   else if (draft) item.append(draftBlock(box, mail, draft, ctx));
+  else if (ctx.mode !== "ask") item.append(composeBlock(box, mail, ctx));
   else {
-    const asking = ctx.mode === "ask";
-    const write = button(asking ? "ask-reporter" : "write-reply", asking ? "Ask the reporter" : "Write the reply myself", async () => {
+    const write = button("ask-reporter", "Ask the reporter", async () => {
       write.disabled = true;
       try {
         const [{ draft: stored, problem }] = await storeReplies(box, [{ mail, body: "" }]);
@@ -215,14 +257,11 @@ function mailItem(entry, due, box, host, extra) {
         item.append(el("p", "reply-problem", `The draft could not be stored: ${failed(failure)}`));
       }
     });
-    item.append(el("p", null, write));
-    if (asking) {
-      const question = button("draft-question", "Draft question", async () => {
-        question.disabled = true;
-        item.append(await draftingSection(due, extra.ctx, redraw, { question: true, entry }));
-      });
-      item.append(el("p", null, question));
-    }
+    const question = button("draft-question", "Draft question", async () => {
+      question.disabled = true;
+      item.append(await draftingSection(due, extra.ctx, redraw, { question: true, entry }));
+    });
+    item.append(el("p", null, write), el("p", null, question));
   }
   item.append(el("p", null, none()));
   return item;
@@ -255,27 +294,15 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
     const draftable = opts.question ? [opts.entry] : due.mails.filter((each) => each.mail && !each.noted && !each.draft && replyAddress(each.mail) !== null);
     if (draftable.length === 0 || !host) { section.append(el("p", "muted", "No mail of this issue is left to draft.")); return section; }
     if (admitted.length === 0) { section.append(el("p", "reply-no-participant", `No participant that can draft text works at a place this mailbox allows (${allowed.join(", ") || "none"}).`)); return section; }
-    const radios = admitted.map((participant) => {
-      const radio = el("input", "participant");
-      radio.setAttribute("type", "radio");
-      radio.setAttribute("name", "participant");
-      radio.value = participant.name;
-      const outside = (connection.places ?? []).find((each) => each.place === participant.place)?.outsideEu === true;
-      const item = el("li", "reply-participant", el("label", null, radio, ` ${participant.name} `), el("span", "place", participant.place ?? "no processing place declared"),
-        ...(outside ? [" ", el("span", "not-compliant", "outside the EU: not compliant with the GDPR and the EU AI Act")] : []));
-      item.setAttribute("data-participant", participant.name);
-      return { radio, item, participant };
-    });
-    const person = el("input", "person");
-    person.setAttribute("placeholder", "Your name");
+    const select = participantSelect(admitted, connection.places);
+    const name = personOf(context.store);
     const point = opts.question ? el("textarea", "question-point") : null;
     const stage = el("div", "reply-stage");
 
     async function refresh() {
       stage.replaceChildren();
-      const chosen = radios.find((each) => each.radio.checked === true)?.participant;
-      const name = String(person.value ?? "").trim();
-      if (!chosen || !name || (point && String(point.value ?? "").trim() === "")) { stage.append(el("p", "muted", point ? "Write your point, choose a participant and enter your name to see the run panel." : "Choose a participant and enter your name to see the run panel.")); return; }
+      const chosen = admitted.find((participant) => participant.name === select.value) ?? admitted[0];
+      if (point && String(point.value ?? "").trim() === "") { stage.append(el("p", "muted", "Write your point to see the run panel.")); return; }
       try {
         const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
         const now = new Date();
@@ -304,9 +331,10 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
         stage.append(el("p", "reply-problem", failed(failure)));
       }
     }
-    for (const input of [...radios.map((each) => each.radio), person]) input.addEventListener("change", refresh);
+    select.addEventListener("change", refresh);
     point?.addEventListener("input", refresh);
-    section.append(...(point ? [el("p", null, el("label", null, "Your point to ask ", point))] : []), el("ul", "reply-participants", ...radios.map((each) => each.item)), el("label", null, "Your name ", person), stage);
+    section.append(...(point ? [el("p", null, el("label", null, "Your point to ask ", point))] : []), el("p", null, el("label", null, "Participant ", select)), stage);
+    refresh();
   } catch (failure) {
     section.append(el("p", "reply-problem", failed(failure)));
   }
@@ -355,7 +383,7 @@ async function issueOf(out, ctx, params, redraw) {
 async function render(target, context, params = {}) {
   const out = el("div", "replies-out");
   async function draw() {
-    if (!last) { out.replaceChildren(el("p", "muted", "Read the replies first.")); return; }
+    if (!last) return;
     if (params.issue) await issueOf(out, { ...last, context }, params, redrawAfterDraft);
     else groupsOf(out, { ...last, context });
   }
@@ -365,7 +393,8 @@ async function render(target, context, params = {}) {
     await draw();
     out.append(...said);
   }
-  const read = button("read-replies", "Read replies", async () => {
+  // Opening Replies reads the issues and the mailbox at once (UC-039 step 1).
+  const read = async () => {
     out.replaceChildren(el("p", "muted", "Reading the issues and the mailbox…"));
     const products = productsOf(context.store);
     const have = mailboxOf(context.store);
@@ -379,9 +408,10 @@ async function render(target, context, params = {}) {
       return;
     }
     await draw();
-  });
-  target.replaceChildren(tabsOf("replies", context), el("h2", null, "Replies"), el("section", "replies-step-read", el("p", null, read), fold(STEP_TEXT.read)), ...(params.issue ? [] : sendingNotice(context.store)), out);
-  await draw();
+  };
+  target.replaceChildren(tabsOf("replies", context), el("h2", null, "Replies"), el("section", "replies-step-read", fold(STEP_TEXT.read)), ...(params.issue ? [] : sendingNotice(context.store)), out);
+  // The route of one issue draws it from the last reading where there is one, as the Open of the groups leads there; without one it reads, as Answer of the route mail leads there.
+  if (params.issue && last) await draw(); else await read();
 }
 
 // The mails the last reading found, with their people: what the subject of this route gives the prompt bar (the mails are kept in memory only, while shown).

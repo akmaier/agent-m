@@ -18,7 +18,7 @@
 //     `/me/mailFolders/sentitems` and any other named folder the top-level folder of that display name, found by `/me/mailFolders?$filter=`;
 //     the list gives each message's `id` and `internetMessageId`, and follows `@odata.nextLink` when it is an address of Microsoft Graph;
 //   - a message's raw form is `/me/messages/<id>/$value`; it is parsed with postal-mime; read's `since` is Graph's `$filter=receivedDateTime ge
-//     <the start of the day it names, UTC>` on the list, so that only the messages Graph selects are fetched; sent's `since` keeps the mails whose date is on or after it;
+//     <the start of the day it names, UTC>` on the list, so that only the messages Graph selects are fetched, and so is sent's;
 //   - find hashes the `internetMessageId`s of the named folders and fetches the raw form of the one that matches only;
 //   - `folder` of a Mail is the name the connection gives, "Drafts" for Drafts, "Sent Items" for Sent.
 // Nothing reaches the network. Each test states its input and its expected result before it runs (given / input / expect). The
@@ -274,4 +274,24 @@ test("read — on the Microsoft route: without since no date is filtered and eve
   assert.ok(listRequests(requests).length >= 3, "known positive: the folders were listed");
   assert.equal(listRequests(requests).some((request) => /receivedDateTime/.test(receivedFilter(request) ?? "")), false);
   assert.equal(rawFetched(requests).length, 3);
+});
+
+// TST-20261112302 · level: unit · module: MOD-mail-routes
+// guards: A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: the fake Graph of TST-478301, whose Sent Items hold se-1 (received 14 October 2026), and which lists only the messages a `$filter=receivedDateTime ge` selects
+// input: mailbox(connection of the Microsoft route, null).sent("2026-10-15"); counter-proof: .sent("2026-10-14")
+// expect: the list request of sentitems carries `$filter=receivedDateTime ge 2026-10-15T00:00:00Z`, no raw form is fetched and the answer is []; with the 14th the filter names that day, the raw form of se-1 is fetched and the answer is its Mail
+test("sent — on the Microsoft route: the date received is filtered by Graph, and only the mails it selects are fetched", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  signedIn();
+  let requests = fakeGraph();
+  assert.deepEqual(await mailbox(CONNECTION, null).sent("2026-10-15"), []);
+  const lists = listRequests(requests).filter((request) => request.address.includes("/sentitems/"));
+  assert.ok(lists.length > 0, "known positive: Sent Items were listed");
+  assert.deepEqual([...new Set(lists.map(receivedFilter))], ["receivedDateTime ge 2026-10-15T00:00:00Z"]);
+  assert.deepEqual(rawFetched(requests), []);
+  requests = fakeGraph();
+  assert.deepEqual((await mailbox(CONNECTION, null).sent("2026-10-14")).map((mail) => mail.messageId), ["<se-1@example.org>"]);
+  assert.deepEqual([...new Set(listRequests(requests).map(receivedFilter))], ["receivedDateTime ge 2026-10-14T00:00:00Z"]);
+  assert.equal(rawFetched(requests).length, 1);
 });

@@ -360,3 +360,22 @@ test("TST-953017 not answering a mail is noted in the issue with its identifier 
   const refused = Object.assign(new Error("token refused"), { name: "TokenRefused" });
   await assert.rejects(handling.noReply?.(fakeHost([], { commentFails: refused }), 8, A.id), (error) => error === refused);
 });
+
+// TST-20261112303
+// level: unit
+// module: MOD-mail-handling
+// guards: A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO; UC-039
+// given: the clock at 2026-11-05T12:00:00Z (node's mocked Date), then, as counter-proof, at 2026-03-15T00:30:00Z; a closed issue listing A
+// input: repliesDue, once at each now
+// expect: the mailbox's sent is asked once each time, with the date 30 days before now — "2026-10-06", then "2026-02-13" —, never null, which reads the whole folder
+test("TST-20261112303 repliesDue reads the Sent mails of the last 30 days: sent with the date 30 days before now", async (t) => {
+  const asked = [];
+  for (const now of [Date.UTC(2026, 10, 5, 12, 0, 0), Date.UTC(2026, 2, 15, 0, 30, 0)]) {
+    t.mock.timers.enable({ apis: ["Date"], now });
+    const log = [];
+    await handling.repliesDue?.(fakeMailbox({ found: { [A.id]: mail(A) }, log }), [{ address: PRODUCT, host: fakeHost([issue(8, listing(A), { state: "closed" })]) }]);
+    asked.push(...callsOf(log, "mailbox.sent").map((call) => call[1]));
+    t.mock.timers.reset();
+  }
+  assert.deepEqual(asked, ["2026-10-06", "2026-02-13"]);
+});

@@ -204,13 +204,14 @@ export function findMail(connection, Flow, id) {
   });
 }
 
-// The folder the mailbox marks with a special use (\\Drafts or \\Sent), read whole; `since` keeps the mails dated on or after it.
+// The folder the mailbox marks with a special use (\\Drafts or \\Sent): the mails received on or after the day `since` names, as the server
+// selects them with SEARCH SINCE, so that only they are fetched; all of them where it is null.
 export function markedFolder(connection, Flow, use, since) {
   const { imap, account, password } = connection;
   return withClient(imap, account, password, Flow, async (client) => {
     const folder = (await client.list({ listOnly: true })).find((each) => each.specialUse === use || each.flags?.has?.(use));
     if (!folder) throw bridgeFailure("not-found", `${use}: the mailbox marks no such folder`);
-    return (await mailsOf(client, folder.path, imap)).filter(({ mail }) => since === null || since === undefined || Date.parse(mail.date) >= Date.parse(since));
+    return mailsOf(client, folder.path, imap, since ?? null);
   });
 }
 

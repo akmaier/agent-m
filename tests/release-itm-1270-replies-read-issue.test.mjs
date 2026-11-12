@@ -11,7 +11,11 @@
 // issues and comments, the fake Bridge of the mailbox), over the real route `replies`, the real MOD-repository-hosts and MOD-mail-handling. The implementers' case (tests/maintenance-pages-issues-reads.test.mjs) opens the issue 5; these cases open each of the issues the
 // standard reading lists, in each group, and an issue GitHub no longer has. The issues of the page on GitLab are in tests/release-itm-1270-issue-reads.test.mjs for `issue`; the replies page reads its issues through the product's host whichever the server, and the world's fake serves GitHub only.
 // Readings the texts leave open, taken here:
-//   - "after the person has read the replies" is the person's click on Read replies, which MOD-mail-handling's `repliesDue` answers by listing the issues of the products (a caller of `listIssues` this item leaves as it is). What the route asks of GitHub after that click is counted.
+//   - "after the person has read the replies" is the route replies drawn, which reads at once — UC-039 step 1: "the author opens **Replies** […]. Agent M reads every issue that lists mail identifiers" — with MOD-mail-handling's `repliesDue`, which
+//     lists the issues of the products (a caller of `listIssues` this item leaves as it is). What the route of one issue asks of GitHub after that reading is counted.
+//   - the route of one issue reads its issue with `readIssue` (MOD-maintenance-pages: "`issue/<number>` and `replies/<issue>` read their one issue with `readIssue`"). A listing that the drafting's run panel sends when it prepares the job is not
+//     the route's reading of its issue: MOD-maintenance-pages names `listIssues` for "issues and what a job's context needs". It can only follow the issue's own reading, and only where a run panel is drawn — the issue 4, under *to answer*; the
+//     issues 5 and 6, which have no drafting, send no listing at all.
 //   - an issue GitHub answers "Not Found" for, after the reading, is read by the page as an issue with no note: its mails are drawn and none is marked new or arrived, which is what a missing issue gave before the change (the page's own `catch` of its reading).
 
 import test, { afterEach } from "node:test";
@@ -24,28 +28,37 @@ const BASE = `/repos/${PRODUCT}/issues`;
 const gets = (w, from) => w.kept.github.slice(from).filter((request) => request.method === "GET").map((request) => request.path);
 const listings = (paths) => paths.filter((path) => path === BASE);
 
-// The page of one issue after the replies were read: what GitHub was asked for from then on, and the page.
+// The page of one issue after the replies were read: what GitHub was asked for from then on, and the page. Where the issue has a drafting (under to answer), its run panel is awaited too, so that what it sends is counted.
 async function pageOf(w, target, number) {
   await read(target);
   const from = w.kept.github.length;
   const detail = await opened(w, { issue: String(number), product: PRODUCT_URL });
   await waitFor(() => byClass(detail, "reply-mail").length > 0 || byClass(detail, "reply-problem").length > 0);
+  if (byClass(detail, "reply-drafting").length > 0) await waitFor(() => byClass(detail, "run-panel").length > 0 || byClass(detail, "reply-problem").length > 0 || byClass(detail, "reply-no-participant").length > 0);
   return { detail, paths: gets(w, from) };
 }
 
 // TST-1270305 · level: release · module: MOD-maintenance-pages
 // guards: UC-039
-// given: the standard world: the closed issue 4 (one comment), the open issue 5 labelled waiting-for-reporter (two comments, the last noting a new mail), the open issue 6 (no comment) and the closed issue 7 (one comment, a reply noted); the replies read by the person's click on Read replies
+// given: the standard world: the closed issue 4 (one comment), the open issue 5 labelled waiting-for-reporter (two comments, the last noting a new mail), the open issue 6 (no comment) and the closed issue 7 (one comment, a reply noted); the replies read by drawing the route replies, with no click (UC-039 step 1)
 // input: the route replies drawn for the issue 4, for the issue 5 and for the issue 6, each in a world of its own
-// expect: for each the page draws the issue's mails; what GitHub was asked for after the reading is no request for the issue list: for the issue 4 the issue and its comments, for the issue 5 the issue and its comments, for the issue 6 the issue alone and no request for comments, which it has none of; the issue 5 shows its mail as new
-// Planted fault: a route that finds its issue in a listing (`host.listIssues({ state: "all" })` and a filter in arrivalsOf of src/maintenance-pages/replies.mjs) sends the issue list and the comments of the issues 4, 5 and 7 and fails the lists; a route that reads the comments of an issue with none sends a request for the issue 6; one that reads the comments but not the issue 5 shows no mail as new.
-test("TST-1270305 replies/<issue> reads its issue by its number with its comments after the replies were read, and asks for no listing", async () => {
-  for (const [number, expected, fresh] of [[4, [`${BASE}/4`, `${BASE}/4/comments`], 0], [5, [`${BASE}/5`, `${BASE}/5/comments`], 1], [6, [`${BASE}/6`], 0]]) {
+// expect: drawing the route replies has listed the issues, with no click; for each the page of one issue draws the issue's mails; what GitHub was asked for after the reading begins with the issue's own reading by its number: for the issue 4 the issue and its comments, for the issue 5 the issue and its comments, for the issue 6 the issue alone and no request for comments, which it has none of; the issues 5 and 6 send nothing else and no listing; the issue 4, with its run panel drawn, sends after its own reading only what the job's context reads (the issue list and comments); the issue 5 shows its mail as new
+// Planted fault: a route that finds its issue in a listing (`host.listIssues({ state: "all" })` and a filter in issueOf of src/maintenance-pages/replies.mjs) sends the issue list first and fails the lists; a route that reads the comments of an issue with none sends a request for the issue 6; one that reads the comments but not the issue 5 shows no mail as new; a route of one issue that reads again although a reading exists (`params.issue && last` in render replaced by `false`) sends a listing for the issues 5 and 6.
+test("TST-1270305 replies/<issue> reads its issue by its number with its comments after the replies were read, not from a listing", async () => {
+  for (const [number, own, fresh] of [[4, [`${BASE}/4`, `${BASE}/4/comments`], 0], [5, [`${BASE}/5`, `${BASE}/5/comments`], 1], [6, [`${BASE}/6`], 0]]) {
     const { w, target } = await start();
+    await read(target);
+    assert.ok(listings(gets(w, 0)).length > 0, `the issue ${number}: known positive — drawing replies read the issues, with no click`);
     const { detail, paths } = await pageOf(w, target, number);
     assert.ok(byClass(detail, "reply-mail").length > 0, `the issue ${number} draws its mails`);
-    assert.deepEqual(listings(paths), [], `the issue ${number}: no listing`);
-    assert.deepEqual(paths, expected, `the issue ${number}`);
+    assert.deepEqual(paths.slice(0, own.length), own, `the issue ${number}: its own reading, by its number`);
+    if (number === 4) {
+      assert.equal(byClass(detail, "run-panel").length, 1, "the issue 4: its run panel is drawn");
+      assert.ok(paths.slice(own.length).every((path) => path === BASE || /\/issues\/\d+\/comments$/.test(path)), `the issue 4: after its own reading only what the job's context reads (${paths.join(", ")})`);
+    } else {
+      assert.deepEqual(listings(paths), [], `the issue ${number}: no listing`);
+      assert.deepEqual(paths, own, `the issue ${number}`);
+    }
     assert.equal(byClass(detail, "reply-new").length, fresh, `the issue ${number}: mails new after the question`);
     restoreWorld();
   }

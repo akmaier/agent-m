@@ -77,16 +77,15 @@ test("TST-1446002: the buttons of the mail page carry the frame's class btn", as
 // TST-1446003 · level: unit · module: MOD-maintenance-pages
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 // given: the standard fixture of the replies page: the closed issue 4 listing four mails (one with a draft), an answer received (5), an open issue (6)
-// input: the route replies after Read replies; the routes replies/4, replies/5 and replies/6
-// expect: Read replies, Open, and on the issues the buttons Save draft, Send, Write the reply myself, No reply, Remove the label and Ask the reporter are drawn, and every button of every page carries the class btn
+// input: the route replies after its reading; the routes replies/4, replies/5 and replies/6
+// expect: Open, and on the issues the buttons Save draft, Send, No reply, Remove the label and Ask the reporter are drawn, and every button of every page carries the class btn
 test("TST-1446003: the buttons of the replies pages carry the frame's class btn", async () => {
   const { w, target } = await start();
-  assert.deepEqual(namesOf(target), ["read-replies"], "Read replies is drawn");
   await read(target);
   const pagesDrawn = [target];
   for (const issue of ["4", "5", "6"]) pagesDrawn.push(await opened(w, { issue, product: PRODUCT_URL }));
   const names = pagesDrawn.flatMap(namesOf);
-  for (const wanted of ["issue-link", "save-draft", "send-reply", "write-reply", "no-reply", "remove-label", "ask-reporter"]) assert.ok(names.includes(wanted), `${wanted} is drawn: ${names.join(", ")}`);
+  for (const wanted of ["issue-link", "save-draft", "send-reply", "no-reply", "remove-label", "ask-reporter"]) assert.ok(names.includes(wanted), `${wanted} is drawn: ${names.join(", ")}`);
   assert.deepEqual(pagesDrawn.flatMap(buttonFindings), []);
 });
 

@@ -1,6 +1,6 @@
 // UC-039 "Reply to the mails of an issue" as a system path: the author opens the route `replies` on the main page, started by MOD-site-frame's startPage over the view of MOD-maintenance-pages, in the browser of tests/maintenance-pages-world.mjs
 // (the issues of alice/product, the participants' register, the model endpoints), over the mailbox on the Microsoft route — a fixture server of Microsoft Graph in place of graph.microsoft.com (tests/uc-039-world.mjs) — and walks
-// the main flow (steps 1 to 7) and the alternative flows 2a, 2b, 2c, 3a, 3b, 4a, 5a, 5b, 6a, 1a, 1b and 7a, each reached by a person's input: the click on Read replies, the fragment of an issue, a chosen participant and a typed
+// the main flow (steps 1 to 7) and the alternative flows 2a, 2b, 2c, 3a, 3b, 4a, 5a, 5b, 6a, 1a, 1b and 7a, each reached by a person's input: the opening of Replies, the fragment of an issue, a chosen participant and a typed
 // name, Run, an edit of a draft, Send and its dialog, No reply, Close and reply, Ask the reporter, Reopen. The Bridge route (the IMAP and SMTP servers) is walked in tests/system-uc-039-bridge-route.test.mjs.
 // Run: node --test tests/system-uc-039-reply-to-the-mails-of-an-issue.test.mjs
 //
@@ -19,7 +19,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { fragmentOf } from "../src/site-frame/routing.mjs";
 import { ERIKA, PRODUCT_URL, SECRET, buttonsOf, byClass, flush, issueRecord, itemOf, mailOf, noteText, one, restoreWorld, textOf, trusted, waitFor, CLOUD, LOCAL } from "./maintenance-pages-world.mjs";
-import { ACCOUNT, bodyOf, choose, comments, dialog, draftsOf, graphWrites, hashTo, headerOf, openIssue, openIssueAfterReading, openReplies, rawDraft, rawMail, readReplies, run, sends, writes, lastly } from "./uc-039-world.mjs";
+import { offered, writtenByHand, ACCOUNT, bodyOf, choose, comments, dialog, draftsOf, graphWrites, hashTo, headerOf, openIssue, openIssueAfterReading, openReplies, rawDraft, rawMail, readReplies, run, sends, writes, lastly } from "./uc-039-world.mjs";
 
 afterEach(restoreWorld);
 
@@ -48,7 +48,7 @@ async function sendOf(p, id, confirm = true) {
 // TST-969001 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; CLOSING AN ISSUE PREPARES ITS REPLIES; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS
 // given: the page started at the route replies over the Microsoft route; the mailbox's INBOX holds m1 (from Erika) and m2 (from Erika, Reply-To Ada Reporter); the closed issue 4 lists both and says how it was closed; the participants local-llm (this machine, allowed), cloud-llm (a provider in the USA, not allowed) and checker (cannot draft)
-// input: the person's click on Read replies (steps 1 and 2: read, open issue 4); local-llm chosen and a name typed; the person's click on Run (step 3); a click a script makes on Run first
+// input: the route replies opened, which reads (steps 1 and 2: read, open issue 4); local-llm, the first, chosen, and no name asked; the person's click on Run (step 3); a click a script makes on Run first
 // expect: reading writes nothing — no request but GETs reached Graph, no comment, no label, no state change — and issue 4 alone is under to answer; the issue shows what solved it (the closing pull request) and both mails with reporter, date and subject; only local-llm is offered, with its place; the run panel names where the texts go; the script's click asks no participant; the person's click asks the endpoint once and stores exactly two drafts in Drafts and nowhere else (INBOX unchanged, nothing in Sent, no send request), each with exactly one To — m1's to Erika, m2's to Ada, its Reply-To — no Cc and no Bcc, the subject Re: of the mail's subject, In-Reply-To and References from its Message-ID, the participant's text with the original quoted below it (flow: UC-039 main flow)
 test("main flow, steps 1 to 4: the issue read, the participant chosen, one draft per mail stored in Drafts to that mail's reporter alone", async () => {
   const texts = [];
@@ -69,8 +69,8 @@ test("main flow, steps 1 to 4: the issue read, the participant chosen, one draft
       assert.match(textOf(item), new RegExp(`${ERIKA.name}.*2026-10-18.*${subject}`), `${mail.id}: reporter, date and subject`);
     }
     await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm", "ep1"], "only the participant whose place the mailbox allows, and its endpoint itself");
-    assert.match(textOf(one(p.main(), "reply-participants")), /this machine/);
+    assert.deepEqual(offered(p).map((option) => option.value), ["local-llm", "ep1"], "only the participant whose place the mailbox allows, and its endpoint itself");
+    assert.match(textOf(one(p.main(), "participant")), /this machine/);
     await choose(p);
     assert.match(textOf(one(p.main(), "run-panel")), /local-llm.*this machine/s, "the panel names the participant and its place");
     texts.push({ mail: M1.id, text: "The export problem was fixed in version 1.5." }, { mail: M2.id, text: "The link is repaired in version 1.5." });
@@ -100,7 +100,7 @@ test("main flow, steps 1 to 4: the issue read, the participant chosen, one draft
 // TST-969002 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING; ONE CLICK PER DECISION; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS
 // given: the closed issue 4 listing m1 and m2, and Drafts already holding Agent M's draft for each (from an earlier run), the mailbox on the Microsoft route
-// input: the issue opened; the preview of m1's draft read; a click a script makes on Send; the person's click on Send and Cancel; the person's click on Send and the dialog's Send; then the same for m2; then Read replies again
+// input: the issue opened; the preview of m1's draft read; a click a script makes on Send; the person's click on Send and Cancel; the person's click on Send and the dialog's Send; then the same for m2; then Replies opened again
 // expect: the page lists both drafts with To, Subject, the full body and the attachments; a script's click opens no dialog; the dialog repeats recipient and subject and Cancel sends nothing and notes nothing; the confirmation sends exactly one mail — one send request — the provider removes the draft from Drafts and keeps the copy in Sent; the issue gets one comment each, Reply sent to the identifier on a day, and nothing of the mail (no address, subject or text) is in it; while m2 is unnoted issue 4 stays under to answer, and when both have a note it leaves (flow: UC-039 main flow)
 test("main flow, steps 5 to 7: Send repeats recipient and subject, the provider sends once, the reply is noted by identifier and date, and the issue leaves to answer", async () => {
   const p = await openReplies({ inbox: [rawMail("m1"), rawMail("m2")], drafts: [rawDraft("m1"), rawDraft("m2", { to: "Ada Reporter <ada@example.invalid>", body: "Second reply text." })], issues: [closed([M1, M2])] });
@@ -153,7 +153,7 @@ test("main flow, steps 5 to 7: Send repeats recipient and subject, the provider 
 // TST-969003 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING; MAIL STAYS IN THE MAILBOX
 // given: the closed issue 4 listing m1 and m2; Sent holds a reply to m1 that the author sent from the mail program (In-Reply-To <m1@…>, dated 2026-10-18), and no note says so
-// input: the person's click on Read replies, twice
+// input: Replies opened, twice
 // expect: the reply to m1 is noted in issue 4 at the first reading — one comment, Reply sent to the identifier of m1 on 2026-10-18 — and not again at the second; issue 4 stays under to answer for m2; the mailbox is written nowhere (flow: UC-039 main flow)
 test("main flow, step 1: a reply found in Sent that no issue notes is noted in its issue, once", async () => {
   const sent = [["Message-ID: <hand@example.org>", "Date: Sun, 18 Oct 2026 12:00:00 +0000", `From: ${ACCOUNT}`, `To: ${ERIKA.address}`, "Subject: Re: Subject m1", "In-Reply-To: <m1@mail.example.invalid>", "References: <m1@mail.example.invalid>", "MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "", "Thanks, done.", ""].join("\r\n")];
@@ -189,7 +189,7 @@ test("alternative 2a: Close and reply closes the open issue and the drafting app
     assert.equal(JSON.parse(patches[0].body).state, "closed");
     assert.ok(patches[0].path.endsWith("/issues/6"));
     await waitFor(() => byClass(p.main(), "participant").length > 0);
-    assert.deepEqual(byClass(p.main(), "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
+    assert.deepEqual(offered(p).map((option) => option.value), ["local-llm", "ep1"]);
   });
 });
 
@@ -204,7 +204,7 @@ test("alternatives 2b and 2c: a mail no longer in the mailbox cannot be sent, an
     await openIssueAfterReading(p, 4);
     const missing = itemOf(p.main(), M3.id);
     assert.match(textOf(missing), /not found in the mailbox/);
-    assert.deepEqual(["send-reply", "write-reply", "ask-reporter", "reply-draft"].map((name) => byClass(missing, name).length), [0, 0, 0, 0]);
+    assert.deepEqual(["send-reply", "reply-compose", "ask-reporter", "reply-draft"].map((name) => byClass(missing, name).length), [0, 0, 0, 0]);
     const none = one(missing, "no-reply");
     none.dispatchEvent(new Event("click"));
     await flush();
@@ -227,14 +227,13 @@ test("alternatives 2b and 2c: a mail no longer in the mailbox cannot be sent, an
 // TST-969006 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL
 // given: the closed issue 4 listing m1, no draft
-// input: the person's click on Write the reply myself for m1; an edit of the text and the click on Save draft
-// expect: an empty draft with the quoted original is stored in Drafts — one To (Erika), Re: Subject m1, In-Reply-To and References — and shown complete; the edit is saved to the draft (Drafts still holds one draft, with the new text, to the same recipient), and no participant was asked (flow: UC-039 alternative 3a)
+// input: m1's reply written in its text box, empty, and the click on Save draft; an edit of the text and the click on Save draft
+// expect: m1 shows its reply as text boxes at once; an empty draft with the quoted original is stored in Drafts — one To (Erika), Re: Subject m1, In-Reply-To and References — and shown complete; the edit is saved to the draft (Drafts still holds one draft, with the new text, to the same recipient), and no participant was asked (flow: UC-039 alternative 3a)
 test("alternative 3a: a reply written without a participant opens an empty draft with the quoted original, and every edit is saved to the draft", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])] });
   await lastly(p, async () => {
     await openIssueAfterReading(p, 4);
-    const item = itemOf(p.main(), M1.id);
-    await trusted(one(item, "write-reply"));
+    const item = await writtenByHand(p, M1.id);
     await waitFor(() => byClass(item, "draft-body").length > 0);
     assert.equal(draftsOf(p).length, 1);
     const [draft] = draftsOf(p);
@@ -265,7 +264,7 @@ test("alternative 3b: a CLI agent receives the job through its Bridge, returns t
   await lastly(p, async () => {
     await openIssueAfterReading(p, 4);
     await waitFor(() => byClass(p.main(), "participant").length > 0);
-    const names = byClass(p.main(), "participant").map((radio) => radio.value);
+    const names = offered(p).map((option) => option.value);
     assert.deepEqual(names, ["local-llm", "agent-cli", "ep1", "lab-pc-4:claude"]);
     await choose(p, "Reviewer Rae", 1);
     assert.match(textOf(one(p.main(), "run-panel")), /agent-cli.*this machine/s);
@@ -295,9 +294,9 @@ test("alternative 4a: a mail whose reply address is missing or invalid is not se
     await openIssueAfterReading(p, 4);
     const bad = itemOf(p.main(), M3.id);
     assert.match(textOf(one(bad, "reply-not-sendable")), /not sendable.*no usable reply address/);
-    assert.deepEqual(["send-reply", "write-reply", "ask-reporter", "reply-draft"].map((name) => byClass(bad, name).length), [0, 0, 0, 0]);
+    assert.deepEqual(["send-reply", "reply-compose", "ask-reporter", "reply-draft"].map((name) => byClass(bad, name).length), [0, 0, 0, 0]);
     assert.equal(byClass(bad, "no-reply").length, 1);
-    assert.equal(byClass(itemOf(p.main(), M1.id), "write-reply").length, 1);
+    assert.equal(byClass(itemOf(p.main(), M1.id), "reply-compose").length, 1);
     assert.ok(byClass(p.main(), "explain").length >= 2, "the steps explain themselves");
     for (const fold of byClass(p.main(), "explain")) assert.ok(textOf(fold).length > 40, "an explanation has words");
   });
@@ -412,7 +411,7 @@ test("alternative 1a: Ask the reporter, Send and wait labels the issue waiting-f
 // TST-969013 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE; AN ISSUE WAITING FOR A REPORTER IS LABELLED
 // given: the open issue 5, labelled waiting-for-reporter, whose comments say a question was sent for m1 and then that mail m1 was added; the open issue 6 listing m3; the open issue 7, whose comments say the same of m2 but which carries no label
-// input: the person's click on Read replies; issue 5 opened; the click on Remove the label
+// input: Replies opened; issue 5 opened; the click on Remove the label
 // expect: issue 5 is under answer received, issues 6 and 7 under open (a new mail without the label waiting-for-reporter is no answer); issue 5 shows the new mail marked as new; the author can remove the label, ask again or close — the three buttons are offered; Remove the label removes the label from the issue, one request, and writes no comment (flow: UC-039 alternative 1b)
 test("alternative 1b: an issue with the reporter's answer appears under answer received and the author removes the label, asks again or closes", async () => {
   const waiting = issueRecord(5, "open", [M1], { labels: ["waiting-for-reporter"], comments: [noteText("question-sent", M1.id, "2026-10-17"), noteText("mail-added", M1.id, "2026-10-18")] });
@@ -451,7 +450,7 @@ test("alternative 1b (finding): the new mail of the reporter's answer is shown i
 // TST-969015 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; A CLOSED ISSUE IS REOPENED ONLY BY A PERSON
 // given: the closed issue 4 listing m1 (answered: a reply note) and m2, whose mail-added note follows the note of the closing
-// input: the person's click on Read replies; issue 4 opened; a click a script makes on Reopen; the person's click on Leave closed; the issue opened again; the person's click on Reopen
+// input: Replies opened; issue 4 opened; a click a script makes on Reopen; the person's click on Leave closed; the issue opened again; the person's click on Reopen
 // expect: reading and showing the issue change no state — no mail reopens an issue by itself; the mail m2 is shown under the issue with the offer Reopen, Leave closed; a script's click reopens nothing; Leave closed calls nothing and takes the offer away; Reopen sets the issue's state to open, one request (flow: UC-039 alternative 7a)
 test("alternative 7a: a mail in the thread of a closed issue is shown, the issue stays closed until the person presses Reopen", async () => {
   const issue = closed([M1, M2], [noteText("reply-sent", M1.id, "2026-10-18"), noteText("closed-with", "ITM-001", "2026-10-17", "https://github.com/alice/product/pull/9"), noteText("mail-added", M2.id, "2026-10-18")]);
