@@ -1,12 +1,12 @@
-// Release tests of ITM-1254 — UC-033 1a, 4a and 4b on the issue's page: an issue not classified yet is led to UC-012, step 2; an issue is added to an item of the backlog that
-// describes the same work, and both issues get the comment; and where no token may comment, the item is committed all the same and the comment is shown to copy. The behaviour is
+// Release tests of ITM-1254 — UC-033 1a, 4a and 4b on the issue's page: an issue that carries neither the label defect nor change is not offered Move to backlog; an issue is added to an item of the
+// backlog that describes the same work, and both issues get the comment; and where no token may comment, the item is committed all the same and the comment is shown to copy. The behaviour is
 // UC-033 (docs/use-cases/UC-033-move-an-issue-into-the-backlog.md, Alternative flows 1a, 4a and 4b) as docs/architecture/MOD-maintenance-pages.md (`issue/<number>`: "*Add*, which writes
 // the item and the issue's comment and label with `moveToBacklog`, or names the comment to copy when the token may not comment") and docs/architecture/MOD-issue-handling.md
 // (`moveToBacklog`: "When the token may not comment, the item is written all the same and the comment's text and the issue's address are returned for the person to copy") state it.
 // Run: node --test tests/release-itm-1254-issue-move.test.mjs
 //
-// Module: MOD-maintenance-pages; MOD-issue-handling; MOD-review-pages
-// Guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; EVERY ARTIFACT NAMES ITS ORIGIN; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-033
+// Module: MOD-maintenance-pages; MOD-issue-handling
+// Guards: EVERY ARTIFACT NAMES ITS ORIGIN; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-033
 // Level: release
 //
 // Written for the release testing of sprint 110 by a participant who implemented none of ITM-1254 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER). The world is the one of the
@@ -18,8 +18,9 @@
 //     to its origins, in that order, and nothing else changed.
 //   - 4b: "the comment text with a copy button" is read as the text a successful comment would have carried, put on the clipboard by the button. The fake GitHub takes a commit without a token,
 //     which a real server does not; the case without a token therefore stands for what the page does at the step of the comment when the host answers NotSupported itself, not for the commit.
-//   - 1a: "Agent M links to UC-012, step 2" is read as a lead whose route is one the review pages serve and that is offered as long as the issue carries no class label — the class is confirmed in the
-//     conversation (UC-012 step 4) and recorded only as a label on the issue (MOD-issue-handling, Data). TST-1254302 was rewritten for pull request #1802 by a participant who implemented none of it.
+//   - 1a, as accepted: "The issue carries neither the label `defect` nor `change`. **Move to backlog** is not offered." "Not offered" is read as no control Move to backlog anywhere on the issue's
+//     page; the label is read off the issue each time its page is drawn. The earlier lead of 1a, "Agent M links to UC-012, step 2.", is withdrawn, and TST-1254302 no longer checks it.
+//     TST-1254302 was rewritten for pull request #1807 by a participant who implemented none of it.
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -27,7 +28,6 @@ import { PRODUCT_URL, draw } from "./main-page-home-harness.mjs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
-import { view as reviewPages } from "../src/review-pages/index.mjs";
 import { buttonsOf, byClass, flush, one, restoreWorld, textOf, trusted, waitFor, walk, world, routeNamed, pages } from "./maintenance-pages-world.mjs";
 
 // The strategies the page's own view hands the frame, which the harness does not register.
@@ -65,7 +65,7 @@ const requestsTo = (w, pattern) => w.kept.github.filter((request) => pattern.tes
 async function openIssue(w, number) {
   assert.ok(routeNamed("issue"), `the route issue: ${pages.error?.message}`);
   const detail = await draw(routeNamed("issue"), w.context, { number: String(number) });
-  await waitFor(() => byClass(detail, "implement-issue").length > 0 && (moveOf(detail) !== undefined || byClass(detail, "move-not-offered").length > 0));
+  await waitFor(() => byClass(detail, "implement-issue").length > 0 && (moveOf(detail) !== undefined || byClass(detail, "issue-move-box").length === 0));
   return detail;
 }
 /** Move to backlog pressed by the person, and the form waited for. */
@@ -127,33 +127,28 @@ test("TST-1254301 two issues describing the same work end as one item with both 
   assert.equal(issueOf(w, 6).comments[0].replace(/\d{4}-\d{2}-\d{2}/, ""), issueOf(w, 7).comments[0].replace(/\d{4}-\d{2}-\d{2}/, ""), "the same comment on both");
 });
 
-// TST-1254302 · level: release · module: MOD-maintenance-pages, MOD-review-pages
-// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
-// given: UC-033 alternative flow 1a ("The issue is not classified yet. **Move to backlog** is not offered. Agent M links to UC-012, step 2."). known positive first — the issue 6 labelled defect is offered Move to backlog and no lead; the issue 5 has no class; the class is recorded only as a label on the issue (MOD-issue-handling, Data), which follows the author's confirmation in the conversation (UC-012 step 4)
-// input: the issue 5 opened; the lead clicked by a person; then the issue 5 labelled defect on the tracker, and opened again
-// expect: unlabelled, the issue 5 offers no Move to backlog and says it is not classified, leading to "UC-012, step 2"; the lead goes once, to the route "use-case" with the use case UC-012 of the instance itself (the empty product), and that route is one the review pages serve; labelled defect, the issue 5 is offered Move to backlog and the lead is gone
-// Planted fault: Move to backlog offered to an issue without a class (`cls === undefined ? await moveSection(…)` in place of `cls === undefined ? notClassified()` in renderIssue, src/maintenance-pages/issues.mjs) fails on "not offered".
-// Planted fault: the lead going to a route that is no route (`context.go("use-cases", …)` in notClassified, src/maintenance-pages/issues.mjs) fails the assertion on what went.
-test("TST-1254302 an issue not classified yet is led to UC-012 step 2, by a route the review pages serve, until its class is recorded on the issue", async () => {
-  const w = start();
-  const six = await openIssue(w, 6);
-  assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a classified bug is offered the move");
-  assert.equal(byClass(six, "uc-012").length, 0);
-
-  const five = await openIssue(w, 5);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 0, "not offered");
-  assert.match(textOf(one(five, "move-not-offered")), /not classified/i);
-  assert.equal(textOf(one(five, "uc-012")), "UC-012, step 2");
-
-  assert.deepEqual(w.context.went, []);
-  await trusted(one(five, "uc-012"));
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
-  assert.ok(reviewPages.routes.some((served) => served.name === w.context.went[0][0]), `the review pages serve the route ${w.context.went[0][0]}`);
-
+// TST-1254302 · level: release · module: MOD-maintenance-pages
+// guards: UC-033
+// given: UC-033 alternative flow 1a, as accepted: "The issue carries neither the label `defect` nor `change`. **Move to backlog** is not offered." The open issues 6 labelled defect and 9 labelled
+//   change (known positives: each is offered Move to backlog); the open issues 5 with no label and 8 labelled question only
+// input: each issue's page opened; then the issue 5 labelled defect on the tracker, and its page opened again
+// expect: the issues 6 and 9 show one Move to backlog each; the issues 5 and 8 show Implement and no Move to backlog anywhere on the page; labelled defect, the issue 5 shows one Move to backlog
+// Planted fault: Move to backlog offered to an issue without defect or change (`const move = [el("div", "issue-move-box", await moveSection(…))]`, the guard `cls === undefined ? [] :` dropped, in renderIssue,
+//   src/maintenance-pages/issues.mjs) fails on "not offered".
+test("TST-1254302 an issue that carries neither the label defect nor change is not offered Move to backlog, until it carries one", async () => {
+  const w = start({ issues: [issueRecord(5, []), issueRecord(6, ["defect"]), issueRecord(8, ["question"]), issueRecord(9, ["change"])] });
+  for (const number of [6, 9]) {
+    const page = await openIssue(w, number);
+    assert.equal(buttonsOf(page, "Move to backlog").length, 1, `known positive: the issue ${number}, labelled ${issueOf(w, number).labels[0]}, is offered the move`);
+  }
+  for (const number of [5, 8]) {
+    const page = await openIssue(w, number);
+    assert.equal(buttonsOf(page, "Implement").length, 1, `the page of the issue ${number} is drawn with its offers`);
+    assert.equal(buttonsOf(page, "Move to backlog").length, 0, `not offered: the issue ${number} carries neither defect nor change`);
+  }
   issueOf(w, 5).labels = ["defect"];
-  const classified = await openIssue(w, 5);
-  assert.equal(buttonsOf(moveOf(classified), "Move to backlog").length, 1, "labelled defect, the issue is offered the move");
-  assert.equal(byClass(classified, "uc-012").length, 0);
+  const labelled = await openIssue(w, 5);
+  assert.equal(buttonsOf(labelled, "Move to backlog").length, 1, "labelled defect, the issue 5 is offered the move");
 });
 
 // The comment the successful way writes for issue 6 in a world of its own, which the comments to copy are compared with.
