@@ -2200,7 +2200,7 @@ reply to that mail, and nowhere else.
 set, and no write outside the mailbox contains its text.
 
 **THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS** *(PO A. Maier)*
-The send dashboard shows every draft in the *Drafts* folder that replies to a mail an issue lists.
+The send dashboard shows every draft of the last 30 days in the *Drafts* folder that replies to a mail an issue lists.
 *Check:* `tests/test_mail_replies.py` — a draft replying to a listed mail is shown; counter-proof: an
 unrelated draft of the person is not.
 
