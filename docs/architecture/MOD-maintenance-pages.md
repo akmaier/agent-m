@@ -122,13 +122,10 @@ person reviews it. Its formats are those of the modules it uses.
   (MOD-site-frame's `startPage`): under **Mail**, `mail`, `replies` and `replies/<issue>`; under **Issues**, `issues` and
   `issue/<number>`; and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
   `privacyStrategies`, `specStrategies`, `routeStrategies`:
-  - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
-    reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
-    fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
-    change of requirements drafted with the issue as its origin, run attended, then *Save*, which writes them as the
-    kind's writer does, naming the issue, and links each entry written to the page where it is accepted — the job of `change-requirements` given the issue's number as its
-    parameter `issue` and, as its parameter `source`, the person's account, which `personAccount` gives for the
-    instance's snapshot, or, where it gives none, what its precondition names as required —; *Move to backlog* with the item prefilled — its fields checked in a
+  - `issues`, `issue/<number>` — the product's issues; *Implement*, which puts the request to handle the issue as UC-012
+    does, with its number, title and text, into the prompt bar (MOD-prompt-bar's event `agent-m:prompt`); and, before
+    its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now
+    checks correctly with the old and the new expectation side by side (UC-012 5a); *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
     `moveToBacklog`, or names the comment to copy
     when the token may not comment; closing an issue with links once its pull request is merged; for an issue that lists

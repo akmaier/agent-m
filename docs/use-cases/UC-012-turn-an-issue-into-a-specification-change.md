@@ -41,22 +41,22 @@ specification first, and only then into code.
 
 1. The contributor files an issue.
 2. The author opens it on the tab **Issues** of Maintenance, which lists the product's open and closed issues, and
-   chooses a participant to **analyse** it. Agent M sends the issue with the requirements, use cases and tests it
-   touches. An issue from mail (UC-038) names each of its mails by its `MAIL-` identifier, as a link that opens that mail
+   presses **Implement**: one click puts the request to handle the issue as this use case does — with its number, title
+   and text — into the prompt bar, where the author sends or changes it (UC-049). The agent of the conversation works on
+   the issue with the requirements, use cases and tests it touches. An issue from mail (UC-038) names each of its mails by its `MAIL-` identifier, as a link that opens that mail
    on the tab **Mail**, where its reply is drafted once the issue is closed (UC-039).
-3. The participant proposes a class with its reasoning:
+3. The agent proposes a class with its reasoning:
    - **bug** — the specification is right; the code or a test is wrong, and it names which;
    - **change** — the specification is wrong, incomplete or unclear for this case;
    - **not reproducible** — it says what it tried.
-4. The author confirms or corrects the class — one click.
-5. **Bug:** the author chooses a participant for the **fix** — a CLI, sandboxed or CI agent that can
-   run tests. For an issue from a mail, the job receives the neutral issue and the report data rewritten
-   without persons, never the mail (UC-038). The job first writes a regression test that fails on the
+4. The author confirms or corrects the class in the conversation.
+5. **Bug:** the agent **fixes** it, where its connection can run tests. For an issue from a mail, the agent receives the neutral issue and the report data rewritten
+   without persons, never the mail (UC-038). It first writes a regression test that fails on the
    reported behaviour — with invented data, never the reporter's, in its fixtures —, then fixes
    code or test until it passes, on a branch; the pull request links the issue and the requirement it
    restores. It is merged once the product's Definition of Done holds (UC-002, step 8), and the issue
    is closed with a link to the fix.
-6. **Change:** Agent M drafts the changed requirements as their new text (as in UC-019, step 6), with
+6. **Change:** the agent drafts the changed requirements as their new text (as in UC-019, step 6), with
    an impact list, and writes them as entries under `docs/spec-freigaben/`, each naming the issue. After the
    author accepts them (UC-006), the downstream jobs — use cases, architecture, code, tests — become
    available, and the issue moves to the backlog (UC-033).
@@ -69,12 +69,11 @@ sequenceDiagram
     participant P as Participant
     participant G as Product repository
     C->>G: file issue
-    A->>M: analyse issue, choose participant
+    A->>M: Implement - the request into the prompt bar, sent
     M->>P: issue with touched requirements, use cases, tests
-    P-->>M: bug, change or not reproducible, with reasons
-    A->>M: confirm class
-    A->>M: bug - choose fixing participant
-    M->>P: regression test first, then fix
+    P-->>A: bug, change or not reproducible, with reasons
+    A->>P: confirm class in the conversation
+    P->>P: bug - regression test first, then fix
     P->>G: pull request, green CI, issue closed
     A->>M: change - draft against existing requirements
     M->>G: entries naming the issue, accepted per UC-006
@@ -87,8 +86,8 @@ sequenceDiagram
 - **5a. The test was wrong, not the code.** The fix changes the test; the pull request says which
   requirement the test now checks correctly, and the author sees the old and the new expectation side
   by side before merging.
-- **5b. No participant with *run code and tests* is configured.** Agent M says so and links to UC-017;
-  a model endpoint may analyse, but cannot fix.
+- **5b. The agent of the conversation cannot run code and tests.** It says so; a model endpoint may analyse, but
+  cannot fix, and the author continues with a CLI session (UC-049).
 - **4a. The author rejects the issue.** It is closed with the reason; nothing else changes.
 
 ## Postcondition
