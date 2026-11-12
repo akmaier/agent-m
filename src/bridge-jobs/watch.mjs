@@ -282,7 +282,7 @@ function createWatcher(config) {
     running.set(record.id, mine);
     live.set(record.id, mine);
     const logged = { lines: [], first: 0, partial: "", ended: false };
-    const working = folders.job(record.id);
+    const working = folders.job(record.id, product);
     let result = null, failed = null, listed = null;
     try {
       // Taking is one at a time in this program, on the head read just before: two watchers of one name that took on the same head in the same
@@ -319,7 +319,7 @@ function createWatcher(config) {
         const writable = [working];
         await enclosure.prepare({ writable, readable: [instanceFolder, folder] });
         const installed = (await installedAgents({ enclosure, workdir: working })).find((each) => each.name === agent.name);
-        const enclosed = agentDriver(installed, { workdir: working, keyVariable: null, enclosure, writable }, participant);
+        const enclosed = agentDriver(installed, { workdir: working, cwd: agent.folder, keyVariable: null, enclosure, writable }, participant);
         // token.md and, for a kind that delivers a branch, branch.md, filled in, follow the prompt the driver sends, as the description of where the session works.
         const told = await toldOf({ file: session.file, address: product, branch: context.kind.writer === BRANCH_WRITER ? record.id : null, merges: context.params?.merges ?? null });
         const driver = { ...enclosed, send: (input, options) => enclosed.send(told ? { ...input, prompt: `${input.prompt}\n\n${told}` } : input, options) };

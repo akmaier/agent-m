@@ -1,7 +1,7 @@
 // workfolders.mjs — the clones in an agent's working folder (MOD-bridge-jobs, Parts: workfolders.mjs; Data), laid out as a local clone of
 // Agent M is: the working folder itself a clone of the instance, one clone per served product in `products/<name>/`, one checkout per running CLI
-// session in `jobs/<id>/`, made from the Bridge's clone of its product, whose origin is then the product's repository, removed with its token file when
-// the session ends, and the agent's home `home/`, which with `jobs/` git does not see in the instance's clone. An agent started in the working folder
+// session in `products/<name>-<id>/`, made from the Bridge's clone of its product, whose origin is then the product's repository, removed with its token file when
+// the session ends, and the agent's home `home/`, which git does not see in the instance's clone. An agent started in the working folder
 // finds Agent M's AGENTS.md at its root.
 //
 // Module: MOD-bridge-jobs
@@ -37,10 +37,10 @@ const nameOf = (address) => address.replace(/\/+$/, "").replace(/\.git$/, "").sp
 
 // The Bridge's folders for one agent: the working folder itself is the instance's clone.
 export const foldersOf = (folder) => ({ instance: folder, product: (address) => join(folder, "products", nameOf(address)),
-  job: (id) => join(folder, "jobs", id) });
+  job: (id, address) => join(folder, "products", `${nameOf(address)}-${id}`) });
 
 // What the Bridge keeps in the instance's clone beside Agent M's own files, which no command of git there is to see.
-const BESIDE_THE_INSTANCE = ["/home/", "/jobs/"];
+const BESIDE_THE_INSTANCE = ["/home/"];
 // What a session's start leaves in the instance's clone, beside what git tracks: the Bridge's own folders, the clones of the products among them.
 const KEPT_IN_THE_INSTANCE = [...BESIDE_THE_INSTANCE, "/products/"];
 // The file of a session's checkout that holds its product's token (MOD-bridge-jobs, Data: The token file).
@@ -122,7 +122,7 @@ export async function hostOf(address, folder) {
 /**
  * checkoutAt(folder, commit) -> Promise<folder> — the instance's clone at one commit, detached, its files as that commit holds them, and every file of it that
  * git neither tracks nor ignores removed (MOD-bridge-jobs, Data: The clones at the session's start): nothing an earlier session left there stays. The agent's
- * home, `jobs/` and `products/` stay.
+ * home and `products/` stay.
  */
 export function checkoutAt(folder, commit) {
   return exclusively(folder, async () => {

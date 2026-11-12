@@ -81,7 +81,7 @@ export function agentEnclosure({ dataFolder, folder, platform = process.platform
   // The places to hide that exist now, resolved, each with whether it is a folder.
   const hidden = () => hiddenPaths({ platform, dataFolder, personHome }).map((path) => ({ path: resolved(path), type: kind(path) })).filter(({ type }) => type);
 
-  function wrap(command, args, { workdir, writable = [] }) {
+  function wrap(command, args, { workdir, writable = [], cwd = workdir }) {
     const chosen = chosenEnvironment();
     if (platform === "darwin") {
       const socket = agentSocket();
@@ -92,13 +92,13 @@ export function agentEnclosure({ dataFolder, folder, platform = process.platform
       const socket = agentSocket();
       const masks = [...hidden().map(({ path, type }) => ({ path, directory: type === "directory" })), ...(socket && kind(socket) ? [{ path: socket, directory: false }] : [])];
       const runtimeDir = typeof env.XDG_RUNTIME_DIR === "string" && env.XDG_RUNTIME_DIR ? env.XDG_RUNTIME_DIR : null;
-      const around = bubblewrapArgs({ writable: [...new Set([home, workdir, ...writable].map(resolved))], hidden: masks, runtimeDir, workdir: resolved(workdir) });
+      const around = bubblewrapArgs({ writable: [...new Set([home, workdir, ...writable].map(resolved))], hidden: masks, runtimeDir, workdir: resolved(cwd) });
       return { command: "bwrap", args: [...around, "--", command, ...args], env: chosen, input: null };
     }
     if (windows) {
       const kept = readAccount(dataFolder);
       if (!kept) throw notEnclosed(`the account ${account} of this Bridge's agents has not been made`);
-      const launched = launchCommand({ account, workdir, command, args });
+      const launched = launchCommand({ account, workdir: cwd, command, args });
       return { command: launched.command, args: launched.args, env: chosen, input: `${kept.password}\n` };
     }
     throw notEnclosed(`a Bridge on ${platform} has no enclosure for its agents`);

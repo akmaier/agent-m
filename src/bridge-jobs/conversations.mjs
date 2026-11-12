@@ -40,7 +40,7 @@ function open(id, agent, { model, product, instance: commit }, { instance, enclo
   const held = { ended: false, exit: null, told: "", first: true, chain: Promise.resolve() };
   running.set(id, held);
   takeSession(listed, log, live);
-  const working = foldersOf(agent.folder).job(id);
+  const working = foldersOf(agent.folder).job(id, product);
 
   held.ready = (async () => {
     const enclosure = await enclosureOf(enclosures, agent.folder);
@@ -49,7 +49,7 @@ function open(id, agent, { model, product, instance: commit }, { instance, enclo
     const installed = (await installedAgents({ enclosure, workdir: session.working })).find((each) => each.name === agent.name);
     held.told = await toldOf({ file: session.file, address: product });
     if (controller.signal.aborted) throw Object.assign(new Error("the session was cancelled"), { name: "Cancelled" });
-    const terminal = startTerminal(installed, { workdir: session.working, enclosure, writable: [session.working], chrome: agent.chrome === true }, { name: agent.name, model });
+    const terminal = startTerminal(installed, { workdir: session.working, cwd: agent.folder, enclosure, writable: [session.working], chrome: agent.chrome === true }, { name: agent.name, model });
     log.screen = terminal.screen;
     terminal.onLine((line) => logLine(id, log, line));
     terminal.exited.then((exit) => { held.exit = exit; });
@@ -111,10 +111,10 @@ export async function endSessions() {
 }
 
 /**
- * removeLeftSessions(agents: { folder }[]) -> Promise<void> — removes, in each agent's working folder, the checkout `jobs/<id>/` of every session of the kind
+ * removeLeftSessions(agents: { folder }[]) -> Promise<void> — removes, in each agent's working folder, the checkout `products/<name>-<id>/` of every session of the kind
  * converse that the kept listings name and that runs no longer: what a quit the Bridge did not see through left there (UC-049 4g).
  */
 export async function removeLeftSessions(agents) {
-  const left = readListings().filter((job) => job.kind === KIND && IDENTIFIER.test(String(job.id)) && !running.has(job.id)).map((job) => job.id);
-  for (const { folder } of agents.filter((each) => each?.folder)) for (const id of left) await removeClone(foldersOf(folder).job(id));
+  const left = readListings().filter((job) => job.kind === KIND && IDENTIFIER.test(String(job.id)) && !running.has(job.id) && job.product);
+  for (const { folder } of agents.filter((each) => each?.folder)) for (const job of left) await removeClone(foldersOf(folder).job(job.id, job.product));
 }

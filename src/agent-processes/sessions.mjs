@@ -72,16 +72,16 @@ function echoes(line, tail) {
  * for the working folder. Throws AgentMissing, AgentNotLoggedIn and ModelUnsupported before anything starts, and NotEnclosed for an enclosure that would
  * have the terminal given a text before the agent's own — what is typed into a terminal is shown on its screen, which is the session's log.
  */
-export function sessionOf(agent, { workdir, enclosure = null, writable = null, chrome = false }, participant, helpers) {
+export function sessionOf(agent, { workdir, enclosure = null, writable = null, chrome = false, cwd = workdir }, participant, helpers) {
   if (!agent?.installed) throw failure("AgentMissing", "the selected agent is not installed");
   if (!agent.loggedIn) throw failure("AgentNotLoggedIn", "the selected agent is not logged in");
   const row = helpers.configuration(agent.name);
   if (!row?.session) throw failure("AgentMissing", "the selected agent is not supported");
   let command = row.command;
-  let args = [...row.session.args.map((arg) => arg.replaceAll("{workdir}", workdir)), ...modelOptions(row, participant, null), ...chromeOptions(row, chrome)];
+  let args = [...row.session.args.map((arg) => arg.replaceAll("{workdir}", cwd)), ...modelOptions(row, participant, null), ...chromeOptions(row, chrome)];
   let env = helpers.ownLoginEnvironment();
   if (enclosure) {
-    const wrapped = enclosure.wrap(command, args, { workdir, writable: writable ?? [workdir] });
+    const wrapped = enclosure.wrap(command, args, { workdir, writable: writable ?? [workdir], cwd });
     if (wrapped.input != null) throw failure("NotEnclosed", "this enclosure gives its agent a text before the agent's own, which a terminal would show");
     ({ command, args, env } = wrapped);
   }
@@ -89,7 +89,7 @@ export function sessionOf(agent, { workdir, enclosure = null, writable = null, c
   const startup = (row.session.startup ?? []).map(({ screen: shows, keys }) => ({ shows: new RegExp(shows), keys }));
   const { spawn, Terminal } = terminalPackages();
   const terminal = new Terminal({ cols: COLUMNS, rows: ROWS, scrollback: SCROLLBACK, allowProposedApi: true });
-  const child = spawn(command, args, { name: "xterm-256color", cols: COLUMNS, rows: ROWS, cwd: workdir, env: { TERM: "xterm-256color", ...env } });
+  const child = spawn(command, args, { name: "xterm-256color", cols: COLUMNS, rows: ROWS, cwd, env: { TERM: "xterm-256color", ...env } });
 
   const startedAt = Date.now();
   let lastOutput = null, ended = null, pending = null;

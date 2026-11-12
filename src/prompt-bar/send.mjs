@@ -236,8 +236,8 @@ const SESSION_ROUTE = /^bridge\s+(\S+)\s+agent\s+(\S+)/;
 /** isSession(participant: Participant) -> boolean — whether the participant is a CLI session, which the bar does not run in the tab (UC-049 step 4). */
 export const isSession = (participant) => SESSION_ROUTE.test(String(participant?.route ?? "").trim());
 
-// Where Agent M's files lie from a session's checkout: the Bridge's clone of the instance holds the checkout in `jobs/<id>/` (MOD-bridge-jobs).
-const FROM_CHECKOUT = "../../";
+// Where Agent M's files lie from where a session is started: the root of its working folder, the Bridge's clone of the instance (MOD-bridge-jobs).
+const FROM_CHECKOUT = "";
 // A part of the recipe chapters-for-page, as MOD-source-register names it: `<file> — <source> <version>, version hash <hash>`; the file lies in the
 // instance at docs/sources/<source>/<version>/<file>.
 const CHAPTER = /^(\S+) — (SRC-[^\s]+) (\S+), version hash /;

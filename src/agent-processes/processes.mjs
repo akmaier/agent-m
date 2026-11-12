@@ -99,14 +99,14 @@ export function modelOptions(row, participant, endpoint) {
   return (row.model.args ?? []).map((arg) => arg.replaceAll("{model}", model));
 }
 
-function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment, input = null, keyHolder = null, enclosure = null, writable = [workdir]) {
+function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment, input = null, keyHolder = null, enclosure = null, writable = [workdir], cwd = workdir) {
   return new Promise((resolve) => {
     // Through the key holder the agent inherits no declared key variable; the holder's address and the placeholder are set as its settings below.
     let environment = keyHolder ? ownLoginEnvironment() : environmentFor(keyVariable, ownLoginEnvironment);
     if (enclosure) {
       // Inside an enclosure (ARC-054) the agent receives the enclosure's environment and nothing of the Bridge's; what it is told first, the enclosure's
       // input, comes before the task.
-      const wrapped = enclosure.wrap(command, args, { workdir, writable });
+      const wrapped = enclosure.wrap(command, args, { workdir, writable, cwd });
       ({ command, args } = wrapped);
       environment = { ...wrapped.env, ...endpointEnvironment };
       if (wrapped.input != null) input = `${wrapped.input}${input ?? ""}`;
@@ -126,7 +126,7 @@ function started(command, args, workdir, keyVariable, options, ownLoginEnvironme
       command = process.execPath;
     }
     const child = spawn(command, args, {
-      cwd: workdir,
+      cwd,
       stdio: [input == null ? "ignore" : "pipe", "pipe", "pipe"],
       detached: process.platform !== "win32",
       ...(environment ? { env: environment } : {}),
@@ -168,7 +168,7 @@ function started(command, args, workdir, keyVariable, options, ownLoginEnvironme
  * holder, the agent inherits no declared credential and reaches its provider through that holder, its key variable holding a placeholder (the register's
  * Key holder column). With `chrome` true, the agent is also started with its row's Chrome arguments (UC-044 step 3).
  */
-export function processDriver(agent, { workdir, keyVariable, endpoint, keyHolder = null, enclosure = null, writable = null, chrome = false }, participant, helpers) {
+export function processDriver(agent, { workdir, keyVariable, endpoint, keyHolder = null, enclosure = null, writable = null, chrome = false, cwd = null }, participant, helpers) {
   return {
     participant,
     async send(input, options = {}) {
@@ -182,7 +182,7 @@ export function processDriver(agent, { workdir, keyVariable, endpoint, keyHolder
       const held = keyHolderOptions(row, keyHolder);
       const folder = input.workdir ?? workdir;
       const result = await started(row.command, [...held.args, ...row.task.args, ...modelArgs, ...configured.args, ...chromeOptions(row, chrome)],
-        folder, keyVariable, options, helpers.ownLoginEnvironment, { ...configured.env, ...held.env }, driverPrompt(input), keyHolder, enclosure, writable ?? [folder]);
+        folder, keyVariable, options, helpers.ownLoginEnvironment, { ...configured.env, ...held.env }, driverPrompt(input), keyHolder, enclosure, writable ?? [folder], cwd ?? folder);
       if (result.stopError) {
         throw failure("AgentFailed", "the agent process could not be stopped", {
           exitCode: result.stopError.exitCode ?? result.status,

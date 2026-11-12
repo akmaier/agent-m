@@ -16,7 +16,7 @@ const BRANCH = new URL("./branch.md", import.meta.url);
 /**
  * startSession({ folder, instance, commit, product, id }) -> Promise<{ working, instanceFolder, clone, file }> — in the working folder `folder` of an agent: the
  * Bridge's clone of the product at `product` fetched from its origin (`clone`), the instance's clone, at `instance`, fetched and checked out at `commit` with what
- * git neither tracks nor ignores removed (`instanceFolder`), the session's checkout in `jobs/<id>/`, made anew from the product's clone, its origin the
+ * git neither tracks nor ignores removed (`instanceFolder`), the session's checkout in `products/<name>-<id>/`, made anew from the product's clone, its origin the
  * product's address (`working`), and its token file, or null where the Bridge holds no token for the product (`file`). Crosses the network to the
  * repository servers; throws what git says.
  */
@@ -24,7 +24,7 @@ export async function startSession({ folder, instance, commit, product, id }) {
   const folders = foldersOf(folder);
   const clone = await cloneOrFetch(product, folders.product(product));
   const instanceFolder = await checkoutAt(await instanceClone(instance, folder), commit);
-  const working = await workingClone(clone, folders.job(id), product);
+  const working = await workingClone(clone, folders.job(id, product), product);
   return { working, instanceFolder, clone, file: await leaveToken(working, product) };
 }
 
