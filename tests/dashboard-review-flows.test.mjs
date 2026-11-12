@@ -508,6 +508,11 @@ test("UC-006 4d counter-proof: the dependent entry ticked alone cannot be accept
 // ================================================================ UC-001 Add a managed product
 
 const PRODUCT = "alice/thesis", PRODUCT_ADDR = `https://github.com/${PRODUCT}`;
+
+// Renew of a token's line at the top, as the app serialises it (UC-042 1a, 1b): a button, whose press draws the token's line of
+// Settings with its prefilled page and the paste field under it; never a link to GitHub's list of tokens (`listRenew`, the counter-proof).
+const renewButton = ">Renew</button>";
+const listRenew = 'href="https://github.com/settings/personal-access-tokens"';
 const stored = (key) => globalThis.localStorage.getItem(key);
 
 // The product's repository, a second server behind the instance's: GitHub's API under /repos/alice/thesis goes to it.
@@ -566,15 +571,16 @@ test("A GITHUB PRODUCT USES A TOKEN OF ITS OWN — a product's pages are read wi
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: a GitHub product whose own key expires in five days
 // input: open the product's pages and the instance's pages
-// expect: the product's pages name the expiry with Renew at GitHub's list of tokens and where to paste the new value; the instance's pages do not name it
-test("A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a product's own key that expires within fourteen days is named on the product's pages, with Renew at GitHub's list of tokens and where to paste the new value; counter-proof: the instance's pages do not name it", async () => {
+// expect: the product's pages name the expiry with Renew — no link to GitHub's list of tokens — and where to paste the new value; the instance's pages do not name it
+test("A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a product's own key that expires within fourteen days is named on the product's pages, with Renew and where to paste the new value; counter-proof: the instance's pages do not name it", async () => {
   const soon = new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 10);
   const own = await withProduct({ "README.md": "# Thesis\n" });
   const page = await openDashboard({ server: own.srv, search: `?repo=${encodeURIComponent(PRODUCT)}`, hash: "#uc",
     entries: ownKey("github_pat_PRODUCT0123456789abcdefghij", soon) });
   const banner = page.el("token-banner");
   assert.ok(banner.includes(`Your GitHub token expires on ${soon} (Agent M for ${PRODUCT_ADDR}).`), banner);
-  assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "Renew at GitHub's list of tokens");
+  assert.ok(banner.includes(renewButton), "Renew");
+  assert.ok(!banner.includes(listRenew), "counter-proof: not at GitHub's list of tokens");
   assert.ok(banner.includes("paste the new value in Settings"), "where the new value is pasted");
   const other = await withProduct({ "README.md": "# Thesis\n" });
   const inst = await openDashboard({ server: other.srv, hash: "#uc", entries: ownKey("github_pat_PRODUCT0123456789abcdefghij", soon) });
@@ -876,10 +882,11 @@ test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of a GitLab project t
 test("UC-042 1a: a token that expires within fourteen days is named on every page, with Renew; one that expires later is not", async () => {
   const near = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(5), stored: day(0) } } });
   assert.equal(publicRepositoryControl(near.box, "GitHub token", "status").textContent, `Expires on ${day(5)}; renew soon.`);
-  assert.equal(publicRepositoryControl(near.box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
+  assert.equal(publicRepositoryControl(near.box, "GitHub token", "renew").textContent, "Renew");
   await near.page.go("#spec");
   assert.ok(near.page.el("token-banner").includes(`Your GitHub token expires on ${day(5)} (GitHub token).`), "the token and its expiry are named at the top of every dashboard page");
-  assert.ok(near.page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "Renew at GitHub's list of tokens");
+  assert.ok(near.page.el("token-banner").includes(renewButton), "Renew");
+  assert.ok(!near.page.el("token-banner").includes(listRenew), "counter-proof: not at GitHub's list of tokens");
   const later = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(30), stored: day(0) } } });
   assert.equal(publicRepositoryControl(later.box, "GitHub token", "status").textContent, `Expires on ${day(30)}.`);
   assert.doesNotMatch(publicRepositoryControl(later.box, "GitHub token", "status").textContent, /renew soon/i);
@@ -899,11 +906,12 @@ test("UC-042 1b: a token the server refused is named, with its renewal, at the t
   refuse = true;
   await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
   assert.equal(publicRepositoryControl(box, "GitHub token", "status").textContent, "Expires on " + day(90) + ". Refused.");
-  assert.equal(publicRepositoryControl(box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
+  assert.equal(publicRepositoryControl(box, "GitHub token", "renew").textContent, "Renew");
   assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub rejected authentication with your GitHub token. Renew it on https://github.com/settings/personal-access-tokens.");
   await page.go("#uc");
   assert.ok(page.el("token-banner").includes("The server refused your token GitHub token."), "the refused token is named at the top");
-  assert.ok(page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "with its renewal");
+  assert.ok(page.el("token-banner").includes(renewButton), "with its Renew");
+  assert.ok(!page.el("token-banner").includes(listRenew), "counter-proof: not at GitHub's list of tokens");
 });
 
 // TST-474045 · level: component · module: MOD-settings-pages

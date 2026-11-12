@@ -158,7 +158,7 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
 // guards: UC-042; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: an unset instance GitHub credential and constructed GitHub repository replies
 // input: the person opens Repositories, chooses Change, acknowledges the shared-origin notice, saves an expiring token, then tests it successfully and after a token refusal
-// expect: save creates the canonical token and expiry record only after acknowledgement; Test sends it only to GitHub's repository API and persists dated working/refused metadata, while the renewal link is GitHub's token page
+// expect: save creates the canonical token and expiry record only after acknowledgement; Test sends it only to GitHub's repository API and persists dated working/refused metadata, while Renew opens the GitLab project's Access tokens page and the instance's prefilled token page in place, never GitHub's list of tokens
 test("TST-290111: Settings saves, tests, and records an expiring repository token", async () => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
@@ -175,7 +175,8 @@ test("TST-290111: Settings saves, tests, and records an expiring repository toke
     await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
     click(byClass(target, "settings-tab")[1]);
     const gitlab = byClass(target, "settings-repository").find((node) => /GitLab token: gitlab\.example\.test\/group\/product/.test(node.textContent));
-    assert.equal(byClass(gitlab, "settings-repository-renew")[0].href, "https://gitlab.example.test/group/product/-/settings/access_tokens", "GitLab product credentials renew on that product's own Access tokens page");
+    click(byClass(gitlab, "settings-repository-renew")[0]);
+    assert.equal(byClass(gitlab, "settings-repository-token-page")[0].href, "https://gitlab.example.test/group/product/-/settings/access_tokens", "GitLab product credentials renew on that product's own Access tokens page");
     const line = byClass(target, "settings-repository").find((node) => /GitHub token/.test(node.textContent));
     const change = byClass(line, "settings-repository-change")[0];
     const acknowledgement = byClass(line, "settings-repository-ack")[0];
@@ -194,7 +195,10 @@ test("TST-290111: Settings saves, tests, and records an expiring repository toke
     assert.equal(request.init.headers.Authorization, "Bearer ghp_fixtureToken", "the stored token reaches only its GitHub API request");
     assert.equal(readSetting(store, "last-test:github-token").outcome, "working");
     assert.match(byClass(line, "settings-repository-status")[0].textContent, /Last successful test:/);
-    assert.equal(byClass(line, "settings-repository-renew")[0].href, "https://github.com/settings/personal-access-tokens");
+    click(byClass(line, "settings-repository-renew")[0]);
+    const renewal = new URL(byClass(line, "settings-repository-token-page")[0].href);
+    assert.equal(`${renewal.origin}${renewal.pathname}`, "https://github.com/settings/personal-access-tokens/new", "Renew opens GitHub's page for a new token, not its list");
+    assert.equal(renewal.searchParams.get("name"), "Agent M · fixture/instance", "prefilled as the instance's token was set up");
     reply = 401;
     await new Promise((resolve) => { click(testButton); setImmediate(resolve); });
     assert.equal(readSetting(store, "last-test:github-token").outcome, "refused", "failure node: a repository-host refusal is persisted with the token row");

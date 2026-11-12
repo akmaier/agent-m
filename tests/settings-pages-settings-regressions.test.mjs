@@ -392,7 +392,7 @@ test("TST-290122: CI counter-proof restores the Settings route for TST-290116 th
   try {
     cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
     const source = join(copied, "src/settings-pages/settings.mjs"), testPath = "tests/settings-pages-settings-regressions.test.mjs";
-    const original = readFileSync(source), needle = "function repositoryLine(target, context, info) {";
+    const original = readFileSync(source), needle = "function repositoryLine(target, context, info, renewing = null) {";
     assert.equal(original.toString().split(needle).length - 1, 1, "the Settings-route fault target is unique");
     const argv = [process.execPath, "--test", "--test-name-pattern", "TST-29011[6-9]|TST-290120|TST-290121|TST-290123|TST-290124", testPath];
     const invoke = () => { const env = { ...process.env, AGENT_M_290_SETTINGS_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 60_000, env }); };

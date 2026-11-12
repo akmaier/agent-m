@@ -16,6 +16,11 @@ import { repoServer, openDashboard, TOKEN, richDocument, press, settle, attrOf }
 import { GL, GL_ADDR, GL_TOKEN } from "./review-core.d/helpers.mjs";
 
 const API = "https://api.github.com";
+
+// Renew of a token's line at the top, as the app serialises it (UC-042 1a, 1b): a button, whose press draws the token's line of
+// Settings with its prefilled page and the paste field under it; never a link to GitHub's list of tokens (`listRenew`, the counter-proof).
+const renewButton = ">Renew</button>";
+const listRenew = 'href="https://github.com/settings/personal-access-tokens"';
 const canonicalKey = (name) => `agent-m:akmaier/agent-m:${name}`;
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
 const day = (days) => { const n = new Date(); return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()) + days * 864e5).toISOString().slice(0, 10); };
@@ -232,7 +237,8 @@ test("UC-042 step 1 · 1b: a token GitHub refused at its last use is shown refus
   assert.match(repositoryControl(again.box, "status").textContent, /Refused/, "after the reload");
   const banner = again.page.el("token-banner");
   assert.ok(banner.includes("The server refused your token GitHub token."), "the refused token is named");
-  assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "with Renew");
+  assert.ok(banner.includes(renewButton), "with Renew");
+  assert.ok(!banner.includes(listRenew), "counter-proof: not at GitHub's list of tokens");
   await again.page.go("#uc");
   assert.ok(again.page.el("token-banner").includes("The server refused your token GitHub token."), "on every page");
 });
@@ -241,7 +247,7 @@ test("UC-042 step 1 · 1b: a token GitHub refused at its last use is shown refus
 // guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
 // given: the public Settings Test succeeds on 200, then encounters a genuine GitHub 401.
 // input: navigate to #uc and reload the actual dashboard on the same browser storage.
-// expect: refused evidence, token identity and renewal survive, but the banner reports only rejected authentication, never an inferred expiry/regeneration/deletion cause.
+// expect: refused evidence, token identity and Renew — no link to GitHub's list of tokens — survive, but the banner reports only rejected authentication, never an inferred expiry/regeneration/deletion cause.
 test("TST-475209: a genuine 401 keeps named recovery without an invented cause on navigation and reload", async () => {
   const world = await instanceWorld();
   const { page, box } = await settingsPage(world, canonicalToken());
@@ -252,7 +258,8 @@ test("TST-475209: a genuine 401 keeps named recovery without an invented cause o
   assert.equal(JSON.parse(globalThis.localStorage.getItem(canonicalKey("last-test:github-token"))).outcome, "refused", "a genuine 401 still records refused evidence");
   await page.go("#uc");
   const assertBanner = (banner) => {
-    assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "the existing renewal URL stays reachable");
+    assert.ok(banner.includes(renewButton), "its Renew stays reachable");
+    assert.ok(!banner.includes(listRenew), "counter-proof: not at GitHub's list of tokens");
     assert.ok(banner.includes("GitHub token"), "the rejected token stays identified");
     assert.ok(banner.includes("The server refused your token GitHub token."), "failure node: the actual banner reports rejection without asserting its cause");
     assert.doesNotMatch(/<p class="notice token-refused">([^<]*)/.exec(banner)?.[1] ?? "", /expired|expiry|regenerat|delet|rotat|revok/i);
