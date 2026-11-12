@@ -123,6 +123,7 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
   job in this tab, and a message to a CLI session sent to its Bridge.
 - `session.md` — what a CLI session is given with a message beside the page, the conversation and the message, data
   like a kind's prompt.
+- `own.mjs` — the module's own data files read, from the disk in Node and from the module's own address in a browser.
 - `hand-over.mjs` — each piece of a proposed plan assessed for its route, and queued.
 - `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
 - `record.mjs` — the conversation record and the recording switch.

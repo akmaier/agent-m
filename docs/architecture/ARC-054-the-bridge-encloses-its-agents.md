@@ -45,8 +45,9 @@ key and a mailbox password in its memory, for one request (MOD-bridge-jobs, MOD-
 repositories with the repository tokens the browser it is paired with hands it, which it keeps in its data folder
 (`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`, `CONFIGURATION LIVES IN THE BROWSER`), and, for a repository it holds
 none for, with the computer's own git login — SSH keys, an SSH agent, a credential helper and its store, the system's
-keychain (MOD-bridge-jobs). `NO MODEL READS A CREDENTIAL` says that none of these reaches a model, neither in what is sent
-to it nor through a tool it calls.
+keychain (MOD-bridge-jobs). `NO MODEL READS A CREDENTIAL` says that none of these is sent to a model, nor read through a
+tool Agent M gives a model; a CLI session's own tools are its agent's, and it finds its job's repository token in its
+token file.
 
 As the person's user, an agent's tools reach all of it. Measured on macOS (`docs/measurements/2026-10-27_what-an-agent-on-a-bridge-reaches.md`):
 a child of the person's user reads files of mode 0600 of that user, and the keychain answers its searches, which is where
