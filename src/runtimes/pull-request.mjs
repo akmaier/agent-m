@@ -94,7 +94,7 @@ function describe(result, context, { modules, realises, issues }, tests) {
  * The writer branch-and-pull-request(result, context) -> Promise<WriteOutcome> — reads the branch the participant's answer reports (`result.draft.branch`) through `context.product.host`;
  * with a host of a server's API it opens the pull request into the branch baseOf gives, unless the branch has one open or merged, and gives it the description of
  * `describe`; a host that reaches no server's API for pull requests — one whose `listPullRequests` throws NotSupported, a Bridge's clone of a product it holds no token for — has no pull request
- * to give: it opens nothing. It returns the pull request's address, or null where there is none; the answer names none. A Bridge's relay opens a pull request through this writer too. Throws NoBranch
+ * to give: it opens nothing. It returns the pull request's address, or null where there is none; the answer names none. Throws NoBranch
  * for a branch the host does not hold, NoCommits for one with no commit beyond the job's snapshot, and what the host throws.
  */
 export async function branchAndPullRequest(result, context) {

@@ -13,17 +13,17 @@ import { appendToRecord, jobCost, newJobId, recordsNewestFirst, takeJob } from "
 import { failedBecause, prepareJob, runJob } from "../job-runner/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
-import { queueJob, routeStrategies } from "../runtimes/index.mjs";
+import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
-import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, instanceClone, makeOutbox, relayFolders, removeClone, workingClone } from "./workfolders.mjs";
-import { relayOf, relayText } from "./relay.mjs";
+import { cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, instanceClone, removeClone } from "./workfolders.mjs";
+import { startSession, toldOf } from "./session.mjs";
 import { enclosureOf } from "./enclosures.mjs";
 import { appendOutput, readListings, readOutput, removeOld, writeListing } from "./joblogs.mjs";
 
 const PARTICIPANTS = "docs/participants.md";
 const QUIT = "the Bridge was quit";
 const WITH_HAND_OVER = "with the hand-over";
-// The writer of the kinds that deliver a branch (MOD-runtimes): their jobs have a relay, which opens a pull request through it.
+// The writer of the kinds that deliver a branch (MOD-runtimes): their sessions are told their branch and who merges it (branch.md).
 const BRANCH_WRITER = "branch-and-pull-request";
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
@@ -263,7 +263,7 @@ function createWatcher(config) {
     running.set(record.id, mine);
     live.set(record.id, mine);
     const logged = { lines: [], first: 0, partial: "", ended: false };
-    const working = folders.job(record.id), cleanup = [];
+    const working = folders.job(record.id);
     let result = null, failed = null, listed = null;
     try {
       // Taking is one at a time in this program, on the head read just before: two watchers of one name that took on the same head in the same
@@ -282,7 +282,9 @@ function createWatcher(config) {
         // No enclosure, no agent (ARC-054): the job ends failed with the enclosure's reason and its one-time step.
         const enclosure = await enclosureOf(config.enclosures, agent.folder);
         const head = await host.readSnapshot(taken.commit);
-        const instanceFolder = await checkoutAt(await instanceClone(instance, agent.folder), record.agentM.commit);
+        // The clones brought to the job's commits, and the session's checkout with its token file (session.mjs).
+        const session = await startSession({ folder: agent.folder, instance, commit: record.agentM.commit, product, id: record.id });
+        const instanceFolder = session.instanceFolder;
         const instanceHost = await hostOf(instance, instanceFolder);
         const context = {
           kind: await kindOf(record.kind),
@@ -293,35 +295,21 @@ function createWatcher(config) {
           participants: await participantsAt(agent, record.agentM.commit, new Map(), participant ? [participant] : []), places: { sources: {}, mailbox: null }, gates: [],
           person: record.startedBy, now: new Date(), agentM: record.agentM, jobId: record.id,
         };
-        // The working clone fetches from the Bridge's clone of the product, which the taking brought up to the origin; the agent pushes into its outbox, and the
-        // Bridge, outside the enclosure, forwards each push to the origin while the agent works, and once more after its answer.
-        await workingClone(folder, working);
-        const outbox = await makeOutbox(working);
-        cleanup.push(outbox.path);
-        // A job whose kind delivers a branch has a relay: the requests its agent writes, the answers only the Bridge writes.
-        const folders = context.kind.writer === BRANCH_WRITER ? await relayFolders(working) : null;
-        if (folders) cleanup.push(folders.requests, folders.answers);
-        const merges = context.params?.merges ?? null;
-        const relay = relayOf({ job: record.id, address: product, clone: folder, outbox, folders, host, merges, gates: context.gates, signal: controller.signal,
-          open: (branch) => routeStrategies.writers[BRANCH_WRITER]({ draft: { branch }, drafter: participant, rounds: [] }, context) });
-        const writable = [working, outbox.path, ...(folders ? [folders.requests] : [])];
-        await enclosure.prepare({ writable, readable: [instanceFolder, folder, ...(folders ? [folders.answers] : [])] });
+        // The session works in its checkout, whose origin is the product, with the token file the Bridge left there; it pushes, opens its pull request, follows
+        // its CI and merges itself (UC-011 step 4). The checkout alone is writable; the clones it was made from are readable.
+        const writable = [working];
+        await enclosure.prepare({ writable, readable: [instanceFolder, folder] });
         const installed = (await installedAgents({ enclosure, workdir: working })).find((each) => each.name === agent.name);
         const enclosed = agentDriver(installed, { workdir: working, keyVariable: null, enclosure, writable }, participant);
-        // relay.md, filled in, follows the prompt the driver sends, as the description of where the agent works.
-        const told = folders ? await relayText({ folders, branch: record.id, merges }) : null;
-        const driver = { ...enclosed, send: async (input, options) => {
-          const answer = await relay.during(() => enclosed.send(told ? { ...input, prompt: `${input.prompt}\n\n${told}` } : input, options));
-          await relay.last();
-          return answer;
-        } };
+        // token.md and, for a kind that delivers a branch, branch.md, filled in, follow the prompt the driver sends, as the description of where the session works.
+        const told = await toldOf({ file: session.file, address: product, branch: context.kind.writer === BRANCH_WRITER ? record.id : null, merges: context.params?.merges ?? null });
+        const driver = { ...enclosed, send: (input, options) => enclosed.send(told ? { ...input, prompt: `${input.prompt}\n\n${told}` } : input, options) };
         const prepared = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
         result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal, onOutput: (chunk) => appended(record.id, logged, chunk) });
       } catch (error) {
         failed = error;
       }
       await removeClone(working);
-      for (const path of cleanup) await removeClone(path);
       if (mine.cancelledByPage && !mine.quit) {
         // A cancel through the page (POST /v1/jobs/{id}/cancel): the Bridge commits nothing more; the person's page appends the record of the cancel.
         listed.state = "cancelled";

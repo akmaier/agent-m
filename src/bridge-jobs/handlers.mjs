@@ -2,7 +2,9 @@ import { agentDriver, installedAgents, testAgent } from "../agent-processes/inde
 import { endpointDriver, endpointExchange, listModels as nodeListModels, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 import { listPartitions } from "./probes.mjs";
 import { enclosureOf } from "./enclosures.mjs";
+import { startSession, toldOf } from "./session.mjs";
 import { cancelJob, handOver, jobLog, listJobs } from "./watch.mjs";
+import { foldersOf, removeClone } from "./workfolders.mjs";
 
 function validEndpointConfig(value) {
   return value && typeof value === "object" && typeof value.name === "string"
@@ -42,12 +44,31 @@ async function drafted({ name, folder }, model, prompt, enclosures) {
     .send({ prompt, parts: [], output: null, findings: [], previous: null, workdir: null });
 }
 
+// A message of the prompt bar to a CLI session (UC-049 step 4): the session started as a job's is (session.mjs) — the clones at the instance's commit the ask
+// names, its checkout of the product with the token file —, in its enclosure with its checkout alone writable, its input the ask's followed by token.md where a
+// file is left; its answer and usage, or the failure. The checkout is removed once the session has answered.
+async function conversed({ name, folder }, { model, input, product, instance: commit }, { instance, enclosures, id }) {
+  const enclosure = await enclosureOf(enclosures, folder);
+  try {
+    const session = await startSession({ folder, instance, commit, product, id });
+    await enclosure.prepare({ writable: [session.working], readable: [session.instanceFolder, session.clone] });
+    const agent = (await installedAgents({ enclosure, workdir: session.working })).find((candidate) => candidate.name === name);
+    const told = await toldOf({ file: session.file, address: product });
+    return await agentDriver(agent, { workdir: session.working, keyVariable: null, enclosure, writable: [session.working] }, { name, model })
+      .send({ prompt: told ? `${input}\n\n${told}` : input, parts: [], output: null, findings: [], previous: null, workdir: null });
+  } finally {
+    await removeClone(foldersOf(folder).job(id));
+  }
+}
+
 /**
- * jobHandlers({ testEndpoint, listModels, partitions, agents, enclosures }) — the handlers of the jobs routes. `agents` are the agents the Bridge offers, as its
+ * jobHandlers({ testEndpoint, listModels, partitions, agents, enclosures, instance, products }) — the handlers of the jobs routes. `agents` are the agents the Bridge offers, as its
  * settings name them with their working folders: `{ name, folder }`; `enclosures(folder)` gives each its enclosure (ARC-054), without which none of them is
- * started. The asks in flight are kept in memory only.
+ * started. `instance` is the instance's address and `products` the products the Bridge serves (`{ address }`), for a message of the prompt bar to a CLI session.
+ * The asks in flight are kept in memory only.
  */
-export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = nodeListModels, partitions = listPartitions, agents = [], enclosures = null } = {}) {
+export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = nodeListModels, partitions = listPartitions, agents = [], enclosures = null, instance = null,
+  products = [] } = {}) {
   const offered = (name) => (typeof name === "string" ? agents.find((candidate) => candidate.name === name) : undefined);
   const asks = new Map();
   // Whether an offered agent with a working folder is logged in in its enclosure: false where the enclosure does not work.
@@ -128,6 +149,15 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
       const wanted = offered(body?.agent);
       if (!wanted?.folder || typeof body.input !== "string") throw failure("invalid-request", "This Bridge offers no such agent with a working folder, or the input is no text.");
       if (body.model !== undefined && typeof body.model !== "string") throw failure("invalid-request", "An agent ask names its model as text, or names none.");
+      if (body.product !== undefined) {
+        if (!products.some((each) => each?.address === body.product) || typeof body.instance !== "string" || !body.instance || !instance) {
+          throw failure("invalid-request", "A message to a CLI session names a product this Bridge serves and a commit of the instance.");
+        }
+        asks.set(ask, entry);
+        conversed(wanted, { model: body.model ?? null, input: body.input, product: body.product, instance: body.instance }, { instance, enclosures, id: ask })
+          .then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }), (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));
+        return { ask };
+      }
       asks.set(ask, entry);
       drafted(wanted, body.model ?? null, body.input, enclosures).then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }),
         (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));

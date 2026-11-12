@@ -636,9 +636,11 @@ export function startPromptBar(target, setup) {
         show(problem("Nothing was sent."), el("ul", "reasons", ...reasons.map((reason) => el("li", "reason", reason))));
         return;
       }
+      // A CLI session is not run in this tab: its Bridge starts it in its checkout, where it does the work itself, with no loop, tool or plan of the bar (UC-049 step 4).
+      const session = sending.isSession(participant);
       const to = ready.prepared.destinations.map((each) => el("li", "destination", `${each.participant.name} — ${each.place || "no processing place declared"}`));
       show(...(about ? [aboutLine(about)] : []), el("p", "sends", "Sent to:"), el("ul", "destinations", ...to),
-        el("p", "limit", `The correction loop runs at most ${ready.prepared.limit} rounds.`));
+        ...(session ? [] : [el("p", "limit", `The correction loop runs at most ${ready.prepared.limit} rounds.`)]));
       const who = ready.person ?? "person";
       if (ready.recording) {
         if (ready.person === null) {
@@ -656,8 +658,9 @@ export function startPromptBar(target, setup) {
       input.value = "";
       running = { kind: BAR_KIND, participant: participant.name, started: new Date() };
       stop.disabled = false;
-      const result = await sending.runMessage(ready, { signal: controller.signal });
-      const answered = showAnswer(result, ready, subject, participant, about);
+      const result = session ? null : await sending.runMessage(ready, { signal: controller.signal });
+      // A CLI session's answer is shown as it gave it.
+      const answered = session ? (await sending.runSession(ready)).text : showAnswer(result, ready, subject, participant, about);
       if (answered !== null) {
         keep([...conversationOf(store), { at: new Date(), from: "participant", who: participant.name, text: answered, subject: subject.key }]);
         if (ready.recording) {
@@ -669,7 +672,7 @@ export function startPromptBar(target, setup) {
           }
         }
         // The plan the answer proposes goes on now, within the same Send: Stop ends it as it ends the message.
-        if (Array.isArray(result.draft?.handOver) && result.draft.handOver.length > 0) {
+        if (Array.isArray(result?.draft?.handOver) && result.draft.handOver.length > 0) {
           keepPlan(null);
           await carryOutPlan(result.draft.handOver, participant, subject, conversationOf(store), controller.signal, about);
         }
