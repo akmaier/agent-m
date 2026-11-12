@@ -18,7 +18,7 @@
 //     `/me/mailFolders/sentitems` and any other named folder the top-level folder of that display name, found by `/me/mailFolders?$filter=`;
 //     the list gives each message's `id` and `internetMessageId`, and follows `@odata.nextLink` when it is an address of Microsoft Graph;
 //   - a message's raw form is `/me/messages/<id>/$value`; it is parsed with postal-mime; read's `since` is Graph's `$filter=receivedDateTime ge
-//     <the start of the day it names, UTC>` on the list, so that only the messages Graph selects are fetched; sent's `since` keeps the mails whose date is on or after it;
+//     <the start of the day it names, UTC>` on the list, so that only the messages Graph selects are fetched, and so is sent's;
 //   - find hashes the `internetMessageId`s of the named folders and fetches the raw form of the one that matches only;
 //   - `folder` of a Mail is the name the connection gives, "Drafts" for Drafts, "Sent Items" for Sent.
 // Nothing reaches the network. Each test states its input and its expected result before it runs (given / input / expect). The

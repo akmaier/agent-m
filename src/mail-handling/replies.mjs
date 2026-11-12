@@ -2,6 +2,7 @@
 // Module: MOD-mail-handling
 
 import { issueLabels, listedMailIds, mailId, noteText, notesOf } from "../mail-records/index.mjs";
+import { readSince } from "./intake.mjs";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const NOT_SENDABLE = "not sendable";
@@ -22,7 +23,7 @@ const idOf = (messageId) => (messageId ? mailId({ messageId, bytes: null }) : nu
  * repliesDue(mailbox, products) -> Promise<RepliesDue> — every issue that lists mails, grouped: closed with a listed mail that
  * has no reply or no-reply note (`toAnswer`); open, labelled waiting-for-reporter, with a mail added after the last question
  * (`answerReceived`); open (`open`). Each listed mail is found in the mailbox, with its draft in Drafts. A reply found in Sent
- * that no issue notes yet is noted in its issue now. Errors pass unchanged.
+ * among the mails of the last 30 days that no issue notes yet is noted in its issue now. Errors pass unchanged.
  */
 export async function repliesDue(mailbox, products) {
   const issues = [];
@@ -40,7 +41,8 @@ export async function repliesDue(mailbox, products) {
     if (id && !draftsOf.has(id)) draftsOf.set(id, draft.ref);
   }
 
-  await noteSentReplies(await mailbox.sent(null), issues);
+  // Sent is read as the inbox is: the mails of the last 30 days, which the mail server selects (UC-038 step 2).
+  await noteSentReplies(await mailbox.sent(readSince()), issues);
 
   const result = { toAnswer: [], answerReceived: [], open: [] };
   const hostFacts = new Map();

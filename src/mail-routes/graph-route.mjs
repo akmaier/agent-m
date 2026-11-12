@@ -223,10 +223,6 @@ async function fetchedMails(token, folder, name, received = null) {
   return mails;
 }
 
-// The mails of a folder in full; `from` keeps the mails dated on or after it.
-async function mailsOf(token, folder, name, from) {
-  return (await fetchedMails(token, folder, name)).filter(({ mail }) => from === null || from === undefined || Date.parse(mail.date) >= Date.parse(from));
-}
 
 // ---------------------------------------------------------------- drafting and sending (UC-039)
 
@@ -314,12 +310,13 @@ export function graphMailbox(connection) {
     // The mailbox's Drafts, each with the reference of the draft on this route.
     async drafts() {
       const accessToken = await token();
-      return (await mailsOf(accessToken, "/me/mailFolders/drafts", "Drafts", null))
+      return (await fetchedMails(accessToken, "/me/mailFolders/drafts", "Drafts"))
         .map(({ id, mail }) => ({ ref: { route: "graph", id }, inReplyTo: mail.inReplyTo, mail }));
     },
+    // The Sent Items received on or after the day `from` names, as Graph selects them by their date received — all of them where it is null.
     async sent(from) {
       const accessToken = await token();
-      return (await mailsOf(accessToken, "/me/mailFolders/sentitems", "Sent Items", from)).map(({ mail }) => mail);
+      return (await fetchedMails(accessToken, "/me/mailFolders/sentitems", "Sent Items", from ?? null)).map(({ mail }) => mail);
     },
     // The reply stored in Drafts and nowhere else; a Draft without a usable reply address is refused before any request.
     async storeDraft(draft) {
