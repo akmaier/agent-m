@@ -126,7 +126,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 - `send.mjs` — preparing and running a message, or a piece of a plan of a kind whose result waits for the person, as a
   job in this tab, and a message to a CLI session sent to its Bridge.
 - `session.md` — what a CLI session is given with a message beside the page, the conversation so far where the message
-  starts the session, and the message, data like a kind's prompt.
+  starts the session, and the message, with the instruction to read Agent M's files where the message is the one that
+  starts the session or a fifth after it, data like a kind's prompt.
 - `own.mjs` — the module's own data files read, from the disk in Node and from the module's own address in a browser.
 - `hand-over.mjs` — each piece of a proposed plan assessed for its route, and queued.
 - `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
@@ -138,7 +139,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 
 **The conversation** is held in the browser tab, through MOD-browser-store's tab values, so that it goes on when the
 person moves between the main page and the review pages in the same tab and ends with the tab. It holds the messages, the
-participant talked to, the latest draft, the plan handed over with the job of each piece while it runs, the CLI session it keeps — its Bridge and its identifier —
+participant talked to, the latest draft, the plan handed over with the job of each piece while it runs, the CLI session it keeps — its Bridge, its identifier and how
+many messages it has sent to it —
 while it runs (UC-049 4b), and the height the person set with the bar's grip. Nothing of it is written to a repository
 unless recording is on, and nothing of it is kept in `localStorage` or exported with the settings. It holds no state of a
 job: while a message runs, the job is this tab's running job; a handed-over job's state is derived from its record and
@@ -229,7 +231,8 @@ IN THE REPOSITORY`).
   account MOD-source-register's `personAccount` gives for the instance's snapshot it reads — on every page, the frame's
   default subject included, and in this one place (`THE PERSON WHO PROMPTS IS A SOURCE`) —, prepares the job with
   MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext` — so that the message reaches the participant
-after Agent M's `AGENTS.md`, as MOD-job-runner composes every input (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`) —,
+after Agent M's `AGENTS.md`, as MOD-job-runner composes every input (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`), a
+  CLI session's as given below —,
 and sends nothing while the job does not
   fit or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a): for a participant the job does not
   fit, it names the participant, how many requirements and use cases the job holds for it and how many of them fit, from
@@ -251,11 +254,17 @@ and sends nothing while the job does not
   and again on a moved head; a message the subject withholds, or whose commit the host refuses for a stored secret, is
   appended as withheld and sent; a message whose record cannot be appended for any other reason is not sent, and the bar
   says why (`A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD`). **A message to a CLI session** — a connection whose
-  route is `bridge <bridge> agent <agent>` — is not run in the tab (UC-049 step 4, ARC-055): its input is the job's
-  `rules`, Agent M's `AGENTS.md`, followed by `session.md`, text held once with named places for the page, the
-  conversation so far, the person's message and the chapters for the page, each filled with the parts the job's recipes
-  gave — the conversation so far only where the message starts a session, since a running session has seen every
-  earlier message; it is sent with MOD-bridge-client's `ask` to the session's agent on its Bridge, with the session's
+  route is `bridge <bridge> agent <agent>` — is not run in the tab (UC-049 step 4, ARC-055): its input is `session.md`,
+  text held once with named places for the instruction to read Agent M's files, the page, the conversation so far and
+  the person's message, each filled with the parts the job's recipes gave — the conversation so far only where the
+  message starts a session, since a running session has seen every earlier message. With the message that starts the
+  session, and with every fifth message after it, the input begins with that instruction: that the agent must read, in
+  full and before anything else, Agent M's `AGENTS.md` and the chapters for the page, each named by the path of its file
+  in the Bridge's clone of the instance, `../../` from the session's checkout (MOD-bridge-jobs), and none given as text,
+  which the job's `rules` and the recipe `chapters-for-page` hold; with every fifth message, also that the agent need not
+  read them again while they are still in its context (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`, `A CLI SESSION IS
+  TOLD AGAIN EVERY FIFTH MESSAGE TO READ AGENTS.MD`). With any other message, that place is empty. The conversation
+  counts the messages it has sent to the session it keeps. The input is sent with MOD-bridge-client's `ask` to the session's agent on its Bridge, with the session's
   model, the address of the message's page's repository as `product`, the commit of the instance the bar read as
   `instance`, and the session the conversation keeps as `session`, none where it keeps none. The conversation keeps the
   session `onSession` names, with its Bridge. While the message runs, the bar shows the session's console under it,

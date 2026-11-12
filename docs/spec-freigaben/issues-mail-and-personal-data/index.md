@@ -7,3 +7,4 @@
 | 01 | `SPEC.md` | ## 14. Issues, mail and personal data | — | — |
 | 02 | `SPEC.md` | ## 14. Issues, mail and personal data | — | — |
 | 03 | `SPEC.md` | ## 14. Issues, mail and personal data | — | — |
+| 04 | `SPEC.md` | ## 14. Issues, mail and personal data | — | — |

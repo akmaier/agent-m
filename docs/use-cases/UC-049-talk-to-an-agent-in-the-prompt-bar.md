@@ -111,8 +111,11 @@ enters the repository the way every proposal does.
    - **A CLI session** is bound neither by this table nor by the plan of 4a. On the conversation's first message to it,
      its Bridge starts the agent in its normal interactive mode, in auto mode, with the model chosen, in the
      conversation's own checkout of the product, inside a terminal the Bridge keeps open. Every message of the
-     conversation, the first among them, is typed into that one running agent, beginning with Agent M's `AGENTS.md` and
-     giving the page's context and the person's words; the agent keeps its context from one message to the next, so
+     conversation, the first among them, is typed into that one running agent, giving the page's context and the
+     person's words. The message that starts the session, and every fifth message after it, begins with the instruction
+     that the agent must read Agent M's `AGENTS.md` and the book's chapters for the page (step 3) in full, named by their
+     paths in the Bridge's clone of the instance and not given as text; each fifth message notes that the agent need not
+     read them again while they are still in its context. The agent keeps its context from one message to the next, so
      that nothing of the conversation is sent to it again. It does the work asked for with its own tools, as any session
      of that agent does — it reads, edits, runs code and tests, reaches the web, commits, pushes, opens pull requests,
      follows CI and merges, with the repository token the Bridge leaves for it in an ignored file of the checkout

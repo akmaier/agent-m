@@ -92,8 +92,8 @@ Coding, ch. 11) — the model proposes a call, the runner carries it out determi
 it holds the edits a participant proposes until a person saves them. It composes the input of every call of a language
 model Agent M makes — a job's, and a message of the prompt bar's, which is a job too —, and that input begins with Agent
 M's own `AGENTS.md`, the one at the root of the instance repository, in full, whatever repository the job works on; for a
-participant that works in a checkout of the instance, with the file's path there (`EVERY MODEL READS AGENT M'S AGENTS.MD
-FIRST`); the drafter's input then gives the form its draft is checked by, in full, in the tab, on a Bridge and in CI
+coding agent on a Bridge, with the instruction that it must read the file in full, naming its path in the Bridge's clone
+of the instance (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`); the drafter's input then gives the form its draft is checked by, in full, in the tab, on a Bridge and in CI
 alike (`A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY`). It knows no kind and no service by name. It runs unchanged in a browser and in Node.
 
 ## Parts
@@ -234,8 +234,8 @@ ONLY WHEN RECORDING IS ON`).
   throws the failure of its route by name — the endpoint's refusal, a browser that blocked the call, an agent that is
   missing or ended with an error, a cancel — and never retries until an answer pleases.
 - `DriverInput` — `{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
-  workdir: string | null }`: the prepared job's `rules` — Agent M's `AGENTS.md`, its text or its path in a checkout of
-  the instance, followed by a blank line —, then, for the drafter, the job's `form` where it has one, followed by a blank
+  workdir: string | null }`: the prepared job's `rules` — Agent M's `AGENTS.md`, its text or, for a coding agent on a
+  Bridge, the instruction to read it at its path there, followed by a blank line —, then, for the drafter, the job's `form` where it has one, followed by a blank
   line, then the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
   and `(none)` where a recipe gave no part, followed by *The form of your answer*: the envelope every answer is read by,
   as a JSON schema — a driver sends this prompt as it is and does not add the parts again —; the
@@ -296,8 +296,9 @@ ONLY WHEN RECORDING IS ON`).
   useCases: number } }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
   what a run panel or the prompt bar shows before the person's click (`THE PAGE NAMES WHERE IT SENDS`); `rules` is Agent
   M's `AGENTS.md`, read from the instance's snapshot at the root of the instance repository — its text, or, where the
-  context names `instance.checkout`, the path of the file in that checkout followed by one sentence asking the participant
-  to read it in full first —, `null` where the instance has none: the part with which every input to the drafter and to
+  context names `instance.checkout` on a Bridge — the participant a coding agent there —, the path of the file in that
+  checkout followed by one sentence telling the participant that it must read it in full first; in CI, where the context
+  names the job workflow's checkout, its text —, `null` where the instance has none: the part with which every input to the drafter and to
   each reviewer begins, before anything else the runner composes, carrying no source, since the restricted-source rules
   concern requirement sources and it is the instance's own file; `form` the part, as Data states, with which the
   drafter's input continues after `rules`, `null` for a kind without a check of form — a reviewer's kind, such as

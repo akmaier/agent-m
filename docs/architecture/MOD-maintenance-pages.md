@@ -33,8 +33,6 @@ uses:
   - MOD-documents.readDocument
   - MOD-test-document.isTestFile
   - MOD-test-document.testDeclarations
-  - MOD-resource-list.resourceSchema
-  - MOD-resource-list.reachableBy
   - MOD-mail-routes.mailbox
   - MOD-mail-routes.signIn
   - MOD-mail-records.listedMailIds
@@ -53,7 +51,6 @@ uses:
   - MOD-mail-handling.askReporter
   - MOD-mail-handling.noReply
   - MOD-mail-handling.mailStrategies
-  - MOD-issue-handling.confirmClass
   - MOD-issue-handling.backlogItemFrom
   - MOD-issue-handling.moveToBacklog
   - MOD-issue-handling.closeWithLinks
@@ -62,16 +59,13 @@ uses:
   - MOD-spec-changes.queues
   - MOD-spec-changes.entryView
   - MOD-spec-changes.specStrategies
-  - MOD-source-register.personAccount
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-participant-list.participantsOf
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
-  - MOD-job-runner.writeResult
   - MOD-job-ledger.newJobId
   - MOD-job-ledger.recordsNewestFirst
-  - MOD-runtimes.routesFor
   - MOD-runtimes.queueJob
   - MOD-runtimes.runOnTab
   - MOD-runtimes.liveState
@@ -80,7 +74,6 @@ uses:
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.sessionsOffered
-  - MOD-prompt-bar.ciAgentsOffered
 provides:
   - view
 ---
@@ -90,8 +83,8 @@ provides:
 
 It belongs to the Site (ARC-038). Its one responsibility is the menu entry Maintenance, on two tabs: **Mail** — mail
 read into issues, and the replies to the mails of an issue, with the questions to reporters —, and **Issues** — a
-product's issues, open and closed: their analysis as bug, change or not reproducible, the confirmed class, the fix, the
-change through the SPEC, the move into the backlog. Everything a
+product's issues, open and closed, each with the class its label gives: implementing it or closing it at once, the fix,
+the move into the backlog. Everything a
 mail contains stays in the mailbox and on this page; what is written to an issue passes Issues and mail's search for the
 mail's people first, and every outgoing mail is sent only on the person's click on the complete mail shown.
 
@@ -107,14 +100,13 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `tabs.mjs` — the strip of the entry's two tabs, which every route draws at its head: **Mail**, leading to `mail`, and
   **Issues**, leading to `issues`, the tab the route stands under marked as the current one; two links in the look's
   styles, with no style of its own.
-- `issues.mjs` — issues, their analysis, class, fix, change and move into the backlog.
+- `issues.mjs` — issues, implementing or closing them, the fix and the move into the backlog.
 - `mail.mjs` — reading mail into issues.
 - `replies.mjs` — replies to answer, answers received, drafts, sending, asking a reporter.
 
 ## Data
 
-It keeps nothing but the screen, a mail's text only while it is shown, and the drafted change of an issue while the
-person reviews it. Its formats are those of the modules it uses.
+It keeps nothing but the screen and a mail's text only while it is shown. Its formats are those of the modules it uses.
 
 ## Interfaces
 
@@ -122,8 +114,11 @@ person reviews it. Its formats are those of the modules it uses.
   (MOD-site-frame's `startPage`): under **Mail**, `mail`, `replies` and `replies/<issue>`; under **Issues**, `issues` and
   `issue/<number>`; and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
   `privacyStrategies`, `specStrategies`, `routeStrategies`:
-  - `issues`, `issue/<number>` — the product's issues; *Implement*, which puts the request to handle the issue as UC-012
-    does, with its number, title and text, into the prompt bar (MOD-prompt-bar's event `agent-m:prompt`); and, before
+  - `issues`, `issue/<number>` — the product's issues, each with its class as its label `defect` or `change` gives it;
+    *Implement*, which puts the request to handle the issue as UC-012
+    does, with its number, title and text, into the prompt bar (MOD-prompt-bar's event `agent-m:prompt`); on an open
+    issue, *Close*, which closes it at once without a change of code, with the reason the person typed as its comment
+    (UC-012 2a); and, before
     its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now
     checks correctly with the old and the new expectation side by side (UC-012 5a); *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
@@ -176,9 +171,9 @@ person reviews it. Its formats are those of the modules it uses.
 
 ## Files
 
-It writes nothing in a repository itself: every decision is one call of Issues and mail, of the writer of a kind
-through MOD-job-runner, or of the host — an issue's state, its labels, a note offered again. It writes a job's start
-record through MOD-runtimes. It reads the product's issues, snapshot and resources, the mailbox through its route, and the
+It writes nothing in a repository itself: every decision is one call of Issues and mail, or of the host — an issue's
+state, its labels, a note offered again. It writes a job's start
+record through MOD-runtimes. It reads the product's issues and snapshot, the mailbox through its route, and the
 instance's participants.
 
 ## Uses
@@ -188,7 +183,7 @@ instance's participants.
   the dialog of every send, and the form of a backlog item.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
 - MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
-  MOD-prompt-bar.sessionsOffered, MOD-prompt-bar.ciAgentsOffered — this browser's connections, which `participantsOf` joins with the instance's
+  MOD-prompt-bar.sessionsOffered — this browser's connections, which `participantsOf` joins with the instance's
   participants.
 - MOD-browser-store.readSetting — the mailbox connection and its last test, the endpoints' configurations and the
   Bridges' settings;
@@ -197,18 +192,16 @@ instance's participants.
   mail may concern; MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo,
   MOD-repository-hosts.listIssues — issues and what a job's context needs; MOD-repository-hosts.readIssue — the one
   issue the route `issue` and a reply show; MOD-repository-hosts.setIssueState —
-  *Close and reply*, *Reopen*; MOD-repository-hosts.setIssueLabels — the label `waiting-for-reporter` removed;
-  MOD-repository-hosts.commentOnIssue — a note offered again; MOD-repository-hosts.webLinks — an issue's page.
+  *Close*, *Close and reply*, *Reopen*; MOD-repository-hosts.setIssueLabels — the label `waiting-for-reporter` removed;
+  MOD-repository-hosts.commentOnIssue — a note offered again, and the reason of an issue closed at once; MOD-repository-hosts.webLinks — an issue's page.
 - MOD-job-ledger.recordsNewestFirst, MOD-runtimes.jobTrail — an issue's fix: the newest `fix-bug` job whose `works_on`
   names the issue, and the pull request of its branch, which the job's trail gives; the same link serves *closing an
   issue with links once its pull request is merged*. MOD-repository-hosts.pullRequestFacts — that pull request before it
   is merged, with the texts of its changed files on both sides; MOD-test-document.isTestFile,
   MOD-test-document.testDeclarations — the existing tests among those files, and each one's requirement and expected
   result, old and new, side by side (UC-012 5a).
-- MOD-documents.artifactSchemas — the item's schema for its form; MOD-documents.readRegister — the participant list
-  and the product's resources; MOD-documents.readDocument — the product's `docs/settings.md`, with `settingsSchemas`;
-  MOD-resource-list.resourceSchema, MOD-resource-list.reachableBy — the routes that reach the product's resources, for
-  the route of `fix-bug`.
+- MOD-documents.artifactSchemas — the item's schema for its form; MOD-documents.readRegister — the participant list;
+  MOD-documents.readDocument — the product's `docs/settings.md`, with `settingsSchemas`.
 - MOD-mail-routes.mailbox, MOD-mail-routes.signIn — the mailbox, a mail found in it by its identifier (`find`), and
   signing in again when the provider's sign-in has expired.
 - MOD-mail-records.listedMailIds, MOD-mail-records.notesOf, MOD-mail-records.noteText — an issue's mails, its notes, and
@@ -220,17 +213,15 @@ instance's participants.
 - MOD-mail-handling.readNewMail, MOD-mail-handling.decideMail, MOD-mail-handling.repliesDue,
   MOD-mail-handling.storeReplies, MOD-mail-handling.sendReply, MOD-mail-handling.askReporter,
   MOD-mail-handling.noReply — every decision on a mail and a reply.
-- MOD-issue-handling.confirmClass, MOD-issue-handling.backlogItemFrom, MOD-issue-handling.moveToBacklog,
-  MOD-issue-handling.closeWithLinks — every decision on an issue.
+- MOD-issue-handling.backlogItemFrom, MOD-issue-handling.moveToBacklog, MOD-issue-handling.closeWithLinks — the move
+  into the backlog and closing an issue with links.
 - MOD-work-plans.backlogFindings — the item's marks while the person edits it; MOD-spec-changes.queues — the change's
   entries, those whose `issue` names the number of the issue shown and the address of the product the frame has chosen;
   MOD-spec-changes.entryView — the requirements each of them changes or adds, its `impact`, given to
   `backlogItemFrom` as `changed`, since an entry's anchor is the heading of a whole section, not a requirement's name.
-- MOD-source-register.personAccount — the person's account, the parameter `source` of a change.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
-  participants of the register on this browser's connections, and who may analyse, fix, propose, rewrite, check or draft.
-- MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-runner.writeResult — the drafted change
-  written on the person's click; MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob,
+  participants of the register on this browser's connections, and who may propose, rewrite, check or draft.
+- MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-ledger.newJobId, MOD-runtimes.queueJob,
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.
 - MOD-issue-handling.issueStrategies, MOD-mail-handling.mailStrategies, MOD-personal-data.privacyStrategies,
   MOD-spec-changes.specStrategies, MOD-runtimes.routeStrategies — the strategies of its kinds, handed to the frame.

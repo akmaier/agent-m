@@ -32,7 +32,7 @@ Bridge's main process.
 ## Parts
 
 - `index.mjs` — the interface: `mailHandlers`.
-- `imap.mjs` — reading folders, finding a mail, Drafts and Sent, storing a draft.
+- `imap.mjs` — reading folders, finding mails by their identifiers, Drafts and Sent, storing a draft.
 - `smtp.mjs` — sending a draft's bytes.
 - `confirmations.mjs` — the single-use confirmations.
 
@@ -59,8 +59,10 @@ asks again.
   - `read` — the mails of the named folders received on or after the day the argument `since` names, all of them without
     it, selected by the IMAP server with `SEARCH SINCE` so that only they are fetched, each folder opened read-only so that nothing is marked as read, moved, flagged or
     deleted (`READING THE MAILBOX CHANGES NOTHING IN IT`), parsed into `Mail`s, each with its `MAIL-` identifier.
-  - `find` — the mail of one identifier in the named folders, found by hashing the `Message-ID`s their envelopes carry;
-    *not found* when none matches (`A MAIL IS FOUND AGAIN BY ITS IDENTIFIER`).
+  - `find` — the mails of every identifier the request names, in the named folders, over one connection: each folder's
+    envelopes are fetched once and the `Message-ID`s they carry hashed, and only the mails that match are fetched in
+    full; each identifier is answered with its `Mail`, or with `null` — *not found* — when none matches (`A MAIL IS FOUND
+    AGAIN BY ITS IDENTIFIER`).
   - `drafts`, `sent` — the folders the mailbox marks as Drafts and Sent.
   - `store-draft`, `update-draft` — a reply built as one message with `In-Reply-To` and `References` from the reporter's
     `Message-ID` and that reporter as its only recipient, appended to Drafts (`A REPLY DRAFT IS KEPT IN THE MAILBOX'S

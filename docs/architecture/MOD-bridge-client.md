@@ -169,7 +169,8 @@ uses; the key itself stays on its computer.
   `POST /v1/mail/{operation}` with `{ connection, args }`: one mailbox operation, with the IMAP connection and its
   password inside the request, which is the only way the password leaves the browser (`THE MAILBOX PASSWORD LEAVES THE
   BROWSER ONLY TO THE BRIDGE`). The fields of the connection, the arguments and the answer are those MOD-mail-routes
-  defines; `confirm-send` and `send` carry the single-use confirmation as `bridgeApi` defines it. Crosses the network;
+  defines; `find` carries every identifier of one lookup, and `confirm-send` and `send` the single-use confirmation, as
+  `bridgeApi` defines them. Crosses the network;
   fails with every `BridgeError` but `AskFailed`, among them `BridgeFailed` with `confirmation-refused`, `no-encryption`,
   `login-refused`, `upstream-failed` — the mail server's own message — or `paused`.
 - `probe(bridge: Bridge, kind: "agent", args: unknown) -> Promise<unknown>`, `probe(bridge: Bridge, kind: "endpoint-models",
