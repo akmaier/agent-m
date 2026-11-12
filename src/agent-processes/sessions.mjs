@@ -16,8 +16,9 @@ const COLUMNS = 120, ROWS = 40;
 // The lines the emulator holds above its screen until they are handed on; they are cleared once handed, so that a long session holds none of them for long.
 const SCROLLBACK = 10000;
 // Before the first text is typed, the agent has drawn its screen: it has written, and its output has then been quiet for SETTLED_MS — or it has been running
-// for START_LIMIT_MS.
-const SETTLED_MS = 1500, START_LIMIT_MS = 30000;
+// for START_LIMIT_MS. A screen the agent shows only when it starts for the first time in a home or a folder — one that its row's `startup` patterns match —
+// is answered with Enter, which takes its default, at most STARTUP_ANSWERS times.
+const SETTLED_MS = 1500, START_LIMIT_MS = 30000, STARTUP_ANSWERS = 6;
 // A text is typed as one bracketed paste, followed, after ENTER_AFTER_MS, by Enter: the terminals' way to hand a program a text with line breaks as one input.
 const PASTE_START = "\x1b[200~", PASTE_END = "\x1b[201~", ENTER = "\r", ENTER_AFTER_MS = 300;
 // Erases the lines above the screen and leaves the screen as it is (ECMA-48 ED with 3, as xterm reads it).
@@ -85,6 +86,7 @@ export function sessionOf(agent, { workdir, enclosure = null, writable = null, c
     ({ command, args, env } = wrapped);
   }
   const waiting = new RegExp(row.session.waiting);
+  const startup = (row.session.startup ?? []).map((pattern) => new RegExp(pattern));
   const { spawn, Terminal } = terminalPackages();
   const terminal = new Terminal({ cols: COLUMNS, rows: ROWS, scrollback: SCROLLBACK, allowProposedApi: true });
   const child = spawn(command, args, { name: "xterm-256color", cols: COLUMNS, rows: ROWS, cwd: workdir, env: { TERM: "xterm-256color", ...env } });
@@ -145,7 +147,13 @@ export function sessionOf(agent, { workdir, enclosure = null, writable = null, c
       chain = chain.then(async () => {
         if (first) {
           first = false;
-          while (ended === null && (lastOutput === null || Date.now() - lastOutput < SETTLED_MS) && Date.now() - startedAt < START_LIMIT_MS) await pause(50);
+          for (let answers = 0; ; answers += 1) {
+            while (ended === null && (lastOutput === null || Date.now() - lastOutput < SETTLED_MS) && Date.now() - startedAt < START_LIMIT_MS) await pause(50);
+            const shown = screen().join("\n");
+            if (ended !== null || answers >= STARTUP_ANSWERS || !startup.some((pattern) => pattern.test(shown))) break;
+            child.write(ENTER);
+            lastOutput = Date.now();
+          }
         }
         if (ended !== null) return;
         since = [];
