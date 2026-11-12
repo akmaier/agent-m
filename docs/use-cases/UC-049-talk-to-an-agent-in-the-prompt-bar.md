@@ -109,8 +109,9 @@ enters the repository the way every proposal does.
      repository server's API with the author's token, and writes nothing.
    - **A model endpoint without the capability *use tools*** answers once: with text, or with a draft of the open artifact.
    - **A CLI session** is bound neither by this table nor by the plan of 4a. On the conversation's first message to it,
-     its Bridge starts the agent in its normal interactive mode, in auto mode, with the model chosen, in the
-     conversation's own checkout of the product, inside a terminal the Bridge keeps open. Every message of the
+     its Bridge starts the agent in its normal interactive mode, in auto mode, with the model chosen, in its
+     working folder, the Bridge's clone of Agent M, whose `products/` folder holds the conversation's own checkout of the
+     product, inside a terminal the Bridge keeps open. Every message of the
      conversation, the first among them, is typed into that one running agent, giving the page's context and the
      person's words. The message that starts the session, and every fifth message after it, begins with the instruction
      that the agent must read Agent M's `AGENTS.md` and the book's chapters for the page (step 3) in full, named by their
