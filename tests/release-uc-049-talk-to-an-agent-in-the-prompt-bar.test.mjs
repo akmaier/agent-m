@@ -2,8 +2,9 @@
 // alternative flow UC-049 names, that the checks the SPEC names for the requirements exist — and, for the requirements that concern what a whole conversation does with a repository, a token, a secret, a mail, a participant and a place,
 // release cases that run the page over the fixtures of tests/uc-019-prompt-bar-harness.mjs and tests/uc-049-world.mjs: a conversation with recording off leaves no message in any commit, record or job record, and with it on keeps each message where
 // it was held; the page names where it sends before it sends; a token goes only to the server that issued it; nothing but the repository server, the participant's route and the Bridge is asked; nothing is written on a script's click; the
-// same message reaches the tab, the Bridge and the workflow in one definition; a hand-over writes its record into the product with no cost guessed.
+// endpoint is driven by the repository's one definition and the table of step 4, a CLI session through its Bridge by neither that table nor the plan of 4a; a hand-over writes its record into the product with no cost guessed.
 // Written for the PO's draft 1407d9a7 (32 realised requirements) by developer-sonnet-h, who built none of UC-049's behaviour (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
+// TST-513208 is written by a participant that implemented none of a CLI session's unfiltered work (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
 // Run: node --test tests/release-uc-049-talk-to-an-agent-in-the-prompt-bar.test.mjs
 //
 // Module: MOD-prompt-bar; MOD-site-frame; MOD-job-runner; MOD-runtimes
@@ -275,26 +276,61 @@ test("TST-513207: nothing is written on a script's click, and what is saved is a
   assert.ok(lines.every((line) => !line.includes(INSTRUCTION)), "no message of the conversation");
 });
 
-// TST-513208 · level: release · module: MOD-prompt-bar · MOD-runtimes · MOD-job-runner
-// guards: UC-049; ONE DEFINITION, THREE DRIVERS
-// given: one page and one message, in two pages of the same product: one whose participant is a model endpoint reached directly (the tab's driver), one whose participant is a CLI session of the Bridge
-// input: the same words sent once in each
-// expect: the model endpoint's request and the Bridge's ask hold the same message — the same instruction, the same page, the same conversation and the same chapters; the hand-over's workflow is started with the job of that kind (the run is tested in TST-513209)
-test("TST-513208: the tab and the Bridge are driven by one definition of the kind", async () => {
-  const direct = await scenario({ ...register(DRAFTER), answers: [{ answer: "x" }] });
-  const v = watch(direct, { script: [answer("One.")] });
-  await sendNow(direct, "What do I see on this page?");
-  await free(direct);
+// The instance's AGENTS.md of TST-513208: words no other text of the session holds, so that where an input begins is seen.
+const RULES = "# PLANTED-RULES-513208 the rules of the instance\n";
+// The tools the table of UC-049 step 4 gives an endpoint in the tab that reads the repository and drafts text: list, read and search the files (*read the repository*), propose an
+// edit (*draft text*), and hand a piece on (always, 4a).
+const TAB_TOOLS = ["list-files", "read-file", "search-files", "propose-edit", "hand-over"];
+
+// TST-513208 · level: release · module: MOD-prompt-bar · MOD-runtimes · MOD-job-runner · MOD-bridge-client
+// guards: UC-049; ONE DEFINITION, THREE DRIVERS; EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+// given: the instance holds the AGENTS.md "# PLANTED-RULES-513208 …"; this browser declares the endpoint tooler, which uses tools, and the Bridge release-bridge offers the CLI session release-bridge:claude with the model agent-cli-model; on the page of the product's requirements
+// input: "What do I see on this page?" sent to tooler, which answers "One."; then the same words sent to release-bridge:claude, whose Bridge answers with an answer of the endpoint's form that plans a hand-over of a piece of kind converse
+// expect: the endpoint, held by the repository's single definition and the table of step 4 (UC-049 step 3: "It adds the system prompt from the repository's single definition: that context, Agent M's rules for what it drafts …, the chapters of the book Vibe Coding for the kind of work the page belongs to, and the tools it may use (step 4)"; step 4: "An endpoint works with the tools its declared capabilities allow, and with no other"): its request begins with the instance's AGENTS.md, holds the page and chapter 8, and offers exactly the tools list-files, read-file, search-files, propose-edit and hand-over — no command and no web page, which the table gives CI and a Bridge only;
+//   the CLI session (UC-049 step 4: "A CLI session is bound neither by this table nor by the plan of 4a: it receives the message, with the conversation so far and the page's context, through its Bridge, its input beginning with Agent M's `AGENTS.md` … It is started with the model chosen."): one ask to its Bridge and no request to an endpoint, naming the agent claude, the model agent-cli-model, the page's repository https://github.com/akmaier/lending-tool and the commit of the instance; its input begins with the instance's AGENTS.md and holds the words, the page (A LOAN HAS A DUE DATE), the conversation so far ("One.") and chapter 8;
+//   counter-proof — the filtered behaviour does not come back: the ask carries no tools and its input names none of the table's tools, no hand-over and no answer form of the endpoint, and differs from the endpoint's input; and the plan of a hand-over in the session's answer is not carried out (UC-049 4a: "The endpoint — a CLI session does the work itself (step 4) — plans the work"): no piece is shown, no job record is written and no workflow is started
+test("TST-513208: an endpoint is driven by the repository's definition and the table of step 4, a CLI session by its Bridge, bound by neither table nor plan", async () => {
+  const s = await scenario({ ...register(TOOLER, AGENT), answers: [{ answer: "x" }], instanceFiles: { "AGENTS.md": RULES } });
+  const v = watch(s, { script: [answer("One.")] });
+  await sendNow(s, "What do I see on this page?", { participant: "tooler" });
+  await free(s);
+  assert.equal(v.endpoint().length, 1, "known positive: the endpoint was asked once");
+  const request = JSON.parse(v.endpoint()[0].body);
   const tab = textOfSent(v.endpoint()[0]);
   v.stop();
-  const bridged = await scenario({ ...register(AGENT), answers: [{ answer: "x" }] });
-  const w = watch(bridged, { script: [answer("Two.")] });
-  await sendNow(bridged, "What do I see on this page?");
-  await free(bridged);
-  assert.equal(w.asks.length, 1);
-  assert.equal(w.asks[0].input, tab, "the same message goes to the endpoint and to the Bridge");
-  assert.match(tab, /## The page the person sees/);
-  assert.match(tab, /Requirements Engineering in Practice/);
+  // UC-049 step 3 and SPEC EVERY MODEL READS AGENT M'S AGENTS.MD FIRST ("begins with Agent M's own `AGENTS.md`"), for the endpoint.
+  assert.ok(tab.startsWith(RULES.trimEnd()), `the endpoint's input begins with the instance's AGENTS.md: ${tab.slice(0, 80)}`);
+  assert.match(tab, /## The page the person sees/, "the page as context (step 3)");
+  assert.match(tab, /Requirements Engineering in Practice/, "the chapter for the page's kind of work (step 3)");
+  // UC-049 step 4: "An endpoint works with the tools its declared capabilities allow, and with no other", by the rows of the table that work in the tab.
+  assert.deepEqual((request.tools ?? []).map((tool) => tool.function?.name).toSorted(), TAB_TOOLS.toSorted(), "the endpoint is offered the table's tools for the tab, and no other");
+  assert.match(tab, /handOver/, "known positive of the search below: the endpoint's input names the plan of 4a");
+
+  const clock = followClock();
+  const w = watch(s, { script: [answer("I did it in my checkout.", { handOver: [{ kind: "converse", works_on: [LOAN], task: "Run the tests of the loan page", after: [] }] })] });
+  await sendNow(s, "What do I see on this page?", { participant: "release-bridge:claude" });
+  await free(s);
+  await rest(s);
+  // UC-049 step 4: "it receives the message … through its Bridge … It is started with the model chosen."
+  assert.equal(w.asks.length, 1, "one ask to the Bridge");
+  assert.deepEqual(w.endpoint(), [], "no endpoint is asked for the CLI session's message");
+  const [asked] = w.asks;
+  assert.deepEqual([asked.agent, asked.model, asked.product], ["claude", "agent-cli-model", "https://github.com/akmaier/lending-tool"], "the session, its model and the repository of the page");
+  assert.match(String(asked.instance), /^[0-9a-f]{40}$/, "the commit of the instance");
+  // "its input beginning with Agent M's `AGENTS.md`"
+  assert.ok(asked.input.startsWith(RULES.trimEnd()), `the session's input begins with the instance's AGENTS.md: ${asked.input.slice(0, 80)}`);
+  // "it receives the message, with the conversation so far and the page's context"; the chapters by step 3 ("Agent M gives the endpoint or CLI session …").
+  for (const [given, what] of [["What do I see on this page?", "the message"], ["One.", "the conversation so far"], ["A LOAN HAS A DUE DATE", "the page's context"],
+    ["Requirements Engineering in Practice", "the chapter for the page's kind of work"]]) assert.ok(asked.input.includes(given), `${what} is in the session's input`);
+
+  // Counter-proof: "bound neither by this table nor by the plan of 4a".
+  assert.equal("tools" in asked, false, "the ask carries no tools");
+  for (const bound of [...TAB_TOOLS, "handOver", "The form of your answer"]) assert.equal(asked.input.includes(bound), false, `the session's input names no ${bound}`);
+  assert.notEqual(asked.input, tab, "the session is not given the endpoint's input");
+  assert.equal(all(barOf(s), "section", "hand-over").length, 0, "no piece of a plan is shown");
+  assert.equal(w.dispatches.length, 0, "no workflow is started");
+  assert.ok(!Object.keys(s.product.files).some((path) => path.startsWith("docs/jobs/JOB-")), "no job record is written");
+  clock.stop();
   w.stop();
 });
 

@@ -708,3 +708,44 @@ test("grip — the person sets the bar's height, and the tab keeps it", async ()
   for (let i = 0; i < 40; i += 1) one(again.target, "bar-grip").dispatchEvent(Object.assign(new Event("keydown"), { key: "ArrowUp" }));
   assert.match(one(again.target, "prompt-bar").getAttribute("style"), /height: 720px;/);
 });
+
+// ---------------------------------------------------------------- a CLI session, unfiltered (UC-049 step 4)
+
+// TST-1112005 · level: component · module: MOD-prompt-bar
+// guards: UC-049; EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; THE PAGE NAMES WHERE IT SENDS
+// given: the one CLI session mac:opencode, which the Bridge mac lists ready, declaring draft text at "this machine"; the instance's AGENTS.md "# The rules of the instance"; the session answers first, as plain text, "I split the requirement, committed it and opened its pull request.", then the envelope of a converse answer whose plan hands a piece on
+// input: Send "split this requirement"; then Send "and the next one"
+// expect: before the first ask the page names "mac:opencode — this machine" under "Sent to"; each message is one POST /v1/ask to the Bridge with the agent opencode, its model model-opencode, the instance's address as product and the instance's commit the bar read as instance; the input begins with the instance's AGENTS.md and holds the page and the person's words, and none of the endpoint's prompt — no plan to hand on, no form of an answer, no tool —; the plain answer is shown in the conversation as the session's message; the second answer is shown as it came, and no piece of a plan is shown or handed over, nothing is committed, and no Review the draft is offered; counter-proof: the endpoint drafter-a given the same plain answer says it could not be read
+test("TST-1112005: a message to a CLI session goes to its Bridge with the page, the conversation and AGENTS.md first, and its answer is shown as it gives it", async () => {
+  const plan = JSON.stringify({ draft: { answer: "I hand it on.", handOver: [{ kind: "change-requirements", works_on: [], task: "split it", after: [] }] }, answers: [] });
+  endpointAnswers("I split the requirement, committed it and opened its pull request.", plan);
+  const it = page({ offer: [session("opencode")], instanceFiles: { "AGENTS.md": "# The rules of the instance\n" } });
+  await drawn(it);
+  await sends(it, "split this requirement");
+  const asks = requests.filter((each) => each.url.endsWith("/v1/ask"));
+  assert.equal(asks.length, 1, JSON.stringify(bridgeCalls));
+  assert.ok(asks[0].page.includes("Sent to:") && asks[0].page.includes("mac:opencode — this machine"), asks[0].page);
+  const body = JSON.parse(asks[0].body);
+  assert.deepEqual({ agent: body.agent, model: body.model, product: body.product, instance: body.instance },
+    { agent: "opencode", model: "model-opencode", product: INSTANCE_WEB, instance: it.instance.head() });
+  assert.ok(body.input.startsWith("# The rules of the instance"), body.input.slice(0, 120));
+  assert.ok(body.input.includes("split this requirement") && body.input.includes("The page shows UC-007, drafted for mac:opencode."), body.input);
+  for (const endpointOnly of ["hand-over", "handOver", "The form of your answer", "\"draft\""]) assert.equal(body.input.includes(endpointOnly), false, `no ${endpointOnly} in a session's input`);
+  assert.equal(body.tools, undefined, "no tool is offered");
+  const said = byClass(it.target, "message").filter((node) => node.className.includes("participant")).map(textOf);
+  assert.ok(said.some((text) => text.includes("I split the requirement, committed it and opened its pull request.")), said.join(" | "));
+  assert.equal(byClass(it.target, "problem").length, 0, "the plain answer is read");
+
+  await sends(it, "and the next one");
+  assert.equal(requests.filter((each) => each.url.endsWith("/v1/ask")).length, 2, "one ask per message and nothing more");
+  assert.ok(JSON.parse(requests.filter((each) => each.url.endsWith("/v1/ask"))[1].body).input.includes("I split the requirement"), "the conversation so far goes with it");
+  assert.equal(byClass(it.target, "hand-over").length, 0, "no piece of a plan is shown");
+  assert.equal(byClass(it.target, "review").length, 0, "no draft is offered for review");
+  assert.equal(it.instance.attempts.length, 0, "nothing is committed: no piece is handed over");
+
+  endpointAnswers("I split the requirement, committed it and opened its pull request.");
+  const bound = page();
+  await drawn(bound);
+  await sends(bound, "split this requirement");
+  assert.ok(textOf(one(bound.target, "problem")).includes("could not be read"), "counter-proof: an endpoint stays bound to its answer's form");
+});

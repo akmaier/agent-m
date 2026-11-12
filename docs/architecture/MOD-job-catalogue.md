@@ -175,8 +175,8 @@ its tests and is pushed before any code is written (`AN IMPLEMENTATION JOB BEGIN
 every commit pushed keeps the tests green (`A REFACTORING JOB BEGINS WITHOUT A FAILING TEST`); and *red* and *green* are
 the product's CI run on the commit pushed, never a run of the agent's own, which it may make as often as it likes but
 which decides nothing. The agent pushes its branch and opens its pull request, follows its CI and merges it once the
-Definition of Done holds, as the description of its route says — a Bridge's relay (MOD-bridge-jobs) —; where its route
-offers none of this, the writer opens the pull request. The answer reports the branch and its commits, and for
+Definition of Done holds, as the description of its route says — a Bridge's description of its checkout
+(MOD-bridge-jobs) —; where its route offers none of this, the writer opens the pull request. The answer reports the branch and its commits, and for
 `write-tests` its tests, but no pull request: the writer takes that from the host. The CI those runs belong to is the
 product's own, which `set-up-ci` generates before a run's first implementation (MOD-run-planner); no prompt asks the
 agent to write it.

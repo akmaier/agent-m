@@ -116,7 +116,7 @@ const ID = (n) => `JOB-20261011-090${n}-aaa${n}`;
 
 // The Bridge's computer: a PATH of the fixture agent and the wrappers, the instance (two commits; the record names the first) and the products. The
 // agent answers with its working folder and, once started, waits for the gate file when `gated`; it writes a mark when it ends.
-async function world(run, { gated = false, fails = false, branch = null, undrafted = false } = {}) {
+async function world(run, { gated = false, fails = false, branch = null, undrafted = false, probe = false } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-327-")));
   const bin = join(root, "bin"), calls = join(root, "calls"), gate = join(root, "gate"), finished = join(root, "finished");
   mkdirSync(bin);
@@ -126,17 +126,20 @@ async function world(run, { gated = false, fails = false, branch = null, undraft
   // With `undrafted`, the agent answers JSON whose envelope has no draft.
   const event = JSON.stringify({ type: "text", part: { text: JSON.stringify(undrafted ? { answers: [] } : { draft: { decision: "passed", reason: "@PWD@" }, answers: [] }) } })
     .replace("@PWD@", `'"$PWD"'`);
-  // With `branch`, the agent commits a file on that branch of its checkout and pushes it to its push address, which it records.
-  const commits = branch ? `git checkout -q -b ${branch} && printf 'change\\n' > change.txt && git add change.txt && git commit -q -m change && git push -q origin ${branch} && printf 'pushed to %s\\n' "$(git remote get-url --push origin)" >> ${calls}; ` : "";
+  // With `branch`, the agent commits a file on that branch of its checkout and pushes it to its origin, whose address, as its configuration names it, it records.
+  const commits = branch ? `git checkout -q -b ${branch} && printf 'change\\n' > change.txt && git add change.txt && git commit -q -m change && git push -q origin ${branch} && printf 'pushed to %s\\n' "$(git config --get remote.origin.url)" >> ${calls}; ` : "";
+  // With `probe`, the agent records what it finds when it starts: its checkout's commit, the commit of the instance's clone in its working folder, whether the
+  // leftover draft_response.json of an earlier session lies there, whether its home's file is kept, and whether its checkout holds NEW.md.
+  const probes = probe ? `printf 'probe %s %s %s %s %s\\n' "$(git rev-parse HEAD)" "$(git -C ../.. rev-parse HEAD)" "$([ -e ../../draft_response.json ] && echo left || echo gone)" "$([ -e ../../home/tmp/opencode/final_answer.json ] && echo home || echo no-home)" "$([ -e NEW.md ] && echo new || echo old)" >> ${calls}; ` : "";
   script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
-run) printf '%s\\n' "$PWD $*" >> ${calls}; ${commits}${gated ? `while [ ! -e ${gate} ]; do sleep 0.02; done; ` : ""}${fails ? "echo boom >&2; exit 3; " : ""}printf '%s\\n' ok >> ${finished}
+run) printf '%s\\n' "$PWD $*" >> ${calls}; ${probes}${commits}${gated ? `while [ ! -e ${gate} ]; do sleep 0.02; done; ` : ""}${fails ? "echo boom >&2; exit 3; " : ""}printf '%s\\n' ok >> ${finished}
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
   const instance = repository(root, "instance", { "docs/participants.md": PARTICIPANTS, "marker.md": "v1\n" });
   const first = git(instance.seed, "rev-parse", "HEAD");
   push(instance.seed, { "marker.md": "v2\n", }, "second");
   const products = { [PRODUCT_A]: repository(root, "product-a", { "README.md": "A\n" }) };
-  const queue = (product, job) => {
-    const { path, text } = startRecord({ ...job, agentM: { version: "2026.10.0", commit: first } });
+  const queue = (product, job, commit = first) => {
+    const { path, text } = startRecord({ ...job, agentM: { version: "2026.10.0", commit } });
     return { path, text, id: job.id, product, commit: push(products[product].seed, { [path]: text }, `queue ${job.id}`) };
   };
   const mapping = () => {
@@ -161,7 +164,7 @@ printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"o
   const prior = process.env.PATH;
   process.env.PATH = bin;
   try {
-    return await run({ root, instance, products, first, queue, mapping, folder, originText, originHead, until, ended, calls: () => readFileSync(calls, "utf8").trim().split("\n").filter(Boolean),
+    return await run({ root, instance, products, first, queue, push, mapping, folder, originText, originHead, until, ended, calls: () => readFileSync(calls, "utf8").trim().split("\n").filter(Boolean),
       release: () => writeFileSync(gate, ""), finished: () => existsSync(finished), repository: (name, files) => repository(root, name, files) });
   } finally {
     await stopWatching("quit");
@@ -418,14 +421,14 @@ test("quit ends a running job as cancelled, with nothing written after", async (
   }, { gated: true });
 });
 
-// ---------------------------------------------------------------- the enclosure and the outbox (ARC-054)
+// ---------------------------------------------------------------- the enclosure and the session's checkout (ARC-054)
 
 // TST-1381001 · level: unit · module: MOD-bridge-jobs
-// guards: NO MODEL READS A CREDENTIAL; UC-011
-// given: a queued job of drafter, whose agent commits change.txt on the branch agent/work in its checkout and pushes it to its push address; opencode offered with a working folder and an enclosure that records what it is asked
+// guards: UC-011; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+// given: a queued job of drafter, whose agent commits change.txt on the branch agent/work in its checkout and pushes it to its origin; the Bridge holds no token for the product, whose repository the computer's own git reaches (UC-011 4a); opencode offered with a working folder and an enclosure that records what it is asked
 // input: startWatching; wait for the record's end
-// expect: the agent pushed to <folder>/jobs/<id>.out.git, the outbox, not to the product's address; the origin then holds agent/work at a commit whose change.txt reads "change", pushed by the Bridge, and its main holds no change.txt; the agent was started through the enclosure, with its checkout as working folder and exactly the checkout and the outbox writable, after the enclosure was asked whether it works and prepared with them; the record ends done; the checkout and the outbox are removed; counter-proof: the branch is not on the origin before the job ends
-test("TST-1381001: the agent pushes into its outbox, and the Bridge pushes its branch to the origin", async () => {
+// expect: the agent's checkout's origin is the product's address, to which it pushed itself; the origin then holds agent/work at a commit whose change.txt reads "change", and its main holds no change.txt; the agent was started through the enclosure, with its checkout as working folder and exactly the checkout writable, after the enclosure was asked whether it works and prepared with it; no token file was left; the record ends done; the checkout is removed; counter-proof: the branch is not on the origin before the job
+test("TST-1381001: the CLI session pushes its branch to the product itself, from a checkout whose origin is the product", async () => {
   await world(async (w) => {
     const job = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));
     const folder = w.folder("agent-work"), asked = [];
@@ -434,22 +437,56 @@ test("TST-1381001: the agent pushes into its outbox, and the Bridge pushes its b
     watch(w, [{ name: "opencode", folder }], { enclosures: openEnclosures({ asked }) });
     await w.ended(job);
 
-    const working = join(folder, "jobs", job.id), outbox = `${working}.out.git`;
-    assert.ok(w.calls().includes(`pushed to ${outbox}`), `the agent's push address is its outbox: ${w.calls().join(" | ")}`);
-    assert.notEqual(branchOnOrigin(), "", "the Bridge pushed the agent's branch");
+    const working = join(folder, "jobs", job.id);
+    assert.ok(w.calls().includes(`pushed to ${PRODUCT_A}`), `the agent's origin is the product: ${w.calls().join(" | ")}`);
+    assert.notEqual(branchOnOrigin(), "", "the agent's branch is on the origin");
     assert.equal(spawnSync(REAL_GIT, ["--git-dir", w.products[PRODUCT_A].origin, "show", "agent/work:change.txt"], { encoding: "utf8" }).stdout, "change\n");
     assert.equal(w.originText(PRODUCT_A, "change.txt"), "", "main is not changed");
     const wraps = asked.filter((entry) => entry.call === "wrap" && entry.args[0] === "run");
     assert.equal(wraps.length, 1, JSON.stringify(asked));
-    assert.deepEqual(wraps[0].at, { workdir: working, writable: [working, outbox] });
+    assert.deepEqual(wraps[0].at, { workdir: working, writable: [working] });
     assert.equal(wraps[0].folder, folder);
     const order = asked.map((entry) => entry.call);
     assert.ok(order.indexOf("works") < order.indexOf("prepare") && order.indexOf("prepare") < order.lastIndexOf("wrap"), order.join(", "));
-    assert.deepEqual(asked.find((entry) => entry.call === "prepare").at.writable, [working, outbox]);
+    assert.deepEqual(asked.find((entry) => entry.call === "prepare").at.writable, [working]);
     assert.match(w.originText(PRODUCT_A, job.path), /^state: done$/m);
     assert.equal(existsSync(working), false);
-    assert.equal(existsSync(outbox), false);
+    assert.equal(existsSync(`${working}.out.git`), false, "no outbox is made");
   }, { branch: "agent/work" });
+});
+
+// TST-1112003 · level: component · module: MOD-bridge-jobs
+// guards: UC-011; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: opencode offered with a working folder, which has run one job of drafter, so that the Bridge's clones of the product and of the instance are made; then, in the instance's clone, the leftover draft_response.json of that session, and in the agent's home home/tmp/opencode/final_answer.json; then the product's origin gains NEW.md and the instance's origin a third commit, which neither clone has fetched
+// input: a second job of drafter, whose record names the instance's third commit; wait for its end
+// expect: the agent of the second job starts in a checkout whose commit descends from the product's new commit — it holds NEW.md —, beside the instance's clone at the third commit; draft_response.json is gone and the home's file is kept; the record ends done; counter-proof: before the second job, the Bridge's clone of the product holds the origin's main before NEW.md and the instance's clone the first commit, which a session started without fetching would have read
+test("TST-1112003: every CLI session starts on freshly fetched clones at its job's commits, with nothing an earlier session left there", async () => {
+  await world(async (w) => {
+    const folder = w.folder("agent-work");
+    const first = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));
+    watch(w, [{ name: "opencode", folder }]);
+    await w.ended(first);
+    writeFileSync(join(folder, "draft_response.json"), "{\"draft\":{\"answer\":\"old\"}}\n");
+    mkdirSync(join(folder, "home", "tmp", "opencode"), { recursive: true });
+    writeFileSync(join(folder, "home", "tmp", "opencode", "final_answer.json"), "{}\n");
+    const productNow = w.push(w.products[PRODUCT_A].seed, { "NEW.md": "new\n" }, "the product moves");
+    const third = w.push(w.instance.seed, { "marker.md": "v3\n" }, "third");
+    const clone = join(folder, "products", "product-a");
+    assert.notEqual(git(clone, "rev-parse", "refs/remotes/origin/main"), productNow, "counter-proof: the Bridge's clone of the product is behind its origin");
+    assert.notEqual(git(folder, "rev-parse", "HEAD"), third, "counter-proof: the instance's clone is behind its origin");
+
+    const second = w.queue(PRODUCT_A, JOB(ID(2), "drafter"), third);
+    await w.ended(second);
+    const probes = w.calls().filter((line) => line.startsWith("probe ")).map((line) => line.split(" ").slice(1));
+    assert.equal(probes.length, 2, w.calls().join(" | "));
+    const [checkoutAt, instanceAt, leftover, home, holds] = probes[1];
+    assert.equal(git(w.root, "--git-dir", w.products[PRODUCT_A].origin, "merge-base", "--is-ancestor", productNow, checkoutAt), "", "the checkout's commit holds the product's new commit");
+    assert.equal(holds, "new", "the checkout holds what the product's origin gained");
+    assert.equal(instanceAt, third, "the instance's clone is at the commit the record names");
+    assert.equal(leftover, "gone", "what an earlier session left in the instance's clone is gone");
+    assert.equal(home, "home", "the agent's home is kept");
+    assert.match(w.originText(PRODUCT_A, second.path), /^state: done$/m);
+  }, { probe: true });
 });
 
 // TST-1381002 · level: unit · module: MOD-bridge-jobs

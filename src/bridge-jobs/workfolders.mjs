@@ -1,21 +1,23 @@
 // workfolders.mjs — the clones in an agent's working folder (MOD-bridge-jobs, Parts: workfolders.mjs; Data), laid out as a local clone of
-// Agent M is: the working folder itself a clone of the instance, one clone per served product in `products/<name>/`, one working clone per
-// running job in `jobs/<id>/`, made from the Bridge's clone of its product, with its outbox and its relay's folders beside it, all removed when the job
-// ends, and the agent's home `home/`, which with `jobs/` git does not see in the instance's clone. An agent started in the working folder finds Agent M's
-// AGENTS.md at its root. A working clone fetches from the Bridge's clone over a local path and needs no credential.
+// Agent M is: the working folder itself a clone of the instance, one clone per served product in `products/<name>/`, one checkout per running CLI
+// session in `jobs/<id>/`, made from the Bridge's clone of its product, whose origin is then the product's repository, removed with its token file when
+// the session ends, and the agent's home `home/`, which with `jobs/` git does not see in the instance's clone. An agent started in the working folder
+// finds Agent M's AGENTS.md at its root.
 //
 // Module: MOD-bridge-jobs
 //
-// A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT: every clone is made, fetched and pushed by git with the Bridge's credentials — the repository token its
-// paired browser handed it, which git reads from the file tokens.mjs keeps, or, for a repository it holds none for, the login git finds on this computer —,
-// and no token is entered anywhere. Access's local clone (MOD-repository-hosts' connect with a `clone`) reads files and makes commits in these clones, and,
-// with the token, reaches the server's API for pull or merge requests; the default branch it reports is the one the clone's origin names.
+// A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT: every clone of the Bridge is made, fetched and pushed by git with the Bridge's credentials — the repository
+// token its paired browser handed it, which git reads from the file tokens.mjs keeps, or, for a repository it holds none for, the login git finds on this
+// computer —, and no token is entered anywhere. A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE: a session's checkout holds its product's
+// token alone, in `.agent-m-token`, which its `.git/info/exclude` names and its credential helper reads, so that the token stands in no configuration,
+// remote address or command line. Access's local clone (MOD-repository-hosts' connect with a `clone`) reads files and makes commits in the Bridge's clones,
+// and, with the token, reaches the server's API for pull or merge requests; the default branch it reports is the one the clone's origin names.
 
 import { execFile } from "node:child_process";
-import { appendFile, mkdir, rm, stat } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { appendFile, chmod, mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
-import { tokenOf } from "./tokens.mjs";
+import { tokenOf, userOf } from "./tokens.mjs";
 
 const TIMEOUT_MS = 120_000;
 
@@ -39,6 +41,10 @@ export const foldersOf = (folder) => ({ instance: folder, product: (address) => 
 
 // What the Bridge keeps in the instance's clone beside Agent M's own files, which no command of git there is to see.
 const BESIDE_THE_INSTANCE = ["/home/", "/jobs/"];
+// What a session's start leaves in the instance's clone, beside what git tracks: the Bridge's own folders, the clones of the products among them.
+const KEPT_IN_THE_INSTANCE = [...BESIDE_THE_INSTANCE, "/products/"];
+// The file of a session's checkout that holds its product's token (MOD-bridge-jobs, Data: The token file).
+const TOKEN_FILE = ".agent-m-token";
 
 // Work on one key — a clone, a product's taking — runs one after another: a clone's refs are one writer's at a time.
 const queues = new Map();
@@ -93,27 +99,47 @@ export async function defaultHead(folder) {
 /**
  * MOD-repository-hosts' host for `address` through the clone in `folder` and with the token the Bridge holds for that address (tokens.mjs): its pull or merge
  * requests and the rest of the server's API with that token, NotSupported without one; its repositoryInfo answering the default branch the origin names, and
- * its commits one at a time with the clone's fetches: a push updates the clone's remote-tracking ref, which a fetch at the same moment would also lock.
+ * its commits one at a time with the clone's fetches: a push updates the clone's remote-tracking ref, which a fetch at the same moment would also lock. A
+ * branch the clone does not hold — one a CLI session pushed to the origin itself — is read, after a fetch of the clone, as the origin holds it.
  */
 export async function hostOf(address, folder) {
   const host = connect(parseAddress(address), { clone: folder, token: await tokenOf(address) });
   const { branch } = await defaultHead(folder);
-  return Object.freeze({ ...host, commitFiles: (change) => exclusively(folder, () => host.commitFiles(change)), repositoryInfo: async () => ({ defaultBranch: branch, visibility: null, canWrite: null, archived: false, description: null }) });
-}
-
-/** The clone at one commit, detached, its files as that commit holds them. */
-export function checkoutAt(folder, commit) {
-  return exclusively(folder, () => git(folder, ["checkout", "--quiet", "--force", "--detach", commit]).then(() => folder));
+  const readSnapshot = async (name, ...more) => {
+    try {
+      return await host.readSnapshot(name, ...more);
+    } catch (error) {
+      if (error?.name !== "NotFound" || typeof name !== "string" || name.startsWith("-")) throw error;
+      await cloneOrFetch(address, folder);
+      const commit = await originOf(folder, name);
+      if (!commit) throw error;
+      return host.readSnapshot(commit, ...more);
+    }
+  };
+  return Object.freeze({ ...host, readSnapshot, commitFiles: (change) => exclusively(folder, () => host.commitFiles(change)), repositoryInfo: async () => ({ defaultBranch: branch, visibility: null, canWrite: null, archived: false, description: null }) });
 }
 
 /**
- * workingClone(clone, folder) -> Promise<folder> — the working clone of one job (MOD-bridge-jobs, Data: The working clone's fetch address), made from the Bridge's
- * clone of its product: an empty repository whose `origin` is that clone's path, fetching the origin's branches as the clone holds them —
- * `+refs/remotes/origin/*:refs/remotes/origin/*` without `refs/remotes/origin/HEAD` — and all their tags, fetched once; `origin/HEAD` the branch the clone names
- * as the origin's default, checked out and tracking it. Its fetches cross no network and need no credential; the clone's own branches and `refs/agent-m/` are
- * not among what it fetches.
+ * checkoutAt(folder, commit) -> Promise<folder> — the instance's clone at one commit, detached, its files as that commit holds them, and every file of it that
+ * git neither tracks nor ignores removed (MOD-bridge-jobs, Data: The clones at the session's start): nothing an earlier session left there stays. The agent's
+ * home, `jobs/` and `products/` stay.
  */
-export async function workingClone(clone, folder) {
+export function checkoutAt(folder, commit) {
+  return exclusively(folder, async () => {
+    await git(folder, ["checkout", "--quiet", "--force", "--detach", commit]);
+    await git(folder, ["clean", "--quiet", "--force", "-d", ...KEPT_IN_THE_INSTANCE.flatMap((pattern) => ["-e", pattern])]);
+    return folder;
+  });
+}
+
+/**
+ * workingClone(clone, folder, address?) -> Promise<folder> — the checkout of one CLI session (MOD-bridge-jobs, Data: The session's checkout), made from the
+ * Bridge's clone of its product: an empty repository fetching the origin's branches as the clone holds them — `+refs/remotes/origin/*:refs/remotes/origin/*`
+ * without `refs/remotes/origin/HEAD` — and all their tags, fetched once over a local path; `origin/HEAD` the branch the clone names as the origin's default,
+ * checked out and tracking it. With `address`, the product's, its origin is then that address with git's usual fetch refspec, so that the session fetches,
+ * pulls and pushes the product's repository itself.
+ */
+export async function workingClone(clone, folder, address = null) {
   const { branch } = await defaultHead(clone);
   await rm(folder, { recursive: true, force: true });
   await mkdir(folder, { recursive: true });
@@ -125,93 +151,39 @@ export async function workingClone(clone, folder) {
   await git(folder, ["fetch", "--quiet", "origin"]);
   await git(folder, ["symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${branch}`]);
   await git(folder, ["checkout", "--quiet", "-B", branch, "--track", `origin/${branch}`]);
+  if (address) {
+    await git(folder, ["remote", "set-url", "origin", address]);
+    await git(folder, ["config", "--replace-all", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"]);
+  }
   return folder;
 }
 
-/** The working clone removed. */
+// A text in single quotes for the shell.
+const quoted = (text) => `'${String(text).replace(/'/g, "'\\''")}'`;
+
+/**
+ * leaveToken(folder, address) -> Promise<string | null> — the token file of a session's checkout (MOD-bridge-jobs, Data: The token file): where the Bridge holds
+ * a token for the product at `address`, that token alone as the text of `<folder>/.agent-m-token`, readable by its user only, named in the checkout's
+ * `.git/info/exclude`, and the checkout's credential helper — after an empty entry that sets aside the computer's own helpers — a shell function that answers
+ * git's `get` with the server's user and the file's text, by the shell's builtins alone; the file's path. Null, and nothing written, for a product it holds no
+ * token for.
+ */
+export async function leaveToken(folder, address) {
+  const token = await tokenOf(address);
+  if (!token) return null;
+  const file = join(folder, TOKEN_FILE);
+  await writeFile(file, token, { encoding: "utf8", mode: 0o600 });
+  await chmod(file, 0o600);
+  await mkdir(join(folder, ".git", "info"), { recursive: true });
+  await appendFile(join(folder, ".git", "info", "exclude"), `/${TOKEN_FILE}\n`);
+  const helper = `!f() { test "$1" = get || return 0; IFS= read -r t < ${quoted(file)} || [ -n "$t" ]; printf 'username=%s\\npassword=%s\\n' ${quoted(userOf(parseAddress(address).server))} "$t"; }; f`;
+  await git(folder, ["config", "--add", "credential.helper", ""]);
+  await git(folder, ["config", "--add", "credential.helper", helper]);
+  return file;
+}
+
+/** The checkout removed. */
 export const removeClone = (folder) => rm(folder, { recursive: true, force: true });
 
-// The branches of a repository: { "<name>": commit }.
-async function branchesOf(folder, prefix = "refs/heads/") {
-  const listed = await git(folder, ["for-each-ref", "--format=%(refname) %(objectname)", prefix]);
-  return Object.fromEntries(listed.split("\n").filter(Boolean).map((line) => line.split(" ")).map(([ref, commit]) => [ref.slice(prefix.length), commit]));
-}
-
-/**
- * makeOutbox(working) -> Promise<{ path, base }> — the job's outbox (MOD-bridge-jobs, Data): a bare repository `<working>.out.git` cloned from the working
- * clone, set as the working clone's push address, so that the agent's pushes land there; `base` its branches now. Made before the agent starts: the Bridge
- * runs git in the working clone only then.
- */
-export async function makeOutbox(working) {
-  const path = `${working}.out.git`;
-  await rm(path, { recursive: true, force: true });
-  await git(dirname(working), ["clone", "--bare", "--quiet", "--", working, path]);
-  await git(working, ["remote", "set-url", "--push", "origin", path]);
-  return { path, base: await branchesOf(path) };
-}
-
-/**
- * relayFolders(working) -> Promise<{ requests, answers }> — the relay's two folders beside the working clone, made empty before the agent starts (MOD-bridge-jobs,
- * Data: The relay): `<working>.requests`, which the agent may write, and `<working>.answers`, which only the Bridge writes.
- */
-export async function relayFolders(working) {
-  const folders = { requests: `${working}.requests`, answers: `${working}.answers` };
-  for (const folder of Object.values(folders)) {
-    await rm(folder, { recursive: true, force: true });
-    await mkdir(folder, { recursive: true });
-  }
-  return folders;
-}
-
-/**
- * forwarding(outbox) -> { path, base, outbox, forwarded, refused } — what the Bridge keeps of one job's forwards, in memory while the job runs (MOD-bridge-jobs,
- * Data): the outbox's branches at the last look, at first its base; what it last forwarded of each branch, at first the base; and each forward the origin
- * refused, `{ commit, said }`, with what git said.
- */
-export const forwarding = (outbox) => ({ path: outbox.path, base: { ...outbox.base }, outbox: { ...outbox.base }, forwarded: { ...outbox.base }, refused: {} });
-
-/**
- * forward(state, { clone, job, again }) -> Promise<state> — one look at the outbox (MOD-bridge-jobs, Data: Each push is forwarded at once): its branches fetched
- * into the Bridge's clone of the product, under `refs/agent-m/<job>/`; every branch new or moved against what was last forwarded of it pushed to the origin under
- * its name, never forced, with the clone's own credentials — the push also moves the clone's `refs/remotes/origin/` of it —, and the clone's branch of that name
- * pointed at it, unless it is the branch checked out there. A push the origin refuses is kept in `state.refused` with what git said and offered again only once
- * the branch moved, or with `again`, the forward after the agent's answer. One at a time with the clone's fetches. Fetching from the outbox runs no command its
- * configuration names.
- */
-export function forward(state, { clone, job, again = false }) {
-  return exclusively(clone, async () => {
-    const space = `refs/agent-m/${job}/`;
-    await git(clone, ["fetch", "--quiet", "--no-tags", "--", state.path, `+refs/heads/*:${space}*`]);
-    const fetched = await branchesOf(clone, space);
-    state.outbox = fetched;
-    const current = await git(clone, ["symbolic-ref", "--quiet", "--short", "HEAD"]).catch(() => null);
-    try {
-      for (const [branch, commit] of Object.entries(fetched)) {
-        if (state.forwarded[branch] === commit) continue;
-        if (!again && state.refused[branch]?.commit === commit) continue;
-        try {
-          await git(clone, ["push", "--quiet", "origin", `${commit}:refs/heads/${branch}`]);
-        } catch (error) {
-          state.refused[branch] = { commit, said: error.message };
-          continue;
-        }
-        delete state.refused[branch];
-        state.forwarded[branch] = commit;
-        if (branch !== current) await git(clone, ["update-ref", `refs/heads/${branch}`, commit]);
-      }
-    } finally {
-      for (const branch of Object.keys(fetched)) await git(clone, ["update-ref", "-d", `${space}${branch}`]).catch(() => {});
-    }
-    return state;
-  });
-}
-
-/** The commit the Bridge's clone holds of the origin's branch, as it last fetched or forwarded it; null where it holds none. */
+/** The commit the Bridge's clone holds of the origin's branch, as it last fetched it; null where it holds none. */
 export const originOf = (clone, branch) => git(clone, ["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${branch}^{commit}`]).catch(() => null);
-
-/** The origin's branches as the Bridge's clone holds them: { "<branch>": commit }, origin/HEAD left out. */
-export async function originBranches(clone) {
-  const branches = await branchesOf(clone, "refs/remotes/origin/");
-  delete branches.HEAD;
-  return branches;
-}

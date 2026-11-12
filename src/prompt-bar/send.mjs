@@ -2,7 +2,8 @@
 // Parts, Interfaces: startPromptBar). A message is a job of the bar's one kind, `converse`, whatever the page, with the subject's parameters as its
 // context and the person's words, the conversation so far, the subject's menu entry and the tools it refuses; a piece the tab runs is a
 // job of the kind it names, prepared the same way with `hand-over` among its refuses; each is prepared with MOD-job-runner's prepareJob in a MOD-runtimes tabContext and run
-// with runOnTab — a message without a job record, a piece with its record, queued on the tab's route (queueHere).
+// with runOnTab — a message without a job record, a piece with its record, queued on the tab's route (queueHere). A message to a CLI session is prepared the
+// same way but not run in the tab: its rules and parts, filled into session.md, go to the session's Bridge as one ask (runSession, UC-049 step 4).
 //
 // Module: MOD-prompt-bar
 //
@@ -11,7 +12,7 @@
 // first, where recording is on, and a piece's only writes are its record's start, taking and end, which hold none of its task's words.
 
 import { readSetting } from "../browser-store/index.mjs";
-import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
+import { ask, bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { handOverParams, prepareJob, taskRefusal } from "../job-runner/index.mjs";
 import { queueJob, runOnTab, tabContext } from "../runtimes/index.mjs";
@@ -20,6 +21,7 @@ import { BAR_KIND, readParticipants } from "./offer.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { personAccount, registerPaths, restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { recordingOf } from "./record.mjs";
+import { ownText } from "./own.mjs";
 
 /** defaultSnapshot(host: Host) -> Promise<Snapshot> — the repository at its default branch now. */
 export async function defaultSnapshot(host) {
@@ -223,6 +225,43 @@ export function whyNot(prepared, offered) {
     }),
     ...(typeof prepared.params?.instruction === "string" && prepared.params.instruction.trim() ? [taskRefusal(prepared.kind)].filter(Boolean).map(shown) : []),
   ];
+}
+
+// ---------------------------------------------------------------- a message to a CLI session (UC-049 step 4)
+
+// A CLI session: a coding agent a Bridge offers, whose connection's route is `bridge <bridge> agent <agent>` (MOD-job-ledger, `route`).
+const SESSION_ROUTE = /^bridge\s+(\S+)\s+agent\s+(\S+)/;
+
+/** isSession(participant: Participant) -> boolean — whether the participant is a CLI session, which the bar does not run in the tab (UC-049 step 4). */
+export const isSession = (participant) => SESSION_ROUTE.test(String(participant?.route ?? "").trim());
+
+
+/**
+ * sessionInput(prepared: Prepared) -> Promise<string> — what a CLI session is given with a message: the job's `rules`, Agent M's AGENTS.md, where the instance
+ * holds it, then session.md with each named place filled by the parts of its recipe, each under its name, "(none)" where the recipe gave none.
+ */
+export async function sessionInput(prepared) {
+  const filled = (await ownText("session.md")).replace(/\{\{([a-z-]+)\}\}/g, (_place, recipe) => {
+    const given = prepared.parts.filter((part) => part.recipe === recipe);
+    return given.length ? given.map((part) => `### ${part.name}\n\n${part.text}`).join("\n\n") : "(none)";
+  });
+  return `${prepared.rules ? `${prepared.rules.text}\n\n` : ""}${filled.trimEnd()}`;
+}
+
+/**
+ * runSession(ready: Ready) -> Promise<{ text: string, usage: unknown | null }> — sends a prepared message to the CLI session it names, as one ask to the
+ * session's agent on its Bridge (MOD-bridge-client's `ask`), with the session's model, the address of the message's page's repository as `product` and the
+ * commit of the instance it was prepared on as `instance`; the session's answer as it gave it. Throws NotFound where this browser keeps no Bridge of that
+ * name, and what `ask` throws.
+ */
+export async function runSession(ready) {
+  const [, bridgeName, agent] = SESSION_ROUTE.exec(String(ready.prepared.drafter.route).trim());
+  const bridge = ready.connections.bridges[bridgeName];
+  if (!bridge) throw Object.assign(new Error(`this browser keeps no Bridge named ${bridgeName}`), { name: "NotFound" });
+  const model = ready.prepared.drafter.model ?? undefined;
+  const { text, usage } = await ask(bridge, { agent, ...(model ? { model } : {}), product: ready.page.address, instance: ready.context.agentM.commit },
+    await sessionInput(ready.prepared));
+  return { text, usage };
 }
 
 /**

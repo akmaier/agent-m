@@ -102,8 +102,8 @@ never an argument: it is written to the agent's standard input, so no size of a 
   writable. For a job that works in the
   folder — implementing, fixing, generating tests —, the agent commits and pushes to its checkout's push address and
   reports its branch: in CI a repository the writing machine pushes from with the person's token from a CI secret
-  (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`), on a Bridge an outbox the Bridge pushes from with the
-  computer's own login (MOD-bridge-jobs). Outside CI, `keyVariable` is `null`: the command carries no
+  (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`), on a Bridge the product's repository itself, with the
+  token the Bridge leaves in an ignored file of the checkout or the computer's own login (MOD-bridge-jobs). Outside CI, `keyVariable` is `null`: the command carries no
   key and no key variable. In CI, `keyVariable` names the variable the CI filled from the secret of the participant's connection; this
   module never sees or passes the value. With `keyHolder`, the address of a key holder on the model's user's side of a
   CI machine, the agent inherits no declared key variable and is started with its row's Key holder options — its requests

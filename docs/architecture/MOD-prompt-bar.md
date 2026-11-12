@@ -66,6 +66,7 @@ uses:
   - MOD-runtimes.cancelJob
   - MOD-runtimes.actionsSetup
   - MOD-bridge-client.Bridge
+  - MOD-bridge-client.ask
   - MOD-bridge-client.settingsOf
   - MOD-bridge-client.bridgeAt
   - MOD-bridge-client.testBridge
@@ -98,10 +99,11 @@ It belongs to the Site (ARC-038). Its one responsibility is the conversation of 
 bottom of every main and review page, the only place where a person writes to an endpoint or a CLI session. It offers
 what this browser's configuration reaches — its model endpoints, and the CLI sessions its Bridges offer —, each named
 with the place where it processes data (`THE PAGE NAMES WHERE IT SENDS`); it holds the conversation in the browser tab;
-it sends each message as a job of its one kind, `converse`, on every page, with the page as its context only, run in
-this tab without a job record; it shows the answer, and leads a draft to the review page that shows it; it carries out
-the plan the participant proposes without a further click — each piece a job of its own, in this tab where the kind's
-result waits for the person, else queued as a job of the endpoint or CLI session itself — and follows each queued one
+it prepares each message as a job of its one kind, `converse`, on every page, with the page as its context only, and
+runs it without a job record — an endpoint's in this tab, a CLI session's on its Bridge, where the session does the
+work asked for itself (UC-049 step 4); it shows the answer, and leads an endpoint's draft to the review page that shows
+it; it carries out the plan an endpoint proposes without a further click — each piece a job of its own, in this tab
+where the kind's result waits for the person, else queued as a job of the endpoint itself — and follows each queued one
 until it has ended; and, where the instance switches recording on, it appends every message to a conversation
 record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`, `A RECORDED CONVERSATION IS KEPT WHERE IT
 WAS HELD`).
@@ -118,7 +120,10 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 - `offer.mjs` — the endpoints and CLI sessions offered, read from this browser's configuration, and the place each is
   named with.
 - `send.mjs` — preparing and running a message, or a piece of a plan of a kind whose result waits for the person, as a
-  job in this tab.
+  job in this tab, and a message to a CLI session sent to its Bridge.
+- `session.md` — what a CLI session is given with a message beside the page, the conversation and the message, data
+  like a kind's prompt.
+- `own.mjs` — the module's own data files read, from the disk in Node and from the module's own address in a browser.
 - `hand-over.mjs` — each piece of a proposed plan assessed for its route, and queued.
 - `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
 - `record.mjs` — the conversation record and the recording switch.
@@ -241,8 +246,16 @@ and sends nothing while the job does not
   conversation record of the page's repository, as a commit with the token of that repository on the head that was read,
   and again on a moved head; a message the subject withholds, or whose commit the host refuses for a stored secret, is
   appended as withheld and sent; a message whose record cannot be appended for any other reason is not sent, and the bar
-  says why (`A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD`). It runs the job with `runOnTab` and no job record,
-  attended, and shows the answer: the text, the rounds and the findings the loop left, and, for a draft — edits the
+  says why (`A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD`). **A message to a CLI session** — a connection whose
+  route is `bridge <bridge> agent <agent>` — is not run in the tab (UC-049 step 4): its input is the job's `rules`,
+  Agent M's `AGENTS.md`, followed by `session.md`, text held once with named places for the page, the conversation so
+  far, the person's message and the chapters for the page, each filled with the parts the job's recipes gave; it is
+  sent with MOD-bridge-client's `ask` to the session's agent on its Bridge, with the session's model, the address of the
+  message's page's repository as `product` and the commit of the instance the bar read as `instance`, and the Bridge
+  starts the session in its checkout of that product (MOD-bridge-jobs). No tool, no answer schema, no correction loop,
+  no plan and no hand-over apply to it: the text the session answers is shown in the conversation as its answer, and,
+  with recording on, appended as an answer is; no draft comes of it. A failure of the Bridge is shown by name. Any other
+  message runs with `runOnTab` and no job record, attended, and the bar shows the answer: the text, the rounds and the findings the loop left, and, for a draft — edits the
   participant proposed —, *Review the draft*, which keeps the `ConversationDraft` and goes to the subject's
   `draftRoute`, or, where the subject gives none, to the review pages' `draft` for the subject's `key`; with recording on, the
   participant's answer is appended as the result of the same *Send*. *Stop* aborts the job in the tab (UC-049 5a). A
@@ -268,7 +281,7 @@ and sends nothing while the job does not
   (`THE PERSON WHO PROMPTS IS A SOURCE`), or a kind that takes no instruction, which MOD-job-runner's `taskRefusal` refuses since the task would reach
   no prompt — is named beside it, and that piece does not run. Any other piece — the conversation itself handed on
   among them — is shown with the participant, its processing place and the route it would take, which `routesFor`
-  gives, and queued at once as a job of the endpoint or CLI session itself where nothing keeps it from starting (UC-049
+  gives, and queued at once as a job of the endpoint itself where nothing keeps it from starting (UC-049
   4a.2), each piece a job of its own.
   Such a job takes, beside what its piece works on, only the bar's `source` and `refuses` naming `hand-over` — no other
   parameter, so that no message and no page text enters the job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY
@@ -432,6 +445,6 @@ on, it writes, through the host of the page's repository, the conversation recor
   MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*; MOD-job-ledger.newJobId,
   MOD-job-ledger.JobStart — the identifier and the start of the job a hand-over queues.
 - MOD-bridge-client.Bridge, MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt — the Bridges handed to the
-  runtimes, each from its stored entry and the stored jump host.
+  runtimes, each from its stored entry and the stored jump host; MOD-bridge-client.ask — a message to a CLI session.
 - MOD-markdown-render.renderArtifact — the answers, rendered safely.
 - MOD-text-tools.Finding — the findings a message's preparation or its loop names.

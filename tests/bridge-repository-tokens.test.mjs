@@ -5,11 +5,16 @@
 // the configuration of every git it starts — its environment names the file by its path —, so that no token stands on a command line, in a remote address, in
 // a clone's configuration or in an environment"; and the host of a repository is "MOD-repository-hosts' `connect` with the clone and the token the file holds
 // for the repository's address: ... its pull or merge requests ... through the server's API with that token; without a token those are `NotSupported`".
-// The check SPEC.md's A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT names (configuration-and-secrets/03).
+// The check SPEC.md's A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT names (configuration-and-secrets/03), and the checks of A CLI SESSION FINDS ITS
+// REPOSITORY'S TOKEN IN AN IGNORED FILE and A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE (configuration-and-secrets/04): "the Bridge leaves that token,
+// alone, as the text of the file `.agent-m-token` at the root of the checkout ... and names the file in the checkout's `.git/info/exclude`"; "No other
+// credential is left: not the instance's token, not the Bridge's pairing token"; "Where a token file is left, the Bridge adds [token.md], filled in, after
+// the input it is given" (MOD-bridge-jobs, The token file, What the session is told of its checkout).
 // Run: node --test tests/bridge-repository-tokens.test.mjs
 //
 // Module: MOD-bridge-jobs
 // Guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO MODEL READS A CREDENTIAL; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL; UC-044; UC-011
+// Guards: A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE; A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE; UC-049
 // Level: component
 //
 // Deterministic, no network beyond loopback: the repositories are bare repositories behind a fixture smart-HTTP server on 127.0.0.1 over HTTPS, with a
@@ -19,18 +24,23 @@
 // environment it is started with. Where the module file leaves a reading open, the test states the one it takes:
 //   - "nothing is written" for a refused list: the file holds the bytes it held before.
 //   - The agent's side is checked where the enclosure makes it: agentEnvironment, the environment an agent receives, and hiddenPaths, the places it hides.
+//   - The CLI session is a fixture executable named opencode, alone with a git wrapper on PATH, started through the fixture enclosure of
+//     tests/enclosure-fixture.mjs; its git is given no include of the Bridge's tokens.
 // Each test states its input and its expected result before it runs (given / input / expect).
 
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { keepRepositoryTokens, useRepositoryTokens } from "../src/bridge-jobs/index.mjs";
-import { cloneOrFetch, defaultHead, forward, forwarding, hostOf, makeOutbox, workingClone } from "../src/bridge-jobs/workfolders.mjs";
+import { jobHandlers, keepRepositoryTokens, useRepositoryTokens } from "../src/bridge-jobs/index.mjs";
+import { cloneOrFetch, defaultHead, hostOf, leaveToken, workingClone } from "../src/bridge-jobs/workfolders.mjs";
+import { startSession } from "../src/bridge-jobs/session.mjs";
 import { agentEnvironment, hiddenPaths } from "../src/agent-enclosure/holders.mjs";
+import { pairAnew } from "../src/bridge-http/index.mjs";
+import { openEnclosures } from "./enclosure-fixture.mjs";
 
 process.env.GIT_CONFIG_GLOBAL = "/dev/null";
 process.env.GIT_CONFIG_SYSTEM = "/dev/null";
@@ -128,6 +138,26 @@ async function smartHttpServer(root, expected, t) {
   return { address: (path) => `https://127.0.0.1:${server.address().port}/${path}`, seen };
 }
 
+// The CLI session's own git in `cwd`: an environment of its own, as its enclosure gives it, which names no include of the Bridge's tokens; each command must succeed.
+// Started without blocking, so that the fixture server in this process answers it.
+async function sessionGit(root, cwd, ...commands) {
+  const env = { PATH: process.env.PATH, HOME: root, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null", GIT_TERMINAL_PROMPT: "0", GIT_SSL_CAINFO: process.env.GIT_SSL_CAINFO,
+    GIT_AUTHOR_NAME: "Agent", GIT_AUTHOR_EMAIL: "agent@example.org", GIT_COMMITTER_NAME: "Agent", GIT_COMMITTER_EMAIL: "agent@example.org" };
+  for (const args of commands) {
+    const { status, stderr } = await new Promise((resolve) => {
+      const child = spawn(REAL_GIT, args, { cwd, env });
+      let said = "";
+      child.stderr.on("data", (chunk) => { said += chunk; });
+      child.on("close", (code) => resolve({ status: code, stderr: said }));
+    });
+    assert.equal(status, 0, `the session's git ${args.join(" ")}: ${stderr}`);
+  }
+}
+
+// Every file below a folder, `.git` included, by its path.
+const filesBelow = (folder) => readdirSync(folder, { withFileTypes: true, recursive: true }).filter((entry) => entry.isFile())
+  .map((entry) => join(entry.parentPath ?? entry.path, entry.name));
+
 // TST-20261110101 · level: unit · module: MOD-bridge-jobs
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; CONFIGURATION LIVES IN THE BROWSER; UC-044
 // given: an empty data folder of a Bridge
@@ -160,8 +190,8 @@ test("TST-20261110101: keepRepositoryTokens keeps each repository's header for g
 // TST-20261110102 · level: component · module: MOD-bridge-jobs
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO MODEL READS A CREDENTIAL; A CREDENTIAL IS NEVER PLACED IN A URL; UC-011
 // given: two projects behind the fixture server, group/widget and group/other, each answering only its own token's header; the Bridge's data folder keeping glpat-WIDGET for widget and glpat-OTHER for other, included by useRepositoryTokens; git reached through the recording wrapper
-// input: cloneOrFetch of each into a clone of the Bridge; for widget a job's workingClone, its outbox, a commit the agent pushes into the outbox with a git that is given no include, the forward of the outbox's branch, and a commit through hostOf(widget)'s commitFiles; then, with the include taken away, a fresh clone of widget
-// expect: every request for widget carried Basic oauth2:glpat-WIDGET and every request for other Basic oauth2:glpat-OTHER, none the other's; the agent's branch and the host's commit are on widget's main and branch; no clone's or outbox's .git/config, remote address, command line or environment of a git holds a token or its header's encoding; counter-proof: without the include the clone is refused by the server and git names it
+// input: cloneOrFetch of each into a clone of the Bridge; for widget a session's checkout (workingClone with widget's address) with its token file (leaveToken), a commit the session pushes to its origin with a git that is given no include, and a commit through hostOf(widget)'s commitFiles; then, with the include taken away, a fresh clone of widget
+// expect: every request for widget carried Basic oauth2:glpat-WIDGET and every request for other Basic oauth2:glpat-OTHER, none the other's; the session's branch and the host's commit are on widget's branch and main; no clone's or checkout's .git/config, remote address, command line or environment of the Bridge's git holds a token or its header's encoding; counter-proof: without the include the clone is refused by the server and git names it
 test("TST-20261110102: the Bridge's git clones, fetches and pushes with each repository's own token, which stays out of every clone, command line and environment", async (t) => {
   restoredEnvironment(t);
   const root = world(t);
@@ -177,20 +207,11 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
 
   const clone = await cloneOrFetch(widget.address, join(root, "work", "products", "widget"));
   await cloneOrFetch(other.address, join(root, "work", "products", "other"));
-  const working = await workingClone(clone, join(root, "work", "jobs", "JOB-1"));
-  const outbox = await makeOutbox(working);
+  const working = await workingClone(clone, join(root, "work", "jobs", "JOB-1"), widget.address);
+  await leaveToken(working, widget.address);
   writeFileSync(join(working, "change.md"), "the agent's change\n");
-  // The agent's own git: an environment of its own, as its enclosure gives it, which names no include.
-  const agentEnv = { PATH: process.env.PATH, HOME: root, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null", GIT_TERMINAL_PROMPT: "0",
-    GIT_AUTHOR_NAME: "Agent", GIT_AUTHOR_EMAIL: "agent@example.org", GIT_COMMITTER_NAME: "Agent", GIT_COMMITTER_EMAIL: "agent@example.org" };
-  for (const args of [["checkout", "-q", "-b", "agent-branch"], ["add", "-A"], ["commit", "-q", "-m", "agent"], ["push", "-q", "origin", "agent-branch"]]) {
-    const r = spawnSync(REAL_GIT, args, { cwd: working, env: agentEnv, encoding: "utf8" });
-    assert.equal(r.status, 0, `the agent's git ${args[0]}: ${r.stderr}`);
-  }
-  const { forwarded } = await forward(forwarding(outbox), { clone, job: "JOB-1" });
-  const pushed = Object.entries(forwarded).filter(([branch]) => !(branch in outbox.base)).map(([branch, commit]) => ({ branch, commit }));
-  assert.deepEqual(pushed.map(({ branch }) => branch), ["agent-branch"]);
-  assert.equal(git(root, "--git-dir", widget.origin, "rev-parse", "agent-branch"), pushed[0].commit, "the agent's branch reached the project");
+  await sessionGit(root, working, ["checkout", "-q", "-b", "agent-branch"], ["add", "-A"], ["commit", "-q", "-m", "agent"], ["push", "-q", "origin", "agent-branch"]);
+  assert.equal(git(root, "--git-dir", widget.origin, "rev-parse", "agent-branch"), git(working, "rev-parse", "HEAD"), "the session's branch reached the project");
   const host = await hostOf(widget.address, clone);
   const { commit: head } = await defaultHead(clone);
   const made = await host.commitFiles({ branch: "main", expectedHead: head, files: [{ path: "docs/end.md", text: "end\n" }], message: "end JOB-1" });
@@ -199,8 +220,10 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
   const byRepository = (name) => fixture.seen.filter((each) => each.repository === name).map((each) => each.authorization);
   assert.ok(byRepository("group/widget").length >= 4, "known positive: widget was asked for clone, fetch and pushes");
   assert.ok(byRepository("group/other").length >= 1, "known positive: other was asked");
-  assert.deepEqual([...new Set(byRepository("group/widget"))], [expected["group/widget"]], "widget saw its own token only");
+  // The session's git asks without a header first and, on the server's 401, with the token its credential helper reads from the file (git's own flow).
+  assert.deepEqual([...new Set(byRepository("group/widget").filter(Boolean))], [expected["group/widget"]], "widget saw its own token only");
   assert.deepEqual([...new Set(byRepository("group/other"))], [expected["group/other"]], "other saw its own token only");
+  const seenBefore = fixture.seen.length;
 
   const secrets = [widgetToken, otherToken, expected["group/widget"].slice(6), expected["group/other"].slice(6)];
   for (const folder of [clone, join(root, "work", "products", "other"), working]) {
@@ -208,16 +231,15 @@ test("TST-20261110102: the Bridge's git clones, fetches and pushes with each rep
     assert.ok(!secrets.some((secret) => config.includes(secret)), `${folder}'s .git/config holds no token`);
     assert.doesNotMatch(git(folder, "remote", "get-url", "origin"), /@/, "the remote address carries no credential");
   }
-  assert.ok(!secrets.some((secret) => readFileSync(join(outbox.path, "config"), "utf8").includes(secret)), "the outbox's configuration holds no token");
   const recorded = calls();
-  assert.match(recorded, /^ARGS .*clone/m, "known positive: the wrapper recorded the Bridge's git");
+  assert.ok(/^ARGS fetch .*origin/m.test(recorded), "known positive: the wrapper recorded the Bridge's git");
   assert.ok(!secrets.some((secret) => recorded.includes(secret)), "no command line and no environment of the Bridge's git holds a token or its header");
   assert.match(recorded, /^ENV GIT_CONFIG_VALUE_\d+=.*repository-tokens\.gitconfig$/m, "the environment names the file by its path only");
 
   for (const key of Object.keys(process.env)) if (/^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+)$/.test(key)) delete process.env[key];
   await assert.rejects(cloneOrFetch(widget.address, join(root, "elsewhere")), /401|Authentication|could not read Username|terminal prompts disabled/i,
     "counter-proof: without the include the server refuses the clone");
-  assert.ok(fixture.seen.some((each) => each.repository === "group/widget" && each.authorization === null), "counter-proof: that request carried no header");
+  assert.ok(fixture.seen.slice(seenBefore).some((each) => each.repository === "group/widget" && each.authorization === null), "counter-proof: that request carried no header");
 });
 
 // TST-20261110103 · level: component · module: MOD-bridge-jobs
@@ -283,4 +305,110 @@ test("TST-20261110104: an agent's environment names no file of the repository to
   }
   assert.equal(hiddenPaths({ platform: "darwin", dataFolder: data, personHome: "/Users/alice" })[0], data);
   assert.equal(existsSync(file), false, "useRepositoryTokens writes nothing; the file comes with keepRepositoryTokens");
+});
+
+// ---------------------------------------------------------------- the token file of a CLI session (configuration-and-secrets/04)
+
+// TST-20261112201 · level: component · module: MOD-bridge-jobs
+// guards: A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-011
+// given: behind the fixture server the product group/widget, answering only Basic oauth2:glpat-WIDGET, the instance group/agent-m, answering only its own token, and the product group/open, answering without a token; the Bridge's data folder keeping the tokens of widget and of the instance, included by useRepositoryTokens, and its pairing token PAIRING-0123456789abcdef
+// input: startSession of a job JOB-1 of widget in an agent's working folder, at the instance's head; the session commits everything its checkout holds and pushes its branch JOB-1 with its own git, given no include; then startSession of a job JOB-2 of open
+// expect: the checkout's .agent-m-token holds glpat-WIDGET, readable by its user only; `git status --porcelain` lists nothing, and lists the file among the ignored; the session's push reached widget, whose JOB-1 holds README.md and change.md and no token file; the checkout's origin is widget's address with no credential, and its .git/config holds no token; of every file of the checkout only the token file holds widget's token; counter-proof: no file of the checkout holds the instance's token, its header's encoding or the pairing token; for open no token file is left and no credential helper is named
+test("TST-20261112201: a CLI session finds its product's token in a file of its checkout that git ignores, and no other credential", async (t) => {
+  restoredEnvironment(t);
+  const root = world(t);
+  const widgetToken = "glpat-WIDGET0123456789", instanceToken = "glpat-INSTANCE0123456789", pairing = "PAIRING-0123456789abcdef";
+  const fixture = await smartHttpServer(root, { "group/widget": basic("oauth2", widgetToken), "group/agent-m": basic("oauth2", instanceToken) }, t);
+  const widget = { ...bareRepository(root, "group", "widget"), address: fixture.address("group/widget") };
+  const instance = { ...bareRepository(root, "group", "agent-m", { "AGENTS.md": "the rules\n" }), address: fixture.address("group/agent-m") };
+  const open = { ...bareRepository(root, "group", "open"), address: fixture.address("group/open") };
+  const data = join(root, "data");
+  await keepRepositoryTokens(data, [{ repository: widget.address, token: widgetToken }, { repository: instance.address, token: instanceToken }]);
+  useRepositoryTokens(data);
+  await pairAnew(data, pairing);
+  const folder = join(root, "work"), commit = git(root, "--git-dir", instance.origin, "rev-parse", "main");
+
+  const session = await startSession({ folder, instance: instance.address, commit, product: widget.address, id: "JOB-1" });
+  assert.equal(session.file, join(session.working, ".agent-m-token"));
+  assert.equal(readFileSync(session.file, "utf8"), widgetToken);
+  assert.equal(statSync(session.file).mode & 0o777, 0o600, "the file is its user's alone");
+  assert.equal(git(session.working, "status", "--porcelain"), "", "git status lists no file");
+  assert.match(git(session.working, "status", "--porcelain", "--ignored"), /^!! \.agent-m-token$/m, "known positive: the file is there, and ignored");
+
+  writeFileSync(join(session.working, "change.md"), "the session's change\n");
+  await sessionGit(root, session.working, ["checkout", "-q", "-b", "JOB-1"], ["add", "-A"], ["commit", "-q", "-m", "change"], ["push", "-q", "origin", "JOB-1"]);
+  assert.equal(git(root, "--git-dir", widget.origin, "rev-parse", "JOB-1"), git(session.working, "rev-parse", "HEAD"), "the session's push reached the product with the token from the file");
+  assert.deepEqual(git(root, "--git-dir", widget.origin, "ls-tree", "-r", "--name-only", "JOB-1").split("\n").sort(), ["README.md", "change.md"], "no commit holds the token file");
+  assert.equal(git(session.working, "remote", "get-url", "origin"), widget.address, "the origin is the product's address, with no credential in it");
+  const config = readFileSync(join(session.working, ".git", "config"), "utf8");
+  assert.ok(!config.includes(widgetToken) && !config.includes(basic("oauth2", widgetToken).slice(6)), "the checkout's configuration holds no token");
+
+  const files = filesBelow(session.working);
+  const holding = (secret) => files.filter((file) => readFileSync(file, "latin1").includes(secret));
+  assert.deepEqual(holding(widgetToken), [session.file], "known positive of the search: the token file holds the product's token, and no other file does");
+  for (const secret of [instanceToken, basic("oauth2", instanceToken).slice(6), pairing]) assert.deepEqual(holding(secret), [], "counter-proof: no other credential is in the checkout");
+
+  const bare = await startSession({ folder, instance: instance.address, commit, product: open.address, id: "JOB-2" });
+  assert.equal(bare.file, null);
+  assert.equal(existsSync(join(bare.working, ".agent-m-token")), false, "no token file for a product the Bridge holds no token for");
+  assert.equal(spawnSync(REAL_GIT, ["config", "--get-all", "credential.helper"], { cwd: bare.working, encoding: "utf8" }).stdout.trim(), "", "and no helper is named");
+});
+
+// TST-20261112202 · level: component · module: MOD-bridge-jobs
+// guards: A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE; A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE; NO MODEL READS A CREDENTIAL; UC-049; UC-011
+// given: the fixture server of TST-20261112201 with widget and the instance; the Bridge's data folder keeping their tokens; jobHandlers of a Bridge offering the fixture CLI session opencode with a working folder, its enclosures the fixture's, the instance's address and widget among its products; opencode records what it is given on its standard input, and pushes a branch with its own git
+// input: POST /v1/ask { agent: opencode, model: opencode/big-pickle, input: "INPUT-MARKER: split the requirement", product: widget, instance: the instance's head }; GET /v1/ask/{ask} until it is no longer running; then POST /v1/ask naming a product the Bridge does not serve
+// expect: the ask is done with the session's answer "I pushed JOB-ask."; the session's input begins with the input of the request and then names the file <checkout>/.agent-m-token and says to use the token without reading the file; the session's push reached widget; the checkout is removed after the answer; counter-proof: neither token stands in the session's input, and the ask for another product is invalid-request
+test("TST-20261112202: the input of a CLI session names its token file and says to use the token without reading it, and holds no token", async (t) => {
+  restoredEnvironment(t);
+  const root = world(t);
+  const widgetToken = "glpat-WIDGET0123456789", instanceToken = "glpat-INSTANCE0123456789";
+  const fixture = await smartHttpServer(root, { "group/widget": basic("oauth2", widgetToken), "group/agent-m": basic("oauth2", instanceToken) }, t);
+  const widget = { ...bareRepository(root, "group", "widget"), address: fixture.address("group/widget") };
+  const instance = { ...bareRepository(root, "group", "agent-m", { "AGENTS.md": "the rules\n" }), address: fixture.address("group/agent-m") };
+  const data = join(root, "data");
+  await keepRepositoryTokens(data, [{ repository: widget.address, token: widgetToken }, { repository: instance.address, token: instanceToken }]);
+  useRepositoryTokens(data);
+
+  // The Bridge's computer: a PATH of the fixture session and a git wrapper only, so that no real agent is found.
+  const bin = join(root, "session-bin"), told = join(root, "told.txt");
+  mkdirSync(bin);
+  writeFileSync(join(bin, "git"), `#!/bin/sh\nexec '${REAL_GIT}' "$@"\n`, { mode: 0o755 });
+  const event = JSON.stringify({ type: "text", part: { text: "I pushed JOB-ask." } });
+  writeFileSync(join(bin, "opencode"), `#!/bin/sh
+case "$1" in --version) echo 1.4.0;; models) echo opencode/big-pickle;;
+run) /bin/cat > '${told}'; printf 'change\\n' > change.md && git checkout -q -b JOB-ask && git add -A && git commit -q -m change && git push -q origin JOB-ask
+printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":3,"output":2}}}';; esac
+`, { mode: 0o755 });
+  const prior = { PATH: process.env.PATH, HOME: process.env.HOME };
+  Object.assign(process.env, { PATH: bin, HOME: root, GIT_AUTHOR_NAME: "Agent", GIT_COMMITTER_NAME: "Agent" });
+  t.after(() => Object.assign(process.env, prior));
+
+  const folder = join(root, "work");
+  mkdirSync(folder);
+  // The fixture enclosure, but with the environment an enclosure chooses: no include of the Bridge's tokens (agentEnvironment, TST-20261110104).
+  const enclosed = (at) => ({ ...openEnclosures()(at), wrap: (command, args) => ({ command, args, input: null,
+    env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+)$/.test(key))) }) });
+  const handlers = jobHandlers({ agents: [{ name: "opencode", folder }], enclosures: enclosed, instance: instance.address, products: [{ address: widget.address }] });
+  const commit = git(root, "--git-dir", instance.origin, "rev-parse", "main");
+  const asked = (body) => handlers["POST /v1/ask"]({ params: {}, query: {}, body });
+  const { ask } = await asked({ agent: "opencode", model: "opencode/big-pickle", input: "INPUT-MARKER: split the requirement", product: widget.address, instance: commit });
+  let answer;
+  for (const end = Date.now() + 30000; Date.now() < end;) {
+    answer = await handlers["GET /v1/ask/{ask}"]({ params: { ask }, query: {}, body: null });
+    if (answer.state !== "running") break;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.equal(answer.state, "done", JSON.stringify(answer));
+  assert.equal(answer.text, "I pushed JOB-ask.");
+  const input = readFileSync(told, "utf8");
+  const file = join(folder, "jobs", ask, ".agent-m-token");
+  assert.ok(input.startsWith("INPUT-MARKER: split the requirement"), input.slice(0, 200));
+  assert.ok(input.includes(file), `the input names the file ${file}`);
+  assert.match(input, /without reading the file/, "the input says to use the token without reading the file");
+  assert.ok(!input.includes(widgetToken) && !input.includes(instanceToken), "counter-proof: no token stands in the input");
+  assert.equal(git(root, "--git-dir", widget.origin, "show", "JOB-ask:change.md"), "change", "the session pushed with the token from the file");
+  assert.equal(existsSync(join(folder, "jobs", ask)), false, "the checkout and its token file are removed after the answer");
+  await assert.rejects(asked({ agent: "opencode", input: "x", product: "https://github.com/acme/elsewhere", instance: commit }), (error) => error?.code === "invalid-request",
+    "counter-proof: a product the Bridge does not serve is refused");
 });

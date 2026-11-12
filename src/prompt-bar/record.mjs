@@ -13,25 +13,14 @@
 // file of either.
 
 import { loadSchema, readDocument, writeDocument } from "../documents/index.mjs";
+import { ownText } from "./own.mjs";
 
 const OWNER = "MOD-prompt-bar";
-const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 export const SWITCH = "docs/conversation-recording.md";
 // A moved head is read again at most this often within one append, so that a host that always answers Moved is not asked forever.
 const ATTEMPTS = 10;
 
-// In a browser: the module's own file, from the address the module itself was loaded from. Throws an Error naming the file and
-// the server's status when it is not served.
-async function ownFile(url) {
-  const answer = await fetch(url);
-  if (!answer.ok) throw new Error(`${OWNER}: its ${url.pathname} was not served (${answer.status})`);
-  return answer.text();
-}
-
-const schemaFrom = async (name) => {
-  const url = new URL(`./${name}`, import.meta.url);
-  return loadSchema(disk ? disk.readFileSync(url, "utf8") : await ownFile(url), OWNER);
-};
+const schemaFrom = async (name) => loadSchema(await ownText(name), OWNER);
 
 const RECORDING = await schemaFrom("recording.schema.md");
 const CONVERSATION = await schemaFrom("conversation.schema.md");

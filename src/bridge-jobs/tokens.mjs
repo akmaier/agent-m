@@ -3,14 +3,14 @@
 //
 // Module: MOD-bridge-jobs
 //
-// NO MODEL READS A CREDENTIAL, A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT: the tokens lie in one file of the Bridge's data folder, which every enclosure
-// hides, written in git's own configuration format — for each repository the header that authorises git's requests to its address. Every git the Bridge's
-// process starts includes that file, named by its path in the process's environment, so that no token stands on a command line, in a remote address or in a
-// clone's configuration; an agent's environment is chosen by its enclosure and names no such file. The API's token is read back from the same file with git's
-// own matching of addresses, so that one file and one rule say which token goes where.
+// A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT: the tokens lie in one file of the Bridge's data folder, which every enclosure hides, written in git's own
+// configuration format — for each repository the header that authorises git's requests to its address. Every git the Bridge's process starts includes that
+// file, named by its path in the process's environment, so that no token stands on a command line, in a remote address or in a clone's configuration; an
+// agent's environment is chosen by its enclosure and names no such file. A token is read back from the same file with git's own matching of addresses — for
+// the API, and for the token file of a CLI session's checkout (workfolders.mjs) —, so that one file and one rule say which token goes where.
 
 import { execFile } from "node:child_process";
-import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 
@@ -24,6 +24,9 @@ let included = null;
 const fileOf = (dataFolder) => join(dataFolder, FILE);
 const refused = (message) => Object.assign(new Error(message), { code: "invalid-request" });
 const headerOf = (server, token) => `Authorization: Basic ${Buffer.from(`${USER[server]}:${token}`).toString("base64")}`;
+
+/** userOf(server: "github" | "gitlab") -> string — the user of the Basic header the server takes with a token as its password. Private to the module. */
+export const userOf = (server) => USER[server];
 
 /**
  * keepRepositoryTokens(dataFolder, tokens: { repository, token }[]) -> Promise<number> — the tokens the paired browser handed the Bridge, written as the file of
@@ -81,18 +84,4 @@ export function tokenOf(address) {
       resolve(pair.slice(pair.indexOf(":") + 1) || null);
     });
   });
-}
-
-/**
- * heldTokens() -> Promise<string[]> — every token the file of Data holds, each once, read back from its headers; none before useRepositoryTokens, and none where
- * the file does not exist. For the relay, which replaces each of them in its answers (MOD-bridge-jobs, Data: The relay). Private to the module.
- */
-export async function heldTokens() {
-  if (!included) return [];
-  const text = await readFile(included, "utf8").catch(() => "");
-  const tokens = [...text.matchAll(/^\s*extraHeader = Authorization: Basic (\S+)\s*$/gm)].map(([, basic]) => {
-    const pair = Buffer.from(basic, "base64").toString("utf8");
-    return pair.slice(pair.indexOf(":") + 1);
-  });
-  return [...new Set(tokens.filter(Boolean))];
 }
