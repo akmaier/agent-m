@@ -169,11 +169,8 @@ test("TST-969203: a whole session leaves the mails in the mailbox and writes onl
 // TST-969204 · level: release · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER
 // given: the closed issue 4 lists three mails of three reporters (one answers to a Reply-To of another person, one has a second recipient in To and a Cc, one is a plain mail); each has been read in the mailbox
-// input: the person writes the reply for each of the three mails without a participant (UC-039 3a: "The author writes the reply without a participant. An empty draft with the quoted original opens; everything from step 4 applies."): the
-//        reply's text box under each mail, left empty, and the person's click on its Save draft
-// expect: (UC-039 step 4: "to that mail's reply address — and to no other reporter; subject `Re:` the mail's subject; `In-Reply-To` and `References` set to its `Message-ID`. The draft is nowhere else.") three drafts are stored in
-//         Drafts, nowhere else; each has exactly one To — the mail's Reply-To where it has one, otherwise its sender —, no Cc, no Bcc, none of the other reporters' addresses; each is threaded on its own mail: In-Reply-To is that mail's
-//         Message-ID and References end with it; nothing is sent
+// input: the person writes the reply for each of the three mails without a participant (UC-039 3a: "The author writes the reply without a participant. An empty draft with the quoted original opens; everything from step 4 applies."): the reply's text box under each mail, left empty, and the person's click on its Save draft
+// expect: (UC-039 step 4: "to that mail's reply address — and to no other reporter; subject `Re:` the mail's subject; `In-Reply-To` and `References` set to its `Message-ID`. The draft is nowhere else.") three drafts are stored in Drafts, nowhere else; each has exactly one To — the mail's Reply-To where it has one, otherwise its sender —, no Cc, no Bcc, none of the other reporters' addresses; each is threaded on its own mail: In-Reply-To is that mail's Message-ID and References end with it; nothing is sent
 test("TST-969204: an issue with three reports yields three drafts, each to one reporter and threaded on that reporter's mail", async () => {
   const keys = ["m1", "m2", "m3"];
   const ids = await Promise.all(keys.map((key) => mailOf(key)));
