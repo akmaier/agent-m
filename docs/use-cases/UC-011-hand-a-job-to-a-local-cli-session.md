@@ -64,7 +64,9 @@ they control, through the Agent M Bridge already running there.
 3. The Bridge checks the token, brings the clones in the agent's working folder to the job's commits — the product's
    branch, and the instance at the commit the job's record names —, leaves the token of the job's repository in a file
    of the checkout that git ignores, and starts the agent there with the participant's model and the task; the input
-   names that file and says to use the token without reading it.
+   begins with the instruction that the agent must read Agent M's `AGENTS.md` and the job's chapters of the book *Vibe
+   Coding* in full, named by their paths in the instance's clone and not given as text, and names that file and says to
+   use the token without reading it.
 4. The job's artifacts reach the default branch, where they are open; a code change the CLI session commits on a branch
    goes to that branch instead, which the CLI session pushes to the product and opens a pull request for — a merge
    request on GitLab — with that token, follows its CI and merges as the product's process lets it.
