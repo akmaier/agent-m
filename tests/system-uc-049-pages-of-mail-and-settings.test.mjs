@@ -20,6 +20,8 @@ import { LOCAL, byClass, mailOf, one, restoreWorld, textOf, trusted, waitFor } f
 import { startPage } from "../src/site-frame/index.mjs";
 import { openReplies as openMainPage, rawMail } from "./uc-039-world.mjs";
 import { registerLikeStart } from "./uc-049-world.mjs";
+import { INSTANCE_TOKEN, PRODUCT, PRODUCT_TOKEN } from "./main-page-home-harness.mjs";
+import { readSetting } from "../src/browser-store/index.mjs";
 
 registerLikeStart([maintenance, settings]);
 
@@ -112,7 +114,7 @@ test("alternative 3b: on a page of mail the tools that write are not offered", a
 // guards: UC-049; A STORED SECRET IS HIDDEN UNTIL SHOWN; NO SECRET IN THE REPOSITORY
 // given: the settings page of a browser that stores the instance's GitHub token, a model endpoint's key and a mailbox password
 // input: a message sent to local-llm on the settings page
-// expect: the context names the settings; it carries no stored token, key or password (none of github_pat_…, the endpoint's key k1 or the mailbox password mail-password-966) (flow: UC-049 alternative 3c)
+// expect: the context names the settings; it carries no stored token, key or password (neither the stored instance token nor the stored product token, nor the endpoint's key k1, the mailbox password mail-password-966 or the pairing token pairing-token-four); the page's instruction that a token "starts with github_pat_" is text, not a stored token; (known positive: the browser's store, which the page reads, holds both tokens) (flow: UC-049 alternative 3c)
 test("alternative 3c: the context of the settings page never carries a stored token, key or password", async () => {
   const p = await openReplies({ inbox: [rawMail("n1")], fragment: "#settings", views: [maintenance, settings], ...OFFER });
   try {
@@ -120,7 +122,9 @@ test("alternative 3c: the context of the settings page never carries a stored to
     const request = await ask(p, "local-llm", "What is stored here?");
     const given = sentBody(request);
     assert.ok(/settings/i.test(given), "the context names the settings page");
-    for (const secret of ["github_pat_", "mail-password-966", "k1", "pairing-token-four"]) {
+    assert.equal(readSetting(p.w.context.store, "github-token")?.value, INSTANCE_TOKEN, "known positive: the store the page reads holds the instance token");
+    assert.equal(readSetting(p.w.context.store, `github-token:${PRODUCT}`)?.value, PRODUCT_TOKEN, "known positive: the store the page reads holds the product token");
+    for (const secret of [INSTANCE_TOKEN, PRODUCT_TOKEN, "mail-password-966", "k1", "pairing-token-four"]) {
       if (secret === "k1") assert.ok(!/\bk1\b/.test(given), "the endpoint's key is not carried");
       else assert.ok(!given.includes(secret), `${secret} is not carried`);
     }
