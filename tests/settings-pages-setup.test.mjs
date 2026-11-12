@@ -258,13 +258,13 @@ test("setup — without the notice ticked, pressing Store and check stores nothi
 // guards: UC-014; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: a fresh store, the notice ticked, a server that answers 401 to the token
 // input: paste a token and press Store and check
-// expect: the token stays stored as pasted; the check line reads "✗ akmaier/agent-m: GitHub rejected authentication with your Agent M · akmaier/agent-m. Renew it on https://github.com/settings/personal-access-tokens."; the instance is not shown ready
+// expect: the token stays stored as pasted; the check line reads "✗ akmaier/agent-m: GitHub rejected authentication with your Agent M · akmaier/agent-m. Use Renew on its line in Settings to make a new one with the same permissions and repositories."; the instance is not shown ready
 test("setup — a token the server refuses is named with its renewal page, and the instance is not shown ready", async () => {
   const page = await open();
   await storeAs(page, KEY, "2027-01-15", () => ({ status: 401, body: { message: "Bad credentials" } }));
   assert.equal(JSON.parse(globalThis.localStorage.getItem(TOKEN_KEY)).value, KEY);
   assert.equal(field(page.target, "check").textContent,
-    "✗ akmaier/agent-m: GitHub rejected authentication with your Agent M · akmaier/agent-m. Renew it on https://github.com/settings/personal-access-tokens.");
+    "✗ akmaier/agent-m: GitHub rejected authentication with your Agent M · akmaier/agent-m. Use Renew on its line in Settings to make a new one with the same permissions and repositories.");
   assert.equal(byTag(field(page.target, "done"), "button").length, 0);
 });
 

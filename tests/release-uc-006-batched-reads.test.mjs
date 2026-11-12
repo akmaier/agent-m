@@ -69,10 +69,10 @@ test("TST-479202: the token goes only to api.github.com, in the header, also on 
 });
 
 // TST-479203 · level: release · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
-// guards: UC-006; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// guards: UC-006; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
 // given: the product on GitHub with the reviewer's token; the account's hourly limit is used up, which GitHub tells on a query as (a) 403 with X-RateLimit-Remaining: 0 and (b) 200 with the error type RATE_LIMITED and X-RateLimit-Remaining: 0; and, apart, (c) a query answered 401 "Bad credentials"
 // input: open the SPEC-entry page of entry 07 for each
-// expect: the page is drawn (it does not reject), and its last element is one problem paragraph: for (a) and (b) it names the used-up limit and its reset (2030-01-01) and does not mention the token; for (c) it reads "GitHub rejected authentication with your ... Renew it on ..."; no file is read on its own after the limit is named
+// expect: the page is drawn (it does not reject), and its last element is one problem paragraph: for (a) and (b) it names the used-up limit and its reset (2030-01-01) and does not mention the token; for (c) it names the refused token ("GitHub rejected authentication with your GitHub token.") and points to Renew, not to GitHub's bare list of tokens (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042 1b: "The line says which token, and **Renew** as in 1a"); no file is read on its own after the limit is named
 test("TST-479203: a used-up limit on a batched read is named on the page, a refused token shows its message", async () => {
   const limit = { "Content-Type": "application/json", "x-ratelimit-remaining": "0", "x-ratelimit-limit": "5000", "x-ratelimit-reset": "1893456000" };
   const answers = [
@@ -93,7 +93,9 @@ test("TST-479203: a used-up limit on a batched read is named on the page, a refu
       assert.match(text, /resets at 2030-01-01/);
       assert.doesNotMatch(text, /token/i);
     } else {
-      assert.match(text, /GitHub rejected authentication with your .+\. Renew it on /);
+      assert.match(text, /GitHub rejected authentication with your GitHub token\./, "the refused token is named");
+      assert.match(text, /\bRenew\b/, "failure node: the message points to Renew");
+      assert.doesNotMatch(text, /https:\/\/github\.com\/settings\/personal-access-tokens(?!\/new)/, "failure node: not GitHub's bare list of tokens");
     }
     assert.equal(fake.contentPaths().filter((p) => p.startsWith("docs/backlog/")).length, 0, "no backlog item is read on its own after the failure");
   }

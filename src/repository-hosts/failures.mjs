@@ -97,7 +97,9 @@ function usedUpLimit(answer, server, authenticated, search) {
 // address, authenticated, tokenName, renewal: the page where the token is renewed or extended, permission: what the request
 // needs, write: whether it writes, what: what a 404 of a read did not find, search: the request is a search of GitHub's }.
 //   401 — the token itself is refused: TokenRefused, whatever else the answer says (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL
-//         LINKED); a used-up limit's headers on it do not make it a limit.
+//         LINKED); a used-up limit's headers on it do not make it a limit. GitHub's message points to Renew on the token's line
+//         in Settings, which opens GitHub's page for a new token prefilled as at set-up (UC-042 1b), not to `renewal`, the list
+//         of tokens; a GitLab server's names `renewal`, the project's Access tokens page, which is where Renew leads for it.
 //   403, 429 with a used-up limit — RateLimited, never the token; on a search the limit is the search's.
 //   403 — PermissionMissing. 404 — a write's is PermissionMissing too: GitHub answers a token that may not write to a private
 //         repository with 404; a read's is NotFound, and so is a search's 422, which is GitHub's answer to a repository it does
@@ -107,7 +109,7 @@ export async function refusal(answer, context) {
   const { server, host, web, authenticated, tokenName, renewal, permission, write, what, search } = context;
   if (answer.status === 401) {
     return new HostError("TokenRefused", { tokenName, renewal }, server === "github"
-      ? `GitHub rejected authentication with your ${tokenName}. Renew it on ${renewal}.`
+      ? `GitHub rejected authentication with your ${tokenName}. Use Renew on its line in Settings to make a new one with the same permissions and repositories.`
       : `${host} rejected authentication with your ${tokenName}. Renew it on ${renewal}.`);
   }
   const limit = usedUpLimit(answer, server, authenticated, search);

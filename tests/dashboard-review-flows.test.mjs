@@ -898,7 +898,7 @@ test("UC-042 1a: a token that expires within fourteen days is named on every pag
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: a token the server refused
 // input: open the pages
-// expect: the token is named with its renewal at the top and on its line
+// expect: the token is named with its renewal at the top and on its line, whose result points to Renew, not to GitHub's list of tokens
 test("UC-042 1b: a token the server refused is named, with its renewal, at the top and on its line", async () => {
   let refuse = false;
   const srv = await ucServer({}, [(url) => (refuse && url.href === `${API}/repos/${REPO}` ? json({ message: "Bad credentials" }, 401) : undefined)]);
@@ -907,7 +907,8 @@ test("UC-042 1b: a token the server refused is named, with its renewal, at the t
   await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
   assert.equal(publicRepositoryControl(box, "GitHub token", "status").textContent, "Expires on " + day(90) + ". Refused.");
   assert.equal(publicRepositoryControl(box, "GitHub token", "renew").textContent, "Renew");
-  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub rejected authentication with your GitHub token. Renew it on https://github.com/settings/personal-access-tokens.");
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub rejected authentication with your GitHub token. Use Renew on its line in Settings to make a new one with the same permissions and repositories.");
+  assert.ok(!publicRepositoryControl(box, "GitHub token", "result").textContent.includes("github.com/settings/personal-access-tokens"), "counter-proof: the line's result names no list of tokens");
   await page.go("#uc");
   assert.ok(page.el("token-banner").includes("The server refused your token GitHub token."), "the refused token is named at the top");
   assert.ok(page.el("token-banner").includes(renewButton), "with its Renew");

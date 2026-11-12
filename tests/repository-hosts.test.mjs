@@ -481,7 +481,7 @@ const githubLimit = (status, limit, remaining = 0) => () => json(status, { messa
 // guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
 // given: the public GitHub host succeeds on the controlled 200 repository endpoint.
 // input: that endpoint then answers 401, including exhausted-limit headers.
-// expect: unchanged HostError TokenRefused/tokenName/renewal fields; neutral rejected-authentication wording naming the token and renewal, without any guessed expiry/regeneration/deletion cause.
+// expect: unchanged HostError TokenRefused/tokenName/renewal fields; neutral rejected-authentication wording naming the token and Renew on its line in Settings, which makes a new one with the same permissions and repositories (UC-042 1b) — not GitHub's list of tokens —, without any guessed expiry/regeneration/deletion cause.
 test("TST-475207: GitHub 401 names rejected authentication without guessing its cause", async () => {
   const named = "My instance token";
   const host = connect(GITHUB, { token: GH_TOKEN, tokenName: named });
@@ -489,7 +489,8 @@ test("TST-475207: GitHub 401 names rejected authentication without guessing its 
   const error = await using(fakeGitHub({ answer: githubLimit(401, 5000) }).fetch, () => failure(host.repositoryInfo()));
   assert.ok(error instanceof HostError);
   assert.deepEqual([error.name, error.tokenName, error.renewal], ["TokenRefused", named, GH_TOKENS], "401 remains authentication rejection even with rate-limit headers");
-  assert.equal(error.message, `GitHub rejected authentication with your ${named}. Renew it on ${GH_TOKENS}.`, "failure node: the host message reports rejection, identity and recovery, not an inferred cause");
+  assert.equal(error.message, `GitHub rejected authentication with your ${named}. Use Renew on its line in Settings to make a new one with the same permissions and repositories.`, "failure node: the host message reports rejection, identity and recovery through Renew, not an inferred cause");
+  assert.ok(!error.message.includes(GH_TOKENS), "counter-proof: the message does not send the person to GitHub's list of tokens");
   assert.doesNotMatch(error.message, /expired|expiry|regenerat|delet|rotat|revok/i);
 });
 
