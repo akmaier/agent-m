@@ -1,6 +1,6 @@
 // UC-038 "Turn mails into issues" as a system path: the author opens the route `mail` on the main page, started by MOD-site-frame's startPage over the view of MOD-maintenance-pages, in the browser of
 // tests/maintenance-pages-world.mjs (the repositories, the participants' register, the model endpoints ep1 and ep2, GitHub's issues of alice/product), over the mailbox on the Microsoft route — a fixture server of
-// Microsoft Graph in place of graph.microsoft.com (tests/uc-039-world.mjs) — and walks the main flow (steps 1 to 10) and the alternative flows 2a, 4b, 4c, 6a, 6c, 7a, 7b and 8a, each reached by a person's input: the
+// Microsoft Graph in place of graph.microsoft.com (tests/uc-039-world.mjs) — and walks the main flow (steps 1 to 10) and the alternative flows 2a, 4b, 4c, 6a, 6c, 7a, 7b, 7c and 8a, each reached by a person's input: the
 // opening of Mail, which reads the mailbox, Mail opened again, which reads it anew, a mail opened from the list, a chosen participant and a typed name, Propose, an edit of the title and the text, Create issue, Add to #n, Not an issue. The Bridge route (the IMAP server) is walked in
 // tests/system-uc-038-bridge-route.test.mjs.
 // Run: node --test tests/system-uc-038-turn-mails-into-issues.test.mjs
@@ -322,5 +322,43 @@ test("alternative 8a: an issue that cannot be created says which refusal it is, 
     assert.match(textOf(one(item, "mail-result")), /permission|refus|alice\/product/i);
     assert.ok(byClass(item, "token-step").length > 0, "the token step is linked");
     assert.deepEqual(p.w.kept.created, [], "nothing was written");
+  });
+});
+
+// TST-965011 · level: system · module: MOD-maintenance-pages
+// guards: UC-038; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS; CLOSING AN ISSUE PREPARES ITS REPLIES
+// given: the closed issue 4 of alice/product lists a, which the INBOX holds (received within the last 30 days), old, which the INBOX holds and the server received forty days ago, and gone, which no folder of the mailbox holds; no reply note names any of them
+// input: the issue's page opened (#issue/number=4/product=<the product>); a click on the link of old; the address that click writes followed; then the address #mail/id=<a>; then #mail/id=<gone>
+// expect: the issue names a, old and gone, each a link to mail/<id>; the click writes #mail/id=<old>…; the reading of the last 30 days lists a and b and not old, which has no line; the mail page opens old all the same — found in the mailbox by its identifier, though older than 30 days —, its text shown, marked to answer with Answer; a, opened by its address, shows its text and Answer; for gone it says "<gone>: not found in the mailbox." (flow: UC-038 alternative 7c: "finds it in the mailbox by its identifier, also when it is older than 30 days")
+test("alternative 7c: a mail opened from its issue's link is found by its identifier, also when it is older than 30 days, and one no longer in the mailbox is named as not found", async () => {
+  const [OLD, gone] = [await mailOf("old"), await mailOf("gone")];
+  const fortyDaysAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+  const old = rawMail("old", { subject: "Import fails", body: "The import of a large file fails with error E17.", date: fortyDaysAgo.toUTCString() });
+  const inbox = [rawMail("a", { subject: "Export fails", body: BODY }), rawMail("b", { subject: "Dark theme", body: "Please add a dark theme." }), { raw: old, received: fortyDaysAgo.toISOString() }];
+  const p = await open({ fragment: `#issue/number=4/product=${encodeURIComponent(PRODUCT_URL)}`, inbox, issues: [issueRecord(4, "closed", [A, OLD, gone])] });
+  await lastly(p, async () => {
+    await waitFor(() => byClass(p.main(), "mail-link").length > 0 || byClass(p.main(), "issue-problem").length > 0);
+    const links = byClass(p.main(), "mail-link");
+    assert.deepEqual(links.map((node) => textOf(node)), [A.id, OLD.id, gone.id], "the issue names its mails by their identifiers");
+    links[1].dispatchEvent(new Event("click"));
+    await flush();
+    assert.ok(globalThis.location.hash.startsWith(`#mail/id=${encodeURIComponent(OLD.id)}`), globalThis.location.hash);
+    await hashTo(globalThis.location.hash);
+    await mailboxRead(p);
+    await waitFor(() => byClass(one(p.main(), "mail-details") ?? p.main(), "mail-text").length > 0 || byClass(p.main(), "mail-not-found").length > 0);
+    const lineIds = byClass(p.main(), "mail-line").map((node) => node.getAttribute("data-line"));
+    assert.deepEqual(lineIds.toSorted(), [A.id, B.id].toSorted(), "known positive: the reading of the last 30 days lists a and b, and old has no line");
+    assert.ok(p.graph.requests.some((request) => /\/mailFolders\/inbox\/messages\?.*receivedDateTime ge/.test(decodeURIComponent(request.address))), "the reading asked the server for the mails of the last 30 days");
+    assert.equal(byClass(p.main(), "mail-not-found").length, 0, "old is not named as not found");
+    assert.match(textOf(one(one(p.main(), "mail-details"), "mail-text")), /error E17/, "old, older than 30 days, is found by its identifier and its text shown");
+    assert.equal(textOf(one(one(p.main(), "mail-details"), "answer-mail")), "Answer", "a mail of a closed issue without a reply note is to answer");
+    await hashTo(`#mail/id=${A.id}`);
+    await mailboxRead(p);
+    await waitFor(() => /error E42/.test(textOf(one(p.main(), "mail-details") ?? p.main())));
+    assert.match(textOf(one(one(p.main(), "mail-details"), "mail-text")), /error E42/, "a, opened by its address, shows its text");
+    assert.equal(textOf(one(one(p.main(), "mail-details"), "answer-mail")), "Answer", "and is to answer");
+    await hashTo(`#mail/id=${gone.id}`);
+    await waitFor(() => byClass(p.main(), "mail-not-found").length > 0);
+    assert.equal(textOf(one(p.main(), "mail-not-found")), `${gone.id}: not found in the mailbox.`);
   });
 });

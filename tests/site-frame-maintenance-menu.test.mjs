@@ -8,7 +8,7 @@
 // Level: unit
 //
 // The table and the menu are read as they are; the live app (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against the GitHub API mock of tests/load-per-view.test.mjs. Readings the texts leave open, which the tests state
-// (the pull request names them): the menu entry Maintenance opens the first of its views that is built, as every entry does (src/site/menu.mjs stageView), so with `issues` not built it opens `mail`; the view `mail-replies` and the route
+// (the pull request names them): the menu entry Maintenance opens the first of its views that is built, as every entry does (src/site/menu.mjs stageView), and lists `mail` first (UC-046 step 2: Maintenance opens on Mail); the view `mail-replies` and the route
 // `replies` are ITM-966's. The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
@@ -42,11 +42,12 @@ test("TST-1099001 the view mail is built in, counted as built and opened by the 
 
 // TST-1099002 · level: unit · module: MOD-site-frame
 // guards: UC-038
-// given: counter-proof of TST-1099001: the table without the entry of the view mail; and the list of built files empty
+// given: counter-proof of TST-1099001: the table without the entries of the views mail, replies and issues; and the list of built files empty
 // input: builtViews over each, the menu's entry Maintenance
-// expect: without the entry `mail` is not built and the entry Maintenance opens nothing (the address #mail is not found); with the table and no file named a view with a file (jobs) is not built, and mail still is (by being built in)
+// expect: without the entries of the entry's views `mail` is not built and the entry Maintenance opens nothing (the address #mail is not found); with the table and no file named a view with a file (jobs) is not built, and mail still is (by being built in)
 test("TST-1099002 counter-proof: without the table's entry the menu does not open the view mail", () => {
-  const without = DASHBOARD.filter((entry) => entry.view !== "mail" && entry.view !== "replies"); // replies (ITM-1103) is the entry's next view
+  // replies (ITM-1103) and issues, built in since Maintenance holds the tabs Mail and Issues (UC-046 step 2), are the entry's other views
+  const without = DASHBOARD.filter((entry) => !["mail", "replies", "issues"].includes(entry.view));
   const builtWithout = new Set(without.filter((entry) => entry.view && (entry.builtIn || builtFiles.includes(entry.file))).map((entry) => entry.view));
   assert.ok(!builtWithout.has("mail"));
   assert.equal(stageView(maintenance, builtWithout), null, "known negative: nothing opens the entry");

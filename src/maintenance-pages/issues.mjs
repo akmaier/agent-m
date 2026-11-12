@@ -6,8 +6,12 @@
 //
 // Readings the texts leave open, which this file takes (the pull request names them):
 //   - The product is the one the frame has chosen (`context.product`); without one the page says so and reads nothing. The routes are `issues` (in the menu entry maintenance) and `issue` (out of the menu), whose parameter `number` is the issue's: `#issue/number=<n>`.
-//   - `issues` lists the open issues with the class their label says (defect, change or not-reproducible, else "not classified"); an issue's link goes, on a person's click, to the route `issue` with its number.
-//     The list reads the open issues without their comments (`listIssues` with `comments: false`); `issue` reads its one issue with `readIssue` (ITM-1270): a number that is no issue of the product is not in it.
+//   - Both routes draw the tab strip of tabs.mjs at their head, under the tab Issues (UC-046 step 2).
+//   - `issues` lists the open and closed issues, each with its state (<span class="issue-state">: open or closed) and the class their label says (defect, change or not-reproducible, else "not classified");
+//     an issue's link goes, on a person's click, to the route `issue` with its number. The list reads them without their comments (`listIssues` with `state: "all"` and `comments: false`); `issue` reads
+//     its one issue with `readIssue` (ITM-1270): a number that is no issue of the product is not in it.
+//   - `issue` names, open or closed, each mail the issue lists (`listedMailIds`, over its text and its comments) by its identifier, in <ul class="issue-mails"> of <a class="mail-link">, whose href is the
+//     route `mail/<id>` — #mail/id=<id> with the product — and whose click goes there through the context's `go` (UC-012 step 2, UC-038 7c); opening a mail writes nothing, so it answers any click.
 //   - `issue` shows the issue's text and class; for an open issue, the analysis and the decision. The participants offered are those of the instance's register that declare draft text, each with its place; the issue holds no mail, so no place is barred.
 //     The run panel is that of the kind `analyse-issue` over the issue; Run is the person's click and the job runs in this tab, its start record committed to the product and naming the issue and no text of it. The analysis writes nothing to the issue.
 //   - The decision's buttons are "Bug", "Change" and "Not reproducible" before a proposal and "Confirm <class>" for the class proposed and "Correct to <class>" for another after it; a click is the person's or does nothing. A class needs no analysis first.
@@ -46,7 +50,7 @@ import { IssueClass, backlogItemFrom, closeWithLinks, confirmClass, moveToBacklo
 import { newJobId, recordsNewestFirst } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, writeResult } from "../job-runner/index.mjs";
-import { issueLabels } from "../mail-records/index.mjs";
+import { issueLabels, listedMailIds } from "../mail-records/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { personAccount } from "../source-register/index.mjs";
 import { jobTrail, queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
@@ -59,6 +63,7 @@ import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { backlogFindings } from "../work-plans/index.mjs";
 import { button, connectionsOf, el, failed, fold } from "./mail.mjs";
 import { heads } from "./routes.mjs";
+import { tabsOf } from "./tabs.mjs";
 
 const REGISTER = "docs/participants.md";
 const RESOURCES = "docs/resources.md";
@@ -67,7 +72,7 @@ const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 const NOT_CLASSIFIED = "not classified";
 
 const STEP_TEXT = {
-  list: "The open issues of the chosen product, with the class their label says. Open one to analyse it and to decide its class.",
+  list: "The open and closed issues of the chosen product, each with its state and the class its label says. Open one to analyse it and to decide its class, or, for an issue from mail, to open its mails.",
   analyse: "Analyse asks the participant you choose for the class of this issue — a bug, a change or not reproducible — with its reasoning. The panel states where the participant processes data and exactly what it receives: the issue and the requirements, use cases, tests and modules it names, or the whole SPEC where it names none. The analysis writes nothing to the issue. Book: ch. 14, Evolution Processes and Change Identification.",
   change: "Draft change asks the participant you choose to change the requirements as this issue asks: it returns their new text. The panel states where the participant processes data and exactly what it receives: the issue with what it names, the requirements, the open queues and the chapters of the book. The change is drafted in your own name: every requirement it drafts names your account, the owner of this instance's repository, among its sources; no register entry and no link are needed. Save writes the drafted change as the kind's writer writes it, as entries under docs/spec-freigaben/, each naming this issue, and links each entry written to the page where it is accepted; nothing is written before it.",
   move: "Move to backlog prefills a backlog item from this issue: its title and outcome from the issue, its origin the issue's address, what it realises (for a bug the requirement the analysis names as violated, for a change the requirements the change queues of this issue change or add) and the modules it changes, which you confirm or correct. The form names what fails. Add commits the item under docs/backlog/ of the product, adds a comment naming the item to the issue and gives the issue the label backlog. Where no token is stored that may comment, the item is committed all the same and the comment is shown for you to copy. Where the issue describes the work of an item already in the backlog, add it to that item instead: the item then names both issues as its origins, and both get the comment. A change item waits for the acceptance of the requirements it names.",
@@ -88,17 +93,17 @@ const noProduct = (className) => el("p", className, "Choose a product to see its
 
 async function renderList(target, context) {
   const out = el("div", "issues-out");
-  target.replaceChildren(el("h2", null, "Issues"), out);
+  target.replaceChildren(tabsOf("issues", context), el("h2", null, "Issues"), out);
   const { product } = context;
   if (!product) { out.append(noProduct("issues-problem")); return; }
   try {
-    const open = await product.host.listIssues({ state: "open", comments: false });
-    if (open.length === 0) { out.append(el("p", "issues-empty", "This product has no open issue."), fold(STEP_TEXT.list)); return; }
-    out.append(el("ul", "issue-list", ...open.map((issue) => {
+    const all = await product.host.listIssues({ state: "all", comments: false });
+    if (all.length === 0) { out.append(el("p", "issues-empty", "This product has no issue."), fold(STEP_TEXT.list)); return; }
+    out.append(el("ul", "issue-list", ...all.map((issue) => {
       const anchor = el("a", "issue-link", `#${issue.number} ${issue.title}`);
       anchor.setAttribute("href", `#issue/number=${issue.number}/product=${encodeURIComponent(product.address)}`);
       anchor.addEventListener("click", (event) => { if (event?.isTrusted === true) { event.preventDefault?.(); context.go("issue", { number: String(issue.number) }); } });
-      const item = el("li", "issue", anchor, " ", el("span", "issue-class", classOfLabels(issue.labels)));
+      const item = el("li", "issue", anchor, " ", el("span", "issue-state", issue.state === "closed" ? "closed" : "open"), " ", el("span", "issue-class", classOfLabels(issue.labels)));
       item.setAttribute("data-issue", String(issue.number));
       return item;
     })), fold(STEP_TEXT.list));
@@ -512,9 +517,21 @@ function proposalSection(draft) {
     ...(wrong.length ? [el("ul", "proposed-wrongs", ...wrong.map((file) => el("li", "proposed-wrong", String(file))))] : []));
 }
 
+// The mails an issue lists, each named by its identifier as a link to the route `mail/<id>`, where it is opened and, once the issue is closed, answered (UC-012 step 2, UC-038 7c, UC-039).
+function mailsOf(issue, product, context) {
+  const ids = listedMailIds({ number: issue.number, body: issue.body ?? "", comments: (issue.comments ?? []).map((comment) => ({ body: comment.body, createdAt: comment.date })) });
+  if (ids.length === 0) return [];
+  return [el("ul", "issue-mails", ...ids.map((id) => {
+    const anchor = el("a", "mail-link", id);
+    anchor.setAttribute("href", `#mail/id=${encodeURIComponent(id)}/product=${encodeURIComponent(product.address)}`);
+    anchor.addEventListener("click", (event) => { event?.preventDefault?.(); context.go("mail", { id }); });
+    return el("li", "issue-mail", anchor);
+  }))];
+}
+
 async function renderIssue(target, context, params = {}) {
   const out = el("div", "issue-out");
-  target.replaceChildren(el("h2", null, "Issue"), out);
+  target.replaceChildren(tabsOf("issue", context), el("h2", null, "Issue"), out);
   const { product } = context;
   if (!product) { out.append(noProduct("issue-problem")); return; }
   let issue = null;
@@ -532,7 +549,8 @@ async function renderIssue(target, context, params = {}) {
   const classSpan = el("span", "issue-class", classOfLabels(issue.labels));
   const text = el("pre", "issue-text");
   text.textContent = issue.body ?? "";
-  const shown = (closed) => [el("h3", null, `Issue #${issue.number}: ${issue.title}`), el("p", "issue-meta", `${closed ? "Closed" : "Open"} · class: `, classSpan), text];
+  const mails = mailsOf(issue, product, context);
+  const shown = (closed) => [el("h3", null, `Issue #${issue.number}: ${issue.title}`), el("p", "issue-meta", `${closed ? "Closed" : "Open"} · class: `, classSpan), text, ...mails];
   out.replaceChildren(...shown(issue.state === "closed"));
   if (issue.state === "closed") return;
 

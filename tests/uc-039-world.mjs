@@ -221,11 +221,15 @@ async function smtpServer({ refuseMail = false } = {}) {
   return { server, logs, messages, port: server.address().port };
 }
 
-// The Microsoft Graph of the fixture: `folders` maps inbox, drafts, sentitems and any other display name to its messages ({ id, raw }); every request is kept. `refuseSend` answers the provider's send with 403.
+// The Microsoft Graph of the fixture: `folders` maps inbox, drafts, sentitems and any other display name to its messages ({ id, raw, received }); every request is kept. `refuseSend` answers the provider's send with 403.
+// A message of the seed is its raw text, or { raw, received } where a test names when the server received it (an ISO time). A listing with `$filter=receivedDateTime ge <time>` gives only the messages received
+// at or after that time; a message without `received` counts as received within any such filter, so that a mail whose Date header a test does not tie to today stays listed.
 function graphFixture(seed, { refuseSend = false } = {}) {
   const folders = { inbox: [], drafts: [], sentitems: [] };
   let count = 0;
-  for (const [name, raws] of Object.entries(seed)) folders[name] = raws.map((raw) => ({ id: `AAMk-${name}-${count += 1}=`, raw }));
+  for (const [name, raws] of Object.entries(seed)) {
+    folders[name] = raws.map((each) => ({ id: `AAMk-${name}-${count += 1}=`, ...(typeof each === "string" ? { raw: each, received: null } : { raw: each.raw, received: each.received ?? null }) }));
+  }
   const graph = { requests: [], folders, token: GRAPH_TOKEN };
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
   const holder = (id) => Object.values(folders).find((list) => list.some((each) => each.id === id));
@@ -242,7 +246,9 @@ function graphFixture(seed, { refuseSend = false } = {}) {
     if (request.method === "GET" && listed) {
       const list = folders[listed[1]];
       if (!list) return json({ error: { code: "ErrorFolderNotFound" } }, 404);
-      return json({ value: list.map((each) => ({ id: each.id, internetMessageId: /^Message-ID: (.*)$/im.exec(each.raw)?.[1].trim() ?? null })) });
+      const since = /receivedDateTime ge (\S+)/.exec(url.searchParams.get("$filter") ?? "")?.[1];
+      const selected = since === undefined ? list : list.filter((each) => each.received === null || Date.parse(each.received) >= Date.parse(since));
+      return json({ value: selected.map((each) => ({ id: each.id, internetMessageId: /^Message-ID: (.*)$/im.exec(each.raw)?.[1].trim() ?? null })) });
     }
     if (request.method === "GET" && /^\/me\/mailFolders\/[^/]+$/.test(path)) return json({ id: path.split("/").at(-1), totalItemCount: 0 });
     if (request.method === "POST" && path === "/me/messages") {
@@ -307,7 +313,7 @@ function bridgeOver(inner, state, mailHandlers) {
 
 /**
  * Starts the page of the route `replies` as a person opens it: the frame's startPage on the main page over the view of MOD-maintenance-pages, at the fragment of the route, over the mailbox of `route` ("imap": the
- * Bridge lab-pc-4 with the local IMAP and SMTP servers; "graph": the fixture of Microsoft Graph). `inbox` and `reports` name the mails the mailbox holds (raw texts), `drafts` and `sent` the folders of the same names;
+ * Bridge lab-pc-4 with the local IMAP and SMTP servers; "graph": the fixture of Microsoft Graph). `inbox` and `reports` name the mails the mailbox holds (raw texts; on "graph" also { raw, received }, see graphFixture), `drafts` and `sent` the folders of the same names;
  * `issues`, `places`, `rows` and `texts` are those of tests/maintenance-pages-world.mjs. `settings` are further settings the browser's store holds — the endpoints the prompt bar offers (UC-049 1) — and `agents`
  * the agents the Bridge lab-pc-4 lists ready, each a name — listed without a declaration — or { name, place, capabilities, models } — listed with the declaration the Bridge keeps
  * for it, which makes it a CLI session the prompt bar offers (MOD-bridge-http, GET /v1/agents). `folders` is the connection's list of folders to search. `down` pauses the Bridge's mail operations from the start. Returns the page's main element and what the fixtures kept;

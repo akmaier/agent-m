@@ -26,6 +26,13 @@
 //   - The subject a route that shows mail gives the prompt bar (mailSubject, ITM-510; MOD-maintenance-pages.md, Interfaces): its page holds the `MAIL-` identifiers of the proposable mails (those that are offered a decision), and, per mail, its sender, subject, date, text and attachments only for a
 //     participant whose `place` is among the places the mailbox's connection allows and that does not declare "write to the repository"; it refuses `propose-edit` and `hand-over`; its `withhold` gives a reason for a message that holds a name, address, phone
 //     number or account of a listed mail's people (personHits) or a passage of a listed mail's own text — a run of at least twenty characters of it, whatever the case and the spacing —, and null otherwise.
+//   - The page draws, at its head, the tab strip of tabs.mjs under the tab Mail, and the link *Replies* (<a class="replies-link">), whose click goes to `replies` through the context's `go` (UC-039 step 1).
+//   - Each reading also asks `repliesDue` of the mailbox and the products; a mail it gives under `toAnswer` with `noted` false is *to answer*: its line carries <span class="mail-to-answer">, and its details say so
+//     and offer <button class="answer-mail"> *Answer*, whose click goes to `replies` with the issue's number and product (UC-038 step 7). Going there writes nothing, so it answers any click. A reading whose
+//     `repliesDue` fails keeps the marks of the last one and names the problem above the list (<p class="mail-replies-problem">); the inbox is listed all the same.
+//   - `mail/<id>` (the parameter `id`, a `MAIL-` identifier) opens, after the first reading, the mail of the list with that identifier; where the list holds none, the mailbox's `find` is asked for it and the
+//     mail found is shown as a mail clicked — its head, its text, the issue `repliesDue` names for it and, where it is to answer, *Answer* —, and kept so at later readings; a mail `find` does not give is
+//     <p class="mail-not-found"> "<id>: not found in the mailbox." (UC-038 7c, UC-039 2b). A failure of `find` names itself in the same place.
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
@@ -34,7 +41,7 @@ import { newJobId } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { mailbox, signIn } from "../mail-routes/index.mjs";
-import { decideMail, readNewMail } from "../mail-handling/index.mjs";
+import { decideMail, readNewMail, repliesDue } from "../mail-handling/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { endpointsOffered, sessionsOffered, throughActions } from "../prompt-bar/index.mjs";
 import { personHits, pseudonymisationOf, settingsSchemas } from "../personal-data/index.mjs";
@@ -42,6 +49,7 @@ import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { runPanel } from "../site-frame/index.mjs";
 import { heads } from "./routes.mjs";
+import { tabsOf } from "./tabs.mjs";
 
 // The route as a job's record writes it (MOD-job-ledger, `route`): where it runs, followed for a model endpoint's job by its connection's route; for a coding
 // agent of a Bridge, its connection's route `bridge <name> agent <agent>`.
@@ -423,9 +431,23 @@ const decisionOf = (decisions) => (decisions.length === 0
   ? ["not an issue"]
   : decisions.flatMap((each, at) => [...(at ? [", "] : []), link(issueRoute(each.issue, each.product), "issue-link", `#${each.issue}`)]));
 
-async function render(target, context) {
+// The link *Replies*, and *Answer* of a mail to answer: each goes to the route `replies` through the context's `go`, which writes nothing.
+function repliesLink(context) {
+  const node = link("#replies", "replies-link", "Replies");
+  node.addEventListener("click", (event) => { event?.preventDefault?.(); context.go("replies", {}); });
+  return el("p", "mail-replies", node);
+}
+function answerOf(due, context) {
+  const node = el("button", "answer-mail btn", "Answer");
+  node.setAttribute("type", "button");
+  node.addEventListener("click", () => context.go("replies", { issue: String(due.issue), product: due.product }));
+  return el("p", "mail-to-answer-details", `Issue #${due.issue} is closed and notes no reply to this mail: it is to answer. `, node);
+}
+
+async function render(target, context, params = {}) {
   listed = []; // a page drawn anew lists no mail until its reading has answered
   const page = el("div", "mail-page");
+  const head = [tabsOf("mail", context), repliesLink(context)];
   let readings = 0;
   page.setAttribute("data-readings", "0");
   const status = el("p", "mail-status muted", "Reading the mailbox…");
@@ -439,10 +461,11 @@ async function render(target, context) {
   // The reading's status line stands at the bottom, as a mail program's status bar; a failed reading is named above the list.
   const readStep = el("section", "mail-step-read", status, fold(STEP_TEXT.read));
   page.append(problemSlot, readStep);
-  target.replaceChildren(page);
+  target.replaceChildren(...head, page);
 
-  // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose.
-  const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "", noProduct: null };
+  // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose;
+  // the mails to answer and the issue each listed mail belongs to, as repliesDue last gave them; the mail `mail/<id>` asked for, and, where the list did not hold it, what `find` gave.
+  const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "", noProduct: null, toAnswer: new Map(), listedIn: new Map(), wanted: params.id ?? null, found: null };
   const choice = { participant: null, person: "" };
   const hooks = { changed: () => {}, running: false };
   const proposable = () => state.rows.filter((row) => row.kind === "proposable").map(({ mail, people }) => ({ mail, people }));
@@ -459,6 +482,7 @@ async function render(target, context) {
       if (state.open === row.id) line.setAttribute("aria-current", "true");
       if (row.kind === "attached") line.append(el("span", "mail-decision", "in the thread of ", ...decisionOf(row.decisions)));
       else if (row.kind === "decided" || row.decisions.length) line.append(el("span", "mail-decision", ...decisionOf(row.decisions)));
+      if (state.toAnswer.has(row.id)) line.append(" ", el("span", "mail-to-answer", "to answer"));
       if (focused === row.id) open.focus?.();
       return line;
     }));
@@ -474,10 +498,22 @@ async function render(target, context) {
   }
   function drawDetails() {
     const row = state.rows.find((each) => each.id === state.open);
-    if (!row) { details.replaceChildren(el("p", "muted mail-none", "Choose a mail in the list to read it here.")); return; }
     const back = el("button", "mail-back btn", "Back to the list");
     back.setAttribute("type", "button");
     back.addEventListener("click", () => { const id = state.open; state.open = null; drawList(); drawDetails(); list.querySelector?.(`[data-open="${id}"]`)?.focus?.(); });
+    const due = state.toAnswer.get(state.open);
+    if (!row && state.found && state.found.id === state.open) {
+      // The mail `mail/<id>` asked for, which the list does not hold: found by its identifier, or named as not found (UC-038 7c).
+      const { id, mail, problem } = state.found;
+      if (!mail) { details.replaceChildren(back, el("p", "mail-not-found", problem ? `${id} could not be searched in the mailbox: ${problem}` : `${id}: not found in the mailbox.`)); return; }
+      const shown = el("div", "mail mail-decided-details");
+      shown.setAttribute("data-mail", id);
+      const issue = state.listedIn.get(id);
+      shown.append(headOf(mail), el("pre", "mail-text", mail.text), ...(issue ? [el("p", "mail-decided-as", "An issue lists this mail: ", ...decisionOf([issue]), ".")] : []), ...(due ? [answerOf(due, context)] : []));
+      details.replaceChildren(back, shown);
+      return;
+    }
+    if (!row) { details.replaceChildren(el("p", "muted mail-none", "Choose a mail in the list to read it here.")); return; }
     if (row.kind === "proposable") { details.replaceChildren(back, state.reviews.get(row.id).item); return; }
     const shown = el("div", "mail mail-decided-details");
     shown.setAttribute("data-mail", row.id);
@@ -487,6 +523,7 @@ async function render(target, context) {
       : row.decisions.length
         ? el("p", "mail-decided-as", "An issue lists this mail: ", ...decisionOf(row.decisions), ". It is not proposed again.")
         : el("p", "mail-decided-as", "You marked this mail not an issue in this browser. It is not proposed again."));
+    if (due) shown.append(answerOf(due, context));
     details.replaceChildren(back, shown);
   }
   function openMail(id) {
@@ -554,7 +591,24 @@ async function render(target, context) {
       if (!state.reviews.has(entry.mail.id)) state.reviews.set(entry.mail.id, reviewOf(entry, { products, store, context, onMarked, onDecided, session: state.session, choice, hooks }));
     }
     state.rows = rows;
-    if (!rows.some((row) => row.id === state.open)) state.open = null;
+    // The mails to answer, and the issue of every listed mail, as repliesDue gives them with this reading (UC-038 step 7).
+    try {
+      const due = await repliesDue(have.box, [...products.values()].map((each) => ({ address: each.address, host: each.host })));
+      state.toAnswer = new Map(due.toAnswer.flatMap((each) => each.mails.filter((entry) => !entry.noted).map((entry) => [entry.id, { product: each.product, issue: each.issue }])));
+      state.listedIn = new Map([...due.toAnswer, ...due.answerReceived, ...due.open].flatMap((each) => each.mails.map((entry) => [entry.id, { product: each.product, issue: each.issue }])));
+    } catch (failure) {
+      problemSlot.append(el("p", "mail-replies-problem", `The mails to answer could not be read; the marks are those of the last reading: ${failed(failure)}`));
+    }
+    // mail/<id>: the mail of the list, or else the one the mailbox's find gives, opened once, after the first reading (UC-038 7c).
+    if (state.wanted !== null) {
+      const wanted = state.wanted;
+      state.wanted = null;
+      if (!rows.some((row) => row.id === wanted)) {
+        try { state.found = { id: wanted, mail: await have.box.find(wanted) }; } catch (failure) { state.found = { id: wanted, mail: null, problem: failed(failure) }; }
+      }
+      state.open = wanted;
+    }
+    if (!rows.some((row) => row.id === state.open) && state.found?.id !== state.open) state.open = null;
     listed = proposable();
     if (!state.propose && state.session && found.proposable.length) {
       try {

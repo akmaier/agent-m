@@ -539,10 +539,14 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const HANDED = new Set(["uc", "arc", "review", "spec", "how", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "arrange", "process", "roles", "backlog", "progress", "get-your-own",
     "participants", "library", "sources", "resources"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
-  // MOD-maintenance-pages' routes `issues` and `issue/<number>` are drawn at their addresses (its Interfaces, `view`), though views.mjs names a file for
-  // `issues`; its entry opens on Mail, the first of its routes, so the menu does not count `issues` as the entry's first view.
+  // MOD-maintenance-pages' routes `issues` and `issue/<number>` are drawn at their addresses (its Interfaces, `view`), whether views.mjs names a file for
+  // `issues` or marks it built in: `#issues` is opened and must show the issues page, not the use-case list. The entry opens on Mail, the first of its
+  // routes, so the menu does not count `issues` as the entry's first view.
   const DRAWN = new Set(["issues"]);
   const shownView = (view) => builtView(view) || DRAWN.has(view);
+  // The branch of the dispatch for MOD-maintenance-pages' routes of the tab Mail, read from its condition to the render of the route it finds, within that one
+  // branch: no `} else if` lies between, so that a match cannot reach the branch of another kind.
+  const MAIL_DISPATCH = /kind === "mail" \|\| kind === "replies"\) \{(?:(?!\} else if)[\s\S])*?const (\w+) = maintenancePages\.routes\.find\(\(r\) => r\.name === kind\);\s*await loadRoute\(\1\);\s*await \1\.render\(/;
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
   assert.ok(expected.length >= 4, `the views of today: ${expected.join(", ")}`);
@@ -550,25 +554,29 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   assert.match(fallback, /#use-case\/id=UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
-      assert.ok(["add", "setup", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add, Setup and Settings routes, the test pages' routes runs, schedule, generate and release, the trace pages' route trace, the maintenance pages' routes mail and replies and the implementation pages' routes process, roles and backlog have no dashboard file");
+      assert.ok(["add", "setup", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "issues", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add, Setup and Settings routes, the test pages' routes runs, schedule, generate and release, the trace pages' route trace, the maintenance pages' routes mail, replies and issues and the implementation pages' routes process, roles and backlog have no dashboard file");
       const dispatched = fs.readFileSync(APP_FILE, "utf8");
       if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
       else if (v.view === "settings") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "settings"\)/, "#settings dispatches the public route");
       else if (v.view === "release") assert.match(dispatched, /testPages\.routes\.find\(\(r\) => r\.name === "release"\)/, "#release dispatches the public route");
       else if (v.view === "runs" || v.view === "schedule" || v.view === "generate") assert.match(dispatched, /kind === "runs" \|\| kind === "schedule" \|\| kind === "generate"\) \{\s*await renderProductRoute\(testPages, kind,/, `#${v.view} dispatches the test pages' public route`);
       else if (v.view === "trace") assert.match(dispatched, /renderProductRoute\(tracePages, "trace",/, "#trace dispatches the trace pages' public route");
-      else if (v.view === "mail") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "mail"\)/, "#mail dispatches the maintenance pages' public route");
-      else if (v.view === "replies") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "replies"\)/, "#replies dispatches the maintenance pages' public route");
+      else if (v.view === "mail" || v.view === "replies") assert.match(dispatched, MAIL_DISPATCH, `#${v.view} dispatches the maintenance pages' public route`);
+      else if (DRAWN.has(v.view)) { /* drawn below, at its address */ }
       else if (v.view === "backlog") assert.match(dispatched, /implementationPages\.routes\.find\(\(r\) => r\.name === "backlog"\)/, "#backlog dispatches the implementation pages' public route");
       else if (v.view === "process" || v.view === "roles") assert.match(dispatched, /implementationPages\.routes\.find\(\(r\) => r\.name === kind\)/, `#${v.view} dispatches the implementation pages' public route`);
       else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
-      continue;
+      if (!DRAWN.has(v.view)) continue;
     }
     const there = shownView(v.view);
     const p = await open(w, { hash: v.view === "review" ? "#review/uc" : `#${v.view}`, direct: true });
     if (there) {
       assert.notEqual(p.main(), fallback, `#${v.view} shows its own view`);
       assert.ok(p.main().trim().length > 0, `#${v.view} shows something`);
+      if (v.view === "issues") {
+        assert.match(p.main(), /class="maintenance-tabs"/, "#issues draws MOD-maintenance-pages' strip of the tabs Mail and Issues at its head");
+        assert.match(p.main(), /<h2>Issues<\/h2>/, "#issues draws the issues page");
+      }
     } else {
       assert.match(p.main(), /#use-case\/id=UC-001"/, `#${v.view}: not built — the use-case list is shown`);
       assert.ok(!p.asked().some((u) => u.endsWith(`/dashboard/${v.file}`)), `#${v.view}: its file is not asked for`);

@@ -8,7 +8,7 @@
 // The world is tests/maintenance-pages-world.mjs (its model endpoint ep1 is the participant local-llm, its fake GitHub holds the issues of alice/product); here a fetch over it answers the issues of the state asked for. The page, MOD-issue-handling, MOD-job-runner, MOD-runtimes and
 // MOD-repository-hosts are the real ones. Readings the texts leave open, which the tests state (the pull request names them):
 //   - The product is the one the frame has chosen (`context.product`); without one the page says so and reads nothing. Route names: `issues` (in the menu entry maintenance) and `issue` (out of the menu), whose parameter `number` is the issue's number: the address is `#issue/number=<n>`.
-//   - `issues` lists the open issues: <ul class="issue-list"> of <li class="issue" data-issue="<n>"> with <a class="issue-link"> (href `#issue/number=<n>/product=<the product, percent-encoded>`; its click, by a person, goes to the route `issue` with `number`), the title, and <span class="issue-class"> — the class its label says:
+//   - `issues` lists the open and closed issues (UC-012 step 2; MOD-maintenance-pages: `listIssues` with `state: "all"`): <ul class="issue-list"> of <li class="issue" data-issue="<n>"> with <a class="issue-link"> (href `#issue/number=<n>/product=<the product, percent-encoded>`; its click, by a person, goes to the route `issue` with `number`), the title, and <span class="issue-class"> — the class its label says:
 //     defect, change or not-reproducible, else "not classified".
 //   - `issue` shows <h2> with the number and title, <pre class="issue-text"> with the issue's text, <span class="issue-class">, and, for an open issue, <section class="issue-analysis"> and <section class="issue-decision">. A closed issue shows its text and its class only.
 //   - The analysis: <input class="participant"> (radio) for each participant of the instance's register that declares draft text, with its place; <input class="person">; once a participant and a name are given, the run panel of the kind analyse-issue over this issue; Run (the person's click) runs the job in this tab and its start
@@ -84,15 +84,15 @@ async function analysed(w) {
 // guards: UC-012; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: known positive first — the page is loaded; the product alice/product with the open issues 5 to 8, of which 6 to 8 carry the label defect, change and not-reproducible, and the closed issue 9
 // input: the route issues is drawn; the link of issue 5 is clicked by a script and then by a person
-// expect: the issues requested are of the state open; the list holds 5, 6, 7 and 8 and not 9, with the class each label says — "not classified" for 5, defect, change, not-reproducible; the link of 5 has the href #issue/number=5/product=<the product>; the script's click goes nowhere and the person's goes to the route issue with number 5
-test("issues — lists the product's open issues with their class, and a person's click on one goes to its page", async () => {
+// expect: the issues requested are of the state all; the list holds 5, 6, 7, 8 and 9, with the class each label says — "not classified" for 5, defect, change, not-reproducible; the link of 5 has the href #issue/number=5/product=<the product>; the script's click goes nowhere and the person's goes to the route issue with number 5
+test("issues — lists the product's open and closed issues with their class, and a person's click on one goes to its page", async () => {
   const w = start();
   const target = await open(w, "issues");
   await waitFor(() => byClass(target, "issue").length > 0);
-  assert.deepEqual(w.listed, ["open"]);
+  assert.deepEqual(w.listed, ["all"]);
   const items = byClass(target, "issue");
   assert.deepEqual(items.map((node) => [node.getAttribute("data-issue"), textOf(one(node, "issue-class"))]),
-    [["5", "not classified"], ["6", "defect"], ["7", "change"], ["8", "not-reproducible"]]);
+    [["5", "not classified"], ["6", "defect"], ["7", "change"], ["8", "not-reproducible"], ["9", "defect"]]);
   assert.ok(textOf(items[0]).includes("Export is cut off"));
   const link = one(items[0], "issue-link");
   assert.equal(link.getAttribute("href"), `#issue/number=5/product=${encodeURIComponent(PRODUCT_URL)}`);
@@ -105,10 +105,10 @@ test("issues — lists the product's open issues with their class, and a person'
 
 // TST-582302 · level: component · module: MOD-maintenance-pages
 // guards: UC-012
-// given: the page without a chosen product (the instance itself), and a product with no open issue
+// given: the page without a chosen product (the instance itself), and a product with no issue, open or closed
 // input: the route issues is drawn for each
-// expect: without a product the page says to choose one and the GitHub API is not asked for issues; with no open issue it says there is none
-test("issues — says to choose a product where none is chosen, and that there is no open issue where there is none", async () => {
+// expect: without a product the page says to choose one and the GitHub API is not asked for issues; with no issue it says there is none
+test("issues — says to choose a product where none is chosen, and that there is no issue where there is none", async () => {
   const none = start();
   none.context.product = null;
   const target = await open(none, "issues");
@@ -116,11 +116,11 @@ test("issues — says to choose a product where none is chosen, and that there i
   assert.match(textOf(one(target, "issues-problem")), /choose a product/i);
   assert.deepEqual(none.listed, []);
   restoreWorld();
-  const empty = start({ issues: [issueRecord(9, "closed")] });
+  const empty = start({ issues: [] });
   const bare = await open(empty, "issues");
   await waitFor(() => byClass(bare, "issue-list").length > 0 || byClass(bare, "issues-empty").length > 0);
   assert.equal(byClass(bare, "issue").length, 0);
-  assert.match(textOf(one(bare, "issues-empty")), /no open issue/i);
+  assert.match(textOf(one(bare, "issues-empty")), /has no issue/i);
 });
 
 // TST-582303 · level: component · module: MOD-maintenance-pages
