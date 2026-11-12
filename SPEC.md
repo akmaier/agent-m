@@ -1819,20 +1819,34 @@ browser and for a job in a checkout of the instance, and compares it with the bo
 implementation job receives chapters 9, 11, 12 and 13 complete, as their texts or as their files in the checkout.
 
 **A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE** *(PO A. Maier)*
-The input of a job whose participant works in a checkout of the instance gives each chapter of the book *Vibe Coding* as
-the path of the chapter's file in that checkout, whose SHA-256 is the one the source register records.
-*Check:* `tests/test_job_reading.py` — builds the input of each kind of job for a participant that works in a fixture
-checkout of the instance, and reads the files the input names there. It checks that each chapter is given by the path
-of its file and none by its text, and that a chapter file whose SHA-256 differs from the register's is refused by name.
+The input of a job whose participant is a coding agent on a Bridge gives each chapter of the book *Vibe Coding* as the
+instruction to read the chapter's file in full, named by its path in the Bridge's clone of the instance, whose SHA-256 is
+the one the source register records.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job for a fixture coding agent on a Bridge, whose
+clone of the instance is a fixture checkout, and for a participant in CI, and reads the files the first input names
+there. It checks that the agent on the Bridge is told to read each chapter by the path of its file and is given none by
+its text, that the participant in CI is given each by its text, and that a chapter file whose SHA-256 differs from the
+register's is refused by name.
 
 **EVERY MODEL READS AGENT M'S AGENTS.MD FIRST** *(PO A. Maier)*
-The input Agent M sends to a language model — with a job, or with a message of the prompt bar — begins with Agent M's
-own `AGENTS.md`, the one at the root of the instance repository, in full, whatever repository the job or the page works
-on; for a participant that works in a checkout of the instance, it begins with the file's path there.
+The input Agent M sends to a language model — with a job, or with a message of the prompt bar to an endpoint or one that
+starts a CLI session — begins with Agent M's own `AGENTS.md`, the one at the root of the instance repository, in full,
+whatever repository the job or the page works on; for a coding agent on a Bridge, it begins instead with the instruction
+that the agent must read that file in full, naming its path in the Bridge's clone of the instance.
 *Check:* `tests/test_job_reading.py` — builds the input of each kind of job and of a message of the prompt bar for a
-fixture instance and a fixture product, in the browser and in a checkout of the instance. It checks that each input
-begins with the instance's `AGENTS.md`, as its text or as its path in the checkout; counter-proof: an input that leaves
-it out, puts it later, or gives the product's file in its place fails.
+fixture instance and a fixture product, in the browser, in CI and for a coding agent on a Bridge, and the message that
+starts a fixture CLI session. It checks that each input begins with the instance's `AGENTS.md` — as its text, or, for
+the agent on the Bridge and the CLI session, as the instruction to read it, naming its path in the Bridge's clone of the
+instance; counter-proof: an input that leaves it out, puts it later, gives the product's file in its place, or gives a
+coding agent on a Bridge its text fails.
+
+**A CLI SESSION IS TOLD AGAIN EVERY FIFTH MESSAGE TO READ AGENTS.MD** *(PO A. Maier)*
+Every fifth message after the one that starts a CLI session of the prompt bar begins, as that message does, with the
+instruction to read Agent M's `AGENTS.md`, noting that the agent need not read it again while it is still in its context.
+*Check:* `tests/prompt-bar-agents-first.test.mjs` — sends eleven messages to a fixture CLI session. It checks that the
+sixth and the eleventh begin with the instruction to read the instance's `AGENTS.md`, naming its path in the Bridge's
+clone of the instance, and the note that it need not be read again while it is still in the agent's context;
+counter-proof: a sixth message without the instruction fails.
 
 **A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY** *(PO A. Maier)*
 The input Agent M sends with a job whose draft it checks for the form of a requirement or the schema of a document gives,
