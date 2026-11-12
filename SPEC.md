@@ -2199,6 +2199,13 @@ reply to that mail, and nowhere else.
 *Check:* `tests/test_mail_replies.py` — after drafting, the draft is in *Drafts* with `In-Reply-To`
 set, and no write outside the mailbox contains its text.
 
+**A REPLY DRAFTED BY A MODEL SAYS SO** *(PO A. Maier)*
+A reply that a language model drafts for a mail an issue lists is stored as a draft whose text states that it was
+drafted by AI.
+*Check:* `tests/test_mail_replies.py` — drafts replies to two listed mails with a fixture participant whose texts say
+nothing of how they were drafted. It checks that each draft stored in *Drafts* states that it was drafted by AI;
+counter-proof: a stored draft without that statement fails.
+
 **THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS** *(PO A. Maier)*
 The send dashboard shows every draft of the last 30 days in the *Drafts* folder that replies to a mail an issue lists.
 *Check:* `tests/test_mail_replies.py` — a draft replying to a listed mail is shown; counter-proof: an
