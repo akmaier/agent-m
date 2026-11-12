@@ -309,12 +309,12 @@ test("TST-20261110104: an agent's environment names no file of the repository to
 
 // ---------------------------------------------------------------- the token file of a CLI session (configuration-and-secrets/04)
 
-// TST-20261112001 · level: component · module: MOD-bridge-jobs
+// TST-20261112201 · level: component · module: MOD-bridge-jobs
 // guards: A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-011
 // given: behind the fixture server the product group/widget, answering only Basic oauth2:glpat-WIDGET, the instance group/agent-m, answering only its own token, and the product group/open, answering without a token; the Bridge's data folder keeping the tokens of widget and of the instance, included by useRepositoryTokens, and its pairing token PAIRING-0123456789abcdef
 // input: startSession of a job JOB-1 of widget in an agent's working folder, at the instance's head; the session commits everything its checkout holds and pushes its branch JOB-1 with its own git, given no include; then startSession of a job JOB-2 of open
 // expect: the checkout's .agent-m-token holds glpat-WIDGET, readable by its user only; `git status --porcelain` lists nothing, and lists the file among the ignored; the session's push reached widget, whose JOB-1 holds README.md and change.md and no token file; the checkout's origin is widget's address with no credential, and its .git/config holds no token; of every file of the checkout only the token file holds widget's token; counter-proof: no file of the checkout holds the instance's token, its header's encoding or the pairing token; for open no token file is left and no credential helper is named
-test("TST-20261112001: a CLI session finds its product's token in a file of its checkout that git ignores, and no other credential", async (t) => {
+test("TST-20261112201: a CLI session finds its product's token in a file of its checkout that git ignores, and no other credential", async (t) => {
   restoredEnvironment(t);
   const root = world(t);
   const widgetToken = "glpat-WIDGET0123456789", instanceToken = "glpat-INSTANCE0123456789", pairing = "PAIRING-0123456789abcdef";
@@ -354,12 +354,12 @@ test("TST-20261112001: a CLI session finds its product's token in a file of its 
   assert.equal(spawnSync(REAL_GIT, ["config", "--get-all", "credential.helper"], { cwd: bare.working, encoding: "utf8" }).stdout.trim(), "", "and no helper is named");
 });
 
-// TST-20261112002 · level: component · module: MOD-bridge-jobs
+// TST-20261112202 · level: component · module: MOD-bridge-jobs
 // guards: A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE; A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE; NO MODEL READS A CREDENTIAL; UC-049; UC-011
-// given: the fixture server of TST-20261112001 with widget and the instance; the Bridge's data folder keeping their tokens; jobHandlers of a Bridge offering the fixture CLI session opencode with a working folder, its enclosures the fixture's, the instance's address and widget among its products; opencode records what it is given on its standard input, and pushes a branch with its own git
+// given: the fixture server of TST-20261112201 with widget and the instance; the Bridge's data folder keeping their tokens; jobHandlers of a Bridge offering the fixture CLI session opencode with a working folder, its enclosures the fixture's, the instance's address and widget among its products; opencode records what it is given on its standard input, and pushes a branch with its own git
 // input: POST /v1/ask { agent: opencode, model: opencode/big-pickle, input: "INPUT-MARKER: split the requirement", product: widget, instance: the instance's head }; GET /v1/ask/{ask} until it is no longer running; then POST /v1/ask naming a product the Bridge does not serve
 // expect: the ask is done with the session's answer "I pushed JOB-ask."; the session's input begins with the input of the request and then names the file <checkout>/.agent-m-token and says to use the token without reading the file; the session's push reached widget; the checkout is removed after the answer; counter-proof: neither token stands in the session's input, and the ask for another product is invalid-request
-test("TST-20261112002: the input of a CLI session names its token file and says to use the token without reading it, and holds no token", async (t) => {
+test("TST-20261112202: the input of a CLI session names its token file and says to use the token without reading it, and holds no token", async (t) => {
   restoredEnvironment(t);
   const root = world(t);
   const widgetToken = "glpat-WIDGET0123456789", instanceToken = "glpat-INSTANCE0123456789";
