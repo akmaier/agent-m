@@ -193,3 +193,16 @@ for (const [what, bridge, answer, name, check] of FAILS) {
     }
   });
 }
+
+// TST-20261112306 · level: unit · module: MOD-mail-routes
+// guards: THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
+// given: a fake Bridge that answers drafts with one entry { ref: { route: "bridge", uid: 7, uidValidity: 1 }, inReplyTo, mail }
+// input: mailbox(connection of the Bridge route, bridge).drafts("2026-10-01")
+// expect: the entry as the Bridge gave it; one request, POST /v1/mail/drafts, body { connection, args: { since: "2026-10-01" } }
+test("TST-20261112306 drafts — on the Bridge route: the drafts of Drafts since a date", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  const given = [{ ref: { route: "bridge", uid: 7, uidValidity: 1 }, inReplyTo: "<m1@example.org>", mail: mail(3, { inReplyTo: "<m1@example.org>", folder: "Drafts" }) }];
+  const requests = fakeBridge(() => json(given));
+  assert.deepEqual(await mailbox(CONNECTION, BRIDGE).drafts("2026-10-01"), given);
+  assertOneRequest(requests, "drafts", { since: "2026-10-01" });
+});
