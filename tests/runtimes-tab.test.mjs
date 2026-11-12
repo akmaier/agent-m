@@ -121,10 +121,8 @@ function endpointAnswers(status = 200, { drafts = [DRAFT], unreadable = false, u
 test.afterEach(() => { globalThis.fetch = realFetch; });
 
 // A repository that holds the queued job: start and taking in one commit, as the tab's route does it.
-// A job of a run is queued on a head that holds the run's record, whose `Job started` part the same commit appends (MOD-runtimes' queueJob).
 async function queued(extra = {}) {
-  const run = extra.run ? startRecord({ ...START, id: extra.run, kind: "run", participant: null, model: null, destinations: [], params: { jobsAtOnce: 3, cost: null, rounds: 5 } }) : null;
-  const fake = fakeRepository(run ? { [run.path]: run.text } : {});
+  const fake = fakeRepository();
   await queueJob(fake.host, { ...START, ...extra }, TAB, fake.head());
   return fake;
 }

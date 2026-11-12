@@ -269,11 +269,7 @@ and sends nothing while the job does not
   no prompt — is named beside it, and that piece does not run. Any other piece — the conversation itself handed on
   among them — is shown with the participant, its processing place and the route it would take, which `routesFor`
   gives, and queued at once as a job of the endpoint or CLI session itself where nothing keeps it from starting (UC-049
-  4a.2), each piece a job of its own. A piece whose kind has no participant — `run`, `set-up-ci` (MOD-job-catalogue) —
-  is queued with MOD-runtimes' `queueJob` on the route `ci hosted`, its record naming no participant and no task, its
-  parameters what `handOverParams` gives for what it works on — for a run, also its limits, the start's: `jobsAtOnce` the
-  model's work-in-progress limit or 3, `cost` none, `rounds` 5 (MOD-run-planner) —, as the person's commit; the job
-  workflow carries it out, and the bar follows it by its record as it follows a hand-over (UC-049 4a.4).
+  4a.2), each piece a job of its own.
   Such a job takes, beside what its piece works on, only the bar's `source` and `refuses` naming `hand-over` — no other
   parameter, so that no message and no page text enters the job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY
   ONLY WHEN RECORDING IS ON`). No start rule of the product's process applies to it: its kind's own preconditions

@@ -58,8 +58,7 @@ Node.
 
 ## Data
 
-It keeps nothing. A run is a job record of kind `run`, in the format MOD-job-ledger defines, with no participant and
-the route `ci hosted`, the Workflows that carry it out: its `works_on` is the
+It keeps nothing. A run is a job record of kind `run`, in the format MOD-job-ledger defines: its `works_on` is the
 selection — the steps or items, by identifier —; its parameters are its limits — `jobsAtOnce` (preset to the model's
 work-in-progress limit, or 3), `cost` (counted only from costs the runtimes report), `rounds` (the correction rounds per
 draft, preset 5) —; a `## Job started` part names each job it started, and each of those jobs names the run in its own
@@ -83,9 +82,7 @@ held by a limit has no end: it waits until a person raises the limit or stops it
   (`facts.ci.configured` false), start the kind `set-up-ci` and nothing else until its pull request is merged; start the
   kind `implement` for every selected step or item that `startable` admits and whose modules use only modules already
   done, each on a route of a holder of the implementing role in the item's role assignment who may receive its content that reaches the product's
-  resources (`facts.resourceNeeds`) — the route `any` for a holder no connection of the facts offers, which a Bridge or a
-  coding agent on CI that offers the holder's model takes (MOD-job-ledger) —, as many as `jobs at once` allows; the steps of a phase only once the gate before it is recorded; resume a job whose gate has been decided; `finish` once every selected step or item is done and every job of the
-  run has ended.
+  resources (`facts.resourceNeeds`), as many as `jobs at once` allows; the steps of a phase only once the gate before it is recorded; resume a job whose gate has been decided.
   It starts nothing that depends on a failed job while the others go on, and nothing after a person stopped the run. It
   starts nothing whose condition depends on a fact that is `"unknown"`. `refuse` names the modules of a cycle in the
   modules' uses, before anything starts.

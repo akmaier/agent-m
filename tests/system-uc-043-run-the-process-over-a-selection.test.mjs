@@ -31,9 +31,6 @@ import { LIMITS, RUN_ID, STEPS, architecture, found, lines, openWorld, productFi
 import { openImplement, quiet, startRecords, stepRows, textOf } from "./uc-024-harness.mjs";
 import { MODELS, itemPath, product as backlogProduct } from "./uc-032-harness.mjs";
 import { agent } from "./browser-connections-fixture.mjs";
-import { all, barOf, one, scenario } from "./uc-019-prompt-bar-harness.mjs";
-import { DRAFTER, HANDY, answer, declared, followClock, free, sendNow, watch } from "./uc-049-world.mjs";
-import { until } from "./review-pages-draft-world.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const SELF = "tests/system-uc-043-run-the-process-over-a-selection.test.mjs";
@@ -76,15 +73,15 @@ const VALID = "tests/system-uc-025-validate-modules.test.mjs";
 const FLOW_EVIDENCE = {
   "precondition": { uc: "The product declares a process model (UC-002), and its roles are filled (UC-048).", evidence: [[SELF, "TST-1045202"]] },
   "main-1-select": { uc: "The author selects the steps of the implementation plan the run builds", evidence: [[SELF, "TST-1045203"], [UC024S, "TST-740204"], [PLAN, "TST-732001"]] },
-  "main-2-limits": { uc: "The limits are those of the start: jobs at once", evidence: [[SELF, "TST-1045204"], [RUNOF, "TST-976002"]] },
-  "main-3-plan": { uc: "which plans the run from the model — the parts of the run in their order", evidence: [[SELF, "TST-1045206"], [NEXT, "TST-977009"]] },
-  "main-4-record": { uc: "Agent M writes the run's job record, naming the selection, the limits and the author who started it", evidence: [[SELF, "TST-1045208"], [RUNOF, "TST-976001"], [JOBREC, "TST-1132004"]] },
+  "main-2-limits": { uc: "The author sets the **limits**: jobs at once", evidence: [[SELF, "TST-1045204"], [RUNOF, "TST-976002"]] },
+  "main-3-plan": { uc: "which plans it from the model: the parts of the run in their order", evidence: [[SELF, "TST-1045206"], [NEXT, "TST-977009"]] },
+  "main-4-record": { uc: "The run's participant writes the run's job record, naming the selection, the limits and the author who started it", evidence: [[SELF, "TST-1045208"], [RUNOF, "TST-976001"], [JOBREC, "TST-1132004"]] },
   "main-5-1-ci": { uc: "**CI** — if the product has no CI configuration, the job of UC-027 generates it from the schedule", evidence: [[SELF, "TST-1045210"], [NEXT, "TST-977001"], [NEXT, "TST-977007"]] },
   "main-5-2-implementation": { uc: "**Implementation** — one job per step (UC-024)", evidence: [[SELF, "TST-1045211"], [SELF, "TST-1045212"], [SELF, "TST-1045213"], [NEXT, "TST-977002"], [UC024S, "TST-740210"]] },
   "main-5-validation": { uc: "**Validation** — UC-025 for the selection.", evidence: [[UC025, "TST-741112"], [VALID, "TST-741002"]] },
   "main-5-records": { uc: "writes its own record naming the run", evidence: [[SELF, "TST-1045215"], [JOBREC, "TST-1132004"], [UC024S, "TST-740213"], [UC024S, "TST-740219"]] },
   "main-6-dashboards": { uc: "show the run's jobs, their states and what waits", evidence: [[SELF, "TST-1045216"], [JOBS, "TST-509001"], [JOBS, "TST-970001"], [PROGRESS, "TST-806008"]] },
-  "main-7-end": { uc: "The run ends: once every selected step is done, CI completes the run's record.", evidence: [[SELF, "TST-1045217"], [NEXT, "TST-977006"], [RUNOF, "TST-976005"]] },
+  "main-7-end": { uc: "The run ends. Its participant completes the run's record.", evidence: [[SELF, "TST-1045217"], [NEXT, "TST-977006"], [RUNOF, "TST-976005"]] },
   "main-7-validation": { uc: "is the view of UC-025 for the modules of the selection.", evidence: [[UC025, "TST-741112"]] },
   "1a-backlog": { uc: "**1a. The product works from a backlog (Scrum, Kanban).**", evidence: [[SELF, "TST-1045219"], [SELF, "TST-1045220"], [NEXT, "TST-977010"], [UC024S, "TST-740203"]] },
   "1c-one-part": { uc: "**1c. The author wants only one part for one step**", evidence: [[SELF, "TST-1045222"], [UC024S, "TST-740210"]] },
@@ -92,21 +89,20 @@ const FLOW_EVIDENCE = {
   "5a-gate": { uc: "**5a. A job reaches a gate its model gives to a person**", evidence: [[SELF, "TST-1045226"], [NEXT, "TST-977004"], [GATEP, "TST-801001"], [GATEP, "TST-801002"]] },
   "5b-failed": { uc: "**5b. A job fails**", evidence: [[SELF, "TST-1045227"], [NEXT, "TST-977005"], [RETRY, "TST-974002"]] },
   "5c-limit": { uc: "**5c. A limit is reached**", evidence: [[SELF, "TST-1045230"], [RUNOF, "TST-976004"], [RUNOF, "TST-976005"]] },
-  "5d-stop": { uc: "**5d. The author stops the run**", evidence: [[SELF, "TST-1045231"], [NEXT, "TST-977006"], [CANCEL, "TST-972003"]] },
+  "5d-stop": { uc: "**5d. The author stops the run.**", evidence: [[SELF, "TST-1045231"], [NEXT, "TST-977006"], [CANCEL, "TST-972003"]] },
   "postcondition": { uc: "Every selected step or item has code and tests merged through pull requests whose Definition of Done", evidence: [[SELF, "TST-1045233"]] },
 };
 // The passages the repository's code does not carry as UC-043 says: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-1-4-start": { uc: "The author asks for the run in the prompt bar", finding: "UC043-F2", file: SELF, test: "TST-1045207", module: "no module" },
+  "main-1-4-start": { uc: "The author hands the run to its participant", finding: "UC043-F2", file: SELF, test: "TST-1045207", module: "no module" },
   "main-2-presets": { uc: "jobs at once (the model's work-in-progress limit, or 3)", finding: "UC043-F3", file: SELF, test: "TST-1045205", module: "MOD-run-planner" },
   "main-4-5-states": { uc: "The run proceeds without a click", finding: "UC043-F1", file: SELF, test: "TST-1045209", module: "MOD-work-plans" },
   "main-5-2-phases": { uc: "in a V-model, the Testing phase runs after Implementation", finding: "UC043-F11", file: SELF, test: "TST-1045234", module: "MOD-run-planner" },
   "main-5-3-tests": { uc: "**Tests** — the job of UC-026 for the selection", finding: "UC043-F5", file: SELF, test: "TST-1045214", module: "no module" },
-  "main-7-finish": { uc: "CI completes the run's record", finding: "UC043-F6", file: SELF, test: "TST-1045218", module: "no module" },
+  "main-7-finish": { uc: "Its participant completes the run's record", finding: "UC043-F6", file: SELF, test: "TST-1045218", module: "no module" },
   "1b-accepted": { uc: "**1b. A selected step's module file or decision is not accepted.**", finding: "UC043-F9", file: SELF, test: "TST-1045221", module: "MOD-work-plans" },
   "1d-nothing": { uc: "**1d. The product has no implementation plan, or no ready backlog item.**", finding: "UC043-F8", file: SELF, test: "TST-1045223", module: "MOD-run-planner" },
   "3b-role": { uc: "**3b. No participant holds a role the plan needs.**", finding: "UC043-F7", file: SELF, test: "TST-1045225", module: "no module" },
-  "3c-workflow": { uc: "**3c. The product has no job workflow** (UC-010).", finding: "UC043-F12", file: SELF, test: "TST-1045235", module: "MOD-prompt-bar" },
   "5b-record": { uc: "The run's record names the failed job and", finding: "UC043-F6", file: SELF, test: "TST-1045228", module: "no module" },
   "5c-hold": { uc: "The run starts no further job, lets the running ones", finding: "UC043-F4", file: SELF, test: "TST-1045229", module: "MOD-run-planner" },
   "5d-cancel": { uc: "every running job is cancelled", finding: "UC043-F10", file: SELF, test: "TST-1045232", module: "no module" },
@@ -121,7 +117,7 @@ const NOT_WALKED = {
 // guards: UC-043
 // given: UC-043 as committed text, the executable tests named in FLOW_EVIDENCE, the findings named in FLOW_FINDINGS and the passages named in NOT_WALKED
 // input: compare every passage of the precondition, the main flow, the alternative flows and the postcondition with its executable evidence, its finding or the reason it is not walked
-// expect: every named passage stands in UC-043; every evidence file exists and declares its TST id; every finding's case stands in its file with the todo naming FINDING, its number and its module; known positive: UC-043 names exactly the eleven alternative flows 1a, 1b, 1c, 1d, 3a, 3b, 3c, 5a, 5b, 5c and 5d, and each is among the passages; the seven numbered steps of the main flow each have a passage
+// expect: every named passage stands in UC-043; every evidence file exists and declares its TST id; every finding's case stands in its file with the todo naming FINDING, its number and its module; known positive: UC-043 names exactly the ten alternative flows 1a, 1b, 1c, 1d, 3a, 3b, 5a, 5b, 5c and 5d, and each is among the passages; the seven numbered steps of the main flow each have a passage
 test("TST-1045201: UC-043 every passage of the main flow and of each alternative flow has an executable test, a finding or a stated reason", () => {
   const uc = read(UC).replace(/\s+/g, " ");
   const squash = (text) => text.replace(/\s+/g, " ");
@@ -141,7 +137,7 @@ test("TST-1045201: UC-043 every passage of the main flow and of each alternative
   }
   for (const [name, { uc: needle }] of Object.entries(NOT_WALKED)) assert.ok(uc.includes(squash(needle)), `${name}: UC-043 says "${needle}"`);
   const flows = [...uc.matchAll(/- \*\*(\d+[a-z])\. /g)].map((match) => match[1]).sort();
-  assert.deepEqual(flows, ["1a", "1b", "1c", "1d", "3a", "3b", "3c", "5a", "5b", "5c", "5d"], "known positive: UC-043 names these eleven alternative flows");
+  assert.deepEqual(flows, ["1a", "1b", "1c", "1d", "3a", "3b", "5a", "5b", "5c", "5d"], "known positive: UC-043 names these ten alternative flows");
   const walked = new Set(Object.keys({ ...FLOW_EVIDENCE, ...FLOW_FINDINGS, ...NOT_WALKED }).filter((key) => /^\d/.test(key)).map((key) => key.split("-")[0]));
   assert.deepEqual(flows.filter((flow) => !walked.has(flow)), [], "each alternative flow is among the passages");
   const steps = new Set(Object.keys({ ...FLOW_EVIDENCE, ...FLOW_FINDINGS, ...NOT_WALKED }).filter((key) => key.startsWith("main-")).map((key) => key.split("-")[1]));
@@ -581,44 +577,6 @@ test("TST-1045225: UC-043 3b — no participant holds a role the plan needs: not
   assert.deepEqual(startsOf(actions), [], "known positive: nothing starts");
   const said = actions.map((action) => action.reason ?? "").join(" ");
   assert.ok(said.includes("Developer") && said.includes("run code and tests"), "the role and the capability are named");
-});
-
-// TST-1045235 · level: system · module: system
-// guards: UC-043; UC-049; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the product akmaier/lending-tool of tests/uc-019-prompt-bar-harness.mjs without Agent M's job workflow (.github/workflows/agent-m-jobs.yml removed), this browser declaring the endpoint handy of tests/uc-049-world.mjs, which runs through GitHub Actions; known positive: on the same product an ordinary hand-over (the conversation itself, kind converse) is held back as UC-049 4c says — "Nothing was handed over: akmaier/lending-tool is not set up for GitHub Actions. Missing: the job workflow", one button Set up GitHub Actions, nothing written
-// input: 3c — the author asks for the run in the prompt bar, "build ITM-001, with CI first", and presses Send; handy's answer plans it as one piece of kind run that works on ITM-001 (UC-049 4a.2)
-// expect: before the run's record is written, the bar holds the run back as UC-049 4c does: it says "Nothing was handed over: akmaier/lending-tool is not set up for GitHub Actions. Missing: the job workflow" and offers one button Set up GitHub Actions; nothing is written to the product — no commit, no job record and no record of kind run —, and no workflow is started
-test("TST-1045235: UC-043 3c — a run asked for in the prompt bar on a product without the job workflow is held back, and Set up GitHub Actions is offered before its record is written", { todo: "FINDING UC043-F12 (MOD-prompt-bar) — the bar cannot hand over a piece of kind run, so the hold of UC-049 4c is never reached for it: carryOutPlan (src/prompt-bar/bar.mjs:489-509) asks kindOf for the piece's kind first (:500), MOD-job-catalogue's kindOf throws UnknownKind `the catalogue holds no kind run` (src/job-catalogue/index.mjs:137) since src/job-catalogue/kinds/ holds no folder run, and the piece ends `not handed over` with `Nothing was handed on. UnknownKind: …` (:502-503) before proposeHandOver (:508) and its actionsLack (:413) run; so no Set up GitHub Actions is offered. MOD-prompt-bar's text says a piece whose kind has no participant — `run`, `set-up-ci` (MOD-job-catalogue) — is queued with queueJob on the route `ci hosted`, but no kind run is in the catalogue and no function of the bar queues a run's record: the wiring of a run started from the prompt bar is not built" }, async () => {
-  const MISSING = "Nothing was handed over: akmaier/lending-tool is not set up for GitHub Actions. Missing: the job workflow";
-  const proposalOf = (s) => one(barOf(s), "section", "hand-over");
-  const setUpButtons = (s) => all(proposalOf(s), "button").filter((node) => node.textContent === "Set up GitHub Actions");
-  const records = (s) => Object.entries(s.product.files).filter(([path]) => path.startsWith("docs/jobs/JOB-"));
-  // The author's message to handy, whose answer proposes `handOver`; resolves once the proposal is checked.
-  const asks = async (message, handOver) => {
-    const s = await scenario({ ...declared(DRAFTER, HANDY) });
-    delete s.product.files[".github/workflows/agent-m-jobs.yml"];
-    const w = watch(s, { script: [answer("I will hand this on.", { handOver })] });
-    const clock = followClock();
-    await sendNow(s, message, { participant: "handy" });
-    await free(s);
-    await until(() => all(barOf(s), "section", "hand-over").length > 0 && !proposalOf(s).textContent.includes("Checking"), "the hand-over is checked");
-    return { s, w, done: () => { clock.stop(); w.stop(); } };
-  };
-  const ordinary = await asks("Please run the tests of this page.", [{ kind: "converse", works_on: ["A LOAN HAS A DUE DATE"], task: "Run the tests of the loan page and tell me which fail", after: [] }]);
-  try {
-    await until(() => proposalOf(ordinary.s).textContent.includes("Nothing was handed over"), "known positive: what is missing is shown");
-    assert.ok(proposalOf(ordinary.s).textContent.includes(MISSING), `known positive: ${proposalOf(ordinary.s).textContent}`);
-    assert.equal(setUpButtons(ordinary.s).length, 1, "known positive: Set up GitHub Actions is offered");
-    assert.deepEqual([ordinary.s.product.writes.length, ordinary.w.dispatches.length], [0, 0], "known positive: nothing is written");
-  } finally { ordinary.done(); }
-  const run = await asks("build ITM-001, with CI first", [{ kind: "run", works_on: ["ITM-001"], task: "build ITM-001, with CI first", after: [] }]);
-  try {
-    const text = proposalOf(run.s).textContent;
-    assert.ok(text.includes(MISSING), text);
-    assert.equal(setUpButtons(run.s).length, 1, `Set up GitHub Actions is offered: ${text}`);
-    assert.deepEqual([run.s.product.writes.length, run.w.dispatches.length], [0, 0], "nothing is written and no workflow is started");
-    assert.deepEqual(records(run.s).filter(([, record]) => /^kind: run$/m.test(record)), [], "no record of kind run");
-  } finally { run.done(); }
 });
 
 // TST-1045226 · level: system · module: system

@@ -149,7 +149,7 @@ read as this browser's.
 |---|---|
 | a push to the default branch that changes `docs/jobs/` or `docs/gates/` | `onRecordsChanged` |
 | a pull or merge request closed or merged | `onPullRequestClosed` |
-| a CI check completed, or a run of the test configuration completed (GitHub's `workflow_run`) | `onCheckCompleted` |
+| a CI check completed | `onCheckCompleted` |
 | a schedule, once a day | `onSchedule` |
 | a start from the server's own page, with a job's identifier (UC-010, UC-024), or from a hand-over, with the identifier of the job it queued and the task (UC-049 4a) | `onDispatch` |
 
@@ -422,8 +422,7 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   naming both pieces and what they share, its `fix` asking to make them one piece or to let the later rest on the
   earlier. Where the job's context has the instance
   and the plan holds no such error, also an error, under the same rule, for each piece that rests on no other and whose
-  job could not start for what the plan chose — a kind the catalogue lacks, a kind with a participant that takes no task (MOD-job-runner's `taskRefusal`; a
-  kind without a participant gives its task to no one and is queued for the Workflows, MOD-job-catalogue), or what MOD-job-runner's `prepareJob` refuses of the parameters
+  job could not start for what the plan chose — a kind the catalogue lacks, a kind that takes no task (MOD-job-runner's `taskRefusal`), or what MOD-job-runner's `prepareJob` refuses of the parameters
   `handOverParams` gives for the piece, prepared as MOD-workflow-entries prepares a hand-over but without its drafter —,
   its `what` naming the piece and that reason, its `fix` asking to name what the kind needs to start or to leave the
   piece out; a finding of a kind's preconditions, which the planner cannot change, stays the hand-over's to name. A piece

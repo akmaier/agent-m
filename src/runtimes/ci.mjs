@@ -15,7 +15,7 @@
 // page"). queueOnCi calls host.repositoryInfo() the same way; the gap is noted here rather than by editing the
 // architecture file.
 
-import { appendToRecord, startRecord } from "../job-ledger/index.mjs";
+import { startRecord } from "../job-ledger/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 
 // RuntimeError — the failures MOD-runtimes throws of its own (MOD-runtimes, Interfaces: queueJob): WorkflowMissing
@@ -60,21 +60,6 @@ export async function commitStart(host, start, head, also = []) {
   return { path, commit, defaultBranch, workflow: snapshot.repository.server === "github" ? workflow.split("/").pop() : workflow };
 }
 
-// A job's identifier, as a start's `run` names its run, or its `startedBy` the job that started it — a conversation's job that planned the piece (UC-049 4f) — rather than an account.
-const JOB_ID = /^JOB-\S+$/;
-
-// startedParts(host, start, head) -> Promise<{ path, text }[]> — the files the commit of a start holds beside its record (MOD-runtimes' queueJob and handOverJob): for a job of a run
-// (`start.run`), else for a start whose `startedBy` names a job, that run's or job's record with a `Job started` part naming this one (MOD-job-ledger's appendToRecord), read on the
-// head that was read; none for a start by an account. Throws RuntimeError NotFound, naming the record, for a run or job the head does not hold. Exported within MOD-runtimes.
-export async function startedParts(host, start, head) {
-  const owner = JOB_ID.test(String(start.run ?? "")) ? start.run : JOB_ID.test(String(start.startedBy ?? "")) ? start.startedBy : null;
-  if (owner === null) return [];
-  const path = `docs/jobs/${owner}.md`;
-  const text = await (await host.readSnapshot(head)).read(path);
-  if (text === null) throw new RuntimeError("NotFound", { what: path }, `the job ${owner} that starts ${start.id} has no record ${path} on the head that was read`);
-  return [{ path, text: appendToRecord(text, { part: "job started", at: start.start, job: start.id, kind: start.kind, worksOn: start.worksOn }) }];
-}
-
 // pinnedInstance(text) -> string | null — the instance commit a job workflow file pins: GitHub's checkout of the instance (`ref:` after its `repository:`),
 // GitLab's AGENT_M_COMMIT; null where the file names none. Exported within MOD-runtimes for actions-setup.mjs (actionsSetup's pins.product); index.mjs does not export it.
 export function pinnedInstance(text) {
@@ -99,8 +84,8 @@ function withEndpoint(start, store) {
 
 // queueOnCi(host, start, head, store?) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
 // commitStart of the start with the endpoint its participant's browser setting names (withEndpoint); the push starts the product's job workflow (Data).
-export async function queueOnCi(host, start, head, store = null, also = []) {
-  const { path, commit } = await commitStart(host, withEndpoint(start, store), head, also);
+export async function queueOnCi(host, start, head, store = null) {
+  const { path, commit } = await commitStart(host, withEndpoint(start, store), head);
   return { path, commit };
 }
 
