@@ -253,7 +253,8 @@ function graphFixture(seed, { refuseSend = false } = {}) {
     if (request.method === "GET" && /^\/me\/mailFolders\/[^/]+$/.test(path)) return json({ id: path.split("/").at(-1), totalItemCount: 0 });
     if (request.method === "POST" && path === "/me/messages") {
       const id = `AAMk-new-${count += 1}=`;
-      folders.drafts.push({ id, raw: Buffer.from(String(request.body), "base64").toString("utf8") });
+      // A draft created now is received within any filter of the last days, as a message of the seed without `received` is.
+      folders.drafts.push({ id, raw: Buffer.from(String(request.body), "base64").toString("utf8"), received: null });
       return json({ id }, 201);
     }
     const one = /^\/me\/messages\/([^/]+)(\/\$value|\/send)?$/.exec(path);

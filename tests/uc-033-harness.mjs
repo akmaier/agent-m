@@ -85,7 +85,7 @@ export const typed = async (field, value) => { field.value = value; field.dispat
 /** The issue `number` opened, and its move section, or the line that says it is not offered, waited for; with `offered` false, only the page itself — for an issue whose class draws neither. */
 export async function openIssue(w, number, { offered = true } = {}) {
   const detail = await open(w, number);
-  await waitFor(() => byClass(detail, "issue-analysis").length > 0 && (!offered || moveOf(detail) !== undefined || byClass(detail, "move-not-offered").length > 0));
+  await waitFor(() => (byClass(detail, "implement-issue").length > 0 || byClass(detail, "issue-problem").length > 0) && (!offered || moveOf(detail) !== undefined || byClass(detail, "move-not-offered").length > 0));
   await flush();
   return detail;
 }

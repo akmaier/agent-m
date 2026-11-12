@@ -77,15 +77,14 @@ test("TST-20261111101 #issues/product=… draws the product's issue list, not th
 // guards: UC-012
 // given: the product alice/product kept in this browser, its issue 7 open and labelled change; the instance's participant local-llm on this browser's endpoint ep1
 // input: the page opened at #issue/number=7/product=<the product, percent-encoded>
-// expect: <main> shows issue #7 with its title and text, and its section Analyse offering local-llm; not the use cases
-test("TST-20261111102 #issue/number=7/product=… draws issue #7 with its Analyse, not the use cases", async () => {
+// expect: <main> shows issue #7 with its title and text, and its button Implement; not the use cases
+test("TST-20261111102 #issue/number=7/product=… draws issue #7 with its Implement, not the use cases", async () => {
   const { page } = await opened(`#issue/number=7/product=${ENCODED}`);
   const html = page.main();
   assert.doesNotMatch(html, /<h2>Use cases<\/h2>/, "not the use cases");
   assert.match(html, /<h3>Issue #7: Pages are missing<\/h3>/);
   assert.match(html, /<pre class="issue-text">Text of issue 7\.<\/pre>/);
-  assert.match(html, /<section class="issue-analysis"><h3>Analyse<\/h3>/, "the section Analyse");
-  assert.match(html, /<input class="participant" type="radio" value="local-llm">/, "Analyse offers the participant local-llm");
+  assert.match(html, /<button class="implement-issue btn" type="button">Implement<\/button>/, "the button Implement");
 });
 
 // TST-20261111103 · level: component · module: MOD-site-frame

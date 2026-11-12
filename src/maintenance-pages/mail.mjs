@@ -28,10 +28,12 @@
 //     number or account of a listed mail's people (personHits) or a passage of a listed mail's own text — a run of at least twenty characters of it, whatever the case and the spacing —, and null otherwise.
 //   - The page draws, at its head, the tab strip of tabs.mjs under the tab Mail, and the link *Replies* (<a class="replies-link">), whose click goes to `replies` through the context's `go` (UC-039 step 1).
 //   - Each reading also asks `repliesDue` of the mailbox and the products; a mail it gives under `toAnswer` with `noted` false is *to answer*: its line carries <span class="mail-to-answer">, and its details say so
-//     and offer <button class="answer-mail"> *Answer*, whose click goes to `replies` with the issue's number and product (UC-038 step 7). Going there writes nothing, so it answers any click. A reading whose
-//     `repliesDue` fails keeps the marks of the last one and names the problem above the list (<p class="mail-replies-problem">); the inbox is listed all the same.
+//     and show under the mail its reply as `replies/<issue>` shows the reply to that one mail (replies.mjs' `replyOf`, the same block, imported when first drawn): its draft, or the text boxes of a reply without
+//     one, *Save draft*, *Send* with its confirmation, *No reply*, and *Draft replies* with its run panel over that mail (UC-038 step 7, UC-039 step 1). The reply of a mail is drawn once and kept, with what is
+//     typed into it, while later readings give the mail as to answer; once the reply is drafted, or the issue reopened, it is drawn anew from a new `repliesDue`. A reading whose `repliesDue` fails keeps the
+//     marks of the last one and names the problem above the list (<p class="mail-replies-problem">); the inbox is listed all the same.
 //   - `mail/<id>` (the parameter `id`, a `MAIL-` identifier) opens, after the first reading, the mail of the list with that identifier; where the list holds none, the mailbox's `find` is asked for it and the
-//     mail found is shown as a mail clicked — its head, its text, the issue `repliesDue` names for it and, where it is to answer, *Answer* —, and kept so at later readings; a mail `find` does not give is
+//     mail found is shown as a mail clicked — its head, its text, the issue `repliesDue` names for it and, where it is to answer, its reply under it —, and kept so at later readings; a mail `find` does not give is
 //     <p class="mail-not-found"> "<id>: not found in the mailbox." (UC-038 7c, UC-039 2b). A failure of `find` names itself in the same place.
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
@@ -438,17 +440,11 @@ const decisionOf = (decisions) => (decisions.length === 0
   ? ["not an issue"]
   : decisions.flatMap((each, at) => [...(at ? [", "] : []), link(issueRoute(each.issue, each.product), "issue-link", `#${each.issue}`)]));
 
-// The link *Replies*, and *Answer* of a mail to answer: each goes to the route `replies` through the context's `go`, which writes nothing.
+// The link *Replies*: it goes to the route `replies` through the context's `go`, which writes nothing.
 function repliesLink(context) {
   const node = link("#replies", "replies-link", "Replies");
   node.addEventListener("click", (event) => { event?.preventDefault?.(); context.go("replies", {}); });
   return el("p", "mail-replies", node);
-}
-function answerOf(due, context) {
-  const node = el("button", "answer-mail btn", "Answer");
-  node.setAttribute("type", "button");
-  node.addEventListener("click", () => context.go("replies", { issue: String(due.issue), product: due.product }));
-  return el("p", "mail-to-answer-details", `Issue #${due.issue} is closed and notes no reply to this mail: it is to answer. `, node);
 }
 
 async function render(target, context, params = {}) {
@@ -472,7 +468,9 @@ async function render(target, context, params = {}) {
 
   // What a later reading keeps: the rows of the list, the open mail, the reviews of the proposable mails with their proposals and edits, the participants' session, the choice made under Propose;
   // the mails to answer and the issue each listed mail belongs to, as repliesDue last gave them; the mail `mail/<id>` asked for, and, where the list did not hold it, what `find` gave.
-  const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "", noProduct: null, toAnswer: new Map(), listedIn: new Map(), wanted: params.id ?? null, found: null };
+  // `replies` are the replies drawn under mails to answer, by the mail's identifier; `mailbox` is what they are drafted and sent with: { connection, box, products } of the last reading.
+  const state = { rows: [], open: null, reviews: new Map(), session: null, propose: null, proposedFor: "", noProduct: null, toAnswer: new Map(), listedIn: new Map(), wanted: params.id ?? null, found: null,
+    replies: new Map(), mailbox: null };
   const choice = { participant: null, person: "" };
   const hooks = { changed: () => {}, running: false };
   const proposable = () => state.rows.filter((row) => row.kind === "proposable").map(({ mail, people }) => ({ mail, people }));
@@ -503,6 +501,25 @@ async function render(target, context, params = {}) {
     node.addEventListener("click", () => openMail(row.id));
     return node;
   }
+  // What a mail to answer shows under it: that it is to answer, and its reply as the route replies/<issue> shows it (replyOf), drawn once and kept.
+  function answerOf(id) {
+    const due = state.toAnswer.get(id);
+    if (!state.replies.has(id)) {
+      const slot = el("div", "mail-reply-slot");
+      state.replies.set(id, slot);
+      const ctx = { context, ...state.mailbox };
+      const redraw = async (said = []) => {
+        const shown = state.replies.get(id);
+        try { await readDue(); } catch (failure) { shown?.append(el("p", "reply-problem", `The replies could not be read again: ${failed(failure)}`)); return; }
+        state.replies.delete(id);
+        if (state.open === id) drawDetails();
+        (state.replies.get(id) ?? details).append(...said);
+      };
+      import("./replies.mjs").then(({ replyOf }) => replyOf(due.issueDue, due.entry, ctx, redraw)).then((node) => slot.replaceChildren(node),
+        (failure) => slot.replaceChildren(el("p", "reply-problem", `The reply could not be shown: ${failed(failure)}`)));
+    }
+    return [el("p", "mail-to-answer-details", `Issue #${due.issue} is closed and notes no reply to this mail: it is to answer. Write the reply under it.`), state.replies.get(id)];
+  }
   function drawDetails() {
     const row = state.rows.find((each) => each.id === state.open);
     const back = el("button", "mail-back btn", "Back to the list");
@@ -516,7 +533,7 @@ async function render(target, context, params = {}) {
       const shown = el("div", "mail mail-decided-details");
       shown.setAttribute("data-mail", id);
       const issue = state.listedIn.get(id);
-      shown.append(headOf(mail), el("pre", "mail-text", mail.text), ...(issue ? [el("p", "mail-decided-as", "An issue lists this mail: ", ...decisionOf([issue]), ".")] : []), ...(due ? [answerOf(due, context)] : []));
+      shown.append(headOf(mail), el("pre", "mail-text", mail.text), ...(issue ? [el("p", "mail-decided-as", "An issue lists this mail: ", ...decisionOf([issue]), ".")] : []), ...(due ? answerOf(id) : []));
       details.replaceChildren(back, shown);
       return;
     }
@@ -530,7 +547,7 @@ async function render(target, context, params = {}) {
       : row.decisions.length
         ? el("p", "mail-decided-as", "An issue lists this mail: ", ...decisionOf(row.decisions), ". It is not proposed again.")
         : el("p", "mail-decided-as", "You marked this mail not an issue in this browser. It is not proposed again."));
-    if (due) shown.append(answerOf(due, context));
+    if (due) shown.append(...answerOf(row.id));
     details.replaceChildren(back, shown);
   }
   function openMail(id) {
@@ -561,6 +578,15 @@ async function render(target, context, params = {}) {
     const now = opened().map(({ mail }) => mail.id).join(" ");
     if (state.propose && now !== state.proposedFor && !hooks.running) { state.proposedFor = now; hooks.changed(); }
     proposeSlot.replaceChildren(...(state.noProduct ? [state.noProduct] : state.propose && now !== "" ? [state.propose] : []));
+  }
+
+  // The mails to answer with the issue each belongs to as repliesDue gives it, and the issue of every listed mail; a reply drawn under a mail no longer to answer is let go.
+  async function readDue() {
+    const { box, products } = state.mailbox;
+    const due = await repliesDue(box, [...products.values()].map((each) => ({ address: each.address, host: each.host })));
+    state.toAnswer = new Map(due.toAnswer.flatMap((each) => each.mails.filter((entry) => !entry.noted).map((entry) => [entry.id, { product: each.product, issue: each.issue, issueDue: each, entry }])));
+    state.listedIn = new Map([...due.toAnswer, ...due.answerReceived, ...due.open].flatMap((each) => each.mails.map((entry) => [entry.id, { product: each.product, issue: each.issue }])));
+    for (const id of [...state.replies.keys()]) if (!state.toAnswer.has(id)) state.replies.delete(id);
   }
 
   const readOnce = async () => {
@@ -599,10 +625,9 @@ async function render(target, context, params = {}) {
     }
     state.rows = rows;
     // The mails to answer, and the issue of every listed mail, as repliesDue gives them with this reading (UC-038 step 7).
+    state.mailbox = { connection: have.connection, box: have.box, products };
     try {
-      const due = await repliesDue(have.box, [...products.values()].map((each) => ({ address: each.address, host: each.host })));
-      state.toAnswer = new Map(due.toAnswer.flatMap((each) => each.mails.filter((entry) => !entry.noted).map((entry) => [entry.id, { product: each.product, issue: each.issue }])));
-      state.listedIn = new Map([...due.toAnswer, ...due.answerReceived, ...due.open].flatMap((each) => each.mails.map((entry) => [entry.id, { product: each.product, issue: each.issue }])));
+      await readDue();
     } catch (failure) {
       problemSlot.append(el("p", "mail-replies-problem", `The mails to answer could not be read; the marks are those of the last reading: ${failed(failure)}`));
     }
