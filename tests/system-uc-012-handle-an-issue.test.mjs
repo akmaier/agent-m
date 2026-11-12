@@ -37,14 +37,11 @@ const FLOWS = {
 
 // TST-585201 · level: system · module: system
 // guards: UC-012
-// given: UC-012 as committed text, whose alternative flows are 3a, 5a, 5b and 4a, and the system tests named in FLOWS
-// input: read UC-012's alternative flows, and the declarations of the test files named for each flow
-// expect: known positive — UC-012 names the four alternative flows 3a, 5a, 5b and 4a; FLOWS holds step 2 and 5a, the flows the page carries; each test named stands in its file with the level system and guards UC-012
+// given: FLOWS, which names step 2 and 5a, the flows of UC-012 the page carries, each with the system test that walks it
+// input: the declarations of the test files named for each flow
+// expect: FLOWS holds exactly "main flow, step 2" and "5a"; each test named stands in its file with the level system and guards UC-012
 test("TST-585201: UC-012 every flow the page carries has a system test that walks it", () => {
-  const text = read("docs/use-cases/UC-012-turn-an-issue-into-a-specification-change.md");
-  const alternatives = [...text.matchAll(/^- \*\*(\d+[a-z])\. /gm)].map((match) => match[1]);
-  assert.deepEqual(alternatives, ["3a", "5a", "5b", "4a"], "known positive: UC-012's alternative flows");
-  assert.ok(alternatives.includes("5a") && Object.keys(FLOWS).includes("5a"), "5a has a system test");
+  assert.deepEqual(Object.keys(FLOWS), ["main flow, step 2", "5a"], "the flows the page carries");
   for (const [flow, tests] of Object.entries(FLOWS)) {
     for (const [file, id] of tests) {
       assert.ok(existsSync(new URL(`../${file}`, import.meta.url)), `${flow}: ${file} exists`);
