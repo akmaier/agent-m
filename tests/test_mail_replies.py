@@ -66,7 +66,13 @@ const sentShown = [];
 let drafts = (input.drafts ?? []).map((d) => ({ ref: { route: "bridge", uid: d.uid, uidValidity: 7 }, inReplyTo: d.inReplyTo, body: d.body ?? "", mail: mk(input.draftMail ?? Object.keys(input.mails)[0]) }));
 const mailbox = {
   read: async () => { mailboxCalls.push("read"); return (input.read ?? []).map(mk); },
-  find: async (id) => { mailboxCalls.push("find"); finds.push(id); const key = (input.found ?? []).find((k) => input.mails[k].id === id); return key ? mk(key) : null; },
+  // MOD-mail-routes' find(ids): "the mails with these `MAIL-` identifiers in the named folders, all found in one lookup ...
+  // each identifier is answered with its mail, or with `null`". Each call is one entry of `finds`: the identifiers it names,
+  // sorted, since the sentence states no order.
+  find: async (ids) => {
+    mailboxCalls.push("find"); finds.push([...ids].sort());
+    return Object.fromEntries(ids.map((id) => { const key = (input.found ?? []).find((k) => input.mails[k].id === id); return [id, key ? mk(key) : null]; }));
+  },
   drafts: async () => { mailboxCalls.push("drafts"); return drafts; },
   sent: async () => { mailboxCalls.push("sent"); return (input.sent ?? []).map(mk); },
   // The route threads a draft on the Message-ID of the mail it replies to (MOD-mail-routes' storeDraft).
@@ -190,7 +196,9 @@ class TestMailReplies(unittest.TestCase):
     # guards: AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS
     # given: the cases under that requirement beside this file: a closed issue listing two identifiers, one that lists a further report by a note
     # input: repliesDue over a mailbox that finds a mail by its identifier only
-    # expect: one offer per listed identifier, each mail found through its identifier, and no read of the mailbox's folders
+    # expect: one offer per listed identifier, each mail found through its identifier, all of them in one find naming every listed
+    #   identifier, and no read of the mailbox's folders — MOD-mail-handling's repliesDue: "The listed mails of the issues it groups
+    #   are found in the mailbox by their identifiers, all in one `find`"
     def test_the_listed_identifiers_are_the_replies_offered(self):
         self.check(NAMES)
 

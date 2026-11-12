@@ -326,8 +326,10 @@ test("TST-433811: connecting and testing a mailbox changes nothing in it, and it
     await press(one(p.main(), "mailbox-test"));
     await waitFor(() => /✓ Tested/.test(textOf(one(p.main(), "mailbox-line-result"))), "the second test");
     const stored = storedMailbox(p);
-    const found = await mailbox(stored, bridgeAt(settingsOf({ name: "lab-pc", address: p.bridge.address, token: p.bridge.token }, null))).find(await mailId({ messageId: "<filed@mail.example.invalid>", bytes: null }));
-    assert.equal(found?.subject, "NEEDLE-SUBJECT-433 filed", "known positive: the mail was read");
+    // MOD-mail-routes' find(ids: string[]) answers "each identifier ... with its mail, or with `null`": the filed mail is found by its identifier in a list of one.
+    const filed = await mailId({ messageId: "<filed@mail.example.invalid>", bytes: null });
+    const found = await mailbox(stored, bridgeAt(settingsOf({ name: "lab-pc", address: p.bridge.address, token: p.bridge.token }, null))).find([filed]);
+    assert.equal(found?.[filed]?.subject, "NEEDLE-SUBJECT-433 filed", "known positive: the mail was read");
     const lines = p.imap.logs.commands.map((command) => command.line);
     assert.ok(lines.some((line) => /\bEXAMINE\b/.test(line)), "known positive: folders were opened");
     assert.deepEqual(lines.filter((line) => WRITES.test(line)), [], "no command changed the mailbox");
@@ -349,24 +351,40 @@ test("TST-433811: connecting and testing a mailbox changes nothing in it, and it
 // TST-433812 · level: release · module: MOD-mail-routes · MOD-mail-protocols · MOD-settings-pages
 // guards: UC-037; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
 // given: a reported mail filed into the folder Reports; the connection stored by the page once with the preset folder INBOX and once with the folders "INBOX, Reports"
-// input: the mail's MAIL- identifier looked up through each stored connection and its Bridge; an identifier no mail has, looked up too
-// expect: through the connection naming Reports the mail is found, in the folder Reports; through the connection with INBOX only it is not found (null) and never another mail; the unknown identifier is not found (null)
+// input: the mail's MAIL- identifier and an identifier no mail has, looked up together in one find through each stored connection and its Bridge; an empty list looked up too
+// expect: through the connection naming Reports the mail is found, in the folder Reports, and the unknown identifier is answered null; through the connection with INBOX only both are answered null and never
+//   another mail; the two identifiers cross to the Bridge in one request, and the IMAP server sees one login for them; the empty list is answered {} with no request
+// The accepted sentences: MOD-mail-routes' "find(ids: string[]) -> Promise<Record<string, Mail | null>> — the mails with these `MAIL-` identifiers in the named folders, all found in one lookup: ...
+// on the Bridge route in one request to the Bridge ...; each identifier is answered with its mail, or with `null` — not found in the mailbox — when none matches, never a guess ... An empty list is
+// answered `{}` without crossing the network." MOD-mail-protocols' "find — the mails of every identifier the request names, in the named folders, over one connection".
 test("TST-433812: a mail filed into a folder the connection names is found again by its identifier, and no guess is made", async () => {
   const p = await openDashboard();
   try {
     await connectAMailbox(p);
     const via = () => mailbox(storedMailbox(p), bridgeAt(settingsOf({ name: "lab-pc", address: p.bridge.address, token: p.bridge.token }, null)));
     const filed = await mailId({ messageId: "<filed@mail.example.invalid>", bytes: null });
+    const unknown = "MAIL-0000000000000000";
+    const findRequests = () => p.requests.filter((request) => request.address.endsWith("/v1/mail/find"));
     await fillImap(p, { folders: "INBOX" });
     assert.match(await storeAndTest(p), /✓ Stored and tested/);
     assert.deepEqual(storedMailbox(p).folders, ["INBOX"]);
-    assert.equal(await via().find(filed), null, "not found where the folder is not named");
+    assert.deepEqual(await via().find([filed, unknown]), { [filed]: null, [unknown]: null }, "not found where the folder is not named, and no guess");
     await put(one(p.main(), "mailbox-folders"), "INBOX, Reports");
     assert.match(await storeAndTest(p), /✓ Stored and tested/);
-    const found = await via().find(filed);
-    assert.equal(found?.id, filed);
-    assert.equal(found?.folder, "Reports");
-    assert.equal(await via().find("MAIL-0000000000000000"), null, "an identifier with no mail is not found");
+    const requestsBefore = findRequests().length;
+    const loginsBefore = p.imap.logs.logins.length;
+    const found = await via().find([filed, unknown]);
+    assert.deepEqual(Object.keys(found ?? {}).sort(), [filed, unknown].sort(), "each identifier is answered");
+    assert.equal(found[filed]?.id, filed);
+    assert.equal(found[filed]?.folder, "Reports");
+    assert.equal(found[unknown], null, "an identifier with no mail is not found");
+    const asked = findRequests().slice(requestsBefore);
+    assert.equal(asked.length, 1, "one request to the Bridge for both identifiers");
+    assert.deepEqual([...JSON.parse(asked[0].body).args.ids].sort(), [filed, unknown].sort(), "the one request names both identifiers");
+    assert.equal(p.imap.logs.logins.length - loginsBefore, 1, "one connection to the IMAP server");
+    const requestsBeforeEmpty = p.requests.length;
+    assert.deepEqual(await via().find([]), {}, "an empty list is answered {}");
+    assert.equal(p.requests.length, requestsBeforeEmpty, "an empty list crosses no network");
   } finally { await p.stop(); }
 });
 

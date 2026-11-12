@@ -18,7 +18,8 @@ repository host lists them (`issues`: number, state, labels, body, comments), th
 `steps` the case carries out in order. `expected` names only what the case asserts, out of: `results` (one per step; a
 `repliesDue` result lists the issues of each group with `closedBy` and, per listed mail, whether the mailbox `found` it, the
 `draft` it shows and whether a reply is `noted`; in a `readNewMail` result an attached mail's `mail` and a decided mail are given by the identifier of the Mail they carry), `issues` (their state and labels at the end), `added` (the comments written,
-as issue and text), `labelCalls`, `stateCalls` (a call that changes an issue's state), `hostCalls`, `mailboxCalls`, `finds`,
+as issue and text), `labelCalls`, `stateCalls` (a call that changes an issue's state), `hostCalls`, `mailboxCalls`, `finds` (one entry per call of the
+mailbox's `find`: the identifiers that call names, sorted),
 `order`, `recipients` (of each stored draft), `draftUids`, `draftThreads` (the `In-Reply-To` of each draft in Drafts),
 `draftBodies` and `storage` (reads and writes of the browser's storage, and requests to the network). The fake mailbox threads a
 stored draft on the `Message-ID` of the mail it replies to, as MOD-mail-routes' `storeDraft` does.
@@ -99,8 +100,8 @@ stored draft on the `Message-ID` of the mail it replies to, as MOD-mail-routes' 
         { "id": "MAIL-ca171c6d1e8e76f0", "found": true, "draft": null, "noted": false },
         { "id": "MAIL-f9f8e80f54bb5fa3", "found": true, "draft": null, "noted": false } ] } ],
       "answerReceived": [], "open": [] } ],
-    "finds": ["MAIL-ca171c6d1e8e76f0", "MAIL-f9f8e80f54bb5fa3"],
-    "mailboxCalls": ["drafts", "sent", "find", "find"]
+    "finds": [ ["MAIL-ca171c6d1e8e76f0", "MAIL-f9f8e80f54bb5fa3"] ],
+    "mailboxCalls": ["drafts", "sent", "find"]
   }
 }
 ```
@@ -127,7 +128,7 @@ stored draft on the `Message-ID` of the mail it replies to, as MOD-mail-routes' 
         { "id": "MAIL-ca171c6d1e8e76f0", "found": true, "draft": null, "noted": false },
         { "id": "MAIL-f9f8e80f54bb5fa3", "found": true, "draft": null, "noted": false } ] } ],
       "answerReceived": [], "open": [] } ],
-    "finds": ["MAIL-ca171c6d1e8e76f0", "MAIL-f9f8e80f54bb5fa3"]
+    "finds": [ ["MAIL-ca171c6d1e8e76f0", "MAIL-f9f8e80f54bb5fa3"] ]
   }
 }
 ```
