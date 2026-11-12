@@ -16,13 +16,14 @@ realises:
   - A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
+  - AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
 ---
 # UC-033 Move an issue into the backlog
 
-**Goal.** An issue that UC-012 has classified becomes a backlog item, with links in both directions,
+**Goal.** An issue labelled `defect` or `change` becomes a backlog item, with links in both directions,
 so that the work is planned like every other item.
 
-- A **bug** can be started at once. Its item realises the requirement that the code currently
+- A **bug** — labelled `defect` — can be started at once. Its item realises the requirement that the code currently
   violates.
 - A **change** goes through the specification first (`EVOLUTION ENTERS THROUGH THE SPECIFICATION`).
   Its item may enter the backlog early so that it is not lost, but no job starts until the
@@ -37,7 +38,7 @@ so that the work is planned like every other item.
 ## Precondition
 
 - The product works from a backlog (UC-002).
-- The issue is classified as *bug* or *change* (UC-012, step 4).
+- The issue carries the label `defect` or `change`, given when the mail became the issue (UC-038, step 8).
 
 ## Main flow
 
@@ -47,12 +48,11 @@ so that the work is planned like every other item.
    - **outcome** from the issue's description;
    - **origin**: the issue's address, for example `https://github.com/alice/thesis-tool/issues/57`;
    - **realises**:
-     - for a *bug*, the requirement that UC-012's analysis named as violated, for example
+     - for a *bug*, the requirement the code currently violates, which the Product Owner names, for example
        `EXPORT IS A PDF`;
      - for a *change*, the entries under `docs/spec-freigaben/` that UC-012 wrote for
        this issue, by requirement name;
-   - **modules**: the modules of the architecture the fix or the change will touch, as UC-012's analysis
-     and the architecture name them; the Product Owner confirms or corrects them.
+   - **modules**: the modules of the architecture the fix or the change will touch, which the Product Owner names.
 3. Agent M checks the item as it checks a drafted item (UC-032, step 3) and names what fails; the Product Owner
    corrects it.
 4. The Product Owner presses **Add**: one click. Agent M:
@@ -73,7 +73,7 @@ sequenceDiagram
     participant M as Agent M
     participant G as Product repository and issues
     O->>M: Move to backlog
-    M->>G: read issue, UC-012 class and queue
+    M->>G: read issue, its label and queue
     M-->>O: item prefilled, origin and what it realises
     O->>M: Add
     M->>G: commit item
@@ -84,8 +84,7 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **1a. The issue is not classified yet.** **Move to backlog** is not offered. Agent M links to
-  UC-012, step 2.
+- **1a. The issue carries neither the label `defect` nor `change`.** **Move to backlog** is not offered.
 - **2a. The change's specification entries are rejected** (UC-006). The item names requirements that
   will never be accepted. Agent M marks it, and offers to remove it and close the issue with a link
   to the rejected entry.
