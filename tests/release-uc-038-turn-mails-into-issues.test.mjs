@@ -14,14 +14,19 @@
 // a participant who built none of ITM-963 and ITM-964 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER). Where a file the SPEC names as a check does not exist, the finding is marked a todo, as the release tests of UC-049 mark theirs.
 // TST-965203 to TST-965207 were written anew, from the accepted UC-038 (steps 1, 2, 3, 4, 7, 2b and the postcondition) and the accepted `mail` route of docs/architecture/MOD-maintenance-pages.md and NewMail and readNewMail of
 // MOD-mail-handling.md, by a participant who built none of the inbox they test (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER); they replace the implementer's edit of TST-965203 and TST-965204.
+// For the two tabs of Maintenance (pull request #1790), TST-965201's flow 7c and TST-965205's counts — a reading is a listing of the last 30 days, and "no reading" is no request to the INBOX at all, since each
+// reading also finds listed mails by their identifiers — were derived anew from UC-038 (step 1 and 7c) by a participant who built none of that pull request's behaviour; they replace the implementer's edit.
 // The counter-proofs are recorded in the pull request.
 
 import test, { afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
-import { PRODUCT_URL, buttonsOf, byClass, flush, issueRecord, itemOf, mailOf, one, restoreWorld, textOf, trusted, waitFor, walk } from "./maintenance-pages-world.mjs";
+import { PRODUCT_URL, buttonsOf, byClass, flush, issueRecord, itemOf, mailOf, mailRead, one, restoreWorld, textOf, trusted, waitFor, walk } from "./maintenance-pages-world.mjs";
 import { graphWrites, hashTo, lastly, openReplies, rawMail, writes } from "./uc-039-world.mjs";
+
+// The real setTimeout, kept before TST-965205 replaces it by node:test's mock timers.
+const realTimeout = globalThis.setTimeout;
 
 afterEach(() => { mock.timers.reset(); clicks.count = 0; if (globalThis.document) restoreWorld(); });
 
@@ -58,7 +63,7 @@ const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 // guards: UC-038; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: UC-038's `realises` list, SPEC's current Check lines, the two system tests of UC-038 and the files that check the requirements
 // input: compare the realised requirements with the SPEC's Check lines; read the declarations of the system tests
-// expect: every realised requirement is checked at review only, or its Check names files that exist — a system test of UC-038 among the evidence, each with a level — or a file listed as missing; the system tests declare the main flow and each alternative flow the item names: 2a, 4b, 4c, 6a, 6c, 7a, 7b, 7c, 8a
+// expect: every realised requirement is checked at review only, or its Check names files that exist — a system test of UC-038 among the evidence, each with a level — or a file listed as missing; the system tests declare the main flow and each alternative flow the item names: 2a, 4b, 4c, 6a, 7a, 7b, 7c, 8a
 test("TST-965201: UC-038 release coverage names every automatic requirement and the system tests walk every flow", () => {
   const realised = ucRealises();
   const checks = specChecks();
@@ -222,30 +227,39 @@ test("TST-965204: with a mailbox that allows this machine only, nothing is sent 
 // guards: UC-038
 // given: the mailbox on the Microsoft route with the session's three mails; the page's timers are node:test's mock timers, so that five minutes are the test's own clock
 // input: Mail opened, without a click; the clock moved on by five minutes less a millisecond, then by one millisecond; then another page of the dashboard opened and the clock moved on by ten minutes
-// expect: opening Mail reads the mailbox at once and lists the mails; no further reading before five minutes; a reading at five minutes (known positive); none once Mail is no longer open (step 1: "reads the mailbox at once, and again every five minutes while Mail stays open")
+// expect: opening Mail reads the mailbox at once — one listing of the INBOX's mails of the last 30 days — and lists the mails; before five minutes no request reaches the INBOX at all; at five minutes a second listing of the last 30 days (known positive); once Mail is no longer open no request reaches the INBOX at all (step 1: "reads the mailbox at once, and again every five minutes while Mail stays open")
 test("TST-965205: opening Mail reads the mailbox at once and again every five minutes while Mail stays open", async () => {
   mock.timers.enable({ apis: ["setTimeout"] });
   const { p, A } = await session();
   await lastly(p, async () => {
-    // A reading of the last 30 days asks Graph for the INBOX's messages received since a day; finding a listed mail by its identifier, which each reading's repliesDue does (UC-038 step 7), lists them without that filter.
-    const readings = () => p.graph.requests.filter((request) => request.method === "GET" && /\/mailFolders\/inbox\/messages.*receivedDateTime ge/.test(decodeURIComponent(request.address))).length;
+    // Every request to the INBOX: a reading's listing of its mails of the last 30 days, and any other request made there — a search for a mail by its identifier among them.
+    const inbox = () => p.graph.requests.filter((request) => /\/mailFolders\/inbox(\/|\?|$)/.test(decodeURIComponent(request.address)));
+    // A reading of the last 30 days (step 2): a listing of the INBOX's messages in which Graph selects those received since a day.
+    const readings = () => inbox().filter((request) => request.method === "GET" && /\/mailFolders\/inbox\/messages\?.*receivedDateTime ge/.test(decodeURIComponent(request.address))).length;
+    // A wait in real time for whatever a timer may have started: no request to the fixture takes this long.
+    const settle = async () => { await flush(); await new Promise((resolve) => realTimeout(resolve, 300)); await flush(); };
     await listed(p, 3);
+    await mailRead(p.main(), 1);
+    await settle();
     assert.equal(clicks.count, 0);
     assert.equal(readings(), 1, "opening Mail read the mailbox once, without a click");
     assert.ok(lineOf(p, A.id), "and lists its mails");
+    const first = inbox().length;
     mock.timers.tick(5 * 60 * 1000 - 1);
-    await flush();
-    assert.equal(readings(), 1, "no reading before five minutes");
+    await settle();
+    assert.deepEqual(inbox().slice(first).map((request) => request.address), [], "no request to the INBOX before five minutes");
     mock.timers.tick(1);
     await waitFor(() => readings() > 1);
     assert.equal(readings(), 2, "the reading at five minutes");
-    await listed(p, 3);
+    await mailRead(p.main(), 2);
+    await settle();
     await hashTo("#replies");
     await waitFor(() => lines(p).length === 0);
-    const left = readings();
+    await settle();
+    const left = inbox().length;
     mock.timers.tick(10 * 60 * 1000);
-    await flush();
-    assert.equal(readings(), left, "no reading once Mail is no longer open");
+    await settle();
+    assert.deepEqual(inbox().slice(left).map((request) => request.address), [], "no request to the INBOX once Mail is no longer open");
   });
 });
 
