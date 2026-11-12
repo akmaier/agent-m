@@ -85,7 +85,7 @@ needs to set this up.
 |---|---|
 | MOD-repository-hosts | `Host`, `Snapshot`, `PullRequest`, `PullRequestFacts`, `CiRun`, `Issue`, `RepositoryInfo`, `parseAddress`, `connect`, `readSnapshot`, `readHistory`, `listTags`, `repositoryInfo`, `createBranch`, `commitFiles`, `openPullRequest`, `listPullRequests`, `pullRequestFacts`, `mergePullRequest`, `listCiRuns`, `startWorkflow`, `cancelCiRun`, `ciRunLog`, `listIssues`, `createIssue`, `commentOnIssue`, `setIssueLabels`, `setIssueState`, `createTag`, `listReleaseAssets`, `publishRelease`, `setPipelineSchedule`, `issueCounts`, `webLinks` |
 | MOD-browser-store | `openStore`, `readSetting`, `writeSetting`, `clearSetting`, `clearEverything`, `listSettings`, `exportSettings`, `importSettings`, `readExport`, `expiringSoon`, `secretValues`, `readTabValue`, `writeTabValue` |
-| MOD-bridge-client | `Bridge`, `BridgeEntry`, `JumpHost`, `TunnelPlan`, `settingsOf`, `bridgeAt`, `pair`, `testBridge`, `handOver`, `ask`, `startSession`, `typeIntoSession`, `sessionAnswer`, `endSession`, `bridgeJobs`, `bridgeJobLog`, `cancelOnBridge`, `mailCall`, `probe`, `allocatePort`, `tunnelCommands`, `proxyConfiguration` |
+| MOD-bridge-client | `Bridge`, `BridgeEntry`, `JumpHost`, `TunnelPlan`, `settingsOf`, `bridgeAt`, `pair`, `testBridge`, `handOver`, `ask`, `bridgeJobs`, `bridgeJobLog`, `cancelOnBridge`, `mailCall`, `probe`, `allocatePort`, `tunnelCommands`, `proxyConfiguration` |
 
 Every function that crosses the network says so in its module file, and names its failures: a token refused (with the
 token's name and the page on which it is renewed), a permission missing, a rate limit used up (the account's or the

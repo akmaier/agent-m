@@ -81,16 +81,17 @@ is left and the session works with the computer's own git login (UC-011, 4a). Th
 repositories with the tokens it keeps, or with the computer's own login (`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED
 IT`). It checks out every working folder as soon as the Bridge's agents, its
 folder, its served products or its tokens change (UC-044, step 3). For a job of the page, it also calls a model endpoint the page cannot call. While no tab is open, it starts an agent's sprint close when the sprint ends (`A SPRINT CLOSED BY AN AGENT STARTS BY
-ITSELF`). It holds the CLI sessions of the prompt bar's conversations, each running in its terminal until it is ended
-(ARC-055). It answers the agents, jobs, ask, sessions and probe routes of the Bridge's API. It runs in Node, in the Bridge's main
+ITSELF`). It keeps the CLI session of a conversation of the prompt bar running from the conversation's first message
+to it until it is cancelled, its agent exits or the Bridge ends, and types every message of that conversation into it
+(ARC-055). It answers the agents, jobs, ask and probe routes of the Bridge's API. It runs in Node, in the Bridge's main
 process.
 
 ## Parts
 
 - `index.mjs` — the interface.
 - `handlers.mjs` — the agents, jobs, ask and probes routes.
-- `conversations.mjs` — the sessions of the prompt bar's conversations: started, typed into, their answers, ended
-  (the sessions routes).
+- `conversations.mjs` — the running CLI sessions of the prompt bar's conversations: started, typed into, answered,
+  ended (ARC-055).
 - `watch.mjs` — reading the served products, taking and resuming jobs, sprint ends.
 - `session.mjs` — a CLI session's start: the clones brought to the session's commits, its checkout with the token file,
   and what its input is told of its checkout.
@@ -108,7 +109,7 @@ process.
 
 ## Data
 
-It keeps no state of a job beyond its record and its log: in memory, the jobs it runs, the asks in flight and the sessions it holds, and, of each
+It keeps no state of a job beyond its record and its log: in memory, the jobs it runs, the asks in flight and the running CLI sessions of the prompt bar, and, of each
 job it took since it started, the last lines of its log, so that a reader that keeps up is answered without reading the
 log's file; on
 disk, the repository tokens' file, the jobs' logs, and the working folder of each agent it offers — `<folder>/<agent>`, `<folder>` the
@@ -124,9 +125,10 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
   a served product there at its checkout, and a product a job connects to when the job connects to it; the agent,
   which cannot write the folder, clones none. A product whose folder holds a clone of another repository of the same
   name is refused, naming both;
-- **one checkout per running CLI session of that agent in `jobs/<id>/`**, `<id>` the job's identifier or the session's,
-  made from the Bridge's clone of the product, removed with the token file in it when the session ends; a checkout an
-  earlier start of the Bridge left there is removed at the next start;
+- **one checkout per running CLI session of that agent in `jobs/<id>/`**, `<id>` the job's identifier or, for a
+  session of the prompt bar, the session's, made from the Bridge's clone of the product, removed with the token file in
+  it when the session ends; a session's checkout that a quit the Bridge did not see through — its computer restarted —
+  left there is removed at the Bridge's next start (UC-049 4g);
 - **the agent's home `home/`** (MOD-agent-enclosure).
 
 `home/` and `jobs/` are excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there
@@ -134,7 +136,7 @@ sees them.
 
 **The clones at the session's start.** Before every CLI session starts, the Bridge fetches its clone of the product and
 its clone of the instance from their origins, checks the instance's clone out at the commit the job's record names
-(`agent_m`, MOD-job-ledger) — for a session of the prompt bar, the commit of the instance its start names — and removes
+(`agent_m`, MOD-job-ledger) — for a session of the prompt bar, the commit of the instance the ask that starts it names — and removes
 every file of it that git neither tracks nor ignores, so that nothing an earlier session left there is read as the
 present state; the agent's home, `jobs/` and `products/`, which git ignores there, stay. The session's checkout is made
 anew for every session, at the head of the product's default branch the fetch brought.
@@ -143,10 +145,11 @@ anew for every session, at the head of the product's default branch the fetch br
 hidden by every enclosure (MOD-agent-enclosure), written only by `joblogs.mjs` (`THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX
 WEEKS`): for each job the Bridge took, `<id>.log`, what its agent's process wrote to its standard output, appended as it
 wrote it — the job's log, whose lines are those text's lines without their line breaks, numbered from the first at 0 —,
-and `<id>.json`, the job as `listJobs` lists it, written when the job is taken and when it ends; for each session of the
-prompt bar alike, its log the lines its terminal's screen let scroll off, as `startSession`'s `onLine` hands them, and,
-when it ends, the lines its screen still showed. The Bridge writes nothing else into them: no request, task, token or
-key; a session's log holds what its terminal showed, the messages typed into it among it. A file last written more than six weeks ago is removed whenever
+and `<id>.json`, the job as `listJobs` lists it, written when the job is taken and when it ends. A session of the
+prompt bar is kept alike, its log what its terminal shows (UC-044 step 6): the lines `startSession`'s `onLine` hands as
+they scroll off its screen, and, when it ends, the lines its screen still shows. The Bridge writes nothing else into
+them: no request, task, token or key; what a session's terminal shows of the messages typed into it is part of its
+console. A file last written more than six weeks ago is removed whenever
 `keepJobLogs` opens the folder — at every start — and whenever a job is taken.
 
 **The repository tokens** — `repository-tokens.gitconfig` in the Bridge's per-user data folder (MOD-desktop-shell),
@@ -215,8 +218,8 @@ settings (MOD-desktop-shell).
 ## Interfaces
 
 - `jobHandlers({ agents, enclosures, instance, products, … })` — the handlers of the `jobs` routes of `bridgeApi`, of
-  MOD-bridge-http's type `BridgeHandlers`, for the agents the Bridge offers (`{ name, folder, chrome }`, `chrome` the
-  Bridge's setting, handed to every start of that agent's sessions — `agentDriver`'s and `startSession`'s `chrome`), their enclosures
+  MOD-bridge-http's type `BridgeHandlers`, for the agents the Bridge offers (`{ name, folder, chrome }`, `chrome` the Bridge's setting of UC-044 step 3,
+  handed to every start of that agent — `agentDriver`'s and `startSession`'s `chrome`), their enclosures
   (`enclosures: (folder: string) -> AgentEnclosure`), the instance's address and the products it serves (`{ address }`):
   - `GET /v1/agents` — the coding agents it offers, with their versions and whether they are ready and logged in — both
     asked in the agent's enclosure, and not ready where the enclosure does not work —, each with its declaration as the
@@ -232,32 +235,27 @@ settings (MOD-desktop-shell).
     offer, for one whose working folder is not set, and for a job whose task travels with the hand-over handed over
     without a task; `paused`.
   - `GET /v1/jobs`, `GET /v1/jobs/{id}/log` — the jobs it took in the last six weeks with their live states
-    (`listJobs`), and their logs as they grow: the `lines`, `next` and `ended` of `jobLog` from the `from` asked.
+    (`listJobs`), and their logs as they grow: the `lines`, `next`, `partial` and `ended` of `jobLog` from the `from` asked.
   - `POST /v1/jobs/{id}/cancel` — stops the agent's process and confirms once it has ended; the job then commits nothing
-    more (`A CANCELLED JOB WRITES NOTHING MORE`), and the person's page appends the record of the cancel.
+    more (`A CANCELLED JOB WRITES NOTHING MORE`), and the person's page appends the record of the cancel. A CLI session
+    of the prompt bar is cancelled alike — its agent and every process it started, `Session.stop` —, and has no record
+    (UC-049 5a, 6d).
   - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page: to one agent it offers, started with the model the
     request names (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), answered with its text and the
-    usage it reported — a draft of the page's job
+    usage it reported. A request that names a `product` — a served product's address — and an `instance` commit is a
+    message of the prompt bar to a CLI session (UC-049 step 4, ARC-055). Without a `session`, the Bridge starts one as
+    it starts a job's — *The clones at the session's start*, *The session's checkout*, *The token file* —, with
+    MOD-agent-processes' `startSession` in the agent's enclosure, lists it as a job of the kind `converse` under a new
+    identifier, and types into it the request's `input` followed by `token.md` where a file is left; with a `session` it
+    holds running, it types the request's `input` into that one. The ask's `session` is the session's identifier; its
+    answer is the session's `answer` to that input, with no usage, or `failed` with the agent's exit code where the
+    agent exits first. A request that names a session the Bridge holds no running session under is `not-found`;
+    `invalid-request` for a product it does not serve. A session ends when it is cancelled, when its agent exits, or
+    when the Bridge quits; its checkout and its token file are then removed, and its log is kept. A request without a `product` is a draft of the page's job
     runner, asked in the agent's working folder, which the agent may not write; or to a model endpoint, whose configuration the request carries, sent with
     MOD-endpoint-calls' `endpointDriver` in Node and answered the same way (`A RUNTIME IS INTERCHANGEABLE`) — or, where
     the request carries one exchange of a tool loop, with `endpointExchange`, answered with the endpoint's text, its tool
     calls and the usage. The correction loop and the tool loop stay in the page, which carries every tool call out.
-  - `POST /v1/sessions`, `POST /v1/sessions/{id}/input`, `GET /v1/sessions/{id}/answer`, `POST /v1/sessions/{id}/end`
-    — the CLI session of a conversation of the prompt bar (UC-049 step 4, ARC-055). *Start* names the agent, the model,
-    a served product's address and a commit of the instance: the Bridge brings the clones to it and makes the session's
-    checkout with its token file as for a job's session — *The clones at the session's start*, *The session's checkout*,
-    *The token file* —, starts the agent there with `startSession`, in its enclosure, lists the session as a job of the
-    kind `converse` under a new identifier, and answers it with the path of Agent M's `AGENTS.md` in the working folder,
-    for the input of every message; `invalid-request` for an agent it does not offer or a product it does not serve.
-    *Input* types the request's `input` into the session — followed by `token.md`, filled in, where a file is left and
-    the session has not been given it —, and answers once it is typed; `invalid-request` while the session does not wait
-    for input. *Answer* gives `{ state: "working" | "waiting" | "ended", text, exit }`: `working` while the agent works
-    on the last input, `waiting` with `text` its answer to it (`startSession`'s `answer`), `ended` with the agent's exit
-    code, or `null` for a session the Bridge ended. *End* stops the agent and ends the session `done`. `POST
-    /v1/jobs/{id}/cancel` stops a session as it stops a job, ending it `cancelled`. A session that ends in any way —
-    ended, cancelled, its agent exited, the Bridge quit — has its checkout and its token file removed; its log is kept.
-    A session the Bridge does not hold is `not-found`. The console is the session's log, read as a job's through
-    `GET /v1/jobs/{id}/log`.
   - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` receives the
     endpoint configuration as `endpoint-test` does, calls MOD-endpoint-calls' `listModels` in Node once, and returns its
     `{ models }` or `{ diagnosis }` unchanged; `endpoint-test` receives the valid endpoint configuration of an endpoint
@@ -287,7 +285,8 @@ settings (MOD-desktop-shell).
   `any`, once — no close of the sprint queued or running —, when MOD-work-plans' `sprintsToClose` names it — its time box
   ended, or, without one, every selected item done or ended by the Product Owner —, and taken as above. A product that cannot be read is skipped with its reason, and read again at the next interval.
 - `stopWatching(reason: "pause" | "quit") -> Promise<void>` — stops taking jobs; on *quit* every job still running is
-  stopped and its record ends as cancelled, naming that the Bridge was quit.
+  stopped and its record ends as cancelled, naming that the Bridge was quit, and every running CLI session of the prompt
+  bar is ended as a cancel ends it (UC-049 4g).
 - `checkOut(config: { instance: string, products: string[], agents: { name: string, folder: string }[] }) ->
   Promise<{ agent: string, repository: string, folder: string, commit: string | null, reason: string | null }[]>` — the
   checkout of every working folder (UC-044, step 3): in each agent's working folder the clone of the instance, then in
@@ -302,19 +301,18 @@ settings (MOD-desktop-shell).
   token MOD-repository-hosts' `connect` refuses for that repository — a GitLab token for GitHub, a text that is no token —
   throw `invalid-request`, naming the repository and never the token, and nothing is written.
 - `listJobs() -> { id, product, kind, agent, state, started, usage }[]` — the jobs this Bridge took in the last six
-  weeks, the sessions of the prompt bar it held among them, of the kind `converse`, this start's and those `job-logs/`
-  keeps of earlier ones, in the order it took them: `state` `running` while the
+  weeks, this start's and those `job-logs/` keeps of earlier ones, in the order it took them: `state` `running` while the
   agent works and, once the job has ended, the state of its end (`done`, `failed` or `cancelled`), or `interrupted` for a
-  job an earlier start left running — a session `running` while it lives, then `done` when it was ended or its agent
-  exited with 0, `cancelled` when it was cancelled or the Bridge quit, `failed` when its agent exited otherwise —;
-  `started` the moment it took the job; `usage` null while it runs, and the usage its end records afterwards — for a
-  session always null, since an interactive agent reports none (`NO COST IS GUESSED`). A job another route took is not
-  listed.
+  job an earlier start left running; `started` the moment it took the job; `usage` null while it runs, and the usage its
+  end records afterwards. A CLI session of the prompt bar is listed among them, of the kind `converse`, `running` while it
+  lives (UC-044 step 6), then `cancelled` when it was cancelled or the Bridge quit, `done` when its agent exited with 0,
+  and `failed` when its agent exited otherwise; its `usage` is always null (`NO COST IS GUESSED`). A job another route
+  took is not listed.
 - `jobLog(id: string, from: number) -> { lines: string[], first: number, next: number, partial: string, ended: boolean }`
   — the log of a job this Bridge took (Data): `lines` the lines from `from` on, or, for a negative `from`, the last
   -`from` of them; `first` the number of the first line given; `next` the number after the last line the agent ended, the
-  `from` to ask next; `partial` the line the agent is writing — for a session, the lines its terminal's screen shows below them —, `""` where
-there is none; `ended` whether the job has ended,
+  `from` to ask next; `partial` the line the agent is writing — for a CLI session of the prompt bar, the lines its screen shows —, `""`
+  where there is none; `ended` whether the job has ended,
   its last unended line then among `lines`. A job of an earlier start is read from its kept log and has ended; a job taken
   in no start of the last six weeks is `not-found`. The Bridge's window and `GET /v1/jobs/{id}/log` read the one log.
 - `keepJobLogs(dataFolder: string) -> void` — from then on keeps the jobs' logs and listings in `job-logs/` of the data

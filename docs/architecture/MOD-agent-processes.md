@@ -32,8 +32,8 @@ It belongs to Participants and jobs (ARC-046). It knows the coding-agent CLIs Ag
 opencode —: which of them are installed on the machine it runs on, with their versions (`THE BRIDGE FINDS THE INSTALLED
 AGENTS`), and how to run one as a participant: the driver that starts an agent with its participant's model (`A JOB RUNS
 ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), gives it its task in a working folder, streams its output, and
-stops it on a cancel; and how to keep one running as a session, interactive in a terminal, into which messages are
-typed (ARC-055). The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
+stops it on a cancel; and how to keep one running interactively in a terminal, into which messages are typed (ARC-055).
+The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
 PERSON'S OWN LOGIN`); in CI it reads its key from the environment variable the CI fills from the secret its connection
 names (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`), or, where CI runs it as the model's own user, reaches
 its provider through the key holder with no key of its own (`NO MODEL READS A CREDENTIAL`). It runs in Node only — inside the Bridge and in the
@@ -46,8 +46,8 @@ Workflows — and keeps nothing but the processes it started.
 - `agents.schema.md` — the register's schema, in the schema language of MOD-documents.
 - `discovery.mjs` — finding the installed agents and their versions.
 - `processes.mjs` — starting an agent, streaming its output, stopping it.
-- `sessions.mjs` — an agent kept running in a pseudo-terminal (node-pty), its screen kept as text by a headless terminal
-  (`@xterm/headless`), messages typed into it, and the sign that it waits (ARC-055).
+- `sessions.mjs` — an agent kept running in a pseudo-terminal, its screen kept as text, messages typed into it, and its
+  answer to each (ARC-055).
 
 ## Data
 
@@ -59,10 +59,10 @@ Workflows — and keeps nothing but the processes it started.
 | Command | the command the CLI is started by |
 | Version | how its version is asked for |
 | Task | the arguments that make it read a task from its standard input without a conversation, and how its final answer is told from its other output |
-| Session | the arguments that start it interactively in its auto mode — Claude Code's `--permission-mode auto`, Codex's `--approve-for-me`, opencode's `--auto` —, and the pattern of the screen line that shows it waiting for input (`waiting`) |
+| Session | the arguments that start it in its normal interactive mode, in its auto mode, and the pattern of the screen line that shows that it waits for input (`waiting`) |
 | Model | the arguments that start it with a named model, as its vendor documents them, with a placeholder `{model}` — Claude Code's `--model {model}`, which its Endpoint column already gives —, or `—` where it cannot be told one |
 | Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in; under a platform's name (`macos`), where the agent cannot keep its login in the enclosure there, the login step on that platform and what of its output the enclosure keeps for it (`keeps`: the environment variable the agent reads its login from, and the pattern of the value) — Claude Code's `claude setup-token` and `CLAUDE_CODE_OAUTH_TOKEN` on macOS, whose keychain the enclosure closes (ARC-054) |
-| Chrome | the arguments that start it with its Chrome integration (`on`) and without it (`off`), as the agent's own `--help` or feature list names them — Claude Code's `--chrome` and `--no-chrome`, Codex's `--enable browser_use_external` and `--disable browser_use_external` —, or `—` for an agent that has none, as opencode |
+| Chrome | the arguments that start it with its Chrome integration, or `—` for an agent that has none |
 | Key variable | the environment variable from which it reads a key, used only in CI |
 | Endpoint | how it is made to work with a model endpoint of the kind OpenAI-compatible or Anthropic — the options or settings that name the endpoint's address and model —, or `—` where it cannot |
 | Key holder | the provider a key in its Key variable is for — its kind and address — and the options or settings that send its requests to a key holder in its place, `{keyHolder}`, with a placeholder, `{placeholder}`, as its key (`NO MODEL READS A CREDENTIAL`): Claude Code's `ANTHROPIC_BASE_URL`, Codex's `openai_base_url` given with `-c`; `—` where it cannot be, as opencode, which names no key variable of its own and whose provider Agent M does not know without an endpoint |
@@ -75,7 +75,7 @@ never an argument: it is written to the agent's standard input, so no size of a 
 
 - `Agent` — `{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login: string,
   keeps: { variable: string, pattern: string } | null, chrome: boolean, install: Record<"macos" | "windows" | "linux",
-  string> }`: `chrome` whether its row's Chrome column names its integration; `login`
+  string> }`: `chrome` whether its row's Chrome column names an integration (UC-044 step 3); `login`
   is the agent's own login step on the platform from its row's Login check, which the Bridge's window shows for an agent
   that is not logged in (UC-044 3b), and `keeps` what of that step's output the enclosure keeps for it, `null` where the
   agent keeps its login itself; `name` is the Agent of a row of `agents.md`, so that a supported
@@ -105,9 +105,8 @@ never an argument: it is written to the agent's standard input, so no size of a 
   given, made to work with that endpoint as the register's Endpoint column says, its key from `keyVariable` — CI does not
   run a model endpoint's work this way: it runs it in Agent M's own loop (MOD-workflow-entries) —; an agent whose
   Endpoint is `—` refuses it with `EndpointUnsupported`, before it starts —, streams its output
-  through `onOutput`, and returns its final answer and the usage it reported, or `null` usage. With `chrome`, true or
-  false, the agent is also started with its row's Chrome `on` or `off` arguments; an agent whose Chrome is `—` is
-  started without either. With an `enclosure`, the
+  through `onOutput`, and returns its final answer and the usage it reported, or `null` usage. With `chrome` true, the agent is also started with
+  its row's Chrome arguments; an agent whose Chrome is `—` is started without them. With an `enclosure`, the
   agent is started through its `wrap`, with `workdir` and the folders of `writable` — `[workdir]` where none are given —
   writable. For a job that works in the
   folder — implementing, fixing, generating tests —, the agent commits and pushes to its checkout's push address and
@@ -126,20 +125,16 @@ never an argument: it is written to the agent's standard input, so no size of a 
   process group of a child started detached, so that every process it started receives it; on Windows it ends the
   child's tree with `taskkill`, whatever the signal. A group that is already gone is no failure. The driver stops an agent
   with it on a cancel; MOD-checkout-tools ends a command's process group with it at the command's timeout.
-- `startSession(agent: Agent, options: { workdir: string, enclosure?: Enclosure, writable?: string[], chrome?: boolean,
-  columns?: number, rows?: number }, participant: Participant) -> Session` — starts the agent in a pseudo-terminal of `columns` by `rows`
-  (by default 200 by 50), with its row's Session arguments, `participant.model` by its Model column and `chrome` as
-  `agentDriver` takes it, in `workdir`,
-  through the enclosure's `wrap` where one is given, as `agentDriver` starts it; no task is written to it. `Session` is
-  `{ type(text: string) -> void, lines() -> { lines: string[], partial: string }, waiting() -> boolean, answer() ->
-  string | null, onLine(listener: (line: string) -> void) -> void, exited: Promise<{ exitCode: number }>, stop() ->
-  Promise<void> }`: `type` writes `text` as one bracketed paste followed by a carriage return; `lines` gives the lines
-  the headless terminal holds — its scrollback and the screen —, the control sequences applied, `lines` those that have
-  scrolled off the screen and `partial` the screen's lines below them, joined by line breaks; `onLine` hands each line
-  as it scrolls off; `waiting` whether the screen shows the row's `waiting` pattern; `answer` the text of the lines
-  after the last typed text up to the line that shows the pattern, once it is shown, else `null`; `stop` ends the
-  agent and every process it started (`stopTree`). It reports no usage. It throws `AgentMissing`, `ModelUnsupported`
-  and `AgentNotLoggedIn` before it starts.
+- `startSession(agent: Agent, options: { workdir: string, enclosure?: Enclosure, writable?: string[], chrome?: boolean },
+  participant: Participant) -> Session` — starts the agent in a pseudo-terminal, with its row's Session arguments,
+  `participant.model` by its Model column and `chrome` as `agentDriver` takes it, in `workdir`, through the enclosure's
+  `wrap` where one is given, as `agentDriver` starts it; no task is written to it (ARC-055). `Session` is `{ type(text:
+  string) -> void, onLine(listener: (line: string) -> void) -> void, screen() -> string[], answer() -> string | null,
+  exited: Promise<{ exitCode: number }>, stop() -> Promise<void> }`: `type` types `text` into the terminal as one input;
+  `onLine` hands each line, as the terminal shows it, once it has scrolled off the screen; `screen` the lines the screen
+  shows now; `answer` the text the agent printed after the last typed text, once its screen shows the row's `waiting`
+  pattern, else `null`; `stop` ends the agent and every process it started, as `stopTree` ends a child's. It reports no
+  usage. It throws `AgentMissing`, `ModelUnsupported` and `AgentNotLoggedIn` before it starts.
 - `testAgent(agent: Agent, options?: { enclosure?: Enclosure, workdir?: string }) -> Promise<{ answered: true, version:
   string } | { answered: false, reason: string }>` — a harmless request, a one-word answer, given on the agent's standard
   input as a task is, to show that the agent answers with its login (UC-017); with an enclosure, inside it.
@@ -157,4 +152,4 @@ product's branch, which on a Bridge lies in the agent's own working folder besid
 - `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent as one task.
 - `MOD-participant-list.Participant` — the participant the driver stands for, and the model it is started with.
 - `MOD-documents.loadSchema`, `MOD-documents.readRegister` — the register of supported agents.
-- node-pty and `@xterm/headless`, adopted in ARC-055 — the pseudo-terminal of a session and the text of its screen.
+- node-pty and `@xterm/headless`, adopted in ARC-055 — the pseudo-terminal of a session, and the text its screen shows.

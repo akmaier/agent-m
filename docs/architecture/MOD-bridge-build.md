@@ -7,6 +7,7 @@ follows:
   - ARC-040
   - ARC-050
   - ARC-052
+  - ARC-055
 uses:
   - MOD-desktop-shell.appDescription
   - MOD-repository-hosts.Host
@@ -28,14 +29,15 @@ MOD-workflow-entries runs on a release tag: on the runner of each platform, the 
 built with electron-builder (ARC-050) from the modules the dashboard uses (`THE BRIDGE IS BUILT FROM THE DASHBOARD'S
 CODE`, `THE BRIDGE IS ONE FILE PER PLATFORM`) and signed by the publisher (`THE BRIDGE IS SIGNED BY ITS PUBLISHER`); then
 the checksums, a detached signature for every file, and the update feed electron-updater reads. Nothing is published
-unless every signature holds. It decides, for ARC-052, that ssh2's optional native dependencies stay out of the build. It
+unless every signature holds. It decides, for ARC-052, that ssh2's optional native dependencies stay out of the build,
+and builds node-pty's native addon, which ARC-055 adopts, for the app's Electron. It
 runs in Node, on the instance's CI runners.
 
 ## Parts
 
 - `index.mjs` — the interface.
 - `package.json`, `package-lock.json` — the Bridge app's packages at exact versions: electron, electron-builder and
-  electron-updater (ARC-050); imapflow, nodemailer and postal-mime (ARC-051); ssh2 (ARC-052).
+  electron-updater (ARC-050); imapflow, nodemailer and postal-mime (ARC-051); ssh2 (ARC-052); node-pty and `@xterm/headless` (ARC-055).
 - `builder.mjs` — electron-builder's configuration, made from `appDescription` and the release.
 - `sign.mjs` — the detached signatures and the checksums, and their checks.
 - `publish.mjs` — the release's files and their publication.
@@ -72,9 +74,13 @@ integrity it checks on macOS and Windows.
 lockfile without optional dependencies, so neither `cpu-features` nor `nan` is there, and the crypto binding ssh2's
 install script tries to compile with `nan` is not built: these are native code, which would have to be compiled on each
 platform's runner for Electron's Node — ssh2's install script compiles for the Node that runs it — and ssh2 works
-without them, choosing its default cipher list without `cpu-features`. A build whose app holds a compiled Node addon, a
-`.node` file, fails. The choice is measured on every release: each platform's packaged app opens a reverse tunnel and a
-forward to a test SSH server and answers a request through them before anything is published.
+without them, choosing its default cipher list without `cpu-features`. The choice is measured on every release: each
+platform's packaged app opens a reverse tunnel and a forward to a test SSH server and answers a request through them
+before anything is published.
+
+**node-pty's addon** (ARC-055), native code without which no pseudo-terminal is opened on any platform, is compiled on
+each platform's runner for the Node of the app's Electron. A build whose app holds any other compiled Node addon, a
+`.node` file, fails.
 
 **The secrets**, read from the release workflow's environment, never from a file: `BRIDGE_MACOS_CERTIFICATE` and
 `BRIDGE_MACOS_CERTIFICATE_PASSWORD` — the Developer ID Application certificate —; `BRIDGE_NOTARY_KEY`,
@@ -98,7 +104,7 @@ derived. No key enters a repository, a log or a published file.
   signature with the public key; and runs the tunnel check above.
   Crosses the network to the npm registry, to Apple's notary service and to the certificate's timestamp service.
   Errors: `SecretMissing { name }` — before anything is built —, `BuildFailed { reason }`, `NotarisationFailed { reason
-  }`, `SignatureInvalid { file }`, `NativeAddonFound { file }`, `TunnelCheckFailed { reason }`; with any of them the
+  }`, `SignatureInvalid { file }`, `NativeAddonFound { file }` — a `.node` file other than node-pty's —, `TunnelCheckFailed { reason }`; with any of them the
   platform's files are not handed on.
 - `publishRelease(host: Host, config: { tag: string, folders: string[] }) -> Promise<{ published: string[], facts:
   DueDiligence[] }>` — after the three platforms, with `host` the instance repository: checks that each platform's
