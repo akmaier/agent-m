@@ -552,7 +552,9 @@ function repositoryLine(target, context, info) {
   value.autocomplete = "off";
   value.spellcheck = false;
   expiry.type = "date";
-  expiry.value = stored?.expires ?? new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  // The prefilled token page asks GitHub for a token of 90 days; a new token stored by Change carries that expiry.
+  const prefilledExpiry = () => new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  expiry.value = stored?.expires ?? prefilledExpiry();
   acknowledgement.type = "checkbox";
   acknowledgement.checked = Boolean(readSetting(context.store, "acknowledged:shared-origin"));
   acknowledgement.disabled = true;
@@ -576,6 +578,8 @@ function repositoryLine(target, context, info) {
   });
   change.addEventListener("click", () => {
     tokenStepBox.hidden = notice.hidden = acknowledgementLine.hidden = save.hidden = false;
+    // UC-042 step 2: the new token is made from the prefilled link, so its expiry is preset to that link's 90 days.
+    expiry.value = prefilledExpiry();
     acknowledgement.disabled = false;
     const alreadyAcknowledged = Boolean(readSetting(context.store, "acknowledged:shared-origin"));
     acknowledgement.checked = alreadyAcknowledged;

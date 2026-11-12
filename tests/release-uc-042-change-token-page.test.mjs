@@ -171,3 +171,19 @@ test("TST-1803104: Change of a GitLab project token opens the project's Access t
   assert.match(text, /\bapi\b/);
   assert.equal(sameFieldsAndNotice(view).value, inNinetyDays());
 });
+
+// TST-1803105
+// level: release
+// module: MOD-settings-pages
+// guards: UC-042; THE TOKEN LINK IS PREFILLED
+// given: a GitHub product alice/thesis-tool whose stored token expires in ten days
+// input: the person presses Change on that product's token line, to store the new token GitHub's prefilled page creates
+// expect: the expiry asked for is preset to the 90 days of the prefilled link, not the expiry of the token being replaced
+test("TST-1803105: storing a changed token asks for its expiry preset to 90 days, not the old token's date", async () => {
+  const old = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+  const view = await line(tokenSetting("github-token:alice/thesis-tool", "github_pat_PRODUCT0123456789abcdefghij",
+    { name: "Agent M · alice/thesis-tool", expires: old }), "GitHub token: alice/thesis-tool");
+  await change(view);
+  assert.equal(sameFieldsAndNotice(view).value, inNinetyDays(), "failure node: the expiry Change asks for is preset to 90 days");
+});
+
