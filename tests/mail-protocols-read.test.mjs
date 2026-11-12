@@ -348,3 +348,25 @@ test("TST-822009: read without since fetches every mail, and a SEARCH that selec
     assert.equal(lines.some((line) => /\bFETCH\b/.test(line)), false, "no FETCH at all");
   });
 });
+
+// TST-20261112301 · level: unit · module: MOD-mail-protocols
+// guards: A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: the fixture of TST-822001 whose Sent holds s1 (received 5 October 2026) and s2 (8 October), and whose server answers UID SEARCH SINCE by the day each mail was received
+// input: the handler `POST /v1/mail/sent` with args { since: "2026-10-06" }; counter-proof: with args {}
+// expect: with the day, the answer is s2 alone, the server was asked `UID SEARCH SINCE 06-Oct-2026` in Sent and sent the body of Sent uid 2 only — s1 is not fetched; without the day no SEARCH is sent and both bodies are fetched
+test("TST-20261112301: sent with since has the IMAP server select the mails with SEARCH SINCE and fetches only them", async () => {
+  const S2 = raw(["Message-ID: <s2@example.org>", "In-Reply-To: <r1@example.org>", "Date: Thu, 08 Oct 2026 09:00:00 +0000", "From: reports@example.org",
+    "To: Cy Reporter <cy@example.net>", "Subject: Re: Export is empty", "Content-Type: text/plain; charset=utf-8", "", "Fixed in 1.2."]);
+  const mails = { ...MAILS, Sent: [S1, S2] };
+  await withMails(async (imap, smtp) => {
+    assert.deepEqual((await call("sent", connection(imap, smtp), { since: "2026-10-06" })).map((mail) => mail.messageId), ["<s2@example.org>"]);
+    const lines = imap.logs.commands.map((entry) => entry.line.toUpperCase());
+    assert.ok(lines.some((line) => /\bUID SEARCH SINCE 06-OCT-2026\b/.test(line)), lines.join("\n"));
+    assert.deepEqual(imap.logs.fetched, [{ folder: "Sent", uid: 2 }]);
+  }, { mails });
+  await withMails(async (imap, smtp) => {
+    assert.equal((await call("sent", connection(imap, smtp), {})).length, 2);
+    assert.equal(imap.logs.commands.some((entry) => /\bSEARCH\b/i.test(entry.line)), false, "no SEARCH without since");
+    assert.deepEqual(imap.logs.fetched, [{ folder: "Sent", uid: 1 }, { folder: "Sent", uid: 2 }]);
+  }, { mails });
+});

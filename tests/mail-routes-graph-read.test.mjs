@@ -275,3 +275,23 @@ test("read — on the Microsoft route: without since no date is filtered and eve
   assert.equal(listRequests(requests).some((request) => /receivedDateTime/.test(receivedFilter(request) ?? "")), false);
   assert.equal(rawFetched(requests).length, 3);
 });
+
+// TST-20261112302 · level: unit · module: MOD-mail-routes
+// guards: A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: the fake Graph of TST-478301, whose Sent Items hold se-1 (received 14 October 2026), and which lists only the messages a `$filter=receivedDateTime ge` selects
+// input: mailbox(connection of the Microsoft route, null).sent("2026-10-15"); counter-proof: .sent("2026-10-14")
+// expect: the list request of sentitems carries `$filter=receivedDateTime ge 2026-10-15T00:00:00Z`, no raw form is fetched and the answer is []; with the 14th the filter names that day, the raw form of se-1 is fetched and the answer is its Mail
+test("sent — on the Microsoft route: the date received is filtered by Graph, and only the mails it selects are fetched", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  signedIn();
+  let requests = fakeGraph();
+  assert.deepEqual(await mailbox(CONNECTION, null).sent("2026-10-15"), []);
+  const lists = listRequests(requests).filter((request) => request.address.includes("/sentitems/"));
+  assert.ok(lists.length > 0, "known positive: Sent Items were listed");
+  assert.deepEqual([...new Set(lists.map(receivedFilter))], ["receivedDateTime ge 2026-10-15T00:00:00Z"]);
+  assert.deepEqual(rawFetched(requests), []);
+  requests = fakeGraph();
+  assert.deepEqual((await mailbox(CONNECTION, null).sent("2026-10-14")).map((mail) => mail.messageId), ["<se-1@example.org>"]);
+  assert.deepEqual([...new Set(listRequests(requests).map(receivedFilter))], ["receivedDateTime ge 2026-10-14T00:00:00Z"]);
+  assert.equal(rawFetched(requests).length, 1);
+});
