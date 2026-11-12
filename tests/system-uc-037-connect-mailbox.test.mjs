@@ -432,7 +432,7 @@ test("alternative 7d: the dashboard says where a reply would be sent that sendin
     await signInWithMicrosoft(p);
     assert.match(await storeAndTest(p), /sending is not/, "known positive: the test found sending not working");
     await hashTo("#replies");
-    await waitFor(() => byClass(p.main(), "read-replies").length === 1, "the page of replies");
+    await waitFor(() => byClass(p.main(), "replies-step-read").length === 1, "the page of replies");
     assert.match(textOf(p.main()), /send(ing)?[^.]*(does not|cannot|not) work|cannot be sent|Mail\.Send/i, "the page of replies says sending does not work");
   } finally { await p.stop(); }
 });

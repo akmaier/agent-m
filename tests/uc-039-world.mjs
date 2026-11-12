@@ -19,7 +19,7 @@ import net from "node:net";
 import tls from "node:tls";
 import { writeSetting } from "../src/browser-store/index.mjs";
 import { startPage } from "../src/site-frame/index.mjs";
-import { BRIDGE, ERIKA, PRODUCT_URL, buttonsOf, byClass, flush, mailOf, one, pages, standard, trusted, waitFor, world } from "./maintenance-pages-world.mjs";
+import { BRIDGE, ERIKA, PRODUCT_URL, buttonsOf, byClass, flush, itemOf, mailOf, one, pages, standard, trusted, waitFor, world } from "./maintenance-pages-world.mjs";
 import { fragmentOf } from "../src/site-frame/routing.mjs";
 
 export const PASSWORD = "uc-039-marker-password-969";
@@ -374,8 +374,8 @@ export async function hashTo(fragment) {
   globalThis.window.dispatchEvent(new Event("hashchange"));
   await flush();
 }
+// The replies as opening Replies reads them, at once and with no click (UC-039 step 1): this waits for the reading.
 export async function readReplies(p) {
-  await trusted(one(p.main(), "read-replies"));
   await waitFor(() => byClass(p.main(), "replies-group").length > 0 || byClass(p.main(), "reply-mail").length > 0 || byClass(p.main(), "replies-problem").length > 0);
   return p.main();
 }
@@ -399,13 +399,28 @@ export const sends = (p) => p.graph.requests.filter((request) => request.method 
 export const headerOf = (raw, name) => raw.split(/\r?\n\r?\n/)[0].replace(/\r?\n[ \t]+/g, " ").split(/\r?\n/).filter((line) => line.toLowerCase().startsWith(`${name.toLowerCase()}:`)).map((line) => line.slice(name.length + 1).trim());
 export const bodyOf = (raw) => { const [head, ...rest] = raw.split(/\r?\n\r?\n/); const text = rest.join("\n\n"); return /base64/i.test(head) ? Buffer.from(text.replace(/\s+/g, ""), "base64").toString("utf8") : text; };
 export const draftsOf = (p) => p.graph.folders.drafts.map((each) => each.raw);
+// The participants the drafting offers: the options of its one select, in their order.
+export function offered(p) {
+  const options = [];
+  (function visit(node) { for (const child of node.children ?? []) { if (typeof child === "string") continue; if (child.localName === "option") options.push(child); visit(child); } })(byClass(p.main(), "participant")[0] ?? { children: [] });
+  return options;
+}
+// The participant at `participant` chosen in the select of the drafting, whose first is chosen when it is drawn; no name is asked, so `name` is not typed anywhere.
 export async function choose(p, name = "Reviewer Rae", participant = 0) {
   await waitFor(() => byClass(p.main(), "participant").length > 0);
-  const radio = byClass(p.main(), "participant")[participant];
-  radio.checked = true;
-  one(p.main(), "person").value = name;
-  radio.dispatchEvent(new Event("change"));
+  const select = byClass(p.main(), "participant")[0];
+  select.value = offered(p)[participant].value;
+  select.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(p.main(), "run-panel").length > 0);
+}
+// A reply written without a participant (UC-039 3a): `text` typed into the text box under the mail, then the person's click on Save draft; the stored draft is then shown.
+export async function writtenByHand(p, id, text = "") {
+  const item = itemOf(p.main(), id);
+  const compose = one(item, "reply-compose");
+  one(compose, "compose-body").value = text;
+  await trusted(one(compose, "save-draft"));
+  await waitFor(() => byClass(item, "reply-draft").length > 0 || byClass(item, "reply-problem").length > 0);
+  return item;
 }
 export async function run(p) {
   const button = buttonsOf(one(p.main(), "run-panel"), "Run")[0];

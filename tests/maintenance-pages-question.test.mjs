@@ -8,14 +8,14 @@
 //
 // The world is tests/maintenance-pages-world.mjs (the fake runner is its model endpoint ep1). Readings the texts leave open, which the tests state (the pull request names them):
 //   - On an open issue a mail that is found, sendable, not noted and without a draft has <button class="draft-question"> "Draft question" beside Ask the reporter; its click opens <section class="question-drafting"> in the mail's item with
-//     <textarea class="question-point"> for the person's point, the participants (<input class="participant">, those that can draft text at a place the mailbox allows), <input class="person"> and, once the point, a participant and a name are given, the run panel of the
+//     <textarea class="question-point"> for the person's point, the participants (one <select class="participant">, those that can draft text at a place the mailbox allows, the first chosen; no name is asked) and, once the point is given, the run panel of the
 //     kind draft-replies with the parameter `question` over the issue and that one mail. Run (the person's click) runs the job in this tab; the question the participant returns is stored as a draft through the mailbox, to that reporter alone, and shown with
 //     Send and wait. Nothing is sent. The start record names the issue and the product, and neither the point nor a mail.
 // The counter-proofs are recorded in the pull request.
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { ERIKA, PRODUCT_URL, SECRET, buttonsOf, byClass, flush, itemOf, one, opened, read, restoreWorld, start, textOf, trusted, waitFor } from "./maintenance-pages-world.mjs";
+import { optionsOf, ERIKA, PRODUCT_URL, SECRET, buttonsOf, byClass, flush, itemOf, one, opened, read, restoreWorld, start, textOf, trusted, waitFor } from "./maintenance-pages-world.mjs";
 
 afterEach(restoreWorld);
 const ops = (w, ...names) => w.kept.bridge.filter((call) => names.includes(call.operation));
@@ -37,19 +37,17 @@ async function ready(texts = []) {
 // TST-1026201 · level: unit · module: MOD-maintenance-pages
 // guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-039
 // given: the open issue 6 and its mail, found, without a draft; a mailbox that allows the place "this machine"; a register with local-llm there and cloud-llm in the USA
-// input: the person's click on Draft question; the point typed, local-llm chosen, a name given
-// expect: a section opens with a field for the point and the participants — local-llm, the agent on this browser's endpoint ep1 at this machine, and ep1 itself, a connection the prompt bar offers —; no run panel before the point, a participant and a name are given; then the run panel names local-llm and its place and the parts it receives: the issue, the person's point and the mail by its identifier, and no "Solved by"; nothing is sent or stored yet
+// input: the person's click on Draft question; then the point typed
+// expect: a section opens with a field for the point and one select of the participants — local-llm, the agent on this browser's endpoint ep1 at this machine, and ep1 itself, a connection the prompt bar offers —, local-llm chosen, and no field for a name; no run panel before the point is given; then the run panel names local-llm and its place and the parts it receives: the issue, the person's point and the mail by its identifier, and no "Solved by"; nothing is sent or stored yet
 test("Draft question asks for the person's point and a participant at an allowed place, and its run panel names what the participant receives", async () => {
   const f = await ready();
   await trusted(one(f.item, "draft-question"));
   await waitFor(() => byClass(f.item, "question-drafting").length > 0 && byClass(f.item, "participant").length > 0);
-  assert.deepEqual(byClass(f.item, "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
-  const radio = one(f.item, "participant");
-  radio.checked = true;
-  one(f.item, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
+  assert.deepEqual(optionsOf(one(f.item, "participant")), ["local-llm", "ep1"]);
+  assert.equal(one(f.item, "participant").value, "local-llm");
+  assert.equal(byClass(f.item, "person").length, 0, "no name is asked");
   await flush();
-  assert.equal(byClass(f.item, "run-panel").length, 0, "no panel before the point, though a participant and a name are given");
+  assert.equal(byClass(f.item, "run-panel").length, 0, "no panel before the point, though a participant is chosen");
   const point = one(f.item, "question-point");
   point.value = POINT;
   point.dispatchEvent(new Event("input"));
@@ -74,10 +72,6 @@ test("Run drafts the question with the participant and stores it as a draft show
   const point = one(f.item, "question-point");
   point.value = POINT;
   point.dispatchEvent(new Event("input"));
-  const radio = one(f.item, "participant");
-  radio.checked = true;
-  one(f.item, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(f.item, "run-panel").length > 0);
   texts.push({ mail: f.mails.open.id, text: "Could you tell us which version you use, and on which system?" });
   const run = buttonsOf(one(f.item, "run-panel"), "Run")[0];

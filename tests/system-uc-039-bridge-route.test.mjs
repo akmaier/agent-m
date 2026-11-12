@@ -18,7 +18,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { ERIKA, buttonsOf, byClass, issueRecord, itemOf, mailOf, one, restoreWorld, textOf, trusted, waitFor } from "./maintenance-pages-world.mjs";
-import { ACCOUNT, PASSWORD, comments, dialog, hashTo, lastly, openIssueAfterReading as openIssue, openReplies, rawMail } from "./uc-039-world.mjs";
+import { writtenByHand, ACCOUNT, PASSWORD, comments, dialog, hashTo, lastly, openIssueAfterReading as openIssue, openReplies, rawMail } from "./uc-039-world.mjs";
 
 afterEach(restoreWorld);
 
@@ -31,8 +31,7 @@ const header = (raw, name) => new RegExp(`^${name}: (.*(?:\\r\\n[ \\t].*)*)$`, "
 const textBody = (raw) => Buffer.from(raw).toString("utf8").split(/\r?\n\r?\n/).slice(1).join("\n\n");
 
 async function written(p, id) {
-  const item = itemOf(p.main(), id);
-  await trusted(one(item, "write-reply"));
+  const item = await writtenByHand(p, id);
   await waitFor(() => byClass(item, "send-reply").length > 0 || byClass(item, "reply-problem").length > 0);
   return item;
 }
@@ -44,7 +43,7 @@ async function pressSend(item) {
 // TST-969101 · level: system · module: MOD-maintenance-pages · MOD-mail-handling · MOD-mail-protocols
 // guards: UC-039; THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN; THE MAIL SERVER IS REACHED ONLY OVER TLS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A SENT REPLY IS NOTED IN THE ISSUE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
 // given: the page on the IMAP route in front of the Bridge over the local IMAP server (INBOX holds m1 from Erika) and SMTP server; the closed issue 4 lists m1; the mailbox password is the marker password
-// input: issue 4 opened; the person's click on Write the reply myself; the person's click on Send and the dialog's Send
+// input: issue 4 opened; the reply written in its text box and saved (Save draft); the person's click on Send and the dialog's Send
 // expect: the draft is in the server's Drafts with one To (Erika), Re: Subject m1, In-Reply-To and References from m1's Message-ID, and the original quoted; the dialog repeats recipient and subject and nothing reaches SMTP before its confirmation; then the Bridge asks for a confirmation of the SHA-256 of that draft's bytes and sends with it — exactly one mail reaches the SMTP server, over TLS, to Erika alone, with the bytes of the draft —, a copy is in Sent, the draft is gone from Drafts, INBOX is as it was, and the issue has one comment, Reply sent to the identifier of m1 on a day; every login of IMAP and SMTP was after TLS with the marker password, and the password is in no request but those to the Bridge (flow: UC-039 main flow)
 test("main flow on the IMAP route: the Bridge stores the draft, sends with the confirmation of the mail shown over TLS, copies it to Sent, and the reply is noted", async () => {
   const inbox = [rawMail("m1")];
@@ -164,13 +163,13 @@ test("alternative 2b on the IMAP route: a mail filed into a folder the connectio
   await lastly(p, async () => {
     await openIssue(p, 4);
     assert.match(textOf(itemOf(p.main(), M3.id)), /not found in the mailbox/);
-    assert.equal(byClass(itemOf(p.main(), M3.id), "write-reply").length + byClass(itemOf(p.main(), M3.id), "send-reply").length, 0);
+    assert.equal(byClass(itemOf(p.main(), M3.id), "reply-compose").length + byClass(itemOf(p.main(), M3.id), "send-reply").length, 0);
     assert.deepEqual(p.imap.folders.Drafts, []);
     const { readSetting, writeSetting } = await import("../src/browser-store/index.mjs");
     writeSetting(p.w.context.store, "mailbox", { ...readSetting(p.w.context.store, "mailbox"), folders: ["INBOX", "Reports"] });
     await hashTo("#replies");
     await openIssue(p, 4);
-    assert.equal(byClass(itemOf(p.main(), M3.id), "write-reply").length, 1, "found again through its identifier");
+    assert.equal(byClass(itemOf(p.main(), M3.id), "reply-compose").length, 1, "found again through its identifier");
     assert.deepEqual([p.imap.folders.Drafts, p.imap.folders.Sent], [[], []]);
     assert.ok(p.state.calls.every((call) => !/^(send|confirm-send|store-draft|update-draft)$/.test(call.operation)), "reading wrote nothing");
   });

@@ -122,7 +122,7 @@ test("a reply without a participant is written in the mail's text boxes, and Sav
   assert.match(textOf(one(compose, "draft-to")), /erika@example\.invalid/);
   assert.equal(textOf(one(compose, "draft-subject")), "Re: Subject plain");
   assert.equal(String(one(compose, "compose-body").value ?? ""), "");
-  assert.match(textOf(one(compose, "compose-quoted")), /> Hello,/);
+  assert.match(textOf(one(compose, "compose-quoted")), /Hello,/);
   one(compose, "compose-body").value = "Fixed in version 1.5.";
   one(compose, "save-draft").dispatchEvent(new Event("click"));
   await flush();

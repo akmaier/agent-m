@@ -71,13 +71,12 @@ test("the page of the route mail holds a mail's text only for a participant at a
 
 // TST-510002 · level: unit · module: MOD-maintenance-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; UC-049
-// given: the route replies after Read replies, the mails of issue 4 found in the mailbox
+// given: the route replies after its reading, the mails of issue 4 found in the mailbox
 // input: the subject's paramsFor for local-llm, cli-writer and cloud-llm
 // expect: local-llm's page holds a found mail's identifier, sender and text; the others' pages hold identifiers only; the subject refuses propose-edit and hand-over
 test("the page of the route replies holds the mails' texts under the same rule", async () => {
   const f = await mailWorld();
   const target = await opened(f.w, {});
-  await trusted(one(target, "read-replies"));
   await waitFor(() => byClass(target, "replies-group").length > 0);
   const subject = subjectOf("replies", f.w);
   assert.deepEqual([...subject.refuses].sort(), ["hand-over", "propose-edit"]);
