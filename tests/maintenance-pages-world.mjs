@@ -113,10 +113,8 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       if (operation === "read") return json(reading ?? mails);
       if (operation === "drafts") return json(kept.drafts);
       if (operation === "sent") return json([]);
-      if (operation === "find") {
-        const found = mails.find((each) => each.id === args.id);
-        return found ? json(found) : json({ error: "not-found", message: `${args.id}: no such mail in INBOX` }, 404);
-      }
+      // find takes { ids } and answers { mails }, each identifier with its mail or null (MOD-bridge-http).
+      if (operation === "find") return json({ mails: Object.fromEntries(args.ids.map((id) => [id, mails.find((each) => each.id === id) ?? null])) });
       if (operation === "show-draft") {
         const draft = kept.drafts.find((each) => JSON.stringify(each.ref) === JSON.stringify(args.ref));
         if (!draft) return json({ error: "not-found", message: "no such draft" }, 404);

@@ -178,7 +178,7 @@ test("TST-20261112006 mail/<id> opens the mail of the list, else the one the mai
   await mailRead(second);
   await waitFor(() => itemOf(one(second, "mail-details"), old.id) !== undefined);
   assert.match(textOf(one(second, "mail-details")), /An old report of a broken export\./);
-  assert.ok(w.kept.bridge.some((call) => call.operation === "find" && call.args.id === old.id), "the mailbox is asked for it by find");
+  assert.ok(w.kept.bridge.some((call) => call.operation === "find" && call.args.ids.includes(old.id)), "the mailbox is asked for it by find");
   const third = await drawn(w, "mail", { id: "MAIL-0000000000000000" });
   await mailRead(third);
   await waitFor(() => byClass(third, "mail-not-found").length > 0);
@@ -189,13 +189,15 @@ test("TST-20261112006 mail/<id> opens the mail of the list, else the one the mai
 // guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; CLOSING AN ISSUE PREPARES ITS REPLIES; UC-038
 // given: the closed issue 4 lists three mails without a reply note: recent, which the reading holds; old, older than 30 days, which the reading does not hold but the mailbox does; and bare, which the reading holds without a Message-ID
 // input: the route mail drawn and the mailbox read once
-// expect: the mailbox is asked by find for old and for bare and not for recent — recent is found in the reading by the hash of its Message-ID, bare has none to hash —; recent and bare are marked to answer as before; counter-proof: old's find is asked, so a page that asked for every listed mail would be seen asking for recent too
+// expect: the mailbox is asked by one find for old and for bare and not for recent — recent is found in the reading by the hash of its Message-ID, bare has none to hash —; recent and bare are marked to answer as before; counter-proof: old's find is asked, so a page that asked for every listed mail would be seen asking for recent too
 test("TST-2026111701 a reading finds the listed mails it holds in itself and asks the mailbox only for the others", async () => {
   const [recent, old, bare] = [await mailOf("recent"), await mailOf("old", { date: "2026-07-01T08:00:00Z" }), await mailOf("bare", { messageId: null })];
   const w = world({ mails: [recent, old, bare], reading: [recent, bare], issues: [issueRecord(4, "closed", [recent, old, bare])] });
   const target = await drawn(w, "mail");
   await mailRead(target);
-  const asked = w.kept.bridge.filter((call) => call.operation === "find").map((call) => call.args.id);
+  const finds = w.kept.bridge.filter((call) => call.operation === "find");
+  assert.equal(finds.length, 1, "the rest is passed on in one find");
+  const asked = finds.flatMap((call) => call.args.ids);
   assert.ok(asked.includes(old.id), "counter-proof: the mailbox is asked for the mail the reading does not hold");
   assert.ok(asked.includes(bare.id), "a mail without a Message-ID is not found by a hash of one, so the mailbox is asked for it as before");
   assert.equal(asked.includes(recent.id), false, "the mail the reading holds is not asked for again");
