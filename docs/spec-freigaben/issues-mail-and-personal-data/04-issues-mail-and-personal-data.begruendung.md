@@ -4,9 +4,7 @@
 - `A REPLY DRAFTED BY A MODEL SAYS SO`, new, after `A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER`: a reply that a
   language model drafts for a listed mail is stored as a draft whose text states that it was drafted by AI.
 
-The section is entry 03's text with this one requirement added, since the queue is accepted in its order: entry 03's
-change of `THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS` stands in it as entry 03 proposes it. Every other byte of
-the section is carried over.
+Every other byte of the section, as it stands with entry 03 accepted, is carried over.
 
 **Why.** akmaier, 2026-11-12, asked "Should AI-drafted replies say they were drafted by AI? That needs a new SPEC
 rule.", answered: "yes". Today the prompt of the kind `draft-replies` asks for no such statement, `storeReplies` adds
