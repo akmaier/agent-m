@@ -109,7 +109,9 @@ double-clicking it, and copying one token. Nobody types a command.
    and when it was taken — and shows the console of the one the person chooses, by default the one running: what its
    agent writes, each line as the agent writes it, the line it is still writing included, in a dark pane of fixed height
    that holds the last 1000 lines and stays at the newest unless the person scrolls back. Nothing is reloaded for it. The
-   dashboard's log of the job (UC-036) is read from the log the Bridge keeps.
+   dashboard's log of the job (UC-036) is read from the log the Bridge keeps. A CLI session a conversation of the prompt
+   bar keeps on this Bridge (UC-049, step 4) is listed there too, as running while it lives, its console what its
+   terminal shows, kept as a job's.
 
 ```mermaid
 sequenceDiagram

@@ -108,17 +108,24 @@ enters the repository the way every proposal does.
      the call out and returns its result, until the endpoint gives its answer. The tab reads the product through the
      repository server's API with the author's token, and writes nothing.
    - **A model endpoint without the capability *use tools*** answers once: with text, or with a draft of the open artifact.
-   - **A CLI session** is bound neither by this table nor by the plan of 4a: it receives the message, with the
-     conversation so far and the page's context, through its Bridge, its input beginning with Agent M's `AGENTS.md`,
-     and does the work asked for in its own checkout with its own tools, as any session of that agent does — it reads,
-     edits, runs code and tests, reaches the web, commits, pushes, opens pull requests, follows CI and merges, with
-     the repository token the Bridge leaves for it in an ignored file of the checkout (UC-011, step 3). It is started
-     with the model chosen.
-     Its answer says what it did; what it committed stands in the repository.
+   - **A CLI session** is bound neither by this table nor by the plan of 4a. On the conversation's first message to it,
+     its Bridge starts the agent in its normal interactive mode, in auto mode, with the model chosen, in the
+     conversation's own checkout of the product, inside a terminal the Bridge keeps open. Every message of the
+     conversation, the first among them, is typed into that one running agent, beginning with Agent M's `AGENTS.md` and
+     giving the page's context and the person's words; the agent keeps its context from one message to the next, so
+     that nothing of the conversation is sent to it again. It does the work asked for with its own tools, as any session
+     of that agent does — it reads, edits, runs code and tests, reaches the web, commits, pushes, opens pull requests,
+     follows CI and merges, with the repository token the Bridge leaves for it in an ignored file of the checkout
+     (UC-011, step 3). The Bridge keeps what the terminal shows, its console; the prompt bar and the Bridge's window
+     (UC-044, step 6) show it live while the agent works. The session runs until the author presses **Stop** (5a) or
+     **Clear conversation** (6d), and its checkout as long as it runs.
+     Its answer is what the agent printed after the message; what it committed stands in the repository. It reports no
+     usage, and its cost is shown as unknown.
 5. The answer appears in the conversation. An edit an endpoint proposed opens in the editor of UC-018 as its
    difference against the current text; a change of requirements, of a use case or of the architecture it handed on
    (4a) is checked and shown as UC-019 describes.
-6. The author answers — the endpoint or CLI session receives the conversation so far — or presses **Save**, one click,
+6. The author answers — an endpoint receives the conversation so far, a CLI session the new message (step 4) — or
+   presses **Save**, one click,
    and UC-018 continues at step 5: a use case or an architecture file is committed as open, a change of the SPEC becomes
    a queue entry. The commit names the Agent M version, the endpoint or CLI session and the model; it names no message
    of the conversation.
@@ -201,7 +208,10 @@ sequenceDiagram
      why and what it requires to run — "register the person as a source", "accept the change of requirements of 1" —,
      so that the author can supply it and ask again. In most cases that ends the conversation.
 - **4b. The tab is closed or loses its connection** while the endpoint or CLI session works. The conversation is gone. A
-  run in GitHub Actions, or an agent on a Bridge, ends with what it has committed; the job's record shows it (UC-036).
+  run in GitHub Actions, or an agent of a job on a Bridge, ends with what it has committed; the job's record shows it
+  (UC-036). A CLI session goes on in its terminal until its Bridge ends (4g) or the agent exits (4h); the Bridge's window
+  shows its console. A tab
+  that is reloaded keeps its conversation, and its next message goes to the same session.
 - **4c. The product has no job workflow, one of another commit of Agent M than this instance's, or no CI secrets yet**
   (UC-010, Precondition). Nothing is handed over; the conversation says what is missing — of a job workflow of another
   commit, the commit it pins and this instance's — and offers **Set up GitHub Actions** (UC-010) right there. That one
@@ -217,8 +227,17 @@ sequenceDiagram
   job, and its writer writes as 4a.5 says; a piece that rests on another is not handed over. The conversation's job
   record names every job it started and every piece not handed over, with why; each job's record lists its results. The review pages show what was written for acceptance
   (UC-006, UC-008), each architecture file with its impact list.
+- **4g. The Bridge ends the session** — it is quit, restarted or updated, or its computer restarts. The session's agent
+  ends and commits nothing more; its checkout is removed. The conversation stays in the tab. The prompt
+  bar says that the session ended with its Bridge; the author's next message starts a new session (step 4), which is
+  given the conversation so far once, with that message.
+- **4h. The agent exits by itself** — it ended its session, or failed. The prompt bar shows what the console shows last
+  and that the session ended, with the agent's exit; its checkout is removed. The conversation stays in the tab, and the
+  author's next message starts a new session as in 4g.
 - **5a. The author presses Stop.** The loop in the tab ends and nothing is written; every job of the plan still queued
-  or running is cancelled and commits nothing more (UC-036).
+  or running is cancelled and commits nothing more (UC-036). A CLI session's agent is ended, with every process it
+  started, and commits nothing more; its checkout is removed. The conversation stays in the tab; the author's next
+  message starts a new session as in 4g.
 - **6a. The author discards a proposed edit.** Nothing is written.
 - **6b. The file changed while the endpoint or CLI session worked.** UC-018 5a: nothing is written, the edit stays in
   the editor beside the newer version.
@@ -232,7 +251,8 @@ sequenceDiagram
   was withheld, and why. A job handed to CI (4a) names the conversation record it came from.
 - **6d. The author clears the conversation.** **Clear conversation**, below the message field on the left, removes the
   conversation from the tab; the next message starts a new one. While a message is still being answered it does nothing;
-  **Stop** ends that first. A conversation recorded in git (6c) stays in its record.
+  **Stop** ends that first. A CLI session the conversation kept is ended, and its checkout removed; the next message
+  starts a new session, given no earlier message. A conversation recorded in git (6c) stays in its record.
 
 ## Postcondition
 
