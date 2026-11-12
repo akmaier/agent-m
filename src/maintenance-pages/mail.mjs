@@ -30,6 +30,8 @@
 //   - Each reading also asks `repliesDue` of the mailbox and the products; a mail it gives under `toAnswer` with `noted` false is *to answer*: its line carries <span class="mail-to-answer">, and its details say so
 //     and offer <button class="answer-mail"> *Answer*, whose click goes to `replies` with the issue's number and product (UC-038 step 7). Going there writes nothing, so it answers any click. A reading whose
 //     `repliesDue` fails keeps the marks of the last one and names the problem above the list (<p class="mail-replies-problem">); the inbox is listed all the same.
+//   - `repliesDue` finds each listed mail in the mailbox by its identifier; a listed mail this reading holds with a Message-ID is found in the reading, which read it from the named folders and named it
+//     by the hash of that Message-ID, and only the others are asked of the mailbox's `find` (withReading): each `find` reads every mail's Message-ID of the named folders anew.
 //   - `mail/<id>` (the parameter `id`, a `MAIL-` identifier) opens, after the first reading, the mail of the list with that identifier; where the list holds none, the mailbox's `find` is asked for it and the
 //     mail found is shown as a mail clicked — its head, its text, the issue `repliesDue` names for it and, where it is to answer, *Answer* —, and kept so at later readings; a mail `find` does not give is
 //     <p class="mail-not-found"> "<id>: not found in the mailbox." (UC-038 7c, UC-039 2b). A failure of `find` names itself in the same place.
@@ -116,6 +118,14 @@ export function mailboxOf(store) {
   const entry = readSetting(store, `bridge:${connection.imap?.bridge}`);
   const bridge = entry ? bridgeAt(settingsOf({ name: connection.imap.bridge, ...entry }, readSetting(store, "jump-host"))) : null;
   return { connection, box: mailbox(connection, bridge) };
+}
+
+// The mailbox as one reading has read it: `find` answers a mail of the reading that has a Message-ID from the reading — it is in the named folders, and its
+// identifier is the hash of that Message-ID, which is how `find` finds a mail —, the first of them where two share one; any other identifier the mailbox is asked for.
+function withReading(box, mails) {
+  const read = new Map();
+  for (const mail of mails) if (mail.messageId && !read.has(mail.id)) read.set(mail.id, mail);
+  return { ...box, find: async (id) => read.get(id) ?? box.find(id) };
 }
 
 // The endpoints and Bridges the participants are reached by, as the tab's route drives them (the page replies has the same need).
@@ -600,7 +610,7 @@ async function render(target, context, params = {}) {
     state.rows = rows;
     // The mails to answer, and the issue of every listed mail, as repliesDue gives them with this reading (UC-038 step 7).
     try {
-      const due = await repliesDue(have.box, [...products.values()].map((each) => ({ address: each.address, host: each.host })));
+      const due = await repliesDue(withReading(have.box, [...found.proposable, ...found.decided, ...found.attached].map(({ mail }) => mail)), [...products.values()].map((each) => ({ address: each.address, host: each.host })));
       state.toAnswer = new Map(due.toAnswer.flatMap((each) => each.mails.filter((entry) => !entry.noted).map((entry) => [entry.id, { product: each.product, issue: each.issue }])));
       state.listedIn = new Map([...due.toAnswer, ...due.answerReceived, ...due.open].flatMap((each) => each.mails.map((entry) => [entry.id, { product: each.product, issue: each.issue }])));
     } catch (failure) {
