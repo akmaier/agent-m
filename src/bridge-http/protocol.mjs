@@ -22,9 +22,9 @@ export const bridgeApi = {
     { method: "PUT", path: "/v1/repository-tokens", request: { tokens: [{ repository: "string", token: "string" }] }, answer: { kept: "number" } },
     { method: "POST", path: "/v1/jobs", request: { product: "string", record: "string", commit: "string", task: "string?" }, answer: { accepted: "string" } },
     { method: "GET", path: "/v1/jobs", answer: { jobs: [{ id: "string", product: "string", kind: "string", agent: "string", state: "string", started: "string", usage: "object" }] } },
-    { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", ended: "boolean" } },
+    { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", partial: "string", ended: "boolean" } },
     { method: "POST", path: "/v1/jobs/{id}/cancel", answer: { confirmed: "boolean" } },
-    { method: "POST", path: "/v1/ask", request: [{ agent: "string", model: "string?", input: "string", product: "string?", instance: "string?" }, { endpoint: endpointConfiguration, input: "string" }, { endpoint: endpointConfiguration, exchange: { messages: ["object"], tools: ["object"] } }], answer: { ask: "string" } },
+    { method: "POST", path: "/v1/ask", request: [{ agent: "string", model: "string?", input: "string", product: "string?", instance: "string?", session: "string?" }, { endpoint: endpointConfiguration, input: "string" }, { endpoint: endpointConfiguration, exchange: { messages: ["object"], tools: ["object"] } }], answer: { ask: "string", session: "string?" } },
     { method: "GET", path: "/v1/ask/{ask}", answer: { state: ["running", "done", "failed"], text: ["string", "null"], calls: [{ id: "string", name: "string", args: "object" }], usage: ["object", "null"], error: ["string", "null"] } },
     { method: "POST", path: "/v1/probes/{kind}", kinds: ["agent", "endpoint-models", "endpoint-test", "partitions"], endpointTest: {
       args: endpointConfiguration,

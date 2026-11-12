@@ -6,14 +6,17 @@
 // Each clone is reached with the Bridge's credentials — the token its paired browser handed it, or the computer's own login (tokens.mjs) —, and one
 // repository's failure stops none of the others: the person sees in the window which repository was not reached, in git's words.
 
+import { removeLeftSessions } from "./conversations.mjs";
 import { cloneOrFetch, defaultHead, foldersOf, instanceClone } from "./workfolders.mjs";
 
 /**
  * checkOut({ instance, products, agents }) -> Promise<{ agent, repository, folder, commit, reason }[]> — for each agent with a working folder, in the order
  * given, the instance first and then each product in the order given: the commit its clone's default branch holds, or commit null and git's reason. An agent
- * without a working folder is left out. Crosses the network to the repository servers.
+ * without a working folder is left out. Crosses the network to the repository servers. First, the checkout a session of the prompt bar left in a working folder
+ * when the Bridge did not see its end is removed (conversations.mjs; UC-049 4g): the Bridge checks out at every start.
  */
 export async function checkOut({ instance, products = [], agents = [] }) {
+  await removeLeftSessions(agents);
   const answer = [];
   for (const agent of agents.filter((each) => each?.folder)) {
     const folders = foldersOf(agent.folder);

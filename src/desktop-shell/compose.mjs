@@ -86,7 +86,12 @@ export function createBridgeJobRuntime(settings, { instance, paused, startWatchi
     watching = false;
     await stopWatching(reason);
   };
-  return { start, pause: () => stop("pause"), resume: start, close: () => stop("quit") };
+  // A quit ends the watching and every CLI session of the prompt bar the Bridge runs (MOD-bridge-jobs' stopWatching), paused or not.
+  const close = async () => {
+    watching = false;
+    await stopWatching("quit");
+  };
+  return { start, pause: () => stop("pause"), resume: start, close };
 }
 
 export async function compose({ instance, origin, dataFolder, port = bridgeApi.defaultPort, paused = () => false, version = null }) {

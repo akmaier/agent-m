@@ -164,9 +164,13 @@ export async function handOver(bridge, job) {
   return call(bridge, route.path, { method: route.method, body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit, ...(job.task === undefined ? {} : { task: job.task }) }) });
 }
 
-export async function ask(bridge, target, input) {
+// ask(bridge, target, input, { onSession }?) -> { text, calls, usage } — POST /v1/ask, then GET /v1/ask/{ask} until it is done or failed. A message to a CLI
+// session names the running session it is typed into as `target.session`, none for one that starts it; the Bridge's session for it is told to `onSession` as
+// soon as the request is accepted (ARC-055).
+export async function ask(bridge, target, input, { onSession } = {}) {
   const start = apiRoute("POST", "/v1/ask");
-  const { ask: id } = await call(bridge, start.path, { method: start.method, body: JSON.stringify({ ...target, input }) });
+  const { ask: id, session } = await call(bridge, start.path, { method: start.method, body: JSON.stringify({ ...target, input }) });
+  if (typeof session === "string" && session) onSession?.(session);
   const follow = apiRoute("GET", "/v1/ask/{ask}");
   for (;;) {
     const answer = await call(bridge, follow.path.replace("{ask}", id), { method: follow.method });
@@ -191,7 +195,8 @@ export async function bridgeJobs(bridge) {
 // A job's identifier is one segment of the path of its routes: percent-encoded, as the Bridge decodes it.
 const jobPath = (route, id) => route.path.replace("{id}", encodeURIComponent(id));
 
-// bridgeJobLog(bridge, id, from) -> { lines, next, ended } — GET /v1/jobs/{id}/log?from={from}: a job's log from a line on. A job the Bridge does not know is
+// bridgeJobLog(bridge, id, from) -> { lines, next, partial, ended } — GET /v1/jobs/{id}/log?from={from}: a job's log from a line on, and the part the agent is
+// still writing — of a CLI session, the lines its screen shows. A job the Bridge does not know is
 // BridgeFailed `not-found`, as call() reads the Bridge's error.
 export async function bridgeJobLog(bridge, id, from) {
   const route = apiRoute("GET", "/v1/jobs/{id}/log");

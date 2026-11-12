@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { documentFindings, loadSchema, readRegister } from "../documents/index.mjs";
 import { processDriver } from "./processes.mjs";
+import { sessionOf } from "./sessions.mjs";
 export { stopTree } from "./processes.mjs";
 
 const OWNER = "MOD-agent-processes";
@@ -20,7 +21,7 @@ if (findings.length || !register.rows.length) {
 }
 
 /** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login: string,
- *   keeps: { variable: string, pattern: string } | null, install: Record<"macos" | "windows" | "linux", string> }} Agent */
+ *   keeps: { variable: string, pattern: string } | null, chrome: boolean, install: Record<"macos" | "windows" | "linux", string> }} Agent */
 
 /** What an agent is started inside on a Bridge (ARC-054); the Bridge's MOD-agent-enclosure implements it.
  * @typedef {{ wrap(command: string, args: string[], at: { workdir: string, writable: string[] }): { command: string, args: string[],
@@ -35,8 +36,10 @@ function rowOf(cells) {
     command: cells.Command,
     version: json(cells.Version, "Version"),
     task: json(cells.Task, "Task"),
+    session: json(cells.Session, "Session"),
     model: cells.Model == null || cells.Model === "—" ? null : json(cells.Model, "Model"),
     login: json(cells["Login check"], "Login check"),
+    chrome: cells.Chrome == null || cells.Chrome === "—" ? null : json(cells.Chrome, "Chrome"),
     keyVariable: cells["Key variable"] ?? null,
     endpoint: cells.Endpoint == null ? null : json(cells.Endpoint, "Endpoint"),
     keyHolder: cells["Key holder"] == null || cells["Key holder"] === "—" ? null : json(cells["Key holder"], "Key holder"),
@@ -85,7 +88,7 @@ function loginOn(row, platform) {
   const there = row.login[PLATFORMS[platform]] ?? {};
   return { login: there.login ?? row.login.login, keeps: there.keeps ?? null };
 }
-const missingAgent = (row, platform) => ({ name: row.name, installed: false, version: null, loggedIn: null, ...loginOn(row, platform), install: row.install });
+const missingAgent = (row, platform) => ({ name: row.name, installed: false, version: null, loggedIn: null, ...loginOn(row, platform), chrome: row.chrome !== null, install: row.install });
 function ownLoginEnvironment() {
   const credentials = new Set(rows.map((row) => row.keyVariable).filter((name) => name && name !== "—"));
   const environment = {};
@@ -129,6 +132,15 @@ export function agentDriver(agent, options, participant) {
 }
 
 /**
+ * startSession(agent, { workdir, enclosure?, writable?, chrome? }, participant) -> Session — the agent kept running in a pseudo-terminal, started with its row's
+ * Session arguments, its participant's model and, where `chrome` holds, its Chrome arguments (sessions.mjs; ARC-055). Throws AgentMissing, ModelUnsupported and
+ * AgentNotLoggedIn before it starts.
+ */
+export function startSession(agent, options, participant) {
+  return sessionOf(agent, options, participant, { configuration: agentConfiguration, ownLoginEnvironment });
+}
+
+/**
  * keyProvider(keyVariable: string | null) -> { kind: "openai-compatible" | "anthropic", baseUrl: string } | null — the provider a key in that variable is for: the
  * Key holder of the supported agent whose Key variable it is, the address to which a key holder forwards that agent's requests (NO MODEL READS A CREDENTIAL); null
  * where no agent reads its key from that variable or the agent cannot be redirected to a key holder. Pure.
@@ -151,7 +163,7 @@ export async function installedAgents({ enclosure = null, workdir = null, platfo
     if (version.error?.code === "ENOENT" || (enclosed && !version.ok)) return missingAgent(row, platform);
     const login = await invoke(row.command, row.login.args, undefined, null, enclosed);
     const loggedIn = loginMatches(row.login, login);
-    return { name: row.name, installed: true, version: versionOf(row, version.stdout), loggedIn, ...loginOn(row, platform), install: row.install };
+    return { name: row.name, installed: true, version: versionOf(row, version.stdout), loggedIn, ...loginOn(row, platform), chrome: row.chrome !== null, install: row.install };
   }));
 }
 

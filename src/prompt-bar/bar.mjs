@@ -11,8 +11,9 @@
 // the conversation record first, and the request of whatever its answer hands on; only a click the browser marks as a person's (`isTrusted`)
 // does. The conversation lives in the tab's values (MOD-browser-store): `prompt-bar:conversation`, a list of Messages; `prompt-bar:draft`, the
 // latest ConversationDraft; `prompt-bar:records`, the record each repository's part of the conversation is appended to; `prompt-bar:job`,
-// the jobs handed over and followed while they run ([{ id, address }]); and `prompt-bar:plan`, the pieces of a plan that run in this tab after the draft before them
-// ({ participant, about, pieces }).
+// the jobs handed over and followed while they run ([{ id, address }]); `prompt-bar:plan`, the pieces of a plan that run in this tab after the draft before them
+// ({ participant, about, pieces }); and `prompt-bar:session`, the CLI session the conversation keeps while it runs ({ bridge, agent, id, sent }: its Bridge, its
+// agent, its identifier and how many messages were sent to it; UC-049 4b, ARC-055).
 
 import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
@@ -43,6 +44,7 @@ const RECORDS = "prompt-bar:records";
 const JOB = "prompt-bar:job";
 const PLAN = "prompt-bar:plan";
 const CHOSEN = "prompt-bar:participant";
+const SESSION = "prompt-bar:session";
 const HEIGHT = "prompt-bar:height";
 // The bar's height a person sets with its grip, in pixels: at least LOWEST, at most nine tenths of the window; a key press moves it by STEP.
 const LOWEST = 120, STEP = 40;
@@ -196,6 +198,22 @@ export function startPromptBar(target, setup) {
   const keep = (messages) => {
     writeTabValue(store, CONVERSATION, messages);
     conversation.replaceChildren(...messages.map(line));
+  };
+  // The CLI session the conversation keeps, or null; `keepSession` keeps another, or none (null).
+  const keptSession = () => { try { return readTabValue(store, SESSION) ?? null; } catch { return null; } };
+  const keepSession = (session) => { try { writeTabValue(store, SESSION, session); } catch { /* the tab keeps no values */ } };
+  // The session's console, under the message while it runs: the lines it has shown and the part its screen shows.
+  const consoleOf = ({ lines = [], partial = "" }) => el("pre", "session-console", [...lines, ...(partial ? [partial] : [])].join("\n"));
+  // Ends the session the conversation keeps, on its Bridge, and forgets it (UC-049 5a, 6d); a Bridge that cannot be reached is said by name.
+  const endKeptSession = async () => {
+    const kept = keptSession();
+    if (!kept) return;
+    keepSession(null);
+    try {
+      await (await sendPart()).endSession(store, kept);
+    } catch (failure) {
+      status.append(problem(`The CLI session could not be ended on its Bridge. ${said(failure)}`));
+    }
   };
 
   // The repository the conversation is held on: the product's, with the key of its token the frame gives, or the instance's, whose token the store keeps under github-token.
@@ -659,8 +677,16 @@ export function startPromptBar(target, setup) {
       running = { kind: BAR_KIND, participant: participant.name, started: new Date() };
       stop.disabled = false;
       const result = session ? null : await sending.runMessage(ready, { signal: controller.signal });
-      // A CLI session's answer is shown as it gave it.
-      const answered = session ? (await sending.runSession(ready)).text : showAnswer(result, ready, subject, participant, about);
+      // A CLI session's answer is shown as it gave it, typed into the session the conversation keeps, with its console under the message while it runs; its
+      // cost is unknown (UC-049 step 4, ARC-055). A session its Bridge no longer ran is named, and the message started a new one (4g, 4h).
+      const box = el("div", "session-console-box");
+      if (session) status.append(box);
+      state.session = session;
+      const onConsole = (view) => box.replaceChildren(consoleOf(view));
+      const reply = session ? await sending.runSession(ready, { kept: keptSession(), keep: keepSession, onConsole, signal: controller.signal }) : null;
+      if (reply?.ended) status.append(endedLine(reply.ended), consoleOf({ lines: reply.ended.lines }));
+      if (reply) status.append(el("p", "cost", "Cost: unknown — a CLI session reports none."));
+      const answered = session ? reply.text : showAnswer(result, ready, subject, participant, about);
       if (answered !== null) {
         keep([...conversationOf(store), { at: new Date(), from: "participant", who: participant.name, text: answered, subject: subject.key }]);
         if (ready.recording) {
@@ -678,14 +704,21 @@ export function startPromptBar(target, setup) {
         }
       }
     } catch (failure) {
-      show(controller.signal.aborted || failure?.name === "Cancelled" ? problem("Stopped. Nothing was written.") : problem(said(failure)));
+      if (failure?.name === "SessionEnded") show(endedLine(failure.ended, failure.message), consoleOf({ lines: failure.ended.lines }));
+      else show(controller.signal.aborted || failure?.name === "Cancelled" ? problem("Stopped. Nothing was written.") : problem(said(failure)));
     } finally {
       state.controller = null;
+      state.session = false;
       running = null;
       refreshStop();
       send.disabled = false;
     }
   }
+
+  // How a CLI session ended that the conversation kept: by its agent, with its exit, or with its Bridge (UC-049 4g, 4h); the next message starts a new one.
+  const endedLine = (ended, why = null) => problem(ended.by === "agent"
+    ? `The CLI session was ended by its agent${why ? `: ${why}` : ended.state ? ` (${ended.state})` : ""}. Its console showed last what follows; the next message starts a new session.`
+    : "The CLI session ended with its Bridge. The next message starts a new session, given the conversation so far.");
 
   // *Spawn job*: the message is the task of a job that is the endpoint's own, spawned on GitHub Actions (UC-049 4a) — one click, the person's. The task travels in the
   // workflow's inputs and is written to no file; with recording on, the message is recorded first, as a sent message is. The bar then follows the job until it has
@@ -840,8 +873,15 @@ export function startPromptBar(target, setup) {
       if (send.disabled) return;
       keep([]);
       status.replaceChildren();
+      // A CLI session the conversation kept is ended; the next message starts a new one, given no earlier message (UC-049 6d).
+      endKeptSession();
     });
-    stop.addEventListener("click", () => (state.controller ? state.controller.abort() : cancelAll()));
+    // Stop ends the message that runs in this tab — and the CLI session it is typed into, with every process its agent started (UC-049 5a) —, or else every job followed.
+    stop.addEventListener("click", () => {
+      if (!state.controller) { cancelAll(); return; }
+      state.controller.abort();
+      if (state.session) endKeptSession();
+    });
     conversation.replaceChildren(...conversationOf(store).map(line));
     // Below the message field: on the left the folded explanation, on the right the buttons.
     const notes = el("div", "bar-notes", clear, " ", setup.explain("prompt-bar"));

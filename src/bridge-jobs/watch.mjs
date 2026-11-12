@@ -138,6 +138,25 @@ export async function cancelJob(id) {
   return { confirmed: true };
 }
 
+// A CLI session of the prompt bar (conversations.mjs; ARC-055), listed, logged and cancelled as a job this Bridge took: `listed` as listJobs lists it, `log` the
+// log jobLog reads, `stopping` the { controller, done } cancelJob ends it with.
+export function takeSession(listed, log, stopping) {
+  jobsTaken.set(listed.id, listed);
+  logs.set(listed.id, log);
+  live.set(listed.id, stopping);
+  removeOld();
+  writeListing(listed);
+}
+// A line of a session's screen added to its log: to its kept file and to the lines held in memory.
+export function logLine(id, entry, line) {
+  appendOutput(id, `${line}\n`);
+  keep(entry, [line]);
+}
+// A session has ended: its listing written anew; nothing more of it is cancelled.
+export function endTaken(id) {
+  live.delete(id);
+  if (jobsTaken.has(id)) writeListing(jobsTaken.get(id));
+}
 // The text an agent wrote, added to a job's kept log as it wrote it, and to the lines held in memory line by line: a line is complete at its line break.
 function appended(id, entry, chunk) {
   appendOutput(id, chunk);
