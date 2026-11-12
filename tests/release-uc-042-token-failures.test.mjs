@@ -200,14 +200,15 @@ test("TST-475307: a first network failure leaves the token's last-test evidence 
 // guards: UC-042; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: a successful public Test, then a controlled HTTP 401 with no established expiry/revocation cause
 // input: public Test again and inspect its immediate request error
-// expect: refused is recorded; authentication request refusal names GitHub token and renewal without asserting expiry or another unproven cause; where Renew leads is TST-1803206's (tests/release-uc-042-renew-token.test.mjs)
+// expect: refused is recorded; the message names the GitHub token and points to Renew, not to GitHub's bare list of tokens (SPEC: "When a server refuses a stored token, the dashboard names that token and links the page on which it is renewed with the same permissions and repositories."; UC-042 1b: "The line says which token, and **Renew** as in 1a"), without asserting expiry or another unproven cause; where Renew leads is TST-1803206's (tests/release-uc-042-renew-token.test.mjs)
 test("TST-475308: a genuine 401 records refusal but does not assert why authentication failed", async () => {
   const state = await world(), view = await settings(state); await works(state, view);
   state.failure = "refused";
   const message = await testToken(state, view);
   assert.equal(JSON.parse(localStorage.getItem(LAST_TEST)).outcome, "refused", "401 is conclusive refusal evidence");
   assert.match(one(view.row, "settings-repository-status").textContent, /Refused/);
-  assert.match(message, /GitHub token/); assert.match(message, /Renew/i);
+  assert.match(message, /GitHub token/); assert.match(message, /\bRenew\b/, "the message points to Renew");
+  assert.doesNotMatch(message, /https:\/\/github\.com\/settings\/personal-access-tokens(?!\/new)/, "failure node: the message does not send the person to GitHub's bare list of tokens");
   assert.match(message, /authentication/i, "the failed authentication request is named, not an assumed cause");
   assert.match(message, /refused|rejected/i);
   assert.doesNotMatch(message, /expired|regenerated|deleted|revoked/i, "a 401 does not establish expiry, regeneration, deletion or revocation");
@@ -264,8 +265,11 @@ const FAULTS = [
     from: 'return new HostError("TokenRefused", { tokenName, renewal }, server === "github"',
     to: 'return new HostError("PermissionMissing", { tokenName, renewal }, server === "github"' },
   { ids: ["TST-475308"], file: "src/repository-hosts/failures.mjs",
-    from: '`GitHub rejected authentication with your ${tokenName}. Renew it on ${renewal}.`',
-    to: '`GitHub refused your ${tokenName} - it has expired, or was regenerated or deleted on GitHub. Renew it on ${renewal}.`' },
+    from: '`GitHub rejected authentication with your ${tokenName}. Use Renew on its line in Settings to make a new one with the same permissions and repositories.`',
+    to: '`GitHub refused your ${tokenName} - it has expired, or was regenerated or deleted on GitHub. Use Renew on its line in Settings to make a new one with the same permissions and repositories.`' },
+  { ids: ["TST-475308"], file: "src/repository-hosts/failures.mjs",
+    from: '`GitHub rejected authentication with your ${tokenName}. Use Renew on its line in Settings to make a new one with the same permissions and repositories.`',
+    to: '`GitHub rejected authentication with your ${tokenName}. Renew it on ${renewal}.`' },
 ];
 
 async function counterproofs() {
