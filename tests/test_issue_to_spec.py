@@ -7,21 +7,27 @@
 The cases live in tests/test_issue_to_spec.md. This file only loads them and asks node to open the real page of an issue (route `issue` of
 MOD-maintenance-pages, over MOD-issue-handling, MOD-job-runner, MOD-spec-changes and MOD-repository-hosts) in the world of
 tests/maintenance-pages-world.mjs: a fake GitHub holding the issues of the product alice/product and taking the git commits made to it, and a fake
-model endpoint that answers with the draft of the case. A case's steps are the person's clicks (`class`: the class of the issue; `draft`: a
-participant, a name, Run, Save). The check then states what the product's repository holds and what the page offers: the writes made to the issue, the
-paths committed to the product, the files of a queue and the issue it names, the kinds of the jobs that were started, and which sections of the page
-are shown. A path committed outside docs/ is code, a test or SPEC.md itself.
+model endpoint. A case's step is the person's click on Implement. The check then states what the product's repository holds and what the page offers:
+the writes made to the issue, the paths committed to the product, the kinds of the jobs that were started, whether the page offers Implement and shows a
+run panel, and what it put into the prompt bar. A path committed outside docs/ is code, a test or SPEC.md itself.
 
-The sentence is read through UC-012 (step 6 and its postcondition): "[Agent M] writes them as entries under `docs/spec-freigaben/`, each naming the issue"
-and "A change is in the specification before any code implements it, and the accepted entry names the issue it came from." The check covers the
-side of that order that precedes the acceptance of the queue: the change leaves the issue as a queue and nothing else is committed, and no fix is
-offered for it. That no code job starts for a requirement not yet accepted is NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED (tests/test_job_preconditions.py).
+The sentence is read through UC-012 as accepted (79bccc24d). Step 2: the author "presses **Implement**: one click puts the request to handle the issue as
+this use case does — with its number, title and text — into the prompt bar, where the author sends or changes it (UC-049)"; step 6: "the agent drafts the
+changed requirements as their new text ... and writes them as entries under `docs/spec-freigaben/`, each naming the issue"; and MOD-maintenance-pages
+(327b4b5de), `issue/<number>`: "*Implement*, which puts the request ... into the prompt bar (MOD-prompt-bar's event `agent-m:prompt`)". The drafting is the
+conversation's agent's, so the page's side of the order is: it hands the change on as UC-012, whose step 6 puts it into the specification first, and itself
+commits nothing — no code, no queue, no job. "The request to handle the issue as this use case does" is read as a prompt that names UC-012 and holds the
+issue's number and text. That no code job starts for a requirement not yet accepted is NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED (tests/test_job_preconditions.py).
 
-On a GitLab server the class of the issue is checked on the real GitLab adapter over a fake fetch (TST-1152003), and the queue written for a change on the
-real page of the issue, whose product is the real GitLab adapter over a fake GitLab server that serves the project, its tree and files, the issue and GitLab's
-commit API (TST-1283001); that fake stands in this file.
+On a GitLab server the class of the issue is checked on the real GitLab adapter over a fake fetch (TST-1152003), and Implement on the real page of the issue,
+whose product is the real GitLab adapter over a fake GitLab server that serves the project, its tree and files, the issue and GitLab's commit API
+(TST-1283001); that fake stands in this file.
 
-Written for ITM-1152 and ITM-1283 by participants who built none of the behaviour they check (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
+Written for ITM-1152 and ITM-1283 by participants who built none of the behaviour they check (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER); TST-1152001
+and TST-1283001 rewritten for pull request #1802 by a participant who implemented none of it. TST-1152002 is removed: its two cases checked the class set by a
+click on the page and the page's sections that draft a change and fix a bug, which MOD-maintenance-pages no longer has ("the class confirmed or corrected, or
+the issue rejected with a reason, with `confirmClass`; for a bug, the fixing participant ... and its run panel ...; for a change, the change of requirements
+drafted ..., then *Save*" went), and UC-012 step 4 now reads "The author confirms or corrects the class in the conversation".
 """
 import json
 import re
@@ -32,17 +38,16 @@ from jsrun import js
 
 DATA = Path(__file__).with_suffix(".md")
 ROOT = Path(__file__).resolve().parents[1]
-FIRST = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is written as a queue naming the issue"
-SECOND = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - the code is not changed by a change"
+FIRST = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is handed to the conversation as UC-012, and the page commits nothing"
 GITLAB = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - on a GitLab server"
-GITLAB_QUEUE = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is written as a queue on a GitLab server"
+GITLAB_QUEUE = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change on a GitLab server is handed to the conversation as UC-012, and the page commits nothing"
 
-# The adapter. `input`: `server` (`gitlab` makes the product the project space/release-tool on a fake GitLab server, any other value the product alice/product on the fake GitHub; `issues` then holds the one issue), `issues` (the number and the labels of each issue of the product), `issue` (the number of the page opened), `steps` (`class`: a click on
-# Change or Bug; `draft`: the participant drafts the change and the person saves it), `draft` (what the participant answers: the texts it changes, with why). The value is what the case may state:
+# The adapter. `input`: `server` (`gitlab` makes the product the project space/release-tool on a fake GitLab server, any other value the product alice/product on the fake GitHub; `issues` then holds the one issue), `issues` (the number and the labels of each issue of the product), `issue` (the number of the page opened), `steps` (`implement`: the
+# person's click on Implement), `promptNeedles` (texts looked for in what the page put into the prompt bar). The value is what the case may state:
 # `labels` (the labels of the issue at the end), `state` (its state), `issueWrites` (the writes made to the issue, sorted), `committed` (the paths committed to the product,
 # sorted), `outsideDocs` (those that do not lie under docs/), `queueNames` (the issue named by the line `**Issue:** #<number> of <product address>` in the rationale of each entry under docs/spec-freigaben/, as MOD-spec-changes, Data, gives it), `queueHolds` (each of the
-# case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), `changeSection` and `fixSection` (whether the page shows the section that drafts the change
-# and the one that fixes a bug), `unserved` (on a GitLab server, the requests of the project's API that the fake did not serve).
+# case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), `implementOffered` (whether the page offers Implement), `runPanels` (how many run panels the page shows),
+# `prompts` (how many prompts the page put into the prompt bar, through the window's event agent-m:prompt), `promptHolds` (each of the case's `promptNeedles`: whether a prompt holds it), `unserved` (on a GitLab server, the requests of the project's API that the fake did not serve).
 WORLD = r"""
 const url = (path) => `file://${ROOT}/${path}`;
 await import(url("tests/site-frame-dom.mjs"));
@@ -131,29 +136,21 @@ w.context.product = { address: harness.PRODUCT_URL, kind: "github", host: hosts.
 const gitlab = input.server === "gitlab" ? gitlabServer({ ...harness.smallProduct(), "docs/sources.md": LINKS }, issues.find((each) => each.number === input.issue)) : null;
 if (gitlab) w.context.product = { address: gitlab.web, kind: "gitlab", host: hosts.connect(hosts.parseAddress(gitlab.web), { token: GITLAB_TOKEN }), tokenStored: true };
 
+// The window's event agent-m:prompt, which MOD-prompt-bar takes into its input (node's globalThis is no EventTarget): the prompts the page put into the bar.
+const prompts = [];
+const priorDispatch = globalThis.dispatchEvent;
+globalThis.dispatchEvent = (event) => { if (event?.type === "agent-m:prompt") prompts.push(String(event.detail)); return true; };
+
 const detail = await harness.draw(routeNamed("issue"), w.context, { number: String(input.issue) });
-await waitFor(() => byClass(detail, "issue-analysis").length > 0);
-const shown = (name) => byClass(detail, name)[0];
+await waitFor(() => byClass(detail, "implement-issue").length > 0 || byClass(detail, "issue-problem").length > 0);
+if (byClass(detail, "issue-problem").length) throw new Error("the issue could not be shown: " + textOf(detail));
+const implementOffered = byClass(detail, "implement-issue").length === 1;
 
 for (const step of input.steps) {
-  if (step.class) {
-    await trusted(byClass(detail, "set-class").find((node) => node.getAttribute("data-class") === step.class));
-    await waitFor(() => byClass(detail, "issue-classified").length > 0);
-  } else if (step.draft) {
-    const change = shown("issue-change");
-    const radio = byClass(change, "change-participant").find((each) => each.value === "local-llm");
-    radio.checked = true;
-    one(change, "change-person").value = "Reviewer Rae";
-    radio.dispatchEvent(new Event("change"));
-    await waitFor(() => byClass(change, "run-panel").length > 0 || byClass(change, "issue-problem").length > 0);
-    await trusted(buttonsOf(one(change, "run-panel"), "Run")[0]);
-    await waitFor(() => byClass(change, "save-change").length > 0 || byClass(change, "issue-problem").length > 0);
-    await trusted(buttonsOf(change, "Save")[0]);
-    await waitFor(() => byClass(change, "change-saved").length > 0 || byClass(change, "issue-problem").length > 0);
-    if (byClass(change, "issue-problem").length) throw new Error("the change could not be drafted: " + textOf(change));
-  }
+  if (step.implement) await trusted(one(detail, "implement-issue"));
 }
 await flush();
+if (priorDispatch) globalThis.dispatchEvent = priorDispatch; else delete globalThis.dispatchEvent;
 
 const trees = w.kept.github.filter((request) => request.method === "POST" && request.path.endsWith("/git/trees")).flatMap((request) => JSON.parse(request.body).tree ?? []).filter((entry) => typeof entry.content === "string");
 const files = [...new Map((gitlab ? gitlab.written() : trees).map((entry) => [entry.path, entry])).values()];
@@ -169,8 +166,10 @@ const out = {
   queueNames: rationales.map((entry) => /^\*\*Issue:\*\* (.*)$/m.exec(entry.content)?.[1] ?? null),
   queueHolds: Object.fromEntries((input.needles ?? []).map((needle) => [needle, files.some((entry) => /^docs\/spec-freigaben\/[^/]+\/\d+-[^/]*\.md$/.test(entry.path) && !entry.path.endsWith(".begruendung.md") && entry.content.includes(needle))])),
   jobKinds: files.filter((entry) => /^docs\/jobs\/JOB-.*\.md$/.test(entry.path)).map((entry) => /^kind: (.*)$/m.exec(entry.content)?.[1] ?? null),
-  changeSection: byClass(detail, "issue-change").length > 0,
-  fixSection: byClass(detail, "issue-fix").length + byClass(detail, "issue-no-fixer").length > 0,
+  implementOffered,
+  runPanels: byClass(detail, "run-panel").length,
+  prompts: prompts.length,
+  promptHolds: Object.fromEntries((input.promptNeedles ?? []).map((needle) => [needle, prompts.some((text) => text.includes(needle))])),
   unserved: gitlab ? gitlab.unserved() : [],
 };
 restoreWorld();
@@ -224,23 +223,14 @@ def check(test: unittest.TestCase, section: str, world: str = WORLD) -> None:
 
 
 class TestIssueToSpec(unittest.TestCase):
-    # TST-1152001 · level: release · module: MOD-issue-handling, MOD-maintenance-pages, MOD-spec-changes
+    # TST-1152001 · level: release · module: MOD-maintenance-pages
     # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
-    # given: the cases under "a change is written as a queue naming the issue" in the Markdown file beside this one: an issue classed as a change, with a participant that answers a new requirement, and a person who saves the draft
-    # input: each case's steps, carried out on the real page of the issue over the fake GitHub and the fake endpoint
-    # expect: the saved draft is a queue under docs/spec-freigaben/ whose entry's rationale carries the line `**Issue:** #7 of` the product's address, and whose entry holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; the issue stays open and offers no fix
-    # Planted fault: a rationale without the line `**Issue:**` fails queueNames; the line moved into the index instead fails it too; an extra file src/export/index.mjs in the queue's commit fails outsideDocs; the fix offered for a change fails fixSection.
-    def test_a_change_is_written_as_a_queue_naming_the_issue(self):
+    # given: the case under "a change is handed to the conversation as UC-012, and the page commits nothing" in the Markdown file beside this one: the issue 7 of alice/product on GitHub, labelled change
+    # input: the person's click on Implement on the real page of the issue over the fake GitHub
+    # expect: known positive — the page offers Implement and puts one prompt into the bar; the prompt names UC-012 (whose step 6 drafts a change as entries under docs/spec-freigaben/ before any code) and issue #7 and holds its text; nothing is committed, no job is started, nothing is written to the issue, which stays open; the page shows no run panel
+    # Planted fault: the prompt without "as Agent M's UC-012 does" (implementSection, src/maintenance-pages/issues.mjs) fails promptHolds; Implement that first writes a comment on the issue (`product.host.commentOnIssue` before the event) fails issueWrites.
+    def test_a_change_is_handed_to_the_conversation_and_the_page_commits_nothing(self):
         check(self, FIRST)
-
-    # TST-1152002 · level: release · module: MOD-issue-handling, MOD-maintenance-pages
-    # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
-    # given: the cases under "the code is not changed by a change": an issue without a class, and an issue labelled defect as the known positive of the sections
-    # input: the person's click on Change on the first; the page of the second
-    # expect: after the click the issue carries the label change and no other class, nothing is committed, the page offers the draft of the change and no fix; the issue labelled defect offers the fix and not the draft
-    # Planted fault: the change class mapped to the label defect fails labels; the fix offered for a change fails fixSection; the draft offered for a bug fails changeSection; the draft withheld from a change fails changeSection.
-    def test_the_code_is_not_changed_by_a_change(self):
-        check(self, SECOND)
 
     # TST-1152003 · level: release · module: MOD-issue-handling, MOD-repository-hosts
     # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
@@ -251,13 +241,13 @@ class TestIssueToSpec(unittest.TestCase):
     def test_on_a_gitlab_server_the_class_of_a_change_is_only_a_label(self):
         check(self, GITLAB, GITLAB_WORLD)
 
-    # TST-1283001 · level: release · module: MOD-issue-handling, MOD-maintenance-pages, MOD-spec-changes
+    # TST-1283001 · level: release · module: MOD-maintenance-pages
     # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
-    # given: the case under "a change is written as a queue on a GitLab server": a product on a GitLab server whose issue 7 is labelled change, a participant that answers a new requirement, and a person who saves the draft
-    # input: the steps of the case, carried out on the real page of the issue, whose product is the real GitLab adapter over a fake GitLab server that serves the project, its tree and files, the issue and GitLab's commit API
-    # expect: the saved draft is a queue under docs/spec-freigaben/ whose entry's rationale carries the line `**Issue:** #7 of` the product's GitLab address, and whose entry holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; no write is made to the issue; every request the fake received was one it serves
-    # Planted fault: the files under docs/spec-freigaben/ left out of the actions of GitLab's commitFiles fail queueNames and queueHolds; a file src/export/index.mjs added to those actions fails outsideDocs.
-    def test_a_change_is_written_as_a_queue_on_a_gitlab_server(self):
+    # given: the case under "a change on a GitLab server is handed to the conversation as UC-012, and the page commits nothing": a product on a GitLab server whose issue 7 is labelled change
+    # input: the person's click on Implement on the real page of the issue, whose product is the real GitLab adapter over a fake GitLab server that serves the project, its tree and files, the issue and GitLab's commit API
+    # expect: known positive — the page offers Implement and puts one prompt into the bar, naming UC-012 and issue #7 and holding its text; nothing is committed, no job is started, no write is made to the issue, which stays open; every request the fake received was one it serves
+    # Planted fault: the prompt naming a fixed issue (`handle issue #5` in implementSection, src/maintenance-pages/issues.mjs) fails promptHolds; the prompt without "as Agent M's UC-012 does" fails promptHolds; Implement that first writes a comment on the issue fails the case.
+    def test_a_change_on_a_gitlab_server_is_handed_to_the_conversation_and_the_page_commits_nothing(self):
         check(self, GITLAB_QUEUE)
 
 
