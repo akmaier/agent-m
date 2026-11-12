@@ -18,8 +18,8 @@
 //     to its origins, in that order, and nothing else changed.
 //   - 4b: "the comment text with a copy button" is read as the text a successful comment would have carried, put on the clipboard by the button. The fake GitHub takes a commit without a token,
 //     which a real server does not; the case without a token therefore stands for what the page does at the step of the comment when the host answers NotSupported itself, not for the commit.
-//   - 1a: "Agent M links to UC-012, step 2" is read as a lead whose route is one the review pages serve and that is offered as long as the person has not confirmed a class — the class a participant
-//     proposes is a proposal (UC-012 step 4: the person confirms it).
+//   - 1a: "Agent M links to UC-012, step 2" is read as a lead whose route is one the review pages serve and that is offered as long as the issue carries no class label — the class is confirmed in the
+//     conversation (UC-012 step 4) and recorded only as a label on the issue (MOD-issue-handling, Data). TST-1254302 was rewritten for pull request #1802 by a participant who implemented none of it.
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -65,7 +65,7 @@ const requestsTo = (w, pattern) => w.kept.github.filter((request) => pattern.tes
 async function openIssue(w, number) {
   assert.ok(routeNamed("issue"), `the route issue: ${pages.error?.message}`);
   const detail = await draw(routeNamed("issue"), w.context, { number: String(number) });
-  await waitFor(() => byClass(detail, "issue-analysis").length > 0 && (moveOf(detail) !== undefined || byClass(detail, "move-not-offered").length > 0));
+  await waitFor(() => byClass(detail, "implement-issue").length > 0 && (moveOf(detail) !== undefined || byClass(detail, "move-not-offered").length > 0));
   return detail;
 }
 /** Move to backlog pressed by the person, and the form waited for. */
@@ -129,42 +129,31 @@ test("TST-1254301 two issues describing the same work end as one item with both 
 
 // TST-1254302 · level: release · module: MOD-maintenance-pages, MOD-review-pages
 // guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
-// given: UC-033 alternative flow 1a. known positive first — the issue 6 labelled defect is offered Move to backlog and no lead; the issue 5 has no class; a participant that proposes the class bug for it
-// input: the issue 5 opened; Analyse run by a person (the proposal bug); the lead clicked by a person; the person's click on Bug
-// expect: before and after the analysis the issue 5 offers no Move to backlog and says it is not classified, leading to "UC-012, step 2" — a proposal is no class —; the lead goes once, to the route "use-case" with the use case UC-012 of the instance itself (the empty product), and that route is one the review pages serve; after the person's click on Bug, Move to backlog is offered and the lead is gone
-// Planted fault: the class a participant proposes counted as the issue's class and the move redrawn at the proposal (`state.proposal?.class` in currentClass and `drawMove()` in onProposal, src/maintenance-pages/issues.mjs) offers Move to backlog after the analysis, and the case fails on "a proposal is no class".
-// Planted fault: the lead going to a route that is no route (`context.go("use-cases", …)`) fails the assertion on what went; MOD-review-pages' USE_CASES naming its route "use-cases" (src/review-pages/kinds.mjs) fails the assertion that the review pages serve the route the lead names.
-test("TST-1254302 an issue the person has not classified is led to UC-012 step 2 whatever a participant proposes, by a route the review pages serve", async () => {
+// given: UC-033 alternative flow 1a ("The issue is not classified yet. **Move to backlog** is not offered. Agent M links to UC-012, step 2."). known positive first — the issue 6 labelled defect is offered Move to backlog and no lead; the issue 5 has no class; the class is recorded only as a label on the issue (MOD-issue-handling, Data), which follows the author's confirmation in the conversation (UC-012 step 4)
+// input: the issue 5 opened; the lead clicked by a person; then the issue 5 labelled defect on the tracker, and opened again
+// expect: unlabelled, the issue 5 offers no Move to backlog and says it is not classified, leading to "UC-012, step 2"; the lead goes once, to the route "use-case" with the use case UC-012 of the instance itself (the empty product), and that route is one the review pages serve; labelled defect, the issue 5 is offered Move to backlog and the lead is gone
+// Planted fault: Move to backlog offered to an issue without a class (`cls === undefined ? await moveSection(…)` in place of `cls === undefined ? notClassified()` in renderIssue, src/maintenance-pages/issues.mjs) fails on "not offered".
+// Planted fault: the lead going to a route that is no route (`context.go("use-cases", …)` in notClassified, src/maintenance-pages/issues.mjs) fails the assertion on what went.
+test("TST-1254302 an issue not classified yet is led to UC-012 step 2, by a route the review pages serve, until its class is recorded on the issue", async () => {
   const w = start();
   const six = await openIssue(w, 6);
   assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a classified bug is offered the move");
   assert.equal(byClass(six, "uc-012").length, 0);
 
   const five = await openIssue(w, 5);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 0);
+  assert.equal(buttonsOf(five, "Move to backlog").length, 0, "not offered");
   assert.match(textOf(one(five, "move-not-offered")), /not classified/i);
   assert.equal(textOf(one(five, "uc-012")), "UC-012, step 2");
-
-  const radio = byClass(five, "participant").find((each) => each.value === "local-llm");
-  radio.checked = true;
-  one(five, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
-  await waitFor(() => byClass(five, "run-panel").length > 0);
-  await trusted(buttonsOf(one(five, "run-panel"), "Run")[0]);
-  await waitFor(() => byClass(five, "issue-proposal").length > 0 || byClass(five, "issue-problem").length > 0);
-  assert.match(textOf(one(five, "proposed-class")), /bug/i, "known positive: the participant proposed the class bug");
-  assert.equal(buttonsOf(five, "Move to backlog").length, 0, "a proposal is no class");
-  assert.match(textOf(one(five, "move-not-offered")), /not classified/i);
 
   assert.deepEqual(w.context.went, []);
   await trusted(one(five, "uc-012"));
   assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
   assert.ok(reviewPages.routes.some((served) => served.name === w.context.went[0][0]), `the review pages serve the route ${w.context.went[0][0]}`);
 
-  await trusted(byClass(five, "set-class").find((node) => node.getAttribute("data-class") === "bug"));
-  await waitFor(() => buttonsOf(five, "Move to backlog").length === 1);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 1);
-  assert.equal(byClass(five, "uc-012").length, 0);
+  issueOf(w, 5).labels = ["defect"];
+  const classified = await openIssue(w, 5);
+  assert.equal(buttonsOf(moveOf(classified), "Move to backlog").length, 1, "labelled defect, the issue is offered the move");
+  assert.equal(byClass(classified, "uc-012").length, 0);
 });
 
 // The comment the successful way writes for issue 6 in a world of its own, which the comments to copy are compared with.

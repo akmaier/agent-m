@@ -80,7 +80,7 @@ export function bridgeMailbox(connection, bridge) {
         throw named(error, connection);
       }
     },
-    drafts: () => ask("drafts", {}),
+    drafts: (since) => ask("drafts", { since }),
     // The reply is stored by the Bridge in Drafts; a draft without a usable reply address is refused here, before any request.
     storeDraft: async (draft) => ask("store-draft", { draft: replyAddressed(draft) }),
     updateDraft: async (ref, draft) => ask("update-draft", { ref, draft: replyAddressed(draft) }),

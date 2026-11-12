@@ -351,12 +351,14 @@ test("alternative 7c: a mail opened from its issue's link is found by its identi
     assert.ok(p.graph.requests.some((request) => /\/mailFolders\/inbox\/messages\?.*receivedDateTime ge/.test(decodeURIComponent(request.address))), "the reading asked the server for the mails of the last 30 days");
     assert.equal(byClass(p.main(), "mail-not-found").length, 0, "old is not named as not found");
     assert.match(textOf(one(one(p.main(), "mail-details"), "mail-text")), /error E17/, "old, older than 30 days, is found by its identifier and its text shown");
-    assert.equal(textOf(one(one(p.main(), "mail-details"), "answer-mail")), "Answer", "a mail of a closed issue without a reply note is to answer");
+    await waitFor(() => byClass(one(p.main(), "mail-details"), "reply-under-mail").length > 0);
+    assert.equal(byClass(one(p.main(), "mail-details"), "reply-under-mail").length, 1, "a mail of a closed issue without a reply note is to answer: its reply is written under it");
     await hashTo(`#mail/id=${A.id}`);
     await mailboxRead(p);
     await waitFor(() => /error E42/.test(textOf(one(p.main(), "mail-details") ?? p.main())));
     assert.match(textOf(one(one(p.main(), "mail-details"), "mail-text")), /error E42/, "a, opened by its address, shows its text");
-    assert.equal(textOf(one(one(p.main(), "mail-details"), "answer-mail")), "Answer", "and is to answer");
+    await waitFor(() => byClass(one(p.main(), "mail-details"), "reply-under-mail").length > 0);
+    assert.equal(byClass(one(p.main(), "mail-details"), "reply-under-mail").length, 1, "and is to answer: its reply is written under it");
     await hashTo(`#mail/id=${gone.id}`);
     await waitFor(() => byClass(p.main(), "mail-not-found").length > 0);
     assert.equal(textOf(one(p.main(), "mail-not-found")), `${gone.id}: not found in the mailbox.`);

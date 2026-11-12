@@ -22,7 +22,7 @@ const idOf = (messageId) => (messageId ? mailId({ messageId, bytes: null }) : nu
 /**
  * repliesDue(mailbox, products) -> Promise<RepliesDue> — every issue that lists mails, grouped: closed with a listed mail that
  * has no reply or no-reply note (`toAnswer`); open, labelled waiting-for-reporter, with a mail added after the last question
- * (`answerReceived`); open (`open`). Each listed mail is found in the mailbox, with its draft in Drafts. A reply found in Sent
+ * (`answerReceived`); open (`open`). Each listed mail is found in the mailbox, with its draft among the Drafts of the last 30 days. A reply found in Sent
  * among the mails of the last 30 days that no issue notes yet is noted in its issue now. Errors pass unchanged.
  */
 export async function repliesDue(mailbox, products) {
@@ -35,13 +35,13 @@ export async function repliesDue(mailbox, products) {
     }
   }
 
+  // Drafts and Sent are read as the inbox is: the mails of the last 30 days, which the mail server selects (UC-038 step 2).
   const draftsOf = new Map();
-  for (const draft of await mailbox.drafts()) {
+  for (const draft of await mailbox.drafts(readSince())) {
     const id = await idOf(draft.inReplyTo);
     if (id && !draftsOf.has(id)) draftsOf.set(id, draft.ref);
   }
 
-  // Sent is read as the inbox is: the mails of the last 30 days, which the mail server selects (UC-038 step 2).
   await noteSentReplies(await mailbox.sent(readSince()), issues);
 
   const result = { toAnswer: [], answerReceived: [], open: [] };

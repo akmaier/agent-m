@@ -6,7 +6,8 @@
 //
 // Readings the texts leave open, which this file takes (the pull request names them):
 //   - Drawing the route replies reads at once, as UC-039 step 1 has opening Replies read: it calls repliesDue, which may note a reply found in Sent in its issue, as each reading of the route mail does. The last reading is kept in memory for
-//     the route of one issue, and for nothing else; that route reads only where none is kept — opened by Answer of the route mail.
+//     the route of one issue, and for nothing else; that route reads only where none is kept — opened by its address.
+//   - `replyOf` is the item of one mail and Draft replies over that mail alone, which the route mail draws under a mail to answer (UC-038 step 7): the same block as this route's, not a second one.
 //   - A mail has a draft to show when repliesDue found one in Drafts; it is shown as the mailbox's showDraft gives it, its body in an editable field, and *Save draft* saves the edit with updateDraft to the same recipient and subject.
 //   - A mail of a closed issue that can be answered and has no draft shows its reply as a mail program shows a reply being written (UC-039 3a): the recipient, the subject `Re:` its subject, an empty text box and the original below it, which
 //     storeReplies quotes below the text; *Save draft* stores it with storeReplies and shows the draft; *Send* stores it and goes on as a draft's *Send*.
@@ -339,6 +340,19 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
     section.append(el("p", "reply-problem", failed(failure)));
   }
   return section;
+}
+
+/**
+ * replyOf(due, entry, ctx, redraw) -> Promise<Element> — the reply to one mail of a closed issue as the route of the issue shows it: that mail's item — its draft, or the text boxes of a reply without
+ * one, *Save draft*, *Send* with its confirmation, *No reply* — and *Draft replies* with its run panel over that mail alone. The route mail draws it under a mail to answer (UC-038 step 7). `due` is the
+ * issue as repliesDue gives it under `toAnswer`, `entry` the mail among its `mails`; `ctx` is { context, connection, box, products }; `redraw(said)` is called once the reply is drafted, or the issue reopened.
+ */
+export async function replyOf(due, entry, ctx, redraw) {
+  const one = { ...due, mails: [entry] };
+  const host = ctx.products.get(due.product)?.host;
+  const none = { fresh: new Set(), arrived: new Set() };
+  const { fresh, arrived } = host ? await arrivalsOf(host, one).catch(() => none) : none;
+  return el("div", "reply-under-mail", el("ul", "reply-mails", mailItem(entry, one, ctx.box, host, { group: "to-answer", arrived, fresh, redraw, ctx })), await draftingSection(one, ctx, redraw));
 }
 
 function groupsOf(out, ctx) {
