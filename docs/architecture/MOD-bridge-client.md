@@ -5,6 +5,7 @@ folder: src/bridge-client/
 realises:
 follows:
   - ARC-047
+  - ARC-055
 uses:
   - MOD-bridge-http.bridgeApi
 provides:
@@ -22,6 +23,10 @@ provides:
   - handTokens
   - handOver
   - ask
+  - startSession
+  - typeIntoSession
+  - sessionAnswer
+  - endSession
   - bridgeJobs
   - bridgeJobLog
   - cancelOnBridge
@@ -42,7 +47,8 @@ two never disagree. It reaches a Bridge directly on the computer's loopback, thr
 jump host's HTTPS address with the web server's own login, always with the Bridge's token (`THE LOCAL BRIDGE REQUIRES A
 TOKEN`); a person may pair several Bridges, each known by its name. It pairs, tests, hands a Bridge the repository
 tokens, hands over jobs, asks an agent to
-draft or a model endpoint to answer, follows and cancels jobs, passes mail operations and probes; and it names why a
+draft or a model endpoint to answer, starts, types into and ends the CLI session of a conversation of the prompt bar,
+follows and cancels jobs, passes mail operations and probes; and it names why a
 Bridge cannot be reached, as far as a browser lets a page know. It also owns the plan of a
 tunnel to a computer behind NAT, and writes for a person the commands of both ends and the configuration of the jump
 host's web server (`THE DASHBOARD WRITES THE TUNNEL COMMANDS`). It runs in a browser and in Node.
@@ -141,15 +147,28 @@ uses; the key itself stays on its computer.
   travels with the hand-over (UC-049 4a);
   `accepted` is the job's identifier. Crosses the network; fails with every `BridgeError` but `AskFailed`, among them
   `BridgeFailed` with `paused` while the Bridge is paused.
-- `ask(bridge: Bridge, target: { agent: string, model?: string, product?: string, instance?: string } | { endpoint: bridgeApi's endpoint configuration }, input: unknown) ->
+- `ask(bridge: Bridge, target: { agent: string, model?: string } | { endpoint: bridgeApi's endpoint configuration }, input: unknown) ->
   Promise<{ text: string, calls: { id: string, name: string, args: object }[], usage: unknown | null }>` — `POST /v1/ask`
-  with `{ agent, model?, input }`, `{ agent, model?, product, instance, input }` for a message of the prompt bar to a CLI session, `{ endpoint, input }`, or `{ endpoint, exchange }` for one request of a tool loop the page runs,
+  with `{ agent, model?, input }`, `{ endpoint, input }`, or `{ endpoint, exchange }` for one request of a tool loop the page runs,
   whose answer's `calls` carry the endpoint's tool calls back to the page (empty otherwise),
   then `GET /v1/ask/{ask}` until the answer's state is `done` or `failed`: the draft of an agent the Bridge offers, or the
   answer of a model endpoint the Bridge calls, and the usage reported. The endpoint's configuration and key travel only in
   that request's body. MOD-runtimes makes a participant driver of it. Crosses the network; fails with every
   `BridgeError`, `AskFailed` when the answer's state is `failed`, and `BridgeFailed` with `paused` while the Bridge is
   paused.
+- `startSession(bridge: Bridge, session: { agent: string, model: string, product: string, instance: string }) ->
+  Promise<{ session: string, agentsMd: string }>` — `POST /v1/sessions`: starts the CLI session of a conversation of the
+  prompt bar in its checkout of that product (ARC-055); `session` its identifier, as a job's, `agentsMd` the path of
+  Agent M's `AGENTS.md` in its checkout of the instance. Crosses the network; fails with every `BridgeError` but
+  `AskFailed`, among them `BridgeFailed` with `invalid-request` or `paused`.
+- `typeIntoSession(bridge: Bridge, session: string, input: string) -> Promise<void>` — `POST /v1/sessions/{id}/input`:
+  types a message into the session; the input travels only in that request's body. Fails as `startSession`, and with
+  `not-found` for a session the Bridge does not hold.
+- `sessionAnswer(bridge: Bridge, session: string) -> Promise<{ state: "working" | "waiting" | "ended", text: string |
+  null, exit: number | null }>` — `GET /v1/sessions/{id}/answer`: whether the agent works on the last message, its
+  answer once it waits, or its exit once it has ended. Fails as `typeIntoSession`.
+- `endSession(bridge: Bridge, session: string) -> Promise<{ ended: boolean }>` — `POST /v1/sessions/{id}/end`: ends the
+  session; `ended` is true once the agent's process has ended. Fails as `typeIntoSession`.
 - `bridgeJobs(bridge: Bridge) -> Promise<{ id: string, product: string, kind: string, agent: string, state: string,
   started: string, usage: unknown | null }[]>` — `GET /v1/jobs`: the jobs the Bridge runs or ran since it started.
   Crosses the network; fails with every `BridgeError` but `AskFailed`.

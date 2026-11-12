@@ -69,7 +69,7 @@ jobs are its agents' keeps going (ARC-037, process view).
 
 The Bridge is a driver of ARC-037: **a desktop app with a local HTTP API, built from the shared modules, whose handlers
 are its own modules and whose window is its only user interface**. Its runtime and packaging are decided in ARC-050, its
-mail libraries in ARC-051, its SSH in ARC-052, the enclosure of the agents it starts in ARC-054. It defines the protocol of its API in a module that uses no other, so the
+mail libraries in ARC-051, its SSH in ARC-052, the enclosure of the agents it starts in ARC-054, the terminal it keeps a conversation's CLI session running in, in ARC-055. It defines the protocol of its API in a module that uses no other, so the
 page's Bridge client in Access speaks it without a cycle. The app's main module composes everything; no handler module
 uses another handler module.
 

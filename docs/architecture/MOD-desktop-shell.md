@@ -6,6 +6,7 @@ realises:
 follows:
   - ARC-040
   - ARC-050
+  - ARC-055
 uses:
   - MOD-bridge-http.bridgeApi
   - MOD-bridge-http.BridgeHandlers
@@ -203,7 +204,8 @@ The rest of its surface faces the person, not another module:
     name, its version and its state — *ready*, *not logged in* or *not enclosed* — beside its *Log in* or *Set up*, and
     lays its declaration out as a small form: the place, the capabilities as a group of ticks, the models one per line.
   - *Jobs* — the jobs the Bridge took in the last six weeks, MOD-bridge-jobs' `listJobs`, as a table — identifier,
-    kind, agent, product, state, when taken —, and the console of the one chosen, by default the one running, else the
+    kind, agent, product, state, when taken —, the CLI sessions of the prompt bar's conversations among them, whose
+    console is what their terminal shows (ARC-055), and the console of the one chosen, by default the one running, else the
     one taken last (`THE BRIDGE'S WINDOW SHOWS EACH JOB'S CONSOLE LIVE`, UC-044 step 6): the last 1000 lines of its log and
     the line being written, in a pane of the look's class `console`. While the view is shown it asks the main process
     every half second for the jobs and, through MOD-bridge-jobs' `jobLog` — the reading `GET /v1/jobs/{id}/log` answers

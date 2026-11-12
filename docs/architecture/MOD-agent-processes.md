@@ -5,6 +5,7 @@ folder: src/agent-processes/
 realises:
 follows:
   - ARC-046
+  - ARC-055
 uses:
   - MOD-job-runner.Driver
   - MOD-job-runner.DriverInput
@@ -21,6 +22,7 @@ provides:
   - keyProvider
   - testAgent
   - stopTree
+  - startSession
 ---
 # MOD-agent-processes Coding-agent CLIs as processes on a machine
 
@@ -30,7 +32,8 @@ It belongs to Participants and jobs (ARC-046). It knows the coding-agent CLIs Ag
 opencode —: which of them are installed on the machine it runs on, with their versions (`THE BRIDGE FINDS THE INSTALLED
 AGENTS`), and how to run one as a participant: the driver that starts an agent with its participant's model (`A JOB RUNS
 ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), gives it its task in a working folder, streams its output, and
-stops it on a cancel. The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
+stops it on a cancel; and how to keep one running as a session, interactive in a terminal, into which messages are
+typed (ARC-055). The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
 PERSON'S OWN LOGIN`); in CI it reads its key from the environment variable the CI fills from the secret its connection
 names (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`), or, where CI runs it as the model's own user, reaches
 its provider through the key holder with no key of its own (`NO MODEL READS A CREDENTIAL`). It runs in Node only — inside the Bridge and in the
@@ -43,6 +46,8 @@ Workflows — and keeps nothing but the processes it started.
 - `agents.schema.md` — the register's schema, in the schema language of MOD-documents.
 - `discovery.mjs` — finding the installed agents and their versions.
 - `processes.mjs` — starting an agent, streaming its output, stopping it.
+- `sessions.mjs` — an agent kept running in a pseudo-terminal (node-pty), its screen kept as text by a headless terminal
+  (`@xterm/headless`), messages typed into it, and the sign that it waits (ARC-055).
 
 ## Data
 
@@ -54,6 +59,7 @@ Workflows — and keeps nothing but the processes it started.
 | Command | the command the CLI is started by |
 | Version | how its version is asked for |
 | Task | the arguments that make it read a task from its standard input without a conversation, and how its final answer is told from its other output |
+| Session | the arguments that start it interactively in its auto mode — Claude Code's `--permission-mode auto`, Codex's `--approve-for-me`, opencode's `--auto` —, and the pattern of the screen line that shows it waiting for input (`waiting`) |
 | Model | the arguments that start it with a named model, as its vendor documents them, with a placeholder `{model}` — Claude Code's `--model {model}`, which its Endpoint column already gives —, or `—` where it cannot be told one |
 | Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in; under a platform's name (`macos`), where the agent cannot keep its login in the enclosure there, the login step on that platform and what of its output the enclosure keeps for it (`keeps`: the environment variable the agent reads its login from, and the pattern of the value) — Claude Code's `claude setup-token` and `CLAUDE_CODE_OAUTH_TOKEN` on macOS, whose keychain the enclosure closes (ARC-054) |
 | Key variable | the environment variable from which it reads a key, used only in CI |
@@ -116,6 +122,19 @@ never an argument: it is written to the agent's standard input, so no size of a 
   process group of a child started detached, so that every process it started receives it; on Windows it ends the
   child's tree with `taskkill`, whatever the signal. A group that is already gone is no failure. The driver stops an agent
   with it on a cancel; MOD-checkout-tools ends a command's process group with it at the command's timeout.
+- `startSession(agent: Agent, options: { workdir: string, enclosure?: Enclosure, writable?: string[], columns?: number,
+  rows?: number }, participant: Participant) -> Session` — starts the agent in a pseudo-terminal of `columns` by `rows`
+  (by default 200 by 50), with its row's Session arguments and `participant.model` by its Model column, in `workdir`,
+  through the enclosure's `wrap` where one is given, as `agentDriver` starts it; no task is written to it. `Session` is
+  `{ type(text: string) -> void, lines() -> { lines: string[], partial: string }, waiting() -> boolean, answer() ->
+  string | null, onLine(listener: (line: string) -> void) -> void, exited: Promise<{ exitCode: number }>, stop() ->
+  Promise<void> }`: `type` writes `text` as one bracketed paste followed by a carriage return; `lines` gives the lines
+  the headless terminal holds — its scrollback and the screen —, the control sequences applied, `lines` those that have
+  scrolled off the screen and `partial` the screen's lines below them, joined by line breaks; `onLine` hands each line
+  as it scrolls off; `waiting` whether the screen shows the row's `waiting` pattern; `answer` the text of the lines
+  after the last typed text up to the line that shows the pattern, once it is shown, else `null`; `stop` ends the
+  agent and every process it started (`stopTree`). It reports no usage. It throws `AgentMissing`, `ModelUnsupported`
+  and `AgentNotLoggedIn` before it starts.
 - `testAgent(agent: Agent, options?: { enclosure?: Enclosure, workdir?: string }) -> Promise<{ answered: true, version:
   string } | { answered: false, reason: string }>` — a harmless request, a one-word answer, given on the agent's standard
   input as a task is, to show that the agent answers with its login (UC-017); with an enclosure, inside it.
@@ -133,3 +152,4 @@ product's branch, which on a Bridge lies in the agent's own working folder besid
 - `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent as one task.
 - `MOD-participant-list.Participant` — the participant the driver stands for, and the model it is started with.
 - `MOD-documents.loadSchema`, `MOD-documents.readRegister` — the register of supported agents.
+- node-pty and `@xterm/headless`, adopted in ARC-055 — the pseudo-terminal of a session and the text of its screen.

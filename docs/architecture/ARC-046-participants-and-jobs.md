@@ -160,7 +160,8 @@ every subsystem and both programs, that interprets every kind of job from data**
   prepared with that kind's preconditions, as a job of the endpoint itself — in the tab, attended, or on its route to CI
   (Vibe Coding, ch. 12, *One Thing at a Time*). A message to a CLI session goes to its Bridge with the page as its
   context, and the session does the work asked for itself, in a checkout of the product, with its own tools: it plans no
-  pieces, and its answer is shown as it gives it (UC-049 step 4). That job is recorded; its task travels with the hand-over — as an input of the
+  pieces, and its answer is shown as it gives it (UC-049 step 4); the session is kept running for the conversation, each
+  message typed into it (ARC-055). That job is recorded; its task travels with the hand-over — as an input of the
   job workflow's start, or in the request to the Bridge — and stands in no file (`A CONVERSATION IS WRITTEN TO A
   REPOSITORY ONLY WHEN RECORDING IS ON`). A model endpoint's handed-over work is done in Agent M's own loop with the
   tools of MOD-checkout-tools in the job's checkout — in CI with the endpoint's key from a CI secret —; a CLI session on

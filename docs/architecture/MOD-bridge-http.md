@@ -5,6 +5,7 @@ folder: src/bridge-http/
 realises:
 follows:
   - ARC-040
+  - ARC-055
 uses:
 provides:
   - bridgeApi
@@ -58,8 +59,12 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 | `GET /v1/jobs` | — | `{ jobs: [{ id, product, kind, agent, state, started, usage }] }` | jobs |
 | `GET /v1/jobs/{id}/log?from={line}` | — | `{ lines, next, ended }` — the log from that line on | jobs |
 | `POST /v1/jobs/{id}/cancel` | — | `{ confirmed }` — `true` once the agent's process has ended | jobs |
-| `POST /v1/ask` | `{ agent, model?, input, product?, instance? }` — a request to an agent the Bridge offers, started with `model` where the request names one: with `product`, a served product's address, and `instance`, a commit of the instance, a message of the prompt bar to a CLI session working in its checkout of that product, else a drafting request — or `{ endpoint, input }` — a request to a model endpoint, `endpoint` in the endpoint configuration's format — or `{ endpoint, exchange }` — one request of a tool loop the page runs, the messages so far and the tools offered | `{ ask }` | jobs |
+| `POST /v1/ask` | `{ agent, model?, input }` — a drafting request to an agent the Bridge offers, started with `model` where the request names one — or `{ endpoint, input }` — a request to a model endpoint, `endpoint` in the endpoint configuration's format — or `{ endpoint, exchange }` — one request of a tool loop the page runs, the messages so far and the tools offered | `{ ask }` | jobs |
 | `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, calls, usage, error }` — `calls` the tool calls an endpoint made in the one exchange of a tool loop the request carried, each `{ id, name, args }`; empty for any other request | jobs |
+| `POST /v1/sessions` | `{ agent, model, product, instance }` — the CLI session of a conversation of the prompt bar: the agent, the model it is started with, a served product's address and a commit of the instance | `{ session, agentsMd }` — the session's identifier, under which `GET /v1/jobs` lists it and `GET /v1/jobs/{id}/log` gives its console, and the path of Agent M's `AGENTS.md` in its checkout of the instance | jobs |
+| `POST /v1/sessions/{id}/input` | `{ input }` — a message typed into the session | `{ typed }` — `true` once it is typed | jobs |
+| `GET /v1/sessions/{id}/answer` | — | `{ state: "working" \| "waiting" \| "ended", text, exit }` — `text` the session's answer to the last input once it waits, `exit` the agent's exit code once it has ended | jobs |
+| `POST /v1/sessions/{id}/end` | — | `{ ended }` — `true` once the agent's process has ended | jobs |
 | `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` and `endpoint-models` take the endpoint configuration; `partitions` takes `{}` | `{ answer }`; for `endpoint-test`, the endpoint-test answer; for `endpoint-models`, `{ models: string[] }` or `{ diagnosis }`; for `partitions`, `{ partitions: { name, state }[] }` | jobs |
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |
@@ -94,7 +99,7 @@ server's or the agent's own message; `paused` (503).
   `PortInUse`. It answers a request only with the pairing token, whatever its route; it answers cross-origin requests,
   and the browser's preflight for a request to the local network, only for `origin`, the instance's Pages origin —
   through the jump host its web server does the same (`THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE
-  INSTANCE`); while `paused()` holds, a request that starts work — a hand-over, an ask, a probe, a mail operation —
+  INSTANCE`); while `paused()` holds, a request that starts work — a hand-over, an ask, a session's start or input, a probe, a mail operation —
   answers `paused`, and the others still answer, so that running jobs can be followed and cancelled. Its log keeps a
   request's method, route, status and duration — never a body, a query value or a header's value.
 - `pairAnew(dataFolder: string, token: string | null) -> Promise<string>` — a new pairing token, random or the one given

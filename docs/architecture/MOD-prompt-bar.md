@@ -5,6 +5,7 @@ folder: src/prompt-bar/
 realises:
 follows:
   - ARC-038
+  - ARC-055
 uses:
   - MOD-browser-store.Store
   - MOD-browser-store.readSetting
@@ -66,7 +67,12 @@ uses:
   - MOD-runtimes.cancelJob
   - MOD-runtimes.actionsSetup
   - MOD-bridge-client.Bridge
-  - MOD-bridge-client.ask
+  - MOD-bridge-client.startSession
+  - MOD-bridge-client.typeIntoSession
+  - MOD-bridge-client.sessionAnswer
+  - MOD-bridge-client.endSession
+  - MOD-bridge-client.bridgeJobLog
+  - MOD-bridge-client.cancelOnBridge
   - MOD-bridge-client.settingsOf
   - MOD-bridge-client.bridgeAt
   - MOD-bridge-client.testBridge
@@ -101,7 +107,7 @@ what this browser's configuration reaches — its model endpoints, and the CLI s
 with the place where it processes data (`THE PAGE NAMES WHERE IT SENDS`); it holds the conversation in the browser tab;
 it prepares each message as a job of its one kind, `converse`, on every page, with the page as its context only, and
 runs it without a job record — an endpoint's in this tab, a CLI session's on its Bridge, where the session does the
-work asked for itself (UC-049 step 4); it shows the answer, and leads an endpoint's draft to the review page that shows
+work asked for itself and keeps running for the conversation (UC-049 step 4, ARC-055); it shows the answer, and leads an endpoint's draft to the review page that shows
 it; it carries out the plan an endpoint proposes without a further click — each piece a job of its own, in this tab
 where the kind's result waits for the person, else queued as a job of the endpoint itself — and follows each queued one
 until it has ended; and, where the instance switches recording on, it appends every message to a conversation
@@ -121,8 +127,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
   named with.
 - `send.mjs` — preparing and running a message, or a piece of a plan of a kind whose result waits for the person, as a
   job in this tab, and a message to a CLI session sent to its Bridge.
-- `session.md` — what a CLI session is given with a message beside the page, the conversation and the message, data
-  like a kind's prompt.
+- `session.md` — what is typed into a CLI session with each message after the path of `AGENTS.md`: the page, the
+  chapters for the page, the messages the session has not seen and the person's message, data like a kind's prompt.
 - `own.mjs` — the module's own data files read, from the disk in Node and from the module's own address in a browser.
 - `hand-over.mjs` — each piece of a proposed plan assessed for its route, and queued.
 - `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
@@ -134,8 +140,9 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 
 **The conversation** is held in the browser tab, through MOD-browser-store's tab values, so that it goes on when the
 person moves between the main page and the review pages in the same tab and ends with the tab. It holds the messages, the
-participant talked to, the latest draft, the plan handed over with the job of each piece while it runs, and the height the person set with the
-bar's grip. Nothing of it is written to a repository
+participant talked to, the latest draft, the plan handed over with the job of each piece while it runs, the CLI session
+it keeps — its Bridge, its identifier and the path of `AGENTS.md` it answered — while it runs, and the height the person
+set with the bar's grip. Nothing of it is written to a repository
 unless recording is on, and nothing of it is kept in `localStorage` or exported with the settings. It holds no state of a
 job: while a message runs, the job is this tab's running job; a handed-over job's state is derived from its record and
 its runtime (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`).
@@ -247,14 +254,25 @@ and sends nothing while the job does not
   and again on a moved head; a message the subject withholds, or whose commit the host refuses for a stored secret, is
   appended as withheld and sent; a message whose record cannot be appended for any other reason is not sent, and the bar
   says why (`A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD`). **A message to a CLI session** — a connection whose
-  route is `bridge <bridge> agent <agent>` — is not run in the tab (UC-049 step 4): its input is the job's `rules`,
-  Agent M's `AGENTS.md`, followed by `session.md`, text held once with named places for the page, the conversation so
-  far, the person's message and the chapters for the page, each filled with the parts the job's recipes gave; it is
-  sent with MOD-bridge-client's `ask` to the session's agent on its Bridge, with the session's model, the address of the
-  message's page's repository as `product` and the commit of the instance the bar read as `instance`, and the Bridge
-  starts the session in its checkout of that product (MOD-bridge-jobs). No tool, no answer schema, no correction loop,
-  no plan and no hand-over apply to it: the text the session answers is shown in the conversation as its answer, and,
-  with recording on, appended as an answer is; no draft comes of it. A failure of the Bridge is shown by name. Any other
+  route is `bridge <bridge> agent <agent>` — is not run in the tab (UC-049 step 4, ARC-055). The conversation's first
+  message to it starts its session with MOD-bridge-client's `startSession` — the session's agent and model, the address
+  of the message's page's repository as `product` and the commit of the instance the bar read as `instance` —, and the
+  conversation keeps the session's Bridge, its identifier and the path of `AGENTS.md` it answered. Every message, the
+  first as every later one, is typed into that session with `typeIntoSession`: its input is the job's `rules` as
+  MOD-job-runner gives them for a participant in a checkout of the instance — the context's `instance.checkout` naming
+  the folder of that path, so that the input begins with the path of Agent M's `AGENTS.md` and not its text —, followed
+  by `session.md`, text held once with named places for the page, the chapters for the page, the messages the session
+  has not seen and the person's message, each filled with the parts the job's recipes gave. The messages the session has
+  not seen are none for a running session, and the conversation so far for a session started after the one before had
+  ended (UC-049 4g, 4h, 5a). While the message runs, the bar shows the session's console under it, read every half
+  second with `bridgeJobLog` — the last 1000 lines, then the lines after the last it has, and the unended part —, and
+  asks `sessionAnswer` until the session waits: the text it answers is shown in the conversation as its answer, and,
+  with recording on, appended as an answer is; no draft comes of it, and its cost is unknown. A session `ended`, or one
+  the Bridge answers `not-found` for — its agent exited, or the Bridge ended it (UC-049 4g, 4h) —, is shown as ended,
+  with its exit and the last lines of its console, and the conversation forgets it, so that the next message starts a
+  new one. No tool, no answer schema, no correction loop, no plan and no hand-over apply to it. *Stop* cancels the
+  session with `cancelOnBridge` (UC-049 5a), and *Clear conversation* ends it with `endSession` (UC-049 6d); either way
+  the conversation forgets it. A failure of the Bridge is shown by name. Any other
   message runs with `runOnTab` and no job record, attended, and the bar shows the answer: the text, the rounds and the findings the loop left, and, for a draft — edits the
   participant proposed —, *Review the draft*, which keeps the `ConversationDraft` and goes to the subject's
   `draftRoute`, or, where the subject gives none, to the review pages' `draft` for the subject's `key`; with recording on, the
@@ -385,7 +403,8 @@ and sends nothing while the job does not
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
   subject; for the review pages' route once the person saves or discards it.
 - `currentJob() -> { kind: string, participant: string, started: Date, state: "running" } | null` — the message of this
-  page's conversation that is running in this tab at the moment of the call, for the list of every job (`ONE DASHBOARD
+  page's conversation that is running in this tab at the moment of the call, or the CLI session the conversation keeps,
+  from its start while it runs, for the list of every job (`ONE DASHBOARD
   SHOWS EVERY JOB`), which shows it as this tab's, in the state `running`; `null` while none runs. A handed-over job is
   listed by its record like any other.
 - `recordingSchema() -> Schema` — the schema of the recording switch, read from this module's data file, for the settings
@@ -445,6 +464,8 @@ on, it writes, through the host of the page's repository, the conversation recor
   MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*; MOD-job-ledger.newJobId,
   MOD-job-ledger.JobStart — the identifier and the start of the job a hand-over queues.
 - MOD-bridge-client.Bridge, MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt — the Bridges handed to the
-  runtimes, each from its stored entry and the stored jump host; MOD-bridge-client.ask — a message to a CLI session.
+  runtimes, each from its stored entry and the stored jump host; MOD-bridge-client.startSession, typeIntoSession, sessionAnswer, endSession,
+  bridgeJobLog, cancelOnBridge — the CLI session of the conversation, its messages, its answers, its console, *Stop* and
+  *Clear conversation*.
 - MOD-markdown-render.renderArtifact — the answers, rendered safely.
 - MOD-text-tools.Finding — the findings a message's preparation or its loop names.
