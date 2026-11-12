@@ -32,6 +32,7 @@ export const heads = {
   sources: { name: "sources", entry: "settings", title: "Requirement sources" },
   resources: { name: "resources", entry: "settings", title: "Resources" },
   getYourOwn: { name: "get-your-own", entry: "settings", title: "Get your own Agent M" },
+  renewToken: { name: "renew-token", entry: "settings", title: "Renew a token" },
 };
 
 const settings = headed(heads.settings, async () => (await import("./settings.mjs")).route, { subject: true });
@@ -45,8 +46,9 @@ const library = headed(heads.library, async () => (await import("./library.mjs")
 const sources = headed(heads.sources, async () => (await import("./sources.mjs")).route);
 const resources = headed(heads.resources, async () => (await import("./resources.mjs")).route);
 const getYourOwn = headed(heads.getYourOwn, async () => (await import("./get-your-own.mjs")).route);
+const renewToken = headed(heads.renewToken, async () => (await import("./settings.mjs")).renewRoute);
 
-export const routes = [settings, setup, addProduct, endpoints, participants, bridge, mailbox, library, sources, resources, getYourOwn];
+export const routes = [settings, setup, addProduct, endpoints, participants, bridge, mailbox, library, sources, resources, getYourOwn, renewToken];
 
 // view: View — the routes, and the strategies of the view's kinds, imported from index.mjs when the runner first looks a strategy up.
 export const view = { routes, loadStrategies: async () => (await import("./index.mjs")).view.strategies };

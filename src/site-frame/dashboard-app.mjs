@@ -182,9 +182,9 @@ export function writeRefusalText(e, product, now = new Date(), { githubPage = nu
 }
 
 // The page shown when the product's commit cannot be read: the host's failure, and what it means here. A used-up rate limit
-// is named instead (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN); a refused token is named with the page where it is
-// renewed, as MOD-repository-hosts' TokenRefused names both (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED). hasToken: whether a
-// token for this product is stored.
+// is named instead (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN); a refused token is named by the host's message, and
+// renewed with Renew of the line at the top, which noteRefusal shows (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED, UC-042 1b):
+// the load error links no Renew of its own. hasToken: whether a token for this product is stored.
 export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date() }) {
   const gl = isGitLab(product), name = gl ? product.address : product.repo;
   const limit = rateLimitText(e, product, now);
@@ -201,8 +201,7 @@ export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date
       ${forbidden ? `<p class="muted">GitHub refused reading ${h(name)} with the stored token: it lacks a permission for this repository. Extend it on github.com, or check the name.</p>` : ""}
       ${!gl && missing && !hasToken ? `<p class="muted">A private repository cannot be read without a token — add one in <a href="#settings">Settings</a>.</p>` : ""}
       ${!gl && missing && hasToken ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}
-      ${refused ? `<p><a class="btn small" href="${h(refused.renewal)}" target="_blank" rel="noopener">Renew ↗</a></p>
-        <p class="muted small">Then paste the renewed token in <a href="#settings">Settings</a>.</p>` : ""}`;
+      ${refused ? `<p class="muted small">Renew it with <strong>Renew</strong> in the line at the top of this page.</p>` : ""}`;
 }
 
 // ---------------------------------------------------------------- instance, product, token
@@ -473,14 +472,20 @@ const gitlabShown = () => {
 // shown product's own token, each expiring or refused at its last use (its kept last test). Their place is the page's slot
 // `token-banner`, made at the start of the page.
 let tokenNotices = null;
+async function renewToken(key, place) {
+  const renew = settingsPages.routes.find((r) => r.name === "renew-token");
+  await loadRoute(renew);
+  await renew.render(place, settingsContext(), { key });
+}
 function showBanner() {
   if (!tokenNotices) return;
   const slot = document.getElementById("token-banner");
   tokenNotices.replaceChildren();
   const address = parseAddress(T.product.address);
   const isInstance = address.server === "github" && address.path === T.instance;
-  showTokenNotices({ store: openStore(T.instance), instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { secrets: secrets() }) },
-    product: isInstance ? null : { address: T.product.address, host: connect(address, { secrets: secrets() }) } });
+  // UC-042 1a, 1b: Renew draws, under its notice, the token's line of Settings with its form open — the token's page prefilled as at
+  // set-up, the repositories to pick and the paste field (MOD-settings-pages' route renew-token) —, with the context #settings has.
+  showTokenNotices({ store: openStore(T.instance), product: isInstance ? null : { address: T.product.address }, renew: renewToken });
   // The slot holds the place only while it holds a notice, so that it stays empty (and hidden by the page's style) otherwise.
   slot.replaceChildren(...(tokenNotices.children.length ? [tokenNotices] : []));
 }
@@ -903,7 +908,7 @@ async function route() {
       await loadRoute(settings);
       loading += 1;
       try {
-        await settings.render(main(), settingsContext(), {});
+        await settings.render(main(), settingsContext(), params);
       } finally {
         loading -= 1;
       }
