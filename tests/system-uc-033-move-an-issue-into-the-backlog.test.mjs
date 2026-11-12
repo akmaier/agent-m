@@ -378,15 +378,18 @@ test("TST-804210: UC-033 1b a product that works from a plan has no backlog, and
 
 // TST-804212 · level: system · module: system
 // guards: UC-033; A BACKLOG ITEM NAMES WHAT IT REALISES
-// given: the open issue 5, whose text names FIRST RULE; local-llm analyses it as a bug that src/store/read.mjs causes and names FIRST RULE as the requirement violated
-// input: the Product Owner confirms the class bug and presses Move to backlog
-// expect: step 2 — for a bug the item is prefilled with realises FIRST RULE, "the requirement that UC-012's analysis named as violated"; Add is enabled once nothing fails (the module MOD-store is prefilled from the file the analysis names)
-test("TST-804212: UC-033 step 2 a bug's item is prefilled with the requirement the analysis named as violated", { todo: "FINDING UC033-F5 — UC-033 step 2 prefills a bug's realises and modules from UC-012's analysis, which the issue page no longer runs: since MOD-maintenance-pages' Implement, the analysis is the conversation's, and the page reads nothing of it" }, async () => {
-  const w = startWorld({ analysis: { ...AS_BUG, violated: "FIRST RULE" } });
+// given: the open issue 6, labelled defect
+// input: the Product Owner presses Move to backlog, then names FIRST RULE as the requirement the code violates and MOD-store as the module the fix touches
+// expect: step 2 — for a bug the item's realises and modules are not prefilled and Add is not enabled; once the Product Owner names them, the fields hold FIRST RULE and MOD-store and Add is enabled
+test("TST-804212: UC-033 step 2 the Product Owner names a bug's violated requirement and its modules", async () => {
+  const w = startWorld();
   const detail = await openIssue(w, 6);
   const form = await moved(detail);
-  assert.equal(fieldOf(form, "realises").value, "FIRST RULE");
-  assert.equal(fieldOf(form, "modules").value, "MOD-store");
+  assert.deepEqual([fieldOf(form, "realises").value, fieldOf(form, "modules").value], ["", ""], "nothing is prefilled for the Product Owner to name");
+  assert.equal(addOf(form).disabled, true, "known positive: an item that names nothing is not added");
+  await typed(fieldOf(form, "realises"), "FIRST RULE");
+  await typed(fieldOf(form, "modules"), "MOD-store");
+  assert.deepEqual([fieldOf(form, "realises").value, fieldOf(form, "modules").value], ["FIRST RULE", "MOD-store"]);
   assert.equal(addOf(form).disabled, false, errorsOf(form));
 });
 

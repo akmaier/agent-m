@@ -1,22 +1,25 @@
-// The routes `issues` and `issue/<number>` — a product's issues, and *Implement*, which puts the request to handle an issue as UC-012 does into the prompt bar (UC-012 step 2), as docs/architecture/MOD-maintenance-pages.md
-// states them: the classification, the fix and the change are the work of the conversation's agent (UC-012 steps 3 to 6), not of this page. The move into the backlog (ITM-1250) is a section of the issue's page; what the
-// fix's pull request changes in the expectations of existing tests (ITM-654) and closing the issue with links once it is merged are another.
+// The routes `issues` and `issue/<number>` — a product's issues, each with the class its label gives, *Implement*, which puts the request to handle an issue as UC-012 does into the prompt bar (UC-012 step 2), and *Close*,
+// which closes an open issue at once (UC-012 2a), as docs/architecture/MOD-maintenance-pages.md states them: the fix and the change are the work of the conversation's agent (UC-012 steps 5 and 6), not of this page. The
+// move into the backlog (ITM-1250) is a section of the issue's page; what the fix's pull request changes in the expectations of existing tests (ITM-654) and closing the issue with links once it is merged are another.
 //
 // Module: MOD-maintenance-pages
 //
 // Readings the texts leave open, which this file takes (the pull request names them):
 //   - The product is the one the frame has chosen (`context.product`); without one the page says so and reads nothing. The routes are `issues` (in the menu entry maintenance) and `issue` (out of the menu), whose parameter `number` is the issue's: `#issue/number=<n>`.
 //   - Both routes draw the tab strip of tabs.mjs at their head, under the tab Issues (UC-046 step 2).
-//   - `issues` lists the open and closed issues, each with its state (<span class="issue-state">: open or closed) and the class their label says (defect, change or not-reproducible, else "not classified");
+//   - `issues` lists the open and closed issues, each with its state (<span class="issue-state">: open or closed) and the class their label says (defect or change, UC-012 step 3; else "not classified", a label not-reproducible included);
 //     an issue's link goes, on a person's click, to the route `issue` with its number. The list reads them without their comments (`listIssues` with `state: "all"` and `comments: false`); `issue` reads
 //     its one issue with `readIssue` (ITM-1270): a number that is no issue of the product is not in it.
 //   - `issue` names, open or closed, each mail the issue lists (`listedMailIds`, over its text and its comments) by its identifier, in <ul class="issue-mails"> of <a class="mail-link">, whose href is the
 //     route `mail/<id>` — #mail/id=<id> with the product — and whose click goes there through the context's `go` (UC-012 step 2, UC-038 7c); opening a mail writes nothing, so it answers any click.
-//   - `issue` shows the issue's text and class; an open issue offers *Implement* (<button class="implement-issue">); a closed one is resolved and offers nothing more. Implement, the person's click,
-//     dispatches the window's event `agent-m:prompt` with the request: in the product, handle the issue as Agent M's UC-012 does — the class proposed with its reasoning and confirmed by the author, a bug fixed
-//     test-first on a branch with a pull request, a change drafted as entries of the SPEC's change queues naming the issue —, followed by the issue's number, title and text. It writes nothing; the person sends
-//     or changes the prompt in the bar (UC-049).
-//   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue whose class is bug or change — by its label —, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
+//   - `issue` shows the issue's text and class; an open issue offers *Implement* (<button class="implement-issue">) and *Close*; a closed one is resolved and offers nothing more. Implement, the person's click,
+//     dispatches the window's event `agent-m:prompt` with the request: in the product, handle the issue as Agent M's UC-012 does — its class the label's ("label defect: a bug", "label change: a change", or that it
+//     carries neither), not to be classified anew (UC-012 steps 3 and 4), a bug fixed test-first on a branch with a pull request, a change drafted as entries of the SPEC's change queues naming the issue —,
+//     followed by the issue's number, title and text. It writes nothing; the person sends or changes the prompt in the bar (UC-049).
+//   - Close (UC-012 2a): <section class="issue-close"> with <textarea class="close-reason"> and <button class="close-issue"> "Close". The person's click with a reason comments the reason, as typed, on the
+//     issue (`commentOnIssue`) and then closes it (`setIssueState`), so that a refused comment leaves the issue open; the page then takes its other offers away and says so (<p class="close-done">). A click
+//     without a reason writes nothing and asks for one (<span class="close-problem">), as a failure of the host is shown there.
+//   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue labelled defect or change, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
 //     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, which hands over its list-valued keys as lists. The form holds a provisional identifier,
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
 //     over the architecture's module files are shown beside the form, found with the backlog's items beside the drafted one and kept for the drafted one alone (ITM-1293). `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product. The page holds no
@@ -27,9 +30,7 @@
 //     whose path patterns those are. The one folder name kept is the backlog's, `docs/backlog/`, the SPEC's own (THE BACKLOG LIVES IN THE PRODUCT REPOSITORY), which tells the backlog's items from the plan's steps of the same schema.
 //   - The item's pull request (ITM-1375, UC-033 step 6): below the move, the newest job of a kind that implements an item — `implement` or `refactor` — whose `works_on` names an item of the backlog that names this issue's address among its origins
 //     is named with its pull request (`jobTrail`), as the fix's job is; once that is merged, "Close with links" — the person's click — closes the issue with `closeWithLinks`, naming the pull request and the item. Nothing is shown where no such item or job is.
-//   - An issue not classified yet (ITM-1254, UC-033 1a): where the move would stand, the page says that it is not offered because the issue is not classified, and leads to UC-012, step 2 with the button "UC-012, step 2", which goes to that use case through the context's
-//     `go`. The use case is Agent M's own, so the lead's `go` names the empty product, which names the instance itself (MOD-site-frame's ViewContext). An issue classified as not reproducible is
-//     classified, and the page says nothing of the move for it.
+//   - An issue that carries neither the label defect nor change (UC-033 1a) is not offered the move, and nothing stands in its place.
 //   - The fix (ITM-583): below Implement, on an open issue whose class is bug by its label, the newest job of the kind `fix-bug` that works on the issue is named with its pull request (`jobTrail`); once that is merged, "Close with links" — the person's
 //     click — closes the issue with `closeWithLinks`. Nothing is shown where no such job is.
 //   - The fix's changed expectations (ITM-654, UC-012 5a): while that pull request is open, the page reads it with `pullRequestFacts` and, of its files that `isTestFile` names, the text on both sides — two reads per changed test file, through the
@@ -55,12 +56,13 @@ const NOT_CLASSIFIED = "not classified";
 
 const STEP_TEXT = {
   list: "The open and closed issues of the chosen product, each with its state and the class its label says. Open one to implement it, or, for an issue from mail, to open its mails.",
-  implement: "Implement puts the request to handle this issue into the prompt bar, with its number, title and text; nothing is sent until you send it, and you may change it first. The agent of the conversation proposes the class — a bug, a change or not reproducible — with its reasoning, and you confirm or correct it in the conversation. A bug it fixes on a branch, a regression test first, with invented data, never the reporter's, where its connection can run code and tests; a change it drafts as entries of the SPEC's change queues, each naming this issue, which you accept on their pages. Book: ch. 14, Evolution Processes and Change Identification.",
+  implement: "Implement puts the request to handle this issue into the prompt bar, with its number, title and text; nothing is sent until you send it, and you may change it first. The issue's class is the label it was given when the mail became the issue — defect, a bug, or change, a change —, and it is not decided again. A bug the agent of the conversation fixes on a branch, a regression test first, with invented data, never the reporter's, where its connection can run code and tests; a change it drafts as entries of the SPEC's change queues, each naming this issue, which you accept on their pages. Book: ch. 14, Evolution Processes and Change Identification.",
+  close: "Close closes the issue at once, without implementing it and without a change of code: the reason you type is added to the issue as its comment, and then the issue is closed. Nothing else changes. Where the issue lists mails, their replies are offered on the tab Mail.",
   move: "Move to backlog prefills a backlog item from this issue: its title and outcome from the issue, its origin the issue's address, what it realises (for a change the requirements the change queues of this issue change or add; for a bug the requirement it violates, which you name) and the modules it changes, which you name. The form names what fails. Add commits the item under docs/backlog/ of the product, adds a comment naming the item to the issue and gives the issue the label backlog. Where no token is stored that may comment, the item is committed all the same and the comment is shown for you to copy. Where the issue describes the work of an item already in the backlog, add it to that item instead: the item then names both issues as its origins, and both get the comment. A change item waits for the acceptance of the requirements it names.",
 };
 
-// The classes an issue's labels say (MOD-mail-records).
-const LABEL_OF = { [IssueClass.bug]: issueLabels.defect, [IssueClass.change]: issueLabels.change, [IssueClass.notReproducible]: issueLabels.notReproducible };
+// The classes an issue's labels say (MOD-mail-records): `defect` a bug, `change` a change (UC-012 step 3); any other label gives none.
+const LABEL_OF = { [IssueClass.bug]: issueLabels.defect, [IssueClass.change]: issueLabels.change };
 const classOfLabels = (labels) => Object.values(LABEL_OF).find((label) => labels.includes(label)) ?? NOT_CLASSIFIED;
 
 // The issue's address, which the job's record names it by (MOD-job-ledger: works_on holds an issue's address): GitHub's /issues/<n>, GitLab's /-/issues/<n>.
@@ -89,16 +91,48 @@ async function renderList(target, context) {
   }
 }
 
+// The class as the request of Implement gives it (UC-012 steps 3 and 4): the label's, never one to be decided again.
+const CLASS_SAID = {
+  [IssueClass.bug]: "Its class is its label defect: a bug — the specification is right, and the code or a test is wrong.",
+  [IssueClass.change]: "Its class is its label change: a change — the specification is wrong, incomplete or unclear for this case.",
+};
+
 // *Implement* (UC-012 step 2): one click puts the request to handle the issue as UC-012 does, with its number, title and text, into the prompt bar (MOD-prompt-bar's event `agent-m:prompt`), where the person sends or
 // changes it (UC-049). It writes nothing.
-function implementSection(product, issue) {
+function implementSection(product, issue, cls) {
   const name = product.address.replace(/\/+$/, "").split("/").slice(-2).join("/");
-  const request = [`In ${name}: handle issue #${issue.number} as Agent M's UC-012 does. Propose its class — bug, change or not reproducible — with your reasoning, and wait for my confirmation.`,
+  const said = CLASS_SAID[cls] ?? "It carries neither the label defect nor the label change.";
+  const request = [`In ${name}: handle issue #${issue.number} as Agent M's UC-012 does. ${said} Do not classify it anew.`,
     "For a bug, write a regression test that fails on the reported behaviour first, with invented data, then fix the code or the test until it passes, on a branch, with a pull request that links the issue and the requirement it restores.",
     "For a change, draft the changed requirements as their new text with an impact list, as entries under docs/spec-freigaben/, each naming the issue.",
     "", `Issue #${issue.number}: ${issue.title}`, String(issue.body ?? "")].join("\n");
   const implement = button("implement-issue", "Implement", () => globalThis.dispatchEvent?.(new CustomEvent("agent-m:prompt", { detail: request })));
   return el("section", "issue-implement", el("p", "actions", implement), fold(STEP_TEXT.implement));
+}
+
+// *Close* (UC-012 2a): the person's click closes the open issue at once, without a change of code — the reason typed commented on the issue, then the issue closed. Without a reason it writes nothing.
+// `closed()` takes the page's other offers away once the issue is closed.
+function closeSection(product, issue, closed) {
+  const reason = el("textarea", "close-reason");
+  reason.setAttribute("aria-label", "Reason for closing");
+  const said = el("p", "close-said");
+  const close = button("close-issue", "Close", async () => {
+    const text = String(reason.value ?? "");
+    if (text.trim() === "") { said.replaceChildren(el("span", "close-problem", "Type the reason the issue is closed for first.")); return; }
+    close.disabled = true;
+    said.replaceChildren();
+    try {
+      await product.host.commentOnIssue(issue.number, text);
+      await product.host.setIssueState(issue.number, "closed");
+      closed();
+      section.replaceChildren(el("p", "close-done", `Issue #${issue.number} is closed, with the reason as its comment.`));
+    } catch (failure) {
+      close.disabled = false;
+      said.replaceChildren(el("span", "close-problem", `The issue could not be closed: ${failed(failure)}`));
+    }
+  });
+  const section = el("section", "issue-close", el("h3", null, "Close"), el("p", null, "Close the issue at once, without implementing it. The reason is its comment:"), reason, el("p", "actions", close), said, fold(STEP_TEXT.close));
+  return section;
 }
 
 // ---------------------------------------------------------------- the move into the backlog (UC-033)
@@ -357,18 +391,12 @@ async function renderIssue(target, context, params = {}) {
   if (closed) return;
 
   const currentClass = () => Object.entries(LABEL_OF).find(([, label]) => issue.labels.includes(label))?.[0];
-  // Where an issue is not classified yet, the move is not offered and the page leads to UC-012, step 2 (UC-033 1a), only through the context's go, with the empty product, which names the instance itself.
-  function notClassified() {
-    const lead = el("button", "uc-012 btn", "UC-012, step 2");
-    lead.setAttribute("type", "button");
-    lead.addEventListener("click", () => context.go("use-case", { id: "UC-012", product: "" }));
-    return el("p", "move-not-offered", "Move to backlog is not offered: this issue is not classified yet as a bug or a change. Implement it, and confirm its class in the conversation — ", lead, ".");
-  }
   const cls = currentClass();
-  const move = cls === undefined ? notClassified() : cls === IssueClass.bug || cls === IssueClass.change ? await moveSection({ product, issue, current: currentClass }) : null;
-  // The fix of a bug is named, with its pull request, where the issue is classified as a bug.
+  // Move to backlog only for an issue labelled defect or change (UC-033 1a); the fix of a bug is named, with its pull request, where the label says bug.
+  const move = cls === undefined ? [] : [el("div", "issue-move-box", await moveSection({ product, issue, current: currentClass }))];
   const fix = cls === IssueClass.bug ? [await fixTrail({ product, issue })] : [];
-  out.append(implementSection(product, issue), ...fix, ...(move ? [el("div", "issue-move-box", move)] : []));
+  const offers = el("div", "issue-offers", implementSection(product, issue, cls), ...fix, ...move);
+  out.append(offers, closeSection(product, issue, () => offers.replaceChildren()));
 }
 
 export const routes = [
