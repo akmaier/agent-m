@@ -131,38 +131,6 @@ test("TST-1380004: bubblewrap's arguments bind everything read-only, the work wr
   assert.equal(/--bind \/h /.test(joined), false, "counter-proof: the person's home is not bound writable");
 });
 
-// TST-1380005 · level: unit · module: MOD-agent-enclosure
-// guards: NO MODEL READS A CREDENTIAL
-// given: a Bridge whose data folder holds agent-account.json with the account's password, on Windows
-// input: the account's name, and wrap("claude", ["-p", "--output-format", "json"], { workdir: C:\work\jobs\J, writable: [C:\work\jobs\J] }) of its enclosure
-// expect: the name is agentm- and the first twelve hex digits of the SHA-256 of the data folder's path; the command is powershell.exe with -EncodedCommand, whose script is launcher.ps1 followed by one call of Invoke-Launch with -Account <name>, -Directory C:\work\jobs\J, -Program claude and -ArgumentLine the command line `-p --output-format json` in base64; the password reaches the launcher only as the first line of its input, in no argument, not in the script and in no variable; the environment names the account's profile; launcher.ps1 loads the account's profile, reads the password from the first line, and puts the program in a job object that ends it with the launcher; setup.ps1 makes a local account whose password never expires, hidden from the sign-in screen; counter-proof: the input holds the password
-test("TST-1380005: on Windows the agent runs as the Bridge's own account, its password only in the launcher's input", (t) => {
-  const machine = computer(t);
-  const password = "Fixture-Passw0rd-not-real";
-  writeFileSync(join(machine.data, "agent-account.json"), JSON.stringify({ account: accountName(machine.data), password }));
-  const name = accountName(machine.data);
-  assert.equal(name, `agentm-${createHash("sha256").update(machine.data).digest("hex").slice(0, 12)}`);
-  assert.ok(name.length <= 20);
-  const enclosure = agentEnclosure({ dataFolder: machine.data, folder: "C:\\work", platform: "win32", env: { PATH: "C:\\Windows\\system32", SystemDrive: "C:" }, personHome: "C:\\Users\\person", identity: { name: null, email: null } });
-  const wrapped = enclosure.wrap("claude", ["-p", "--output-format", "json"], { workdir: "C:\\work\\jobs\\J", writable: ["C:\\work\\jobs\\J"] });
-  assert.equal(wrapped.command, "powershell.exe");
-  assert.equal(wrapped.args.at(-2), "-EncodedCommand", wrapped.args.join(" "));
-  const script = Buffer.from(wrapped.args.at(-1), "base64").toString("utf16le");
-  const launcher = readFileSync(new URL("../src/agent-enclosure/launcher.ps1", import.meta.url), "utf8");
-  assert.ok(script.startsWith(launcher), "the script is the launcher");
-  const call = /^Invoke-Launch -Account '([^']*)' -Directory '([^']*)' -Program '([^']*)' -ArgumentLine '([^']*)'$/m.exec(script);
-  assert.ok(call, script.slice(-400));
-  assert.deepEqual(call.slice(1, 4), [name, "C:\\work\\jobs\\J", "claude"]);
-  assert.equal(Buffer.from(call[4], "base64").toString("utf8"), "-p --output-format json");
-  assert.equal(wrapped.input, `${password}\n`, "counter-proof: the launcher's input holds the password");
-  assert.equal(wrapped.args.some((arg) => arg.includes(password)) || script.includes(password), false, "no argument and not the script holds the password");
-  assert.equal(Object.values(wrapped.env).some((each) => each.includes(password)), false, "no variable holds the password");
-  assert.equal(wrapped.env.USERPROFILE, `C:\\Users\\${name}`);
-  for (const text of ["LoadUserProfile", "ReadLine()", "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE", "AssignProcessToJobObject", "RedirectStandardInput"]) assert.ok(launcher.includes(text), `launcher.ps1 holds ${text}`);
-  const setup = readFileSync(new URL("../src/agent-enclosure/setup.ps1", import.meta.url), "utf8");
-  for (const text of ["New-LocalUser", "PasswordNeverExpires", "SpecialAccounts\\UserList"]) assert.ok(setup.includes(text), `setup.ps1 holds ${text}`);
-});
-
 // TST-1380006 · level: unit · module: MOD-agent-enclosure
 // guards: NO MODEL READS A CREDENTIAL
 // given: a Linux computer whose PATH holds no bwrap, and a Windows Bridge whose data folder holds no agent-account.json

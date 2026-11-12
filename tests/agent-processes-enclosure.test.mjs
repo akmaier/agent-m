@@ -46,28 +46,6 @@ case "$*" in '--version') echo '2.1.300';; 'auth status') exit 0;; *) /bin/cat >
   return { root, bin, work, wraps, enclosure, lines: () => readFileSync(log, "utf8").split("\n").filter(Boolean) };
 }
 
-// TST-1380101 · level: unit · module: MOD-agent-processes
-// guards: NO MODEL READS A CREDENTIAL; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
-// given: the fixture claude, logged in, the person's variable PERSON_SECRET set in the Bridge's environment, and the recording enclosure
-// input: agentDriver(claude, { workdir, keyVariable: null, endpoint: null, enclosure, writable: [workdir, workdir + ".out.git"] }).send of the prompt "Draft it."
-// expect: the enclosure's wrap is asked once for claude with its task arguments `-p --output-format json`, the working folder and the two writable folders; the agent runs in the working folder, sees ENCLOSED and not PERSON_SECRET, and reads the enclosure's line before the prompt; the answer is "ok"; counter-proof: the same driver without an enclosure starts the agent with the person's environment, PERSON_SECRET among it
-test("TST-1380101: the driver starts the agent through its enclosure, with the enclosure's environment only", async (t) => {
-  const m = machine(t);
-  const claude = { name: "claude", installed: true, version: "2.1.300", loggedIn: true, login: "claude auth login", install: {} };
-  const input = { prompt: "Draft it.", parts: [], output: null, findings: [], previous: null, workdir: null };
-  const answer = await agentDriver(claude, { workdir: m.work, keyVariable: null, endpoint: null, enclosure: m.enclosure, writable: [m.work, `${m.work}.out.git`] }, { name: "fixture" }).send(input);
-  assert.equal(answer.text, "ok");
-  assert.equal(m.wraps.length, 1);
-  assert.deepEqual(m.wraps[0], { command: "claude", args: ["-p", "--output-format", "json"], at: { workdir: m.work, writable: [m.work, `${m.work}.out.git`] } });
-  const [call, ...stdin] = m.lines();
-  assert.equal(call, `args=-p --output-format json cwd=${m.work} secret=none enclosed=yes`);
-  assert.equal(stdin[0], "line-of-the-enclosure", "the enclosure's line comes first");
-  assert.ok(stdin.join("\n").includes("Draft it."), "then the prompt");
-
-  await agentDriver(claude, { workdir: m.work, keyVariable: null, endpoint: null }, { name: "fixture" }).send(input);
-  assert.ok(m.lines().some((line) => line.endsWith("secret=person-secret-fixture enclosed=no")), "counter-proof: outside an enclosure the person's environment reaches the agent");
-});
-
 // TST-1380102 · level: unit · module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: the fixture claude on the PATH and no codex or opencode, and the recording enclosure

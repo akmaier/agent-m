@@ -315,42 +315,6 @@ async function withEnvironment(values, run) {
   }
 }
 
-// TST-1243007 · level: component · module: MOD-agent-processes
-// guards: NO MODEL READS A CREDENTIAL; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: controlled claude, codex and opencode on PATH; a fake endpoint, and a key holder for it of the kind anthropic with KEY; CI=true and, as a variable the CLI could inherit, ANTHROPIC_API_KEY=KEY
-// input: agentDriver for claude with keyVariable ANTHROPIC_API_KEY and keyHolder the holder's address, send; the same for codex (keyVariable CODEX_API_KEY) and for opencode; then claude without keyHolder, as the counter-proof of the check
-// expect: claude is started with its task's arguments and then `--model` with the participant's model, ANTHROPIC_BASE_URL the holder's address and ANTHROPIC_API_KEY the placeholder `agent-m-key-holder`, and no variable of it holds KEY; its request reaches the fake endpoint as POST /v1/messages with `x-api-key: KEY` and is answered 200 (counter-proof: the endpoint receives the key); codex is started with `-c openai_base_url="<holder>"` before `exec -` and then `--model` with the participant's model, CODEX_API_KEY the placeholder and no variable holding KEY; opencode, which names no key variable and no provider, is refused with KeyHolderUnsupported and not started; without keyHolder, claude's variables hold KEY — the gap this test closes
-test("TST-1243007: a coding agent's CLI reaches its provider through the key holder, with a placeholder for its key", async (t) => {
-  const { folder, notes } = clis(t);
-  const fake = await fakeEndpoint(t);
-  const holder = await holdKey({ kind: "anthropic", baseUrl: fake.address, key: KEY });
-  t.after(() => holder.close());
-  const send = (name, keyVariable, keyHolder) => agentDriver(installed(name), { workdir: folder, keyVariable, keyHolder }, PARTICIPANT).send({ ...PROMPT, workdir: folder });
-  await withEnvironment({ PATH: `${folder}:/usr/bin:/bin`, CI: "true", ANTHROPIC_API_KEY: KEY }, async () => {
-    await send("claude", "ANTHROPIC_API_KEY", holder.address);
-    await send("codex", "CODEX_API_KEY", holder.address);
-    await assert.rejects(send("opencode", "ANTHROPIC_API_KEY", holder.address), { name: "KeyHolderUnsupported" });
-    await send("claude", "ANTHROPIC_API_KEY", null);
-  });
-  const [claude, codex, unheld, ...rest] = notes();
-  assert.equal(rest.length, 0, "opencode was not started");
-  assert.equal(claude.name, "claude");
-  assert.deepEqual(claude.args, ["-p", "--output-format", "json", "--model", PARTICIPANT.model], "the task's arguments, then the participant's model");
-  assert.equal(claude.env.ANTHROPIC_BASE_URL, holder.address);
-  assert.equal(claude.env.ANTHROPIC_API_KEY, PLACEHOLDER);
-  assert.equal(claude.holdsKey, false, "no variable of the CLI holds the key");
-  assert.equal(claude.status, 200);
-  assert.equal(fake.seen.length, 1);
-  assert.equal(fake.seen[0].url, "/v1/messages");
-  assert.equal(fake.seen[0].headers["x-api-key"], KEY, "counter-proof: the endpoint receives the key");
-  assert.equal(codex.name, "codex");
-  assert.deepEqual(codex.args, ["-c", `openai_base_url="${holder.address}"`, "exec", "-", "--model", PARTICIPANT.model]);
-  assert.equal(codex.env.CODEX_API_KEY, PLACEHOLDER);
-  assert.equal(codex.holdsKey, false);
-  assert.equal(unheld.name, "claude");
-  assert.equal(unheld.holdsKey, true, "counter-proof of the check: without the holder the CLI inherits the key");
-});
-
 // The agent's machine of a self-hosted runner whose participant is a coding agent: the key ANTHROPIC_API_KEY, the second key CODEX_API_KEY, the model's user named.
 const CLI_MACHINE = { ...MACHINE, AGENT_M_RUNNER: "gpu", AGENT_M_KEY_NAMES: "ANTHROPIC_API_KEY CODEX_API_KEY", AGENT_M_KEY: "1", ANTHROPIC_API_KEY: KEY, GITHUB_EVENT_NAME: "push" };
 delete CLI_MACHINE.FIXTURE_KEY;

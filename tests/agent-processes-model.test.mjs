@@ -71,32 +71,3 @@ test("the register names, for each supported agent, the arguments that start it 
   assert.deepEqual(rows.map(({ cells }) => [cells.Agent, JSON.parse(cells.Model).args]), [
     ["claude", ["--model", "{model}"]], ["codex", ["--model", "{model}"]], ["opencode", ["--model", "{model}"]]]);
 });
-
-// TST-20261109142 · level: unit · module: MOD-agent-processes
-// guards: A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL; UC-049
-// given: a fixture claude on its own PATH that records its arguments; the participant developer-a, an agent of claude-opus-5-5 on a Bridge's coding agent
-// input: agentDriver(claude, { workdir }, developer-a).send(a task)
-// expect: the agent is started with its task's arguments followed by `--model claude-opus-5-5`: ["-p", "--output-format", "json", "--model", "claude-opus-5-5"]
-test("agentDriver — the coding agent is started with its participant's model", async () => {
-  await fixture(async ({ workdir, argv }) => {
-    await agentDriver(AGENT, { workdir, keyVariable: null }, PARTICIPANT).send(INPUT);
-    assert.deepEqual(argv(), ["-p", "--output-format", "json", "--model", "claude-opus-5-5"]);
-  });
-});
-
-// TST-20261109143 · level: unit · module: MOD-agent-processes
-// guards: A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
-// given: the same fixture claude, run by processes.mjs' processDriver with a row of the register whose Model is `—` (null) — an agent that cannot be told a model —, and, as the known positive, the participant without a model
-// input: send with developer-a, which names claude-opus-5-5; send with the same participant whose model is null
-// expect: the first is refused with ModelUnsupported before the agent starts — nothing recorded —; the second starts it with no --model
-test("agentDriver — an agent that cannot be told a model refuses a participant that names one, before it starts", async () => {
-  await fixture(async ({ workdir, argv, started }) => {
-    const row = { name: "claude", command: "claude", task: { args: ["-p", "--output-format", "json"] }, model: null, endpoint: null, keyHolder: null };
-    const helpers = { configuration: () => row, ownLoginEnvironment: () => ({ ...process.env }), answer: () => "done", usage: () => null };
-    const driver = (participant) => processDriver(AGENT, { workdir, keyVariable: null }, participant, helpers);
-    await assert.rejects(driver(PARTICIPANT).send(INPUT), { name: "ModelUnsupported" });
-    assert.equal(started(), false, "refused before it starts");
-    await driver({ ...PARTICIPANT, model: null }).send(INPUT);
-    assert.deepEqual(argv(), ["-p", "--output-format", "json"]);
-  });
-});

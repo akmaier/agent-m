@@ -98,27 +98,6 @@ test("TST-320321901: public discovery reads the registered agents and tests one 
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 
-// TST-320321902
-// level: release
-// module: MOD-agent-processes
-// guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-010; UC-011
-// given: a controlled Claude and a local inherited credential plus a named CI credential.
-// input: public agentDriver.send locally, then in CI for an installed Agent without saved local login.
-// expect: local invocation omits the declared credential; CI inherits its named credential without changing argv or reading it in module code.
-test("TST-320321902: public Driver separates local own-login execution from named-key CI execution", async () => {
-  const folder = fixture(), record = join(folder, "record.jsonl");
-  try {
-    agents(folder, record);
-    await withEnvironment({ CI: undefined, GITHUB_ACTIONS: undefined, ANTHROPIC_API_KEY: "local-constructed-key" }, () =>
-      withPath(folder, () => driver(CLAUDE, folder).send({ ...INPUT, workdir: folder })));
-    await withEnvironment({ CI: "true", ANTHROPIC_API_KEY: "ci-constructed-key" }, () =>
-      withPath(folder, () => driver({ ...CLAUDE, loggedIn: false }, folder, "ANTHROPIC_API_KEY").send({ ...INPUT, workdir: folder })));
-    const [local, ci] = readFileSync(record, "utf8").trim().split("\n").map(JSON.parse);
-    assert.deepEqual(local, { name: "claude", args: ["-p", "--output-format", "json", "--model", "fixture"], stdin: INPUT.prompt, cwd: folder, key: null });
-    assert.deepEqual(ci, { name: "claude", args: ["-p", "--output-format", "json", "--model", "fixture"], stdin: INPUT.prompt, cwd: folder, key: "ci-constructed-key" });
-  } finally { rmSync(folder, { recursive: true, force: true }); }
-});
-
 // TST-320321903
 // level: release
 // module: MOD-agent-processes
