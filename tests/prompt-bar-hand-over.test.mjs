@@ -1,5 +1,5 @@
 // The hand-over in the prompt bar (ITM-505) — MOD-prompt-bar's startPromptBar when the participant proposes handing work on (UC-049 4a, 4c, 5a): the proposal shown with its kind, what it
-// works on, its task, the participant with its processing place and the route MOD-runtimes' routesFor gives; queued with MOD-runtimes' handOverJob at once as a job of the endpoint or CLI session
+// works on, its task, the participant with its processing place and the route MOD-runtimes' routesFor gives; queued with MOD-runtimes' handOverJob at once as a job of the endpoint
 // itself, without a further click, the person's Send being the request (UC-049 4a.2), with no start rule of the product's process — its kind's own preconditions decide, MOD-approvals'
 // rests-on-accepted refusing an item whose use case is not accepted, and nothing is queued then —; the job followed every 15 seconds through
 // MOD-job-ledger's listJobs and MOD-runtimes' liveState and jobLog until its record has its end; *Stop* calling cancelJob. As docs/architecture/MOD-prompt-bar.md states it.
@@ -132,8 +132,7 @@ const ALICE = "| alice | person | — |";
 //   it can do takes GitHub Actions (UC-049 4a.2); an endpoint's capabilities are draft text and read the repository, so it hands on the conversation itself (`converse`), not `implement`.
 // - tab-only: the endpoint at https://models.example called by this tab, naming no CI secret, so that its only route is this tab.
 // - lab-pc:claude and lab-pc:codex: the CLI sessions the Bridge lab-pc offers for its agents claude and codex, each with the declaration the Bridge keeps and its GET /v1/agents lists —
-//   every capability `implement` needs, at "this machine" and at "Anthropic, USA"; a hand-over of theirs takes the Bridge.
-const DEV_BRIDGE = "lab-pc:claude", OUTSIDER = "lab-pc:codex";
+//   every capability `implement` needs, at "this machine" and at "Anthropic, USA"; they are offered beside the endpoints, and plan no hand-over (UC-049 step 4).
 const ENDPOINTS = {
   "dev-ci": { kind: "openai-compatible", url: "https://models.example/v1", model: "model-ci", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000, secret: "KEY_A", bridge: "lab-pc" },
   "tab-only": { kind: "openai-compatible", url: "https://models.example/v1", model: "model-tab", key: "sk-fixture-KEY", place: "Anthropic, USA", context: 200000 },
@@ -305,7 +304,7 @@ function pick(it, name) {
 }
 
 // Sends a message to the participant, whose answer proposes the hand-over, and waits until the proposal is checked.
-async function proposes(it, handOver, participant = DEV_BRIDGE) {
+async function proposes(it, handOver, participant) {
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   it.net.handOver = handOver;
   pick(it, participant);
@@ -346,111 +345,8 @@ async function after(ms) { mock.timers.tick(ms); await settle(); }
 
 // ---------------------------------------------------------------- what is shown
 
-// TST-505001 · level: component · module: MOD-prompt-bar
-// guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: a Scrum product of team1 where ITM-004 is ready and selected for team1's sprint; the product holds Agent M's job workflow; the CLI session lab-pc:claude (place "this machine", every capability implement needs), which the Bridge lab-pc offers; its answer proposes { kind: "implement", works_on: ["ITM-004"], task: TASK }
-// input: Send
-// expect: the proposal shows "Kind: implement", "Works on: ITM-004", the task, "Participant: lab-pc:claude — this machine" and "Route: bridge lab-pc", no reason, no button "Hand over", and "Queued as" — it went on without a further click —: one commit queued the job and the Bridge was handed it once; the only request to an agent was the message, one ask of the Bridge, and none went to the model endpoint
-test("a hand-over the participant proposes is shown with its kind, what it works on, its task, the participant with its place and its route, and queued without a click", async () => {
-  const it = open();
-  await proposes(it, ITEM("ITM-004"));
-  const text = textOf(proposal(it));
-  for (const line of ["Kind: implement", "Works on: ITM-004", `Task: ${TASK}`, "Participant: lab-pc:claude — this machine", "Route: bridge lab-pc"]) assert.ok(text.includes(line), `${line} in ${text}`);
-  assert.equal(byClass(proposal(it), "start-reasons").length, 0);
-  assert.equal(all(it.target, (node) => node.localName === "button" && /hand over/i.test(textOf(node))).length, 0, "no click is asked for");
-  await until(() => queued(it) === 1, "the job is queued at once");
-  assert.equal(it.product.attempts.length, 1);
-  assert.equal(it.net.bridge.handedOver.length, 1);
-  assert.equal(asks(it), 1);
-  assert.equal(it.net.seen.filter((call) => call.origin === MODELS).length, 0);
-  assert.deepEqual(it.net.stray, []);
-});
-
-// The start rules of the product's process bind the process's jobs; the prompt bar is not part of the process (UC-049 4a.2, as accepted). TST-505002 to TST-505006 expected a hand-over that a
-// start rule would keep from starting — an item no sprint selects, one that builds on an item not done, a participant that holds no role, the work-in-progress limit, a gate not recorded — to
-// show that rule's reason and queue nothing. They now expect it queued, as a job of the participant the message went to; an item whose use case is not accepted is still refused, by the
-// kind's own precondition (NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED).
-
-// The one start record the hand-over committed: its text.
-const recordText = (it) => it.product.attempts[0].files[0].text;
-
-// TST-505002 · level: component · module: MOD-prompt-bar
-// guards: UC-049
-// given: the Scrum product of TST-505001, where ITM-005 is ready and is in no sprint's selection; lab-pc:claude's answer proposes a hand-over that works on ITM-005
-// input: Send
-// expect: no reason is shown and the hand-over is queued at once: one commit queues the job (kind implement, works_on ITM-005, participant lab-pc:claude) and the Bridge is handed it once
-test("a hand-over of an item no sprint selects is queued: the sprint's selection is a start rule of the process", async () => {
-  const it = open();
-  await proposes(it, ITEM("ITM-005"));
-  await until(() => queued(it) === 1, "the job is queued at once");
-  assert.equal(byClass(proposal(it), "start-reasons").length, 0);
-  assert.equal(it.product.attempts.length, 1);
-  assert.equal(it.net.bridge.handedOver.length, 1);
-  for (const line of ["kind: implement", "  - ITM-005", "participant: lab-pc:claude"]) assert.ok(recordText(it).includes(line), line);
-});
-
-// TST-505003 · level: component · module: MOD-prompt-bar
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-049
-// given: the Scrum product, where ITM-003 is selected and realises the open UC-002, and ITM-006 is selected and builds on ITM-004, which is not done; the answer proposes a hand-over of ITM-003, then of ITM-006
-// input: Send, each
-// expect: for ITM-003 the page says "Nothing was queued." with the finding of implement's precondition rests-on-accepted, naming UC-002 and NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, and nothing was written; ITM-006 is queued (one commit, handed to the Bridge once) — building on an item not done is a start rule of the process
-test("a hand-over of an item whose use case is not accepted is refused by the kind's precondition; one that builds on an item not done is queued", async () => {
-  const unaccepted = open();
-  await proposes(unaccepted, ITEM("ITM-003"));
-  await until(() => textOf(proposal(unaccepted)).includes("Nothing was queued."), "the refusal is shown");
-  const said = textOf(proposal(unaccepted));
-  assert.ok(said.includes("UC-002") && said.includes("NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED"), said);
-  assert.equal(queued(unaccepted), 0);
-  assert.equal(writesOf(unaccepted), 0, NOTHING_WRITTEN);
-  const builds = open();
-  await proposes(builds, ITEM("ITM-006"));
-  await until(() => queued(builds) === 1, "the job is queued at once");
-  assert.equal(builds.product.attempts.length, 1);
-  assert.equal(builds.net.bridge.handedOver.length, 1);
-});
-
-// TST-505004 · level: component · module: MOD-prompt-bar
-// guards: UC-049
-// given: the Scrum product, whose Developers are dev-ci and lab-pc:claude; the CLI session lab-pc:codex, with the same capabilities as lab-pc:claude, holds no role
-// input: Send to lab-pc:codex, whose answer proposes a hand-over of ITM-004
-// expect: no reason is shown and the hand-over is queued at once as lab-pc:codex's own job: one commit whose record names participant lab-pc:codex, handed to the Bridge once
-test("a hand-over proposed by a participant that holds no implementing role is queued as that participant's own job", async () => {
-  const it = open();
-  await proposes(it, ITEM("ITM-004"), OUTSIDER);
-  await until(() => queued(it) === 1, "the job is queued at once");
-  assert.equal(byClass(proposal(it), "start-reasons").length, 0);
-  assert.equal(it.product.attempts.length, 1);
-  assert.ok(recordText(it).includes("participant: lab-pc:codex"), recordText(it));
-  assert.equal(it.net.bridge.handedOver.length, 1);
-});
-
-// TST-505005 · level: component · module: MOD-prompt-bar
-// guards: UC-049
-// given: a Kanban product (work-in-progress limit 3, no sprints, one role assignment whose Developer is dev-ci) where ITM-001, ITM-002 and ITM-003 each have a queued job and ITM-004 is ready
-// input: Send, whose answer proposes a hand-over of ITM-004
-// expect: no reason is shown and the hand-over is queued at once: one commit, handed to the Bridge once
-test("a hand-over above the product's work-in-progress limit is queued: the limit is a start rule of the process", async () => {
-  const it = open({ files: kanbanFiles() });
-  await proposes(it, ITEM("ITM-004"));
-  await until(() => queued(it) === 1, "the job is queued at once");
-  assert.equal(byClass(proposal(it), "start-reasons").length, 0);
-  assert.equal(it.product.attempts.length, 1);
-  assert.equal(it.net.bridge.handedOver.length, 1);
-});
-
-// TST-505006 · level: component · module: MOD-prompt-bar
-// guards: UC-049
-// given: a V-model product whose plan has the step ITM-007 in the phase Implementation, behind the gate Design → Implementation, for which no gate record exists; dev-ci is its Developer
-// input: Send, whose answer proposes a hand-over of ITM-007
-// expect: no reason is shown and the hand-over is queued at once: one commit whose record works on ITM-007, handed to the Bridge once
-test("a hand-over of a step behind a gate that is not recorded is queued: the gate is a start rule of the process", async () => {
-  const it = open({ files: vModelFiles() });
-  await proposes(it, ITEM("ITM-007"));
-  await until(() => queued(it) === 1, "the job is queued at once");
-  assert.equal(byClass(proposal(it), "start-reasons").length, 0);
-  assert.ok(recordText(it).includes("  - ITM-007"), recordText(it));
-  assert.equal(it.net.bridge.handedOver.length, 1);
-});
+// A CLI session plans no pieces: it does the work asked for itself (UC-049 step 4, 4a, as accepted: "A CLI session is bound neither by this table nor by the plan of 4a"). The hand-overs
+// a CLI session proposed — TST-505001 to TST-505006, TST-505010 to TST-505012, TST-1123005 and TST-505014 — are no longer made; the plan is an endpoint's, whose hand-overs follow.
 
 // TST-505007 · level: component · module: MOD-prompt-bar
 // guards: UC-049; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
@@ -517,77 +413,6 @@ test("the task's words reach no record, commit or request through the bar, excep
   assert.deepEqual(it.net.stray, []);
 });
 
-// TST-505010 · level: component · module: MOD-prompt-bar
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; UC-049
-// given: lab-pc:claude, the CLI session the Bridge lab-pc offers for its agent claude; its answer (through the Bridge) proposes a hand-over of ITM-004
-// input: Send to lab-pc:claude, whose answer proposes the hand-over — no further click
-// expect: the proposal shows "Participant: lab-pc:claude — this machine" and "Route: bridge lab-pc"; after the click exactly one commit queues the job with route "bridge lab-pc" and without the task, no workflow is started, and the Bridge is handed { product: the product's address, record: the record's path, commit: the commit made, task: the task } once
-test("a hand-over to a Bridge is queued by one commit and handed to the Bridge with the task, which no file holds", async () => {
-  const it = open();
-  await proposes(it, ITEM("ITM-004"), DEV_BRIDGE);
-  const text = textOf(proposal(it));
-  assert.ok(text.includes("Participant: lab-pc:claude — this machine") && text.includes("Route: bridge lab-pc"), text);
-  await handsOver(it);
-  assert.equal(it.product.attempts.length, 1);
-  assert.equal(it.product.starts.length, 0);
-  const path = it.product.attempts[0].files[0].path;
-  assert.ok(it.product.attempts[0].files[0].text.includes("route: bridge lab-pc"));
-  assert.ok(!JSON.stringify(it.product.attempts).includes("PLANTED-TASK-9C2E"));
-  assert.deepEqual(it.net.bridge.handedOver, [{ product: PRODUCT_WEB, record: path, commit: it.product.head(), task: TASK }]);
-  assert.deepEqual(it.net.stray, []);
-});
-
-// What changed: the product used to change its sprint's selection, a start rule of the process that no longer applies to the bar (UC-049 4a.2, as accepted); it now changes what ITM-004 rests on, which the kind's own precondition checks.
-// TST-505011 · level: component · module: MOD-prompt-bar
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the product of TST-505001; before the person's Send, the text of UC-001, which ITM-004 realises, changes, so that no approval record names it any more
-// input: Send, whose answer proposes the hand-over of ITM-004
-// expect: the hand-over is checked against the product as it stands when the answer comes: the page says "Nothing was queued." with the finding that names UC-001 and NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, nothing is queued, and nothing was written
-test("the hand-over is checked against the product as it stands when the answer comes", async () => {
-  const it = open();
-  it.product.edit(UC1, () => "# UC-001 store, changed\n");
-  await proposes(it, ITEM("ITM-004"));
-  await until(() => textOf(proposal(it)).includes("Nothing was queued."), "the refusal is shown");
-  const said = textOf(proposal(it));
-  assert.ok(said.includes("UC-001") && said.includes("NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED"), said);
-  assert.equal(queued(it), 0);
-  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
-});
-
-// TST-505012 · level: component · module: MOD-prompt-bar
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the Scrum product; lab-pc:claude's answer proposes a hand-over that works on the use case UC-002, which is open and is no item or step of the plan, so that no start rule applies and the job's own precondition decides
-// input: Send, whose answer proposes the hand-over
-// expect: no start rule applies, so it is queued at once, and refused there: the page says "Nothing was queued." and the finding that the job rests on what is not accepted, naming UC-002 and the rule NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; nothing was written
-test("a hand-over of an open use case is refused by the job's own precondition at once", async () => {
-  const it = open();
-  await proposes(it, { kind: "implement", works_on: ["UC-002"], task: TASK });
-  await until(() => textOf(proposal(it)).includes("Nothing was queued."), "the refusal is shown");
-  const text = textOf(proposal(it));
-  assert.ok(text.includes("UC-002") && text.includes("NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED"), text);
-  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
-});
-
-// TST-1123005 · level: component · module: MOD-prompt-bar
-// guards: UC-049; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the allowed hand-over of TST-505001, and the instance's register of sources holds the source SRC-restricted (restricted, its content may go to "this machine" only); the recipe implementation-inputs gives one part that carries the sources of `places.contents`, as the real recipe does
-// input: a hand-over to lab-pc:codex (place "Anthropic, USA"); the same hand-over to lab-pc:claude (place "this machine")
-// expect: lab-pc:codex's hand-over writes nothing and the page says "Nothing was queued." with a finding that names SRC-restricted and "Anthropic, USA"; lab-pc:claude's hand-over is queued by one commit (the counter-proof: a source whose licence allows the place is read)
-test("a hand-over to a participant at a place a restricted source does not allow queues nothing, and one at a place it allows is queued", async () => {
-  const restricted = ["---", "id: SRC-restricted", "title: A restricted handbook", "kind: document", "authority: informational", "licence: restricted - internal", "places:", "  - this machine", "content_repository: https://github.com/alice/thesis-tool", "---",
-    "# SRC-restricted A restricted handbook", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file, hashed only |", ""].join("\n");
-  const it = open({ instanceFiles: { "docs/sources/SRC-restricted.md": restricted } });
-  await proposes(it, ITEM("ITM-004"), OUTSIDER);
-  await until(() => textOf(proposal(it)).includes("Nothing was queued."), "the refusal is shown");
-  const text = textOf(proposal(it));
-  assert.ok(text.includes("SRC-restricted") && text.includes("Anthropic, USA"), text);
-  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
-  const allowed = open({ instanceFiles: { "docs/sources/SRC-restricted.md": restricted } });
-  await proposes(allowed, ITEM("ITM-004"), DEV_BRIDGE);
-  await handsOver(allowed);
-  assert.equal(allowed.product.attempts.length, 1);
-});
-
 // ---------------------------------------------------------------- followed
 
 // TST-505013 · level: component · module: MOD-prompt-bar
@@ -619,35 +444,6 @@ test("a handed-over job is followed every 15 seconds: waiting for GitHub Actions
   const done = readsOf(it);
   await after(60000);
   assert.equal(readsOf(it), done, "a job that has ended is not followed any more");
-  assert.deepEqual(it.net.stray, []);
-});
-
-// TST-505014 · level: component · module: MOD-prompt-bar
-// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
-// given: the allowed Bridge hand-over of lab-pc:claude; the Bridge lab-pc takes the job and its log holds "first line" and "second line", not ended
-// input: a person's click on Hand over; the Bridge takes the job (the record's `## Taken` names lab-pc; the Bridge lists the job as running); the clock moves 15 000 ms; then the Bridge's log gets "third line" and the clock moves 15 000 ms
-// expect: before it takes the job "waiting for the Bridge lab-pc"; after, the log shows "first line" and "second line" and later "third line", in that order; once the job ends, "Ended: done"
-test("a job on a Bridge is waited for, then its log's lines are shown as they come", async () => {
-  const it = open();
-  await proposes(it, ITEM("ITM-004"), DEV_BRIDGE);
-  await handsOver(it);
-  assert.ok(following(it).includes("waiting for the Bridge lab-pc"), following(it));
-  const id = /Handed over: (JOB-[0-9a-z-]+)/.exec(following(it))[1];
-  takes(it, "lab-pc");
-  it.net.bridge.jobs.push({ id, product: "alice/thesis-tool", kind: "implement", agent: "claude", state: "running", started: "2026-10-16T12:01:00Z", usage: null });
-  it.net.bridge.log.push("first line", "second line");
-  await after(EVERY);
-  await until(() => following(it).includes("second line"), "the first lines");
-  assert.ok(following(it).indexOf("first line") < following(it).indexOf("second line"));
-  assert.ok(!following(it).includes("third line"));
-  it.net.bridge.log.push("third line");
-  await after(2000);
-  await until(() => following(it).includes("third line"), "the third line");
-  assert.ok(following(it).indexOf("second line") < following(it).indexOf("third line"));
-  ends(it, "done", [COMMIT]);
-  it.net.bridge.logEnded = true;
-  await after(EVERY);
-  await until(() => following(it).includes("Ended: done"), "the end is shown");
   assert.deepEqual(it.net.stray, []);
 });
 
@@ -766,24 +562,20 @@ test("a hand-over held back for a missing job workflow on GitHub offers Set up G
 // And: the known positive now shows Set up GitHub Actions instead of the link to settings (TST-1037001), and each refusal shows neither.
 // TST-1037002 · level: component · module: MOD-prompt-bar
 // guards: UC-049
-// given: known positive TST-1037001; lab-pc:claude's hand-over of ITM-003, whose use case is not accepted, on a product with the job workflow; tab-only, whose only route is this tab, on a product without it; the allowed hand-over of TST-505001
+// given: known positive TST-1037001; tab-only, whose only route is this tab, on a product without the job workflow; dev-ci's allowed hand-over of TST-505008 on a product with it
 // input: Send, each
-// expect: neither the button Set up GitHub Actions nor a link to settings in any of them; ITM-003's says "Nothing was queued."
+// expect: neither the button Set up GitHub Actions nor a link to settings in either of them
 test("a refusal for another reason offers no setup and no link to settings", async () => {
   const positive = open({ files: withoutWorkflow() });
   await proposes(positive, ITEM("ITM-004"), "dev-ci");
   await until(() => byClass(proposal(positive), "actions-setup").length === 1, "known positive");
   const offers = (it) => byClass(proposal(it), "settings-link").length + byClass(proposal(it), "actions-setup").length;
-  const unaccepted = open();
-  await proposes(unaccepted, ITEM("ITM-003"));
-  await until(() => textOf(proposal(unaccepted)).includes("Nothing was queued."), "the refusal is shown");
-  assert.equal(offers(unaccepted), 0);
   const tab = open({ files: withoutWorkflow() });
   await proposes(tab, ITEM("ITM-004"), "tab-only");
   await settle();
   assert.equal(offers(tab), 0);
   const allowed = open();
-  await proposes(allowed, ITEM("ITM-004"));
+  await ON_CI(allowed);
   await settle();
   assert.equal(offers(allowed), 0);
 });
@@ -866,15 +658,15 @@ const jobRecordOf = (it) => it.product.attempts.flatMap((attempt) => attempt.fil
 
 // TST-1129001 · level: component · module: MOD-prompt-bar
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
-// given: a page whose subject gives the text of the page, a target, a draft that holds the participant's answer, and a source SRC-person-alice of its own; the instance alice/agent-m on GitHub; the participant proposes a hand-over of the kind implement, queued since the participant's tab cannot run it
+// given: a page whose subject gives the text of the page, a target, a draft that holds the participant's answer, and a source SRC-person-alice of its own; the instance alice/agent-m on GitHub; dev-ci proposes a hand-over of the conversation itself, queued on GitHub Actions since its tab cannot take it
 // input: Send, whose answer proposes the hand-over
 // expect: the queued job's record holds `"source": "github.com/alice"` — the bar's, the account personAccount gives for the instance — among its parameters, not the subject's SRC-person-alice, and no other parameter of the subject — no `page`, no `draft`, no `target`, no text of the page and no text of the answer anywhere
 test("a queued hand-over takes only the bar's source, the person's account, into its record", async () => {
   const it = open({ subject: subjectGiving() });
-  await proposes(it, ITEM("ITM-004"));
+  await ON_CI(it);
   await handsOver(it);
   const record = jobRecordOf(it);
-  assert.ok(record.includes("kind: implement"), "known positive: the job is queued");
+  assert.ok(record.includes("kind: converse"), "known positive: the job is queued");
   assert.match(record, /"source": "github\.com\/alice"/);
   assert.doesNotMatch(record, /SRC-person-alice/);
   assert.doesNotMatch(record, /"page"|"draft"|"target"/);
@@ -888,10 +680,10 @@ test("a queued hand-over takes only the bar's source, the person's account, into
 // expect: the job is queued, and its record holds `"source": "github.com/alice"` all the same: the bar gives the account on every page
 test("a queued hand-over from a subject that gives no source takes the person's account", async () => {
   const it = open({ subject: subjectGiving({ withSource: false }) });
-  await proposes(it, ITEM("ITM-004"));
+  await ON_CI(it);
   await handsOver(it);
   const record = jobRecordOf(it);
-  assert.ok(record.includes("kind: implement"), "known positive: the job is queued");
+  assert.ok(record.includes("kind: converse"), "known positive: the job is queued");
   assert.match(record, /"source": "github\.com\/alice"/);
 });
 
@@ -1114,7 +906,7 @@ const asksOfChange = (it) => it.net.seen.filter((call) => call.origin === BRIDGE
 
 // TST-2026114911 · level: component · module: MOD-prompt-bar
 // guards: UC-049; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
-// given: lab-pc:claude, which can do change-use-case, a kind whose result waits for the person; its answer plans two pieces of change-use-case — 1 on UC-001, 2 on UC-002 —, each with a task; the change of a use case answers a draft without files
+// given: dev-ci, an endpoint, which can do change-use-case, a kind whose result waits for the person; its answer plans two pieces of change-use-case — 1 on UC-001, 2 on UC-002 —, each with a task; the change of a use case answers a draft without files
 // input: the person's Send; then dropDraft for the page's subject, as the review pages do once the person saved or discarded the draft, and the bar started again on the next page of the tab
 // expect: piece 1 runs here — "runs here" —, with its record queued on the tab's route in one commit with its taking (`## Taken` by `tab …`), its task in no commit, and its end appended; its result is kept as the conversation's draft of change-use-case; piece 2 is shown as "after the draft before it" and is not asked; once the draft is dropped, the next bar runs piece 2 — its prompt is sent, a second record queued on the tab's route
 test("TST-2026114911: of two pieces run in this tab, the first runs at once with its record, and the next once the person has saved or discarded the draft before it", async () => {
@@ -1122,7 +914,7 @@ test("TST-2026114911: of two pieces run in this tab, the first runs at once with
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   it.net.handOver = [pieceOf("change-use-case", ["UC-001"], TASK), pieceOf("change-use-case", ["UC-002"], TASK)];
   it.net.answerFor = (body) => (body.includes(CHANGE_USE_CASE) ? { files: [] } : null);
-  pick(it, DEV_BRIDGE);
+  pick(it, "dev-ci");
   one(it.target, "instruction").value = "plan this";
   one(it.target, "send").dispatchEvent(personal());
   await until(() => piecesShown(it).length === 2, "the plan is shown");
@@ -1133,7 +925,7 @@ test("TST-2026114911: of two pieces run in this tab, the first runs at once with
   assert.equal(whereOf(piecesShown(it)[1]), "after the draft before it");
   const [first] = recordsCommitted(it);
   assert.match(first, /^kind: change-use-case$/m);
-  assert.match(first, /^route: tab$/m);
+  assert.match(first, /^route: tab endpoint dev-ci secret KEY_A$/m);
   assert.match(first, /^task: with the hand-over$/m);
   assert.match(first, /## Taken\n\nat: [^\n]+\nby: tab \S+/);
   await until(() => /^state: done$/m.test(it.product.file(it.product.paths().find((path) => /^docs\/jobs\/JOB-/.test(path))) ?? ""), "its end is appended");
