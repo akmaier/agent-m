@@ -139,7 +139,9 @@ person reviews it. Its formats are those of the modules it uses.
     reading runs. An inbox list in this browser only, the newest first, one line per mail with sender, subject and date:
     the proposable mails in bold, the attached and decided ones not, each of these with its issue or its mark *not an
     issue*; each mail that `repliesDue`, read with each reading, gives under `toAnswer` with `noted` false marked *to
-    answer*, its details offering *Answer*, which opens `replies/<issue>` of its issue; and a link *Replies* to
+    answer*, its details showing under the mail its reply as `replies/<issue>` shows the reply to that one mail — its
+    draft, or the text boxes of a reply without one —, with *Draft replies* and its run panel over that mail, *Save
+    draft*, *Send* with its confirmation and *No reply*; and a link *Replies* to
     `replies`. With `<id>`, a `MAIL-` identifier, the mail of that identifier is opened — the one of the list, or else
     the one the mailbox's `find` gives, a mail older than 30 days among them — as a mail clicked; one the mailbox does
     not hold is shown as *not found in the mailbox*. The mail clicked shows its details beside the list on a wide screen, and in place of the list, with a way

@@ -114,8 +114,10 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    is still found after the last round is marked in the text.
 7. The author clicks a mail in the list. Its details show: the mail in full, its proposal with the text editable, and
    what can be done with it — for a decided mail, the issue that lists it or its mark *not an issue* instead. A decided
-   mail of a closed issue that has no reply note for it is *to answer*: its details offer **Answer**, which opens that
-   issue's replies (UC-039, step 2). The author decides an undecided mail with one click:
+   mail of a closed issue that has no reply note for it is *to answer*: under the mail, its details show its reply as a
+   mail program shows a reply being written — its draft in *Drafts*, or the recipient, the subject `Re:`, an empty text
+   and the original quoted —, drafted, edited and sent there as UC-039 steps 3 to 6 say. The author decides an undecided
+   mail with one click:
    - **Create issue** — possible only when the check of step 6 finds nothing;
    - **Add to #n** — the mail describes an existing issue;
    - **Not an issue** — the mail is marked in this browser by its identifier and not proposed again.

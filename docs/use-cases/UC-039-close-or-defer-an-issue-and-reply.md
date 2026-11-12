@@ -75,8 +75,8 @@ mailbox, and the replies wait in the mailbox's own *Drafts* folder.
 
 ## Main flow
 
-1. On the tab **Mail** of Maintenance, the author opens **Replies** — or a mail marked *to answer*, whose **Answer**
-   leads to its issue in step 2 (UC-038, step 7). Agent M reads every issue that lists mail identifiers, the
+1. On the tab **Mail** of Maintenance, the author opens **Replies** — or a mail marked *to answer*, under which its
+   reply is written from step 3 on, in the tab **Mail** itself (UC-038, step 7). Agent M reads every issue that lists mail identifiers, the
    mailbox's *Drafts* and *Sent* folders, and shows three groups: **to answer** — closed issues with a
    listed mail that has no reply note, whoever closed them; **answer received** — issues labelled
    `waiting-for-reporter` with a new mail in the thread; **open**. A reply found in *Sent* that no issue
@@ -112,7 +112,7 @@ sequenceDiagram
     participant P as Participant
     participant B as Provider API or Bridge
     participant S as Mailbox
-    A->>D: tab Mail, Replies or a mail's Answer
+    A->>D: tab Mail, Replies or a mail to answer
     D->>I: issues with MAIL identifiers, reply notes, labels
     D->>B: find listed mails, read Drafts and Sent
     B->>S: read-only
