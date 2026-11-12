@@ -137,7 +137,8 @@ class TestBridgeAgents(unittest.TestCase):
     # guards: THE BRIDGE FINDS THE INSTALLED AGENTS; UC-044
     # given: the Markdown discovery cases beside this file, each with fixture executables of some supported agents alone on the path
     # input: installedAgents() asks the path which supported agents are there
-    # expect: exactly the agents with a fixture are installed, each with the version its fixture reports, the others missing with their installation page; an installed agent not logged in is marked so with its login step
+    # expect: exactly the agents with a fixture are installed, each with the version its fixture reports, the others missing with their installation page; an installed agent not logged in is marked so with its login step; each says whether it has a Chrome integration — Claude Code and Codex yes, opencode no (UC-044 step 3: "For an agent that has a Chrome integration — Claude Code and Codex —, the person may also tick Chrome"; MOD-agent-processes, Agent: "chrome whether its row's Chrome column names an integration")
+    # counter-proof: with src/agent-processes/index.mjs planted to give an installed agent chrome false, a missing one chrome true, or to read no Chrome column, the discovery cases fail
     def test_exactly_the_installed_agents_are_listed_with_their_versions(self):
         for loaded in cases():
             if loaded["case"]["input"]["kind"] != "discovery":

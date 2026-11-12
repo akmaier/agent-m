@@ -154,6 +154,12 @@ async function setInTheWindow(input) {
     // The panel's paragraph with the tick names where it works; the panel's other paragraphs follow it.
     const offering = app.descendants(rowOfClaude(), (node) => node.localName === "p" && node.textContent.includes("working in"))[0];
     out.workingFolderShown = named(offering?.textContent.match(/working in (\S+)/)?.[1] ?? null);
+    // UC-044 step 3: "For an agent that has a Chrome integration — Claude Code and Codex —, the person may also tick Chrome …; it is off until ticked." The
+    // tick Chrome of the offered agent's panel, saved with Save agents (MOD-desktop-shell, the window's views: Agents).
+    app.fieldOf("Chrome").checked = true;
+    await app.press("Save agents");
+    await until(() => app.settingsFile().agents[0]?.chrome === true);
+    out.afterChrome = app.settingsFile().agents.map(({ name, chrome }) => ({ name, chrome }));
     await app.goTo("Pairing");
     await app.press("Pair anew"); await app.press("Pair anew", true);
     // Pair anew writes the new token and then draws the window anew: wait until the window shows a token other than the first, the one written.
@@ -259,8 +265,10 @@ class TestBridgeSettings(unittest.TestCase):
     # guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
     # given: the Bridge's app running with its window, on a computer that has one supported agent installed; the Bridge was paired with a first token
     # input: in the window, set the name, the port, the served products and the interval and press Save settings; set the jump host and press Save jump host; tick the installed agent, set the one folder of the agents' working folders and press Save agents; press Pair anew and confirm
-    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, the products, the interval, the jump host, the one folder, the ticked agent with no folder of its own), the window shows the agent working in <folder>/claude, the pairing token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
+    # input (then): tick Chrome of the offered agent and press Save agents again
+    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, the products, the interval, the jump host, the one folder, the ticked agent with no folder of its own), the window shows the agent working in <folder>/claude; the agent's chrome is false until Chrome is ticked and true once it is saved ticked (UC-044 step 3: "the person may also tick Chrome: the Bridge then starts every session of that agent with its Chrome integration …; it is off until ticked"; MOD-desktop-shell, settings: "chrome … false until the person ticks it in the window"), the pairing token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
     # counter-proof: run against src/ of the commit before the one folder (b254ffa20^), whose window has a Working folder field per agent and no field for the one folder, this case fails: the window has no "Folder of the agents' working folders"
+    # counter-proof: with src/desktop-shell/window.mjs planted to save chrome true before it is ticked, to save chrome false when it is ticked, or to draw no tick Chrome, this case fails
     def test_every_setting_is_kept_as_it_was_set_in_the_window(self):
         for loaded in of_kind("set-in-the-window"):
             with self.subTest(case=loaded["name"]):

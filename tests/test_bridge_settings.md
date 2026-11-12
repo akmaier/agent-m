@@ -8,7 +8,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
 
 ```json
 {
-  "given": "The Bridge's app running with its window on a computer that has Claude Code installed (a fixture executable) and no other agent; the Bridge was paired with a first token; its settings file holds the name before, the first port, no folder, no jump host and no agent.",
+  "given": "The Bridge's app running with its window on a computer that has Claude Code installed (a fixture executable) and no other agent; the Bridge was paired with a first token; its settings file holds the name before, the first port, no folder, no jump host and no agent. Claude Code has a Chrome integration (UC-044 step 3), so its panel has the tick Chrome; Chrome is off until ticked.",
   "input": {
     "kind": "set-in-the-window",
     "name": "lab-pc",
@@ -62,11 +62,18 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
             "use tools",
             "reach the web"
           ],
-          "models": []
+          "models": [],
+          "chrome": false
         }
       ]
     },
     "workingFolderShown": "<folder>/claude",
+    "afterChrome": [
+      {
+        "name": "claude",
+        "chrome": true
+      }
+    ],
     "pairedAnew": {
       "differs": true,
       "oldToken": 401,
@@ -99,7 +106,8 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
             "use tools",
             "reach the web"
           ],
-          "models": []
+          "models": [],
+          "chrome": true
         }
       ]
     }
