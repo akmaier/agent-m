@@ -2,6 +2,8 @@
 // links to UC-017") open Agent M's own use cases, whatever product's issue is shown. The behaviour is UC-033 and UC-012 (docs/use-cases/UC-033-move-an-issue-into-the-backlog.md, Alternative flow 1a;
 // docs/use-cases/UC-012-turn-an-issue-into-a-specification-change.md, Alternative flow 5b) as docs/architecture/MOD-maintenance-pages.md (`issue/<number>`) and docs/architecture/MOD-site-frame.md (ViewContext: `go` "writes the
 // chosen product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the address then holds none") state it.
+// The case of the lead to UC-017, TST-1284302, is removed: UC-012 5b as accepted in 79bccc24d no longer reads "No participant with *run code and tests* is configured. Agent M says so and links to UC-017", but
+// "The agent of the conversation cannot run code and tests. It says so", and MOD-maintenance-pages' `issue/<number>` no longer names a fixing participant on the page.
 // Run: node --test tests/release-itm-1284-issue-leads-open-own-use-cases.test.mjs
 //
 // Module: MOD-maintenance-pages
@@ -53,28 +55,6 @@ test("TST-1284301 on a product's page, the lead of an issue not classified yet o
     const address = sentTo();
     assert.equal(typeof address, "string", "the click sent the browser to an address");
     assert.deepEqual(routeOf(fragmentOf(address)), { name: "use-case", params: { id: "UC-012" } }, address);
-    assert.equal(productOf(fragmentOf(address)), null, address);
-    assert.equal(reviewPages.routes.some((served) => served.name === "use-case"), true, "the review pages serve the route use-case");
-  });
-});
-
-// TST-1284302 · level: release · module: MOD-maintenance-pages
-// guards: UC-012
-// given: known positive first — the page at the address of the issue 6 of the product alice/product, labelled defect, shows that issue of that product and, since no participant of the register runs code and tests, says so with the lead "UC-017"; the browser has been sent nowhere
-// input: the person's click on the lead
-// expect: the browser is sent to an address of the review pages whose route, read back by the frame, is use-case with the parameter id UC-017 and no other, and whose product is none — the instance itself; the route is one the review pages serve
-// Planted fault: the lead's go without the empty product (`context.go("use-case", { id: "UC-017" })` in the fix section, src/maintenance-pages/issues.mjs) is given the chosen product by the frame, and the case fails on the product the address names.
-test("TST-1284302 on a product's page, the lead of a bug without a participant that can fix it opens the instance's own UC-017", async () => {
-  const p = await issuePage(productFragment(6), (main) => byClass(main, "uc-017").length > 0);
-  await lastly(p, async () => {
-    assert.match(textOf(p.main()), /Issue #6: Issue 6/, "known positive: the product's issue 6 is shown");
-    assert.match(textOf(one(p.main(), "issue-no-fixer")), /No participant that can run code and tests/, "known positive: the page says no participant can fix it");
-    assert.equal(productOf(globalThis.location.hash), PRODUCT_URL, "known positive: the page's address names the product");
-    assert.equal(sentTo(), undefined, "known positive: the page has sent the browser nowhere");
-    await trusted(one(p.main(), "uc-017"));
-    const address = sentTo();
-    assert.equal(typeof address, "string", "the click sent the browser to an address");
-    assert.deepEqual(routeOf(fragmentOf(address)), { name: "use-case", params: { id: "UC-017" } }, address);
     assert.equal(productOf(fragmentOf(address)), null, address);
     assert.equal(reviewPages.routes.some((served) => served.name === "use-case"), true, "the review pages serve the route use-case");
   });

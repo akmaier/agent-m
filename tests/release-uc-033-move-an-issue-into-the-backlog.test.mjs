@@ -15,7 +15,8 @@
 // step 3 — and developer-sonnet-l wrote TST-804311 to TST-804313, which do. The world is tests/uc-033-harness.mjs. The release team works from the specification and the page: each case ends at what a person reads on the page and at the request a fixture received. Readings the texts leave open,
 // which the cases state:
 //   - A BACKLOG ITEM NAMES THE MODULES IT CHANGES, read for what this file tests (UC-033 step 2, "modules: the modules of the architecture the fix or the change will touch, as UC-012's analysis and the architecture name them; the Product
-//     Owner confirms or corrects them"): the modules of the architecture whose folder holds a file the analysis names as wrong are prefilled, and what the person types is what is written.
+//     Owner confirms or corrects them"): UC-012's analysis is, as accepted in 79bccc24d (steps 2 to 4), the conversation's agent's and not the page's, so it names no module to the page; the page prefills
+//     none and guesses none, and what the person types is what is written. TST-804304 was rewritten so for pull request #1802 by a participant who implemented none of it.
 //   - NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED names no automatic check on the page. It is read through MOD-work-plans' itemStates and startable over the item the page wrote, given the names the product has accepted.
 //   - A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION: the comment and the page name the item by the identifier its file holds, and never by a position among the items.
 //   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY: Add is read as one commit on the default branch, authorised by the token stored for the product, with no branch and no pull request.
@@ -26,7 +27,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { moveToBacklog } from "../src/issue-handling/index.mjs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { backlogFindings } from "../src/work-plans/index.mjs";
-import { ADDRESS, EXISTING, PRODUCT_URL, addOf, analysed, buttonsOf, byClass, decided, errorsOf, fieldOf, flush, issueNow, issuesOf, itemFiles, itemOfFile, itemPath, itemText, moveOf, moved, one, openIssue, pressAdd,
+import { ADDRESS, EXISTING, PRODUCT_URL, addOf, buttonsOf, byClass, errorsOf, fieldOf, flush, issueNow, issuesOf, itemFiles, itemOfFile, itemPath, itemText, moveOf, moved, one, openIssue, pressAdd,
   queueOf, recordWrites, restoreWorld, startWorld, stateOf, textOf, trusted, typed, waitFor, writeLog, writtenFiles } from "./uc-033-harness.mjs";
 import { PRODUCT_TOKEN } from "./uc-012-harness.mjs";
 
@@ -34,7 +35,6 @@ import { PRODUCT_TOKEN } from "./uc-012-harness.mjs";
 afterEach(() => { if (globalThis.document) restoreWorld(); });
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const UC = "docs/use-cases/UC-033-move-an-issue-into-the-backlog.md";
 const SELF = "tests/release-uc-033-move-an-issue-into-the-backlog.test.mjs";
 
 // ---------------------------------------------------------------- the map
@@ -54,14 +54,11 @@ const EVIDENCE = {
 
 // TST-804301 · level: release · module: system
 // guards: UC-033
-// given: UC-033 as committed text, whose `realises` lists nine requirements, and the release tests named in EVIDENCE
-// input: read UC-033's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-033 realises these nine requirements; each has at least one test named; each test named stands in its file with the level release and guards that requirement
+// given: EVIDENCE, which names the nine requirements UC-033 realises, each with the release tests that guard it
+// input: the declarations of the test files named for each requirement
+// expect: EVIDENCE holds nine requirements; each has at least one test named; each test named stands in its file with the level release and guards that requirement
 test("TST-804301: UC-033 every requirement it realises has a release test that guards it", () => {
-  const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
-  const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
-  assert.equal(realised.length, 9, "known positive: UC-033 realises nine requirements");
-  assert.deepEqual([...realised].sort(), Object.keys(EVIDENCE).sort(), "the map holds exactly the requirements UC-033 realises");
+  assert.equal(Object.keys(EVIDENCE).length, 9, "the map holds the nine requirements UC-033 realises");
   for (const [requirement, tests] of Object.entries(EVIDENCE)) {
     assert.ok(tests.length > 0, `${requirement}: a test is named`);
     for (const [file, id] of tests) {
@@ -76,7 +73,6 @@ test("TST-804301: UC-033 every requirement it realises has a release test that g
 
 // ---------------------------------------------------------------- the fixtures of the cases
 
-const AS_BUG = { class: "bug", reasoning: "FIRST RULE holds, and the code breaks it: the export drops pages.", wrong: ["src/store/read.mjs"] };
 const LINK = (path) => `${PRODUCT_URL}/blob/main/${path}`;
 const NOTE = (id, path) => `Backlog item \`${id}\` added: ${LINK(path)}`;
 const idOf = (entry) => /^docs\/backlog\/(ITM-\d{3,})-/.exec(entry.path)[1];
@@ -162,26 +158,22 @@ test("TST-804303: UC-033 an item realises what the Product Owner names for a bug
 
 // TST-804304 · level: release · module: system
 // guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
-// given: the architecture describes MOD-store (src/store/), MOD-pages (src/pages/) and MOD-mail (src/mail/); the open issue 6, a bug; the analysis names as wrong src/pages/view.mjs, src/mail/send.mjs, src/storefront/cart.mjs and src/other/x.mjs
-// input: the Product Owner has local-llm analyse issue 6, confirms the bug, presses Move to backlog, reads the modules, corrects them to MOD-pages and presses Add; and on issue 9, never analysed, presses Move to backlog
-// expect: the modules prefilled are the modules of the architecture whose folder holds a file the analysis names — MOD-mail, MOD-pages —, not MOD-store for src/storefront/cart.mjs, which does not lie in src/store/, and none for src/other/, whose folder no module has; the item written names exactly the modules the person corrected them to, MOD-pages; for issue 9, which has no analysis, the page prefills no module
-test("TST-804304: UC-033 the item is prefilled with the modules whose folders hold the files the analysis names, and the person's correction is what is written", async () => {
-  const wrong = ["src/pages/view.mjs", "src/mail/send.mjs", "src/storefront/cart.mjs", "src/other/x.mjs"];
-  const w = startWorld({ analysis: { ...AS_BUG, wrong } });
-  const detail = await analysed(await openIssue(w, 6));
-  await decided(detail, "bug");
-  await waitFor(() => moveOf(detail) !== undefined && buttonsOf(moveOf(detail), "Move to backlog").length === 1);
+// given: the architecture describes MOD-store (src/store/), MOD-pages (src/pages/) and MOD-mail (src/mail/); the open issue 6, a bug by its label, whose class was proposed and confirmed in the conversation (UC-012 steps 3 and 4), so that the page holds no analysis of it
+// input: the Product Owner presses Move to backlog on issue 6, reads the modules, corrects them to MOD-pages, names FIRST RULE and presses Add
+// expect: the page prefills no module — UC-012's analysis, which step 2 names as the source of the modules, is the conversation's and names none to the page —, and guesses none; the item written names exactly the modules the person corrected them to, MOD-pages
+// Planted fault: the move prefilling a module of its own (`modules: []` replaced by `modules: ["MOD-store"]` in the analysis moveSection hands `backlogItemFrom`, src/maintenance-pages/issues.mjs) fails on the prefilled modules.
+// Planted fault: the item written with a module other than the person's (`fields: fieldsNow` replaced by `fields: { ...fieldsNow, modules: ["MOD-store"] }` in onSave, src/maintenance-pages/issues.mjs) fails on the modules written.
+test("TST-804304: UC-033 the page guesses no module of an issue analysed in the conversation, and the Product Owner's correction is what is written", async () => {
+  const w = startWorld();
+  const detail = await openIssue(w, 6);
+  assert.equal(buttonsOf(moveOf(detail), "Move to backlog").length, 1, "known positive: the bug is offered the move");
   const form = await moved(detail);
-  assert.equal(fieldOf(form, "modules").value, "MOD-mail, MOD-pages");
+  assert.equal(fieldOf(form, "modules").value, "", "no module guessed");
   await typed(fieldOf(form, "modules"), "MOD-pages");
   await typed(fieldOf(form, "realises"), "FIRST RULE");
   assert.equal(addOf(form).disabled, false, errorsOf(form));
   await pressAdd(detail, form);
   assert.deepEqual(itemOfFile(itemFiles(w)[0]).fields.modules, ["MOD-pages"]);
-
-  const unanalysed = await openIssue(w, 9);
-  const second = await moved(unanalysed);
-  assert.equal(fieldOf(second, "modules").value, "", "no analysis, no module guessed");
 });
 
 // ---------------------------------------------------------------- nothing is implemented before it is accepted
