@@ -218,29 +218,24 @@ test("TST-804204: UC-033 the item is checked and what fails is named, the Produc
   assert.equal(addOf(second).disabled, false, "a warning refuses nothing");
 });
 
-// ---------------------------------------------------------------- 1a: the issue is not classified yet
+// ---------------------------------------------------------------- 1a: the issue carries neither the label defect nor change
 
 // TST-804205 · level: system · module: system
-// guards: UC-033; ONE CLICK PER DECISION
-// given: the open issues 5 (not classified), 6 (defect) and 8 (not reproducible); known positive first — issue 6 is offered Move to backlog
-// input: the Product Owner opens issue 5 and presses the lead "UC-012, step 2"; opens issue 8
-// expect: issue 5 offers no Move to backlog and says it is not classified, leading to "UC-012, step 2"; the lead goes once, to the use case UC-012 of the instance itself; issue 8, whose class is not reproducible, is classified and offers neither the move nor the lead
-test("TST-804205: UC-033 1a an issue not classified yet is not offered the move and is led to UC-012", async () => {
+// guards: UC-033; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
+// given: the open issues 5 (no label), 6 (defect) and 8 (not-reproducible); known positive first — issue 6 is offered Move to backlog
+// input: the Product Owner opens issue 5 and issue 8
+// expect: neither issue 5 nor issue 8 carries the label defect or change, and neither offers Move to backlog or a lead to UC-012; nothing goes
+test("TST-804205: UC-033 1a an issue with neither the label defect nor change is not offered the move", async () => {
   const w = startWorld();
   const six = await openIssue(w, 6);
-  assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a classified bug is offered the move");
-
-  const five = await openIssue(w, 5);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 0);
-  assert.match(textOf(one(five, "move-not-offered")), /not classified/i);
-  assert.equal(textOf(one(five, "uc-012")), "UC-012, step 2");
+  assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a bug is offered the move");
+  for (const number of [5, 8]) {
+    const detail = await openIssue(w, number, { offered: false });
+    assert.equal(byClass(detail, "implement-issue").length, 1, `issue ${number}: the page is drawn`);
+    assert.equal(buttonsOf(detail, "Move to backlog").length, 0, `issue ${number}`);
+    assert.equal(byClass(detail, "uc-012").length, 0, `issue ${number}`);
+  }
   assert.deepEqual(w.context.went, []);
-  await trusted(one(five, "uc-012"));
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
-
-  const eight = await openIssue(w, 8, { offered: false });
-  assert.equal(buttonsOf(eight, "Move to backlog").length, 0);
-  assert.equal(byClass(eight, "uc-012").length, 0);
 });
 
 // ---------------------------------------------------------------- 2a: the change's entries are rejected
@@ -383,15 +378,18 @@ test("TST-804210: UC-033 1b a product that works from a plan has no backlog, and
 
 // TST-804212 · level: system · module: system
 // guards: UC-033; A BACKLOG ITEM NAMES WHAT IT REALISES
-// given: the open issue 5, whose text names FIRST RULE; local-llm analyses it as a bug that src/store/read.mjs causes and names FIRST RULE as the requirement violated
-// input: the Product Owner confirms the class bug and presses Move to backlog
-// expect: step 2 — for a bug the item is prefilled with realises FIRST RULE, "the requirement that UC-012's analysis named as violated"; Add is enabled once nothing fails (the module MOD-store is prefilled from the file the analysis names)
-test("TST-804212: UC-033 step 2 a bug's item is prefilled with the requirement the analysis named as violated", { todo: "FINDING UC033-F5 — UC-033 step 2 prefills a bug's realises and modules from UC-012's analysis, which the issue page no longer runs: since MOD-maintenance-pages' Implement, the analysis is the conversation's, and the page reads nothing of it" }, async () => {
-  const w = startWorld({ analysis: { ...AS_BUG, violated: "FIRST RULE" } });
+// given: the open issue 6, labelled defect
+// input: the Product Owner presses Move to backlog, then names FIRST RULE as the requirement the code violates and MOD-store as the module the fix touches
+// expect: step 2 — for a bug the item's realises and modules are not prefilled and Add is not enabled; once the Product Owner names them, the fields hold FIRST RULE and MOD-store and Add is enabled
+test("TST-804212: UC-033 step 2 the Product Owner names a bug's violated requirement and its modules", async () => {
+  const w = startWorld();
   const detail = await openIssue(w, 6);
   const form = await moved(detail);
-  assert.equal(fieldOf(form, "realises").value, "FIRST RULE");
-  assert.equal(fieldOf(form, "modules").value, "MOD-store");
+  assert.deepEqual([fieldOf(form, "realises").value, fieldOf(form, "modules").value], ["", ""], "nothing is prefilled for the Product Owner to name");
+  assert.equal(addOf(form).disabled, true, "known positive: an item that names nothing is not added");
+  await typed(fieldOf(form, "realises"), "FIRST RULE");
+  await typed(fieldOf(form, "modules"), "MOD-store");
+  assert.deepEqual([fieldOf(form, "realises").value, fieldOf(form, "modules").value], ["FIRST RULE", "MOD-store"]);
   assert.equal(addOf(form).disabled, false, errorsOf(form));
 });
 

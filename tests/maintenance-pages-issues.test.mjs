@@ -9,7 +9,7 @@
 // MOD-repository-hosts are the real ones. Readings the texts leave open, which the tests state (the pull request names them):
 //   - The product is the one the frame has chosen (`context.product`); without one the page says so and reads nothing. Route names: `issues` (in the menu entry maintenance) and `issue` (out of the menu), whose parameter `number` is the issue's number: the address is `#issue/number=<n>`.
 //   - `issues` lists the open and closed issues (UC-012 step 2; MOD-maintenance-pages: `listIssues` with `state: "all"`): <ul class="issue-list"> of <li class="issue" data-issue="<n>"> with <a class="issue-link"> (href `#issue/number=<n>/product=<the product, percent-encoded>`; its click, by a person, goes to the route `issue` with `number`), the title, and <span class="issue-class"> — the class its label says:
-//     defect, change or not-reproducible, else "not classified".
+//     defect or change (UC-012 step 3), else "not classified" — a label not-reproducible included.
 //   - `issue` shows <h2> with the number and title, <pre class="issue-text"> with the issue's text, <span class="issue-class">, and, for an open issue, <button class="implement-issue"> Implement. A closed issue shows its text and its class only.
 // The counter-proofs are recorded in the pull request.
 
@@ -80,7 +80,7 @@ async function analysed(w) {
 // guards: UC-012; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: known positive first — the page is loaded; the product alice/product with the open issues 5 to 8, of which 6 to 8 carry the label defect, change and not-reproducible, and the closed issue 9
 // input: the route issues is drawn; the link of issue 5 is clicked by a script and then by a person
-// expect: the issues requested are of the state all; the list holds 5, 6, 7, 8 and 9, with the class each label says — "not classified" for 5, defect, change, not-reproducible; the link of 5 has the href #issue/number=5/product=<the product>; the script's click goes nowhere and the person's goes to the route issue with number 5
+// expect: the issues requested are of the state all; the list holds 5, 6, 7, 8 and 9, with the class each label says — "not classified" for 5, defect, change, "not classified" for 8, whose label is neither defect nor change; the link of 5 has the href #issue/number=5/product=<the product>; the script's click goes nowhere and the person's goes to the route issue with number 5
 test("issues — lists the product's open and closed issues with their class, and a person's click on one goes to its page", async () => {
   const w = start();
   const target = await open(w, "issues");
@@ -88,7 +88,7 @@ test("issues — lists the product's open and closed issues with their class, an
   assert.deepEqual(w.listed, ["all"]);
   const items = byClass(target, "issue");
   assert.deepEqual(items.map((node) => [node.getAttribute("data-issue"), textOf(one(node, "issue-class"))]),
-    [["5", "not classified"], ["6", "defect"], ["7", "change"], ["8", "not-reproducible"], ["9", "defect"]]);
+    [["5", "not classified"], ["6", "defect"], ["7", "change"], ["8", "not classified"], ["9", "defect"]]);
   assert.ok(textOf(items[0]).includes("Export is cut off"));
   const link = one(items[0], "issue-link");
   assert.equal(link.getAttribute("href"), `#issue/number=5/product=${encodeURIComponent(PRODUCT_URL)}`);

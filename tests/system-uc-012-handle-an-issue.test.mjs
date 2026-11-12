@@ -1,6 +1,6 @@
-// System tests of UC-012 "Handle an issue: bug fix or specification change", as far as the dashboard's route `issue` carries it: step 2, Implement, which puts the request to handle the issue into the prompt bar, and
-// the alternative flow 5a, the old and the new expectation side by side before the fix's pull request is merged. Steps 3 to 6 and the alternative flows 3a, 4a and 5b are the work of the conversation's agent (UC-049),
-// not of the page; TST-585201 maps the flows the page carries to the system test that walks them.
+// System tests of UC-012 "Handle an issue: bug fix or specification change", as far as the dashboard's route `issue` carries it: step 2, Implement, which puts the request to handle the issue into the prompt bar with the
+// class its label gives (steps 3 and 4), the alternative flow 2a, the issue closed at once with the reason, and the alternative flow 5a, the old and the new expectation side by side before the fix's pull request is
+// merged. Steps 5 and 6 and the alternative flow 5b are the work of the conversation's agent (UC-049), not of the page; TST-585201 maps the flows the page carries to the system test that walks them.
 // Run: node --test tests/system-uc-012-handle-an-issue.test.mjs
 //
 // Module: MOD-maintenance-pages
@@ -32,16 +32,18 @@ const SELF = "tests/system-uc-012-handle-an-issue.test.mjs";
 // Each flow of UC-012 that the page carries, with the system test that walks it.
 const FLOWS = {
   "main flow, step 2": [[SELF, "TST-585208"]],
+  "main flow, steps 3 and 4": [[SELF, "TST-585210"]],
+  "2a": [[SELF, "TST-585209"]],
   "5a": [[SELF, "TST-585207"]],
 };
 
 // TST-585201 · level: system · module: system
 // guards: UC-012
-// given: FLOWS, which names step 2 and 5a, the flows of UC-012 the page carries, each with the system test that walks it
+// given: FLOWS, which names step 2, steps 3 and 4, 2a and 5a, the flows of UC-012 the page carries, each with the system test that walks it
 // input: the declarations of the test files named for each flow
-// expect: FLOWS holds exactly "main flow, step 2" and "5a"; each test named stands in its file with the level system and guards UC-012
+// expect: FLOWS holds exactly "main flow, step 2", "main flow, steps 3 and 4", "2a" and "5a"; each test named stands in its file with the level system and guards UC-012
 test("TST-585201: UC-012 every flow the page carries has a system test that walks it", () => {
-  assert.deepEqual(Object.keys(FLOWS), ["main flow, step 2", "5a"], "the flows the page carries");
+  assert.deepEqual(Object.keys(FLOWS), ["main flow, step 2", "main flow, steps 3 and 4", "2a", "5a"], "the flows the page carries");
   for (const [flow, tests] of Object.entries(FLOWS)) {
     for (const [file, id] of tests) {
       assert.ok(existsSync(new URL(`../${file}`, import.meta.url)), `${flow}: ${file} exists`);
@@ -75,6 +77,59 @@ test("TST-585208: UC-012 step 2 Implement puts the request to handle the issue i
   assert.match(prompts[0], /UC-012/);
   assert.ok(prompts[0].includes("Export loses pages 5") && prompts[0].includes(NAMING), prompts[0]);
   assert.deepEqual(w.kept.github.filter((request) => request.method !== "GET"), [], "Implement writes nothing");
+});
+
+// ---------------------------------------------------------------- steps 3 and 4: the class is the label
+
+// TST-585210 · level: system · module: system
+// guards: UC-012; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
+// given: the open issue 5, labelled defect, and the open issue 6, labelled change, of alice/product, each whose text is NAMING
+// input: the author opens each issue and presses Implement
+// expect: the request of 5 gives its class as its label defect, a bug, and that of 6 as its label change, a change; each says not to classify the issue anew, and neither asks for a class to be proposed or confirmed
+test("TST-585210: UC-012 steps 3 and 4 the class is the label set when the mail became the issue, and it is not decided again", async () => {
+  const w = start({ issues: [issueOf(5, NAMING, { labels: ["defect"] }), issueOf(6, NAMING, { labels: ["change"] })] });
+  const requests = {};
+  for (const number of [5, 6]) {
+    const detail = await open(w, number);
+    await waitFor(() => byClass(detail, "implement-issue").length > 0);
+    const prompts = [];
+    const before = globalThis.dispatchEvent;
+    globalThis.dispatchEvent = (event) => { if (event.type === "agent-m:prompt") prompts.push(event.detail); return true; };
+    try { await trusted(one(detail, "implement-issue")); } finally { if (before) globalThis.dispatchEvent = before; else delete globalThis.dispatchEvent; }
+    [requests[number]] = prompts;
+  }
+  assert.match(requests[5], /label defect: a bug/);
+  assert.match(requests[6], /label change: a change/);
+  for (const number of [5, 6]) {
+    assert.match(requests[number], /Do not classify it anew/);
+    assert.doesNotMatch(requests[number], /Propose its class|wait for my confirmation/i);
+  }
+});
+
+// ---------------------------------------------------------------- 2a: the author does not implement the issue
+
+const REASON = "Not implemented: the export of more than two pages is out of scope.";
+
+// TST-585209 · level: system · module: system
+// guards: UC-012; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the open issue 5 of alice/product, labelled change, whose text is NAMING
+// input: the author opens the issue, types REASON and presses Close
+// expect: one click closes the issue: the issue receives one comment, REASON, and the state closed; nothing else is written — no commit, no label; drawn again, the page offers neither Implement nor Close
+test("TST-585209: UC-012 2a the author closes the issue at once with the reason, and nothing else changes", async () => {
+  const w = start({ issues: [issueOf(5, NAMING, { labels: ["change"] })] });
+  const detail = await open(w, 5);
+  await waitFor(() => byClass(detail, "close-issue").length > 0);
+  one(detail, "close-reason").value = REASON;
+  await trusted(one(detail, "close-issue"));
+  await waitFor(() => byClass(detail, "close-done").length > 0 || byClass(detail, "close-problem").length > 0);
+  const written = w.kept.github.filter((request) => request.method !== "GET");
+  assert.deepEqual(written.map((request) => [request.method, request.path]), [["POST", "/repos/alice/product/issues/5/comments"], ["PATCH", "/repos/alice/product/issues/5"]]);
+  assert.equal(JSON.parse(written[0].body).body, REASON);
+  assert.equal(JSON.parse(written[1].body).state, "closed");
+  assert.deepEqual(w.kept.issues.find((each) => each.number === 5).labels, ["change"]);
+  const again = await open(w, 5);
+  await waitFor(() => byClass(again, "issue-text").length > 0);
+  assert.deepEqual([byClass(again, "implement-issue").length, byClass(again, "close-issue").length], [0, 0]);
 });
 
 // ---------------------------------------------------------------- 5a: the test was wrong, not the code
