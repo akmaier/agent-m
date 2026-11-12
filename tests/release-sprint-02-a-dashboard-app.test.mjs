@@ -525,7 +525,7 @@ test("release · ITM-129 UC-024: a page load of every address asks for no file b
 // UC-024 · ITM-129 — Expected: the menu links each stage of the process to the first of its views whose file is on the disk, in
 // the order of the process (THE MENU FOLLOWS THE PROCESS), and no view whose file is not; each view of the table whose file is
 // there, opened at its address, is shown — its page is not the use-case list the shell falls back to —; the public handed
-// get-your-own route is likewise shown. The address of an
+// get-your-own route is likewise shown, and so is `issues`, which MOD-maintenance-pages draws at its address. The address of an
 // unbuilt view shows the use-case list and asks for no file of that view.
 test("release · ITM-129 UC-024: every menu entry and view of today is shown; a view whose file is not built is not", async () => {
   const w = await world();
@@ -539,6 +539,10 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const HANDED = new Set(["uc", "arc", "review", "spec", "how", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "arrange", "process", "roles", "backlog", "progress", "get-your-own",
     "participants", "library", "sources", "resources"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
+  // MOD-maintenance-pages' routes `issues` and `issue/<number>` are drawn at their addresses (its Interfaces, `view`), though views.mjs names a file for
+  // `issues`; its entry opens on Mail, the first of its routes, so the menu does not count `issues` as the entry's first view.
+  const DRAWN = new Set(["issues"]);
+  const shownView = (view) => builtView(view) || DRAWN.has(view);
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
   assert.ok(expected.length >= 4, `the views of today: ${expected.join(", ")}`);
@@ -560,7 +564,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
       else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
       continue;
     }
-    const there = builtView(v.view);
+    const there = shownView(v.view);
     const p = await open(w, { hash: v.view === "review" ? "#review/uc" : `#${v.view}`, direct: true });
     if (there) {
       assert.notEqual(p.main(), fallback, `#${v.view} shows its own view`);

@@ -673,6 +673,13 @@ function pagesHost() {
   return host;
 }
 
+// The fragment of a route as MOD-site-frame's ViewContext `go` writes it: with the chosen product — the product shown, none for the instance itself — unless `params` names a product; the empty
+// product names the instance itself, and the fragment then holds none.
+function fragmentWithProduct(route, params) {
+  const { product = isInstanceShown() ? "" : T.product.address, ...rest } = params;
+  return fragmentOf(route, product ? { ...rest, product } : rest);
+}
+
 // The ViewContext of the review pages for the product shown: the product is the instance itself when the address names the instance.
 function reviewContext() {
   const address = parseAddress(T.product.address);
@@ -683,10 +690,10 @@ function reviewContext() {
     instance: { repository: T.instance, host: isInstance ? shown : connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken(), secrets: secrets() }) },
     product: isInstance ? null : { address: T.product.address, kind: address.server, host: shown, tokenStored: Boolean(token()) },
     store: openStore(T.instance),
-    // The step that stores a product's token is this page's #add; any other route is written as the frame writes it.
+    // The step that stores a product's token is this page's #add; any other route is written as the frame writes it, with the chosen product.
     go(route, params = {}) {
       if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
-      else location.hash = `#${[route, ...Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)].join("/")}`;
+      else location.hash = fragmentWithProduct(route, params);
     },
   };
 }
@@ -702,7 +709,7 @@ function implementationContext() {
     instance: { repository: T.instance, host: isInstance ? shown : connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken(), secrets: secrets() }) },
     product: { address: T.product.address, kind: address.server, host: shown, tokenStored: Boolean(token()), ref: T.ref },
     store: openStore(T.instance),
-    go(route, params = {}) { location.hash = fragmentOf(route, params); },
+    go(route, params = {}) { location.hash = fragmentWithProduct(route, params); },
   };
 }
 
@@ -986,6 +993,9 @@ async function route() {
           else location.hash = fragmentOf(route, params);
         },
       }, routeOf(location.hash).params);
+    } else if (kind === "issues" || kind === "issue") {
+      // MOD-maintenance-pages' issues of the product shown, drawn with the review pages' context: the instance itself is no product there (MOD-site-frame's ViewContext), and the page says to choose one.
+      await renderLoaded(maintenancePages.routes.find((r) => r.name === kind), params);
     } else if (kind === "process" || kind === "roles") {
       const route = implementationPages.routes.find((r) => r.name === kind);
       await renderLoaded(route, {});
