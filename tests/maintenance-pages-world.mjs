@@ -45,6 +45,7 @@ const realTimeout = globalThis.setTimeout;
 const waitFor = async (condition) => { for (let n = 0; n < 500 && !condition(); n += 1) await new Promise((resolve) => realTimeout(resolve, 10)); await flush(); };
 const trusted = async (node) => { const event = new Event("click"); Object.defineProperty(event, "isTrusted", { value: true }); node.dispatchEvent(event); await flush(); };
 const buttonsOf = (root, text) => walk(root, (node) => node.localName === "button" && node.textContent === text);
+const optionsOf = (root) => walk(root, (node) => node.localName === "option").map((option) => option.value);
 const itemOf = (target, id) => walk(target, (node) => node.getAttribute?.("data-mail") === id)[0];
 // The route mail: how many of its readings have ended (data-readings of .mail-page), a wait for the reading of `count` or for the mailbox's problem, and a mail opened from its list — the line's
 // button clicked, which a script may do since opening a mail writes nothing — with its details returned (itemOf).
@@ -205,8 +206,8 @@ async function opened(w, params = {}, name = "replies") {
   assert.ok(routeNamed(name), `the route ${name}: ${pages.error?.message}`);
   return draw(routeNamed(name), w.context, params);
 }
+// The replies drawn: the route reads at once (UC-039 step 1), and this waits for its groups or its problem.
 async function read(target) {
-  await trusted(one(target, "read-replies"));
   await waitFor(() => byClass(target, "replies-group").length > 0 || byClass(target, "replies-problem").length > 0);
   return target;
 }
@@ -234,4 +235,4 @@ const start = async (extra = {}) => {
 };
 
 
-export { mailReadings, mailRead, openMail, routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, FIXER, FIXER_SESSIONS, issueRecord, FORM_SPEC };
+export { optionsOf, mailReadings, mailRead, openMail, routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, FIXER, FIXER_SESSIONS, issueRecord, FORM_SPEC };

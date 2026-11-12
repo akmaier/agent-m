@@ -11,16 +11,17 @@
 // MOD-repository-hosts, MOD-bridge-client and MOD-browser-store run as they are; only `fetch` is faked, over the harness's fake GitHub, by this file: the Bridge lab-pc-4 on the loopback answers the mail operations (drafts, sent, find,
 // show-draft, store-draft, update-draft), keeping the drafts it is given; GitHub's REST API answers alice/product's issues; the model endpoint ep1 (the "fake runner") answers a chat completion with the texts given. Nothing leaves the process.
 // Readings the texts leave open, which the tests state (the pull request names them):
-//   - Reading changes nothing without a click: the page draws <button class="read-replies"> "Read replies"; the person's click calls repliesDue (which may note a reply found in Sent) and draws <section class="replies-group" data-group="to-answer"|
-//     "answer-received"|"open"> with <li class="reply-issue" data-issue="<n>"> per issue (its number, product and a button <button type="button" class="issue-link btn small"> "Open", which calls the ViewContext's go("replies", { issue, product }); the page writes no address); the route with the parameters { issue, product } draws that issue
-//     from the last reading (kept in memory only) or says to read first.
+//   - Drawing the route reads at once, as UC-039 step 1 has opening Replies read: it calls repliesDue (which may note a reply found in Sent), with no button to press, and draws <section class="replies-group" data-group="to-answer"|
+//     "answer-received"|"open"> with <li class="reply-issue" data-issue="<n>"> per issue (its number, product and a button <button type="button" class="issue-link btn small"> "Open", which calls the ViewContext's go("replies", { issue, product }); the page writes no address); the route with the parameters { issue, product } reads
+//     as well and draws that issue.
 //   - The issue: <p class="reply-solved"> "Solved by: <closedBy|not known> · Release: <release|not known>"; per listed mail <li class="reply-mail" data-mail="<MAIL-id>"> with .reply-reporter, .reply-date, .reply-subject; a mail found with a draft shows
 //     <div class="reply-draft"> (the draft as showDraft gives it: .draft-to, .draft-subject, <textarea class="draft-body"> editable, <ul class="draft-attachments"> with name and size) and <button class="save-draft"> "Save draft";
 //     a mail with mail: null says <p class="reply-missing"> "not found in the mailbox"; a mail without a usable reply address says <p class="reply-not-sendable"> "not sendable"; a mail with a note says <p class="reply-noted">. Send is ITM-967's and is offered by a draft alone.
-//   - Drafting: <section class="reply-drafting"> lists <li class="reply-participant"> with <input type="radio" class="participant"> for the participants of the instance's register that can draft text AND whose processing place the mailbox allows
-//     (the connection's `places`), the place named and, for an allowed place outside the EU, <span class="not-compliant">; <input class="person"> for the name; once a participant and a name are chosen, the run panel of MOD-site-frame (the kind
-//     draft-replies, the recipe reply-inputs over the issue's mails that have no draft and can be answered) and its Run. A reply written without a participant: <button class="write-reply"> per mail without a draft, which stores an empty draft with the
-//     original quoted below it and shows it.
+//   - Drafting: <section class="reply-drafting"> holds <select class="participant">, whose options (data-participant="<name>", naming its place) are the participants of the instance's register that can draft text AND whose processing place the
+//     mailbox allows (the connection's `places`), an allowed place outside the EU marked by the option's class not-compliant; the first is chosen, and no name is asked: the job is started in the name of the account of the instance's token, as the
+//     mail page names it. The run panel of MOD-site-frame (the kind draft-replies, the recipe reply-inputs over the issue's mails that have no draft and can be answered) and its Run stand there at once. A reply written without a participant: each
+//     mail without a draft shows its reply as text boxes — <div class="reply-compose"> with the recipient (.draft-to), the subject (.draft-subject), <textarea class="compose-body"> empty, the original quoted below it (<pre class="compose-quoted">),
+//     <button class="save-draft"> "Save draft" and <button class="send-reply"> "Send" —; Save draft stores the draft with the text written above the original quoted and shows it; Send stores it and sends it as a draft's Send does.
 //   - Run is the person's click (isTrusted); the job runs in this tab (the route tab), its start record naming the issue and not a mail; the texts the participant returns are stored as drafts through the mailbox, nothing is sent.
 // The counter-proofs are recorded in the pull request.
 
@@ -29,19 +30,20 @@ import assert from "node:assert/strict";
 import { mailStrategies } from "../src/mail-handling/index.mjs";
 import { writeSetting } from "../src/browser-store/index.mjs";
 import { readFileSync } from "node:fs";
-import { BRIDGE, ERIKA, SECRET, PRODUCT_URL, buttonsOf, byClass, flush, itemOf, one, opened, pages, read, restoreNet, restoreWorld, route, standard, start, textOf, trusted, waitFor, walk, issuesIn, world } from "./maintenance-pages-world.mjs";
+import { optionsOf, BRIDGE, ERIKA, SECRET, PRODUCT_URL, buttonsOf, byClass, flush, itemOf, one, opened, pages, read, restoreNet, restoreWorld, route, standard, start, textOf, trusted, waitFor, walk, issuesIn, world } from "./maintenance-pages-world.mjs";
 
 afterEach(restoreWorld);
 
 // TST-966001 · level: unit · module: MOD-maintenance-pages
 // guards: CLOSING AN ISSUE PREPARES ITS REPLIES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039
 // given: a closed issue listing four mails none of which has a note, an issue labelled waiting-for-reporter with a newer mail, an open issue, and a closed issue whose one mail has a reply note
-// input: the route replies drawn; the person's click on Read replies
-// expect: drawing reads and writes nothing; the groups are drawn: to answer holds issue 4 alone (the answered issue 7 is in none), answer received holds 5, open holds 6; each issue has its Open, a <button type="button"> of the class issue-link and no link; GitHub received no write
-test("the three groups are drawn, and a closed issue with an unnoted mail is under to answer", async () => {
+// input: the route replies drawn, with no click
+// expect: the page has no button Read replies; drawing reads the issues and the mailbox at once and draws the groups: to answer holds issue 4 alone (the answered issue 7 is in none), answer received holds 5, open holds 6; each issue has its Open, a <button type="button"> of the class issue-link and no link; GitHub received no write
+test("the three groups are drawn at once, and a closed issue with an unnoted mail is under to answer", async () => {
   const { w, target } = await start();
-  assert.deepEqual([w.kept.bridge, w.kept.github], [[], []], "drawing reads nothing");
   await read(target);
+  assert.equal(byClass(target, "read-replies").length, 0, "no button Read replies");
+  assert.ok(w.kept.bridge.some((call) => call.operation === "find"), "known positive: the mailbox was read without a click");
   assert.deepEqual([issuesIn(target, "to-answer"), issuesIn(target, "answer-received"), issuesIn(target, "open")], [[4], [5], [6]]);
   const opens = walk(target, (node) => (node.className ?? "").split(" ").includes("issue-link"));
   assert.deepEqual(opens.map((node) => [node.localName, node.getAttribute("type")]), [["button", "button"], ["button", "button"], ["button", "button"]]);
@@ -52,7 +54,7 @@ test("the three groups are drawn, and a closed issue with an unnoted mail is und
 // guards: CLOSING AN ISSUE PREPARES ITS REPLIES; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; UC-039
 // given: the closed issue 4 and its four mails: found without a draft, found with a draft, not in the mailbox, found with a sender that is no address
 // input: the route replies/<4> drawn after the reading
-// expect: the page shows what solved the issue (the pull request) and that the release is not known; each found mail with reporter, date and subject; the drafted mail shows its draft complete (recipient, subject, body in an editable field, the attachment with its name and size); the mail not in the mailbox says "not found in the mailbox"; the mail without an address says "not sendable"; no button Send anywhere
+// expect: the page shows what solved the issue (the pull request) and that the release is not known; each found mail with reporter, date and subject; the drafted mail shows its draft complete (recipient, subject, body in an editable field, the attachment with its name and size); the mail not in the mailbox says "not found in the mailbox"; the mail without an address says "not sendable"; neither of these two has a Send
 test("the issue shows what solved it and each mail with its draft, a missing mail and a mail that cannot be sent", async () => {
   const { mails, w, target } = await start();
   await read(target);
@@ -63,6 +65,7 @@ test("the issue shows what solved it and each mail with its draft, a missing mai
   const line = textOf(plain);
   assert.ok(line.includes("Erika Mustermann") && line.includes("2026-10-18") && line.includes("Subject plain"), line);
   assert.equal(byClass(plain, "reply-draft").length, 0, "no draft yet");
+  assert.equal(byClass(plain, "reply-compose").length, 1, "its reply is written in text boxes");
   const drafted = itemOf(detail, mails.drafted.id);
   const draft = one(drafted, "reply-draft");
   assert.match(textOf(one(draft, "draft-to")), /erika@example\.invalid/);
@@ -72,7 +75,7 @@ test("the issue shows what solved it and each mail with its draft, a missing mai
   assert.match(textOf(one(itemOf(detail, mails.absent.id), "reply-missing")), /not found in the mailbox/);
   assert.equal(byClass(itemOf(detail, mails.absent.id), "draft-body").length, 0);
   assert.match(textOf(one(itemOf(detail, mails.nowhere.id), "reply-not-sendable")), /not sendable/);
-  assert.deepEqual([mails.absent.id, mails.nowhere.id, mails.plain.id].map((id) => buttonsOf(itemOf(detail, id), "Send").length), [0, 0, 0], "no Send for a mail that is missing, not sendable or without a draft (ITM-967 sends the drafted one)");
+  assert.deepEqual([mails.absent.id, mails.nowhere.id].map((id) => buttonsOf(itemOf(detail, id), "Send").length), [0, 0], "no Send for a mail that is missing or not sendable");
 });
 
 // TST-966003 · level: unit · module: MOD-maintenance-pages
@@ -106,62 +109,122 @@ test("an edit of a draft is saved to the draft", async () => {
 // TST-966004 · level: unit · module: MOD-maintenance-pages
 // guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039
 // given: the mail of issue 4 that has no draft
-// input: the person's click on Write the reply myself
-// expect: one draft is stored through the mailbox to that mail's reporter alone, subject Re: its subject, an empty reply above the original quoted line by line; the page then shows that draft, editable; nothing else is stored
-test("a reply written without a participant opens an empty draft with the original quoted", async () => {
+// input: its reply's text box filled with "Fixed in version 1.5."; a click a script makes on Save draft; the person's click on Save draft
+// expect: the mail shows its reply as text boxes at once — recipient Erika, subject Re: Subject plain, an empty text box, the original quoted below it — and no button Write the reply myself; the script's click stores nothing; the person's click stores one draft through the mailbox, to that mail's reporter alone, subject Re: its subject, the text written above the original quoted line by line; the page then shows that draft, editable
+test("a reply without a participant is written in the mail's text boxes, and Save draft stores it", async () => {
   const { mails, w, target } = await start();
   await read(target);
   const detail = await opened(w, { issue: "4", product: PRODUCT_URL });
-  assert.deepEqual(w.kept.bridge.filter((call) => call.operation === "store-draft"), [], "known positive: nothing stored before the click");
-  await trusted(one(itemOf(detail, mails.plain.id), "write-reply"));
+  const item = itemOf(detail, mails.plain.id);
+  const compose = one(item, "reply-compose");
+  assert.ok(compose, "the reply's text boxes");
+  assert.equal(buttonsOf(item, "Write the reply myself").length, 0);
+  assert.match(textOf(one(compose, "draft-to")), /erika@example\.invalid/);
+  assert.equal(textOf(one(compose, "draft-subject")), "Re: Subject plain");
+  assert.equal(String(one(compose, "compose-body").value ?? ""), "");
+  assert.match(textOf(one(compose, "compose-quoted")), /> Hello,/);
+  one(compose, "compose-body").value = "Fixed in version 1.5.";
+  one(compose, "save-draft").dispatchEvent(new Event("click"));
+  await flush();
+  assert.deepEqual(w.kept.bridge.filter((call) => call.operation === "store-draft"), [], "a click a script makes stores nothing");
+  await trusted(one(compose, "save-draft"));
   await waitFor(() => byClass(itemOf(detail, mails.plain.id), "reply-draft").length > 0);
   const stores = w.kept.bridge.filter((call) => call.operation === "store-draft");
   assert.equal(stores.length, 1);
   assert.equal(stores[0].args.draft.to.address, ERIKA.address);
   assert.equal(stores[0].args.draft.subject, "Re: Subject plain");
-  assert.ok(stores[0].args.draft.body.includes(`> ${SECRET}.`) || stores[0].args.draft.body.includes(`> Hello,`), stores[0].args.draft.body);
-  assert.ok(byClass(itemOf(detail, mails.plain.id), "reply-draft").length === 1);
+  assert.ok(stores[0].args.draft.body.startsWith("Fixed in version 1.5.\n\n> Hello,"), stores[0].args.draft.body);
+  assert.equal(byClass(itemOf(detail, mails.plain.id), "reply-draft").length, 1);
+});
+
+// TST-20261112304 · level: unit · module: MOD-maintenance-pages
+// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; A SENT REPLY IS NOTED IN THE ISSUE; UC-039
+// given: the mail of issue 4 that has no draft, its reply's text box filled with "Fixed in version 1.5."
+// input: the person's click on that reply's Send, then the dialog's Send
+// expect: one draft is stored with the text above the original quoted; the dialog repeats the recipient and the subject and holds the text; then exactly one send, with the reference of the draft stored, and one note on issue 4
+test("Send on the mail's text boxes stores the reply as a draft and sends it on the confirmation of the mail shown", async () => {
+  const { mails, w, target } = await start();
+  await read(target);
+  const detail = await opened(w, { issue: "4", product: PRODUCT_URL });
+  const compose = one(itemOf(detail, mails.plain.id), "reply-compose");
+  one(compose, "compose-body").value = "Fixed in version 1.5.";
+  await trusted(one(compose, "send-reply"));
+  const dialog = () => byClass(document.body, "decision")[0];
+  await waitFor(() => dialog() !== undefined);
+  const stores = w.kept.bridge.filter((call) => call.operation === "store-draft");
+  assert.equal(stores.length, 1);
+  assert.ok(stores[0].args.draft.body.startsWith("Fixed in version 1.5."), stores[0].args.draft.body);
+  const said = textOf(dialog());
+  assert.ok(said.includes(ERIKA.address) && said.includes("Re: Subject plain") && said.includes("Fixed in version 1.5."), said);
+  assert.equal(w.kept.bridge.some((call) => call.operation === "send"), false, "nothing is sent while the dialog is open");
+  await trusted(buttonsOf(dialog(), "Send")[0]);
+  await waitFor(() => byClass(itemOf(detail, mails.plain.id), "reply-sent").length > 0 || byClass(itemOf(detail, mails.plain.id), "reply-problem").length > 0);
+  const sends = w.kept.bridge.filter((call) => call.operation === "send");
+  assert.equal(sends.length, 1);
+  assert.deepEqual(sends[0].args.ref, { route: "bridge", uid: 101, uidValidity: 7 });
+  assert.equal(w.kept.github.filter((request) => request.method === "POST" && request.path.endsWith("/4/comments")).length, 1);
+});
+
+// TST-20261112305 · level: unit · module: MOD-maintenance-pages
+// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; UC-039
+// given: the drafted mail of issue 4, its text box changed to "Changed text of the reply." and not saved
+// input: the person's click on Send
+// expect: the edit is saved to the draft first (one update-draft with the new body), and the dialog then shows the edited text, not the text stored before; nothing is sent while the dialog is open
+test("Send after an edit not yet saved saves it to the draft and shows the edited mail", async () => {
+  const { mails, w, target } = await start();
+  await read(target);
+  const detail = await opened(w, { issue: "4", product: PRODUCT_URL });
+  await waitFor(() => byClass(itemOf(detail, mails.drafted.id), "send-reply").length > 0);
+  const draft = one(itemOf(detail, mails.drafted.id), "reply-draft");
+  one(draft, "draft-body").value = "Changed text of the reply.";
+  await trusted(one(draft, "send-reply"));
+  const dialog = () => byClass(document.body, "decision")[0];
+  await waitFor(() => dialog() !== undefined);
+  const updates = w.kept.bridge.filter((call) => call.operation === "update-draft");
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].args.draft.body, "Changed text of the reply.");
+  const said = textOf(dialog());
+  assert.ok(said.includes("Changed text of the reply.") && !said.includes("We fixed the export in version 1.5."), said);
+  assert.equal(w.kept.bridge.some((call) => call.operation === "send"), false);
 });
 
 // TST-966005 · level: unit · module: MOD-maintenance-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-039
 // given: a mailbox that allows the place "this machine"; a register with local-llm (draft text, this machine), cloud-llm (draft text, a provider in the USA) and checker (no draft text, this machine)
 // input: the issue 4 drawn; and again with the mailbox also allowing the USA place, noted as outside the EU
-// expect: first only local-llm and ep1, the connection it runs on, are offered; then local-llm and cloud-llm with their connections ep1 and ep2, cloud-llm with the mark not compliant and its place named, local-llm without; checker is offered in neither
+// expect: one select offers first only local-llm and ep1, the connection it runs on, local-llm chosen; then local-llm and cloud-llm with their connections ep1 and ep2, cloud-llm's option with the mark not compliant and its place named, local-llm's without; checker is offered in neither
 test("Draft replies offers only participants that can draft at a place the mailbox allows", async () => {
   const first = await start();
   await read(first.target);
   const detail = await opened(first.w, { issue: "4", product: PRODUCT_URL });
-  await waitFor(() => byClass(detail, "reply-participant").length > 0);
-  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm", "ep1"]);
+  await waitFor(() => byClass(detail, "participant").length > 0);
+  assert.equal(byClass(detail, "participant").length, 1, "one select");
+  assert.deepEqual(optionsOf(one(detail, "participant")), ["local-llm", "ep1"]);
+  assert.equal(one(detail, "participant").value, "local-llm", "the first is chosen");
   document.body.replaceChildren();
   restoreNet();
   const second = await start({ places: [{ place: "this machine", outsideEu: false }, { place: "a provider in the USA", outsideEu: true, notCompliantNoted: true }] });
   await read(second.target);
   const both = await opened(second.w, { issue: "4", product: PRODUCT_URL });
-  await waitFor(() => byClass(both, "reply-participant").length > 1);
-  assert.deepEqual(byClass(both, "participant").map((radio) => radio.value).sort(), ["cloud-llm", "ep1", "ep2", "local-llm"]);
+  await waitFor(() => optionsOf(both).length > 1);
+  assert.deepEqual(optionsOf(one(both, "participant")).sort(), ["cloud-llm", "ep1", "ep2", "local-llm"]);
   const cloud = walk(both, (node) => node.getAttribute?.("data-participant") === "cloud-llm")[0];
   assert.match(textOf(cloud), /a provider in the USA/);
-  assert.equal(byClass(cloud, "not-compliant").length, 1);
-  assert.equal(byClass(walk(both, (node) => node.getAttribute?.("data-participant") === "local-llm")[0], "not-compliant").length, 0);
+  assert.match(String(cloud.className ?? ""), /not-compliant/);
+  assert.doesNotMatch(String(walk(both, (node) => node.getAttribute?.("data-participant") === "local-llm")[0].className ?? ""), /not-compliant/);
 });
 
 // TST-966006 · level: unit · module: MOD-maintenance-pages
 // guards: THE PAGE NAMES WHERE IT SENDS; MAIL STAYS IN THE MAILBOX; UC-039
-// given: local-llm chosen with a name; issue 4 with one mail with a draft, one without
-// input: the choice of the participant
-// expect: the run panel names the destination local-llm, where it processes data, and the parts it receives: the issue and the mail without a draft (by identifier), and not the mail that has a draft; Run is offered; nothing is sent or written yet
+// given: issue 4 with one mail with a draft, one without
+// input: the issue drawn, with no choice made and no name entered
+// expect: the page asks for no name (no field .person); the first participant, local-llm, is chosen, and the run panel names the destination local-llm, where it processes data, and the parts it receives: the issue and the mail without a draft (by identifier), and not the mail that has a draft; Run is offered; nothing is sent or written yet
 test("the run panel names the participant, its place and what it receives", async () => {
   const { mails, w, target } = await start();
   await read(target);
   const detail = await opened(w, { issue: "4", product: PRODUCT_URL });
-  await waitFor(() => byClass(detail, "participant").length > 0);
-  const radio = one(detail, "participant");
-  radio.checked = true;
-  one(detail, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(detail, "run-panel").length > 0);
+  assert.equal(byClass(detail, "person").length, 0, "no name is asked");
   const panel = textOf(one(detail, "run-panel"));
   assert.ok(panel.includes("local-llm") && panel.includes("this machine"), panel);
   assert.ok(panel.includes(`mail ${mails.plain.id}`) && panel.includes("issue"), panel);
@@ -174,17 +237,12 @@ test("the run panel names the participant, its place and what it receives", asyn
 // guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; MAIL STAYS IN THE MAILBOX; UC-039
 // given: the run panel of TST-966006 and a model endpoint (the fake runner) that returns one text for the mail without a draft
 // input: the person's click on Run
-// expect: the endpoint is asked once, at ep1; the text is stored as a draft through the mailbox, to that reporter alone, subject Re: its subject, the text above the original quoted; the page then shows that draft; the job's start record names the issue and no mail text or address; nothing is sent to any other mail
+// expect: the endpoint is asked once, at ep1; the text is stored as a draft through the mailbox, to that reporter alone, subject Re: its subject, the text above the original quoted; the page then shows that draft; the job's start record names the issue and no mail text or address, and is started by the account of the instance's token ("instance token"); nothing is sent to any other mail
 test("Run drafts a reply with the participant and stores it as a draft, which the page then shows", async () => {
   const texts = [];
   const { mails, w, target } = await start({ texts });
   await read(target);
   const detail = await opened(w, { issue: "4", product: PRODUCT_URL });
-  await waitFor(() => byClass(detail, "participant").length > 0);
-  const radio = one(detail, "participant");
-  radio.checked = true;
-  one(detail, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
   await waitFor(() => byClass(detail, "run-panel").length > 0);
   texts.push({ mail: mails.plain.id, text: "The export problem was fixed in version 1.5." });
   const run = buttonsOf(one(detail, "run-panel"), "Run")[0];
@@ -208,13 +266,14 @@ test("Run drafts a reply with the participant and stores it as a draft, which th
   assert.ok(stores[0].args.draft.body.includes("> Hello,"));
   const records = w.kept.github.filter((request) => request.method === "POST" && request.path.includes("/git/"));
   assert.equal(records.map((request) => String(request.body ?? "")).some((body) => body.includes(SECRET) || body.includes(ERIKA.address)), false, "no mail text or address reaches the repository");
+  assert.ok(records.map((request) => String(request.body ?? "")).some((body) => body.includes("started_by: instance token")), "the job is started by the token's account");
   assert.equal(w.kept.bridge.some((call) => /^(send|confirm-send)$/.test(call.operation)), false, "nothing is sent");
 });
 
 // TST-966008 · level: unit · module: MOD-maintenance-pages
 // guards: CLOSING AN ISSUE PREPARES ITS REPLIES; READING THE MAILBOX CHANGES NOTHING IN IT; UC-039
 // given: the Bridge does not answer
-// input: the person's click on Read replies
+// input: the route replies drawn
 // expect: no group is drawn; the page names why in .replies-problem; nothing is written to GitHub
 test("a mailbox that cannot be reached is named and nothing is written", async () => {
   const f = await standard();
@@ -233,7 +292,7 @@ test("a mailbox that cannot be reached is named and nothing is written", async (
 
 // TST-966009 · level: unit · module: MOD-maintenance-pages
 // guards: EVERY STEP EXPLAINS ITSELF; UC-039
-// given: the page before and after the reading, and an issue
+// given: the page after its reading, and an issue
 // input: the folded explanations
 // expect: the reading, the groups, the issue and the drafting each carry a folded <details class="explain">
 test("every step of the replies page carries its folded explanation", async () => {
@@ -320,6 +379,6 @@ test("Draft replies offers the endpoints the prompt bar offers from this browser
   writeSetting(first.w.context.store, "endpoint:GPT-OSS-120B", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "gpt-oss-120b", key: "k1", place: "this machine", context: 131072 });
   writeSetting(first.w.context.store, "endpoint:far-llm", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "far-model", key: "k2", place: "a provider in the USA", context: 131072 });
   const detail = await opened(first.w, { issue: "4", product: PRODUCT_URL });
-  await waitFor(() => byClass(detail, "reply-participant").length > 0);
-  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm", "GPT-OSS-120B", "ep1"]);
+  await waitFor(() => byClass(detail, "participant").length > 0);
+  assert.deepEqual(optionsOf(one(detail, "participant")), ["local-llm", "GPT-OSS-120B", "ep1"]);
 });
