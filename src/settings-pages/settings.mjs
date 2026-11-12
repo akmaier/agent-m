@@ -14,7 +14,7 @@ import { saveFile } from "../artifact-edits/index.mjs";
 import { endpointLacks, recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { gitlabVariableScopes } from "../runtimes/index.mjs";
 import { productActionsSetup, secretsPageOf, setUpText, unknownText } from "./actions-setup.mjs";
-import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
+import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, tokenStep, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, CLEARED_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
@@ -539,6 +539,12 @@ function repositoryLine(target, context, info) {
   const renewal = el("a", "settings-repository-renew", "Renew token ↗");
   if (links) renewal.href = links.projectTokens ?? links.tokens;
   else renewal.textContent = "Renewal link needs a repository address.";
+  // UC-042 step 2: Change opens the token page of the use case that set the token up, with what to do there.
+  const step = address ? tokenStep(info.key, address) : null;
+  const tokenPage = el("a", "settings-repository-token-page", step?.text ?? "");
+  if (step) Object.assign(tokenPage, { href: step.page, target: "_blank", rel: "noopener" });
+  const tokenStepBox = el("div", "settings-repository-token", el("p", null, tokenPage),
+    el("ol", "choices settings-repository-token-steps", ...(step?.steps ?? []).map((text) => el("li", null, text))));
   const status = el("p", "settings-repository-status", repositoryStatus(info, stored));
   const secret = stored?.value ?? "";
   value.type = "password";
@@ -553,10 +559,10 @@ function repositoryLine(target, context, info) {
   value.disabled = true;
   expiry.disabled = true;
   save.disabled = true;
-  // UC-042 step 2: Change opens the form — the notice, I have read this and Save — in place; until then none of it is shown.
+  // UC-042 step 2: Change opens the form — the token page, the notice, I have read this and Save — in place; until then none of it is shown.
   const notice = el("p", "notice settings-repository-shared-origin", sharedPagesNotice(context));
   const acknowledgementLine = el("p", null, el("label", null, acknowledgement, " I have read this."));
-  notice.hidden = acknowledgementLine.hidden = save.hidden = true;
+  tokenStepBox.hidden = notice.hidden = acknowledgementLine.hidden = save.hidden = true;
   show.addEventListener("click", () => {
     const hidden = value.type === "password";
     value.type = hidden ? "text" : "password";
@@ -569,7 +575,7 @@ function repositoryLine(target, context, info) {
     if (acknowledgement.checked) value.focus();
   });
   change.addEventListener("click", () => {
-    notice.hidden = acknowledgementLine.hidden = save.hidden = false;
+    tokenStepBox.hidden = notice.hidden = acknowledgementLine.hidden = save.hidden = false;
     acknowledgement.disabled = false;
     const alreadyAcknowledged = Boolean(readSetting(context.store, "acknowledged:shared-origin"));
     acknowledgement.checked = alreadyAcknowledged;
@@ -627,7 +633,7 @@ function repositoryLine(target, context, info) {
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
     el("p", null, `Expires on `, expiry, " ", renewal),
     explain("settings-token-stored"),
-    notice, acknowledgementLine,
+    tokenStepBox, notice, acknowledgementLine,
     el("p", null, change, " ", save, " ", test, " ", clear), result,
   );
 }

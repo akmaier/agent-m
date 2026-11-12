@@ -59,11 +59,12 @@ async function repositoryLines(settings) {
   return (title) => byClass(target, "settings-repository").find((node) => byClass(node, "settings-repository-change").length && node.childNodes[0]?.textContent === title);
 }
 
-// What Change shows of the token's page: the link, its own paragraph's hidden state, and the steps beside it.
+// What Change shows of the token's page: the link and the steps beside it, and whether their box is hidden — none shown is hidden.
 function tokenPage(line) {
-  const link = byClass(line, "settings-repository-token-page")[0];
-  const steps = byClass(line, "settings-repository-token-steps")[0];
-  return { link, steps, hidden: Boolean(link?.hidden) || Boolean(steps?.hidden) };
+  const box = byClass(line, "settings-repository-token")[0];
+  const link = box && byClass(box, "settings-repository-token-page")[0];
+  const steps = box && byClass(box, "settings-repository-token-steps")[0];
+  return { link, steps, hidden: !box || box.hidden };
 }
 
 // TST-1801001

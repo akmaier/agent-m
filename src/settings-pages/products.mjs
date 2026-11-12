@@ -84,6 +84,11 @@ export function productTokenName(path) {
 export const productTokenDescription = (path) =>
   `Agent M for the product ${path}: reviews, commits, issues, pull requests and runs of the work you start in it.`;
 
+// Name and description of the instance's own token (UC-014 step 7), from the instance repository's path.
+export const instanceTokenName = (path) => `Agent M · ${path}`;
+export const instanceTokenDescription = (path) =>
+  `Agent M dashboard of ${path}: commits, issues, pull requests and runs of the work you start.`;
+
 // THE REPOSITORY CHOICE IS SPELLED OUT: what to do on GitHub's prefilled token page.
 export const repositoryChoiceSteps = (path) => [
   `Under "Repository access" choose "Only select repositories" — GitHub preselects "All repositories", which would ` +
@@ -102,6 +107,22 @@ export const gitlabTokenSteps = (path, host) => [
   'Press "Create project access token" and copy the token GitLab now shows — it starts with glpat- and is shown only ' +
     "once.",
 ];
+
+// The page on which the token a key names is created, as the use case that set it up opens it, with what to do there: for
+// `github-token` the instance's prefilled page (UC-014 step 7), for `github-token:<repository>` the product's (UC-001 step 3) —
+// THE TOKEN LINK IS PREFILLED, THE REPOSITORY CHOICE IS SPELLED OUT —, for a GitLab project its Access tokens page (UC-001 3c).
+// address: the repository the key names -> { text, page, steps }.
+export function tokenStep(key, address) {
+  const links = connect(address, {}).webLinks();
+  if (address.server !== "github") {
+    const host = new URL(address.origin).host;
+    return { text: `Open Access tokens on ${host} ↗`, page: links.newToken(), steps: gitlabTokenSteps(address.path, host) };
+  }
+  const [name, description] = key === INSTANCE_TOKEN_KEY
+    ? [instanceTokenName(address.path), instanceTokenDescription(address.path)]
+    : [productTokenName(address.path), productTokenDescription(address.path)];
+  return { text: "Open GitHub's token page (prefilled) ↗", page: links.newToken(name, description, TOKEN_DAYS), steps: repositoryChoiceSteps(address.path) };
+}
 
 // UC-001 3d: both causes are reported by the author from GitLab's external page. repositoryInfo exposes canWrite,
 // not project-token availability, so neither cause is inferred or retained beyond this unsaved add-product screen.
