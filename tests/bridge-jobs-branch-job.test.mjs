@@ -1,23 +1,23 @@
-// MOD-bridge-jobs — a job of a kind that delivers a branch, run on a Bridge with its relay, as docs/architecture/MOD-bridge-jobs.md (Data) states it: "A job has a
-// relay when its kind's writer is `branch-and-pull-request` (MOD-runtimes), the kinds that deliver a branch. Before the agent starts, the Bridge makes two empty
-// folders beside the working clone"; "Each push is forwarded at once. While the agent's process runs, the Bridge looks at the outbox's branches every two
-// seconds"; "For a job with a relay, the Bridge's driver adds it, filled in, after the prompt it sends, as the description of where the agent works"; "The Bridge
-// names that clone to the agent's enclosure among the folders it may read, beside the instance's"; and docs/architecture/MOD-agent-enclosure.md's "what may be
-// written": "the writable folders the Bridge names — the job's checkout, its outbox and its relay's requests —" and, on Windows, "the readable folders it names —
-// the clone of the instance, the clone of the job's product, from which the job's checkout fetches, and the relay's answers —"; with ARC-054's consequence "a push
-// reaches the server before the agent has answered, a commit the server gained reaches the agent's `git fetch` after a `fetch` call".
-// Run: node --test tests/bridge-jobs-relay-job.test.mjs
+// MOD-bridge-jobs — a job of a kind that delivers a branch, run by a CLI session on a Bridge, as docs/architecture/MOD-bridge-jobs.md (Data) states it: "Then the
+// checkout's `origin` is set to the product's address with git's usual fetch refspec, so that the session's `git fetch`, `git pull` and `git push` reach the
+// product's repository itself"; "For a job whose kind's writer is `branch-and-pull-request` (MOD-runtimes), the kinds that deliver a branch, `branch.md`, filled in
+// with the job's branch — named by the job's identifier — and who merges, follows"; "Where the Bridge holds no token for the product, no file is left and no
+// helper is named"; "After the session has answered, the job's writer takes the pull request open or merged of the branch the session reports ... a branch the
+// Bridge's clone does not hold is read, after a fetch of the clone, as the origin holds it"; and docs/architecture/MOD-agent-enclosure.md's "what may be
+// written": "the writable folders the Bridge names — the session's checkout —" and, on Windows, "the readable folders it names — the clone of the instance and
+// the clone of the job's product, from which the session's checkout is made —". For UC-011 steps 3 and 4, and 4a.
+// Run: node --test tests/bridge-jobs-branch-job.test.mjs
 //
 // Module: MOD-bridge-jobs
-// Guards: NO MODEL READS A CREDENTIAL; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-011; UC-034
+// Guards: UC-011; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-034
 // Level: component
 //
 // Deterministic, no network, no real agent: the instance and the product are bare repositories in a temporary folder that git reaches through its own
-// `url.<path>.insteadOf`, as the computer's login would reach github.com; the Bridge holds no token for the product, so that the relay answers its pull-request
-// calls NotSupported and the writer opens none. The agent is a fixture executable named opencode, first on PATH: it commits its tests on the branch named by the
-// job's identifier and pushes it, asks `read` and keeps the answer, waits for the test's signal, asks `fetch`, runs its own git fetch, and answers its branch and
-// commit. The kind is fix-bug, whose recipes the test registers as fixtures and whose writer is the real branch-and-pull-request of MOD-runtimes. The enclosure is
-// the fixture of tests/enclosure-fixture.mjs, which records what it was asked to prepare.
+// `url.<path>.insteadOf`, as the computer's login would reach github.com; the Bridge holds no token for the product (UC-011 4a), so that no token file is left,
+// and the writer, which reaches no server's API without a token, opens no pull request. The agent is a fixture executable named opencode, first on PATH: it
+// commits its tests on the branch named by the job's identifier and pushes it to its origin, keeps its origin's address, waits for the test's signal, runs its
+// own git fetch, and answers its branch and commit. The kind is fix-bug, whose recipes the test registers as fixtures and whose writer is the real
+// branch-and-pull-request of MOD-runtimes. The enclosure is the fixture of tests/enclosure-fixture.mjs, which records what it was asked to prepare.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -39,11 +39,11 @@ const REAL_GIT = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" })
 const INSTANCE = "https://github.com/acme/agent-m", PRODUCT = "https://github.com/acme/widget";
 const ID = "JOB-20261116-1000-aaaa";
 
-registerStrategies("tests/bridge-jobs-relay-job.test.mjs", {
+registerStrategies("tests/bridge-jobs-branch-job.test.mjs", {
   recipes: { "fix-inputs": async () => [{ name: "the issue", text: "The export is cut off after the second page.", sources: [], required: true, artifacts: [] }],
     "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
 });
-registerStrategies("tests/bridge-jobs-relay-job.test.mjs (MOD-runtimes)", routeStrategies);
+registerStrategies("tests/bridge-jobs-branch-job.test.mjs (MOD-runtimes)", routeStrategies);
 
 function git(cwd, ...args) {
   const r = spawnSync(REAL_GIT, args, { cwd, encoding: "utf8" });
@@ -71,13 +71,13 @@ function push(seed, files, message) {
 }
 const PARTICIPANTS = "# Participants of this instance\n\n**REGISTER**\n\nThe participants of the test instance.\n\n| Name | Type | Model |\n|---|---|---|\n| fixer | agent | example-model |\n";
 
-// TST-2026111612 · level: component · module: MOD-bridge-jobs
-// guards: NO MODEL READS A CREDENTIAL; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-011; UC-034
-// given: a queued fix-bug job of the participant fixer on the route `bridge lab-pc agent opencode`; a product the Bridge holds no token for; the fixture agent
-// input: startWatching; the test waits until the agent has kept its read answer, checks the origin, then gives the origin's main a new commit and signals the agent
-// expect: while the agent still works, the origin holds the job's branch at the agent's commit, and the read answer the agent kept shows that commit as both outbox and origin, not done with NotSupported's words; after the fetch the agent's own git fetch reads the origin's new commit; the prompt the agent was sent ends with relay.md filled in — the requests and answers folders beside its working clone, its branch, who merges; the enclosure was prepared with the working clone, its outbox and the requests writable and the instance's clone, the product's clone and the answers readable; the record ends done with the agent's commit among its results and no pull request; the relay's folders are removed
-test("TST-2026111612: a job that delivers a branch forwards the agent's push while it works, answers its requests, and fetches for it from the Bridge's clone", async (t) => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-relay-job-")));
+// TST-1112004 · level: component · module: MOD-bridge-jobs
+// guards: UC-011; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-034
+// given: a queued fix-bug job of the participant fixer on the route `bridge lab-pc agent opencode`; a product the Bridge holds no token for, which the computer's own git reaches; the fixture agent
+// input: startWatching; the test waits until the agent has pushed, checks the origin, then gives the origin's main a new commit and signals the agent
+// expect: while the agent still works, the origin holds the job's branch at the agent's commit, pushed by the agent to its origin, which is the product's address; the agent's own git fetch reads the origin's new commit; the prompt the agent was sent ends with branch.md filled in — its branch and who merges, `you` — and names no token file; the enclosure was prepared with the checkout alone writable and the instance's clone and the product's clone readable; the record ends done with the agent's commit among its results and no pull request; the checkout is removed; counter-proof: no outbox, no relay folder and no token file was made
+test("TST-1112004: a job that delivers a branch is pushed, fetched and followed by its CLI session itself, from a checkout whose origin is the product", async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-branch-job-")));
   const bin = join(root, "bin"), kept = join(root, "kept"), go = join(root, "go");
   mkdirSync(bin);
   mkdirSync(kept);
@@ -88,14 +88,12 @@ test("TST-2026111612: a job that delivers a branch forwards the agent's push whi
 case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
 run) cat > '${kept}/prompt'
   job="\${PWD##*/}"
+  ls -a "$PWD" "$PWD/.." > '${kept}/listed'
   git checkout -q -b "$job" && printf 'the regression test\\n' > regression.test && git add regression.test && git commit -q -m 'the regression test' && git push -q origin "$job" || exit 4
+  git config --get remote.origin.url > '${kept}/origin'
   commit="$(git rev-parse HEAD)"
-  printf '{"call":"read","branch":"%s"}' "$job" > "$PWD.requests/read.json"
-  while [ ! -e "$PWD.answers/read.json" ]; do sleep 0.05; done
-  cat "$PWD.answers/read.json" > '${kept}/read.json'
+  : > '${kept}/pushed'
   while [ ! -e '${go}' ]; do sleep 0.05; done
-  printf '{"call":"fetch"}' > "$PWD.requests/fetch.json"
-  while [ ! -e "$PWD.answers/fetch.json" ]; do sleep 0.05; done
   git fetch -q && git rev-parse origin/main > '${kept}/fetched'
   printf '%s%s%s\\n' '${before}' "$commit" '${after}'
   printf '%s\\n' '{"type":"step_finish","part":{"tokens":{"input":5,"output":3}}}';;
@@ -136,30 +134,29 @@ esac
   const asked = [];
   startWatching({ bridgeName: "lab-pc", agents: [{ name: "opencode", folder }], products: [{ address: PRODUCT }], every: 100, instance: INSTANCE, enclosures: openEnclosures({ asked }) });
 
-  await until(() => existsSync(join(kept, "read.json")), "the agent's read answer");
+  await until(() => existsSync(join(kept, "pushed")), "the agent's push");
   const working = join(folder, "jobs", ID);
   const commit = git(working, "rev-parse", "HEAD");
   assert.equal(originRef(`refs/heads/${ID}`), commit, "the push reached the origin while the agent still works");
+  assert.equal(readFileSync(join(kept, "origin"), "utf8").trim(), PRODUCT, "the agent's origin is the product's address");
   assert.equal(/^## End$/m.test(record()), false, "known positive: the job has not ended yet");
-  const read = JSON.parse(readFileSync(join(kept, "read.json"), "utf8"));
-  assert.equal(read.done, false);
-  assert.match(read.reason, /NotSupported/);
-  assert.deepEqual([read.state.outbox, read.state.origin, read.state.pullRequest], [commit, commit, null]);
 
   const moved = push(product.seed, { "NEWS.md": "news\n" }, "news");
   writeFileSync(go, "");
   await until(() => /^## End$/m.test(record()), "the job's end");
 
-  assert.equal(readFileSync(join(kept, "fetched"), "utf8").trim(), moved, "after the fetch, the agent's own git fetch reads the origin's new commit");
-  const prompt = readFileSync(join(kept, "prompt"), "utf8");
-  for (const part of [`${working}.requests`, `${working}.answers`, `\`${ID}\``, "Who merges the pull request: you."]) {
-    assert.ok(prompt.replace(/\s+/g, " ").includes(part), `the prompt holds relay.md filled in: ${part}`);
-  }
+  assert.equal(readFileSync(join(kept, "fetched"), "utf8").trim(), moved, "the agent's own git fetch reads the origin's new commit");
+  const prompt = readFileSync(join(kept, "prompt"), "utf8").replace(/\s+/g, " ");
+  for (const part of [`\`${ID}\``, "Who merges it: you."]) assert.ok(prompt.includes(part), `the prompt holds branch.md filled in: ${part}`);
+  assert.equal(prompt.includes(".agent-m-token"), false, "no token file is named where the Bridge holds no token");
   const prepared = asked.find((each) => each.call === "prepare" && each.at.writable.includes(working));
-  assert.deepEqual(prepared.at, { writable: [working, `${working}.out.git`, `${working}.requests`], readable: [folder, join(folder, "products", "widget"), `${working}.answers`] });
+  assert.deepEqual(prepared.at, { writable: [working], readable: [folder, join(folder, "products", "widget")] });
+  const listed = readFileSync(join(kept, "listed"), "utf8");
+  for (const absent of [".agent-m-token", `${ID}.out.git`, `${ID}.requests`, `${ID}.answers`]) assert.equal(listed.includes(absent), false, `counter-proof: no ${absent} was made`);
+  assert.ok(listed.includes(ID), "known positive: the listing holds the checkout");
   const ended = record();
   assert.match(ended, /^state: done$/m, ended);
   assert.ok(ended.includes(commit), "the agent's commit is among the results");
   assert.doesNotMatch(ended, /\/pull\//, "no pull request");
-  for (const left of [working, `${working}.out.git`, `${working}.requests`, `${working}.answers`]) assert.equal(existsSync(left), false, `${left} is removed`);
+  assert.equal(existsSync(working), false, "the checkout is removed");
 });

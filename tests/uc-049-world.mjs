@@ -54,6 +54,8 @@ const completion = (message) => json({ choices: [{ message }], usage: { prompt_t
 export const calls = (...made) => ({ calls: made });
 /** A reply of the model: the answer it gives, as the kind `converse` reads it. */
 export const answer = (text, extra = {}) => ({ envelope: { draft: { answer: text, ...extra }, answers: [] } });
+/** A reply given as plain text, in no envelope: what a CLI session answers (UC-049 step 4). */
+export const said = (text) => ({ raw: text });
 
 /**
  * watch(s, { script, hold }) -> { requests, endpoint, bridge, github, release } — wraps the page's fetch. Every request is kept with its method, address, headers and body. The model endpoint's
@@ -82,14 +84,15 @@ export function watch(s, { script = [answer("Understood.")], hold = null } = {})
       if (value.calls) {
         return completion({ content: null, tool_calls: value.calls.map(({ id, name, args }) => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } })) });
       }
-      return completion({ content: asEnvelope(value) });
+      return completion({ content: value.raw ?? asEnvelope(value) });
     }
     if (url.origin === "http://127.0.0.1:9418" && request.method === "POST" && url.pathname === "/v1/ask") {
       kept.asks.push(JSON.parse(init.body));
       return json({ ask: "fixture-ask" });
     }
     if (url.origin === "http://127.0.0.1:9418" && url.pathname === "/v1/ask/fixture-ask") {
-      return json({ state: "done", text: asEnvelope(reply()), calls: [], usage: { inputTokens: 10, outputTokens: 5 }, error: null });
+      const value = reply();
+      return json({ state: "done", text: value.raw ?? asEnvelope(value), calls: [], usage: { inputTokens: 10, outputTokens: 5 }, error: null });
     }
     // The product's pull requests and its job workflow: the fixture host serves neither; here the workflow is started (200 with its run), lists its runs and cancels one.
     const product = /^\/repos\/[^/]+\/lending-tool(\/.*)?$/.exec(url.pathname)?.[1] ?? null;

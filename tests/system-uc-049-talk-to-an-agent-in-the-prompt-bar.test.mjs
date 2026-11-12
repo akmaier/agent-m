@@ -16,7 +16,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onRequirementPage, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases, writesBeyondRecords } from "./uc-019-prompt-bar-harness.mjs";
-import { AGENT, DRAFTER, HANDY, LISTED_AGENT, RUN_URL, TOOLER, answer, barText, calls, choose, conversationOf, declared, endpointOf, followClock, free, registerOf, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
+import { AGENT, DRAFTER, HANDY, LISTED_AGENT, RUN_URL, TOOLER, answer, barText, calls, choose, conversationOf, declared, endpointOf, followClock, free, registerOf, said, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { byClass, until } from "./review-pages-draft-world.mjs";
 
@@ -141,6 +141,36 @@ test("main flow (4): a CLI agent receives the message through its Bridge", async
   assert.ok(w.bridge().every((request) => request.headers["x-agent-m-bridge-token"] === "fixture-pairing-token"), "every call to the Bridge carries the pairing token");
   assert.ok(conversationOf(s).some((line) => line.includes("The Bridge's agent answers.")));
   w.stop();
+});
+
+// TST-1112006 · level: system · module: MOD-prompt-bar · MOD-runtimes · MOD-bridge-client
+// guards: UC-049; UC-011; THE PAGE NAMES WHERE IT SENDS
+// given: release-bridge:claude, a CLI session of the paired Bridge release-bridge at "this machine"; the session answers in plain text, in no envelope, "I split it and opened pull request #4."; in a second scenario the endpoint drafter, which answers the same plain text
+// input: a message "Split this requirement." sent to release-bridge:claude; in the second scenario the same message sent to drafter
+// expect: the Bridge receives one ask of the agent claude with its model agent-cli-model, naming the product's address https://github.com/akmaier/lending-tool as its product and a commit of the instance as its instance, whose input holds the person's words and the page and nothing of an endpoint's answer form; the plain answer appears in the conversation, and nothing says it could not be read; no job record and nothing else is written of it; counter-proof: the endpoint's plain answer is named as one that could not be read (flow: UC-049 main flow (4, CLI session); UC-011 step 3)
+test("TST-1112006: main flow (4): a CLI session is given the message in one ask naming its product, does the work itself, and its plain answer is shown", async () => {
+  const s = await scenario({ ...register(AGENT), answers: [{ answer: "x" }] });
+  const w = watch(s, { script: [said("I split it and opened pull request #4.")] });
+  await sendNow(s, "Split this requirement.");
+  await free(s);
+  assert.equal(w.asks.length, 1);
+  const [asked] = w.asks;
+  assert.deepEqual([asked.agent, asked.model, asked.product], ["claude", "agent-cli-model", "https://github.com/akmaier/lending-tool"]);
+  assert.match(String(asked.instance), /^[0-9a-f]{40}$/, "the commit of the instance the bar read");
+  assert.ok(asked.input.includes("Split this requirement.") && asked.input.includes("A LOAN HAS A DUE DATE"), "the ask holds the person's words and the page");
+  assert.equal(asked.input.includes("The form of your answer"), false, "no answer form of an endpoint");
+  assert.ok(conversationOf(s).some((line) => line.includes("I split it and opened pull request #4.")), conversationOf(s).join(" | "));
+  assert.doesNotMatch(statusOf(s).textContent, /could not be read/);
+  assert.deepEqual(w.endpoint(), [], "no model endpoint is asked");
+  assert.deepEqual([writesBeyondRecords(s).length, recordTexts(s).length], [0, 0], "nothing is written: no hand-over, no job record");
+  w.stop();
+
+  const e = await scenario({ ...register(DRAFTER), answers: [{ answer: "x" }] });
+  const v = watch(e, { script: [said("I split it and opened pull request #4.")] });
+  await sendNow(e, "Split this requirement.");
+  await free(e);
+  assert.match(statusOf(e).textContent, /could not be read/, "counter-proof: an endpoint's answer stays bound to its form");
+  v.stop();
 });
 
 // TST-513006 · level: system · module: MOD-prompt-bar · MOD-participant-list
