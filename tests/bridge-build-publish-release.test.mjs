@@ -32,7 +32,7 @@ const COMMIT = "9f1c2b7e0a5d4c3b2a1908f7e6d5c4b3a2918070";
 // The packages the app carries (Data: "the packages above that the app needs at run time"): Parts' list without electron-builder — electron,
 // electron-updater, imapflow, nodemailer, postal-mime, ssh2 — at the versions of the lockfile.
 const LOCK = JSON.parse(readFileSync(new URL("../src/bridge-build/package-lock.json", import.meta.url), "utf8")).packages;
-const PACKAGES = ["electron", "electron-updater", "imapflow", "nodemailer", "postal-mime", "ssh2"];
+const PACKAGES = ["electron", "electron-updater", "imapflow", "nodemailer", "postal-mime", "ssh2", "node-pty", "@xterm/headless"];
 const RUN_TIME = Object.fromEntries(PACKAGES.map((name) => [name, LOCK[`node_modules/${name}`].version]));
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -118,9 +118,9 @@ const rejection = async (promise) => { try { await promise; } catch (error) { re
 
 // TST-473955 · level: unit · module: MOD-bridge-build
 // guards: THE BRIDGE IS ONE FILE PER PLATFORM; THE BRIDGE IS SIGNED BY ITS PUBLISHER; UC-044
-// given: three platform folders, each with its files, their detached signatures and platform-build.json, all intact; every one of the six packages the app carries, Electron included, with an MIT licence in the fake registry; the update key in the environment; a fake host
+// given: three platform folders, each with its files, their detached signatures and platform-build.json, all intact; every one of the eight packages the app carries, Electron included, with an MIT licence in the fake registry; the update key in the environment; a fake host
 // input: publishRelease(host, { tag: "v2026.10.0", folders })
-// expect: the host's publishRelease is called once for the tag, as the release "Agent M 2026.10.0", with every one of the seven build files, each `<file>.sig` holding the recorded signature, `SHA256SUMS` — one line `<sha256>  <name>` per build file, in the order of the names — and `SHA256SUMS.sig`, a signature of those bytes that the public half of the key verifies; the notes name the version, the commit and each package with its licence; the result lists the uploaded names and the due diligence of each of the six packages
+// expect: the host's publishRelease is called once for the tag, as the release "Agent M 2026.10.0", with every one of the seven build files, each `<file>.sig` holding the recorded signature, `SHA256SUMS` — one line `<sha256>  <name>` per build file, in the order of the names — and `SHA256SUMS.sig`, a signature of those bytes that the public half of the key verifies; the notes name the version, the commit and each package with its licence; the result lists the uploaded names and the due diligence of each of the eight packages
 test("publishRelease — every file with its signature, SHA256SUMS and its signature are published as the release of the tag", async () => {
   const run = setting();
   try {

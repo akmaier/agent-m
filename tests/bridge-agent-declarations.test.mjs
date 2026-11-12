@@ -24,13 +24,13 @@ const folder = () => mkdtemp(join(tmpdir(), "agent-m-declarations-"));
 // guards: A CONNECTION NAMES THE MODELS IT OFFERS; A CONNECTION DECLARES ITS CAPABILITIES; UC-044
 // given: Bridge settings that offer claude, working in /work/claude of the one folder /work, and no declaration yet
 // input: loadSettings; then declareAgent(folder, "claude", a declaration); declareAgent for codex, which is not offered; a declaration whose model names no context
-// expect: the agent read back with the place "this machine" and every capability preset and no model; then with the declaration kept in the settings file; NotOffered for codex and InvalidSettings for the model without its context, the file unchanged
+// expect: the agent read back with its Chrome setting off, the place "this machine" and every capability preset and no model; then with the declaration kept in the settings file; NotOffered for codex and InvalidSettings for the model without its context, the file unchanged
 test("declareAgent — the Bridge's settings keep an offered agent's declaration, preset with this machine and every capability", async () => {
   const data = await folder();
   saveSettings(data, { ...loadSettings(data), folder: "/work", agents: [{ name: "claude" }] });
-  assert.deepEqual(loadSettings(data).agents, [{ name: "claude", folder: "/work/claude", place: "this machine", capabilities: CAPABILITIES, models: [] }]);
+  assert.deepEqual(loadSettings(data).agents, [{ name: "claude", folder: "/work/claude", chrome: false, place: "this machine", capabilities: CAPABILITIES, models: [] }]);
   declareAgent(data, "claude", DECLARATION);
-  assert.deepEqual(JSON.parse(await readFile(join(data, "settings.json"), "utf8")).agents, [{ name: "claude", ...DECLARATION }], "the file keeps no folder of the agent's own");
+  assert.deepEqual(JSON.parse(await readFile(join(data, "settings.json"), "utf8")).agents, [{ name: "claude", chrome: false, ...DECLARATION }], "the file keeps no folder of the agent's own");
   const before = await readFile(join(data, "settings.json"), "utf8");
   assert.throws(() => declareAgent(data, "codex", DECLARATION), { name: "NotOffered" });
   assert.throws(() => declareAgent(data, "claude", { ...DECLARATION, models: [{ model: "claude-opus-5-5" }] }), { name: "InvalidSettings" });
@@ -53,11 +53,25 @@ test("PUT /v1/agents/{agent} — declareAgent keeps the declaration in the Bridg
   t.after(() => { globalThis.fetch = realFetch; });
   const at = bridgeAt({ address: bridge.address, token: bridge.token });
   await declareThrough(at, "claude", DECLARATION);
-  assert.deepEqual(loadSettings(data).agents, [{ name: "claude", folder: "/work/claude", ...DECLARATION }]);
-  assert.deepEqual(settings.agents, [{ name: "claude", folder: "/work/claude", ...DECLARATION }]);
+  assert.deepEqual(loadSettings(data).agents, [{ name: "claude", folder: "/work/claude", chrome: false, ...DECLARATION }]);
+  assert.deepEqual(settings.agents, [{ name: "claude", folder: "/work/claude", chrome: false, ...DECLARATION }]);
   await assert.rejects(declareThrough(at, "codex", DECLARATION), (error) => /not-found/.test(`${error.name} ${error.code} ${error.message} ${JSON.stringify(error)}`));
   const refused = await realFetch(`${bridge.address}/v1/agents/claude`, { method: "PUT", headers: { Origin: ORIGIN, "X-Agent-M-Bridge-Token": "wrong", "content-type": "application/json" },
     body: JSON.stringify({ ...DECLARATION, place: "elsewhere" }) });
   assert.equal(refused.status, 401);
   assert.equal(loadSettings(data).agents[0].place, "Anthropic, USA");
+});
+
+// TST-20261112582 · level: unit · module: MOD-desktop-shell
+// guards: UC-044
+// given: Bridge settings that offer claude with its Chrome setting on and codex without one
+// input: loadSettings; then declareAgent(folder, "claude", a declaration), as PUT /v1/agents/{agent} keeps it
+// expect: claude is read back with chrome true and codex with chrome false, the setting being off until it is ticked; after the declaration claude's chrome is still true, in the file and read back
+test("TST-20261112582: the Bridge's settings keep each agent's Chrome setting, off until ticked, which a declaration leaves as it is", async () => {
+  const data = await folder();
+  saveSettings(data, { ...loadSettings(data), folder: "/work", agents: [{ name: "claude", chrome: true }, { name: "codex" }] });
+  assert.deepEqual(loadSettings(data).agents.map(({ name, chrome }) => [name, chrome]), [["claude", true], ["codex", false]]);
+  declareAgent(data, "claude", DECLARATION);
+  assert.equal(JSON.parse(await readFile(join(data, "settings.json"), "utf8")).agents[0].chrome, true);
+  assert.equal(loadSettings(data).agents[0].chrome, true);
 });

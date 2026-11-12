@@ -152,3 +152,23 @@ test("TST-2026111506: a product the watcher skips is reported with its reason", 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// TST-20261112583 · level: component · module: MOD-desktop-shell
+// guards: UC-049; A CANCELLED JOB WRITES NOTHING MORE
+// given: a constructed watcher runtime whose stop calls are observed, paused from its start — so that it takes no job, while a CLI session of the prompt bar may run
+// input: close, as the Bridge's quit does
+// expect: stopWatching is called with reason "quit" once — MOD-bridge-jobs ends every running CLI session then (UC-049 4g) —, though no watching was started
+test("TST-20261112583: a Bridge that quits while paused still ends its CLI sessions", async () => {
+  const root = mkdtempSync(join(tmpdir(), "agent-m-quit-paused-"));
+  try {
+    const mod = await desktopShellModule(root);
+    const events = [];
+    const runtime = mod.createBridgeJobRuntime(settings, { instance: "https://github.com/acme/agent-m", paused: () => true,
+      startWatching: () => events.push(["start"]), stopWatching: async (reason) => events.push(["stop", reason]) });
+    runtime.start();
+    await runtime.close();
+    assert.deepEqual(events, [["stop", "quit"]]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

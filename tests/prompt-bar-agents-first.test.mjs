@@ -6,7 +6,7 @@
 // Run: node --test tests/prompt-bar-agents-first.test.mjs
 //
 // Module: MOD-prompt-bar
-// Guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+// Guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; A CLI SESSION IS TOLD AGAIN EVERY FIFTH MESSAGE TO READ AGENTS.MD; UC-049
 // Level: unit
 //
 // The instance and the product are fixtures in memory behind hosts that only give their default branch, each with an AGENTS.md of its own text. The
@@ -16,7 +16,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { prepareMessage } from "../src/prompt-bar/send.mjs";
+import { prepareMessage, runSession } from "../src/prompt-bar/send.mjs";
+import { writeSetting } from "../src/browser-store/index.mjs";
 import { estimate, registerStrategies, runJob } from "../src/job-runner/index.mjs";
 import { routeStrategies } from "../src/runtimes/index.mjs";
 import { endpointDriver } from "../src/endpoint-calls/index.mjs";
@@ -78,4 +79,46 @@ test("a message on the instance's page reaches the endpoint with the instance's 
   const { ready, requests } = await requestsFor(null);
   assert.ok(requests[0][0].text.startsWith(INSTANCE_RULES));
   assert.ok(ready.prepared.destinations[0].size >= estimate(INSTANCE_RULES) + estimate(ready.prepared.kind.prompt));
+});
+
+// ---------------------------------------------------------------- a CLI session of the prompt bar (UC-049 step 4; ARC-055)
+
+// TST-20261112611 · level: unit · module: MOD-prompt-bar
+// guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; A CLI SESSION IS TOLD AGAIN EVERY FIFTH MESSAGE TO READ AGENTS.MD; UC-049
+// given: a message to the CLI session mac:opencode on a page of the instance, whose chapters for the page are the part "09_system-modeling.md — SRC-vibe-coding 2026-10-05, version hash abc123" with the chapter's text CHAPTER-TEXT; this browser keeps the Bridge mac, behind a fake fetch that answers every message done with "ok", the first starting the session JOB-1
+// input: runSession eleven times, each with the session the previous one kept
+// expect: the first, the sixth and the eleventh input begin with the instruction that the agent must read, in full, `../../AGENTS.md` and `../../docs/sources/SRC-vibe-coding/2026-10-05/09_system-modeling.md` — the instance's AGENTS.md and the chapter in the Bridge's clone of the instance, from the session's checkout —; the sixth and the eleventh also say that they need not be read again while still in the agent's context, the first does not; the others carry no instruction and name neither file; no input gives the AGENTS.md's text or the chapter's; the first gives the conversation so far, the others do not; the session kept counts the messages sent to it; counter-proof: a sixth message without the instruction fails this test
+test("TST-20261112611: the message that starts a CLI session and every fifth after it tell the agent to read AGENTS.md and the chapters by their paths", async () => {
+  const store = freshStore("acme/instance");
+  writeSetting(store, "bridge:mac", { address: "http://127.0.0.1:7777", token: "token-mac" });
+  const SESSION = { name: "mac:opencode", type: "CLI agent", model: "model-opencode", context: 200000, capabilities: ["draft text"], place: "this machine", route: "bridge mac agent opencode" };
+  const ready = await prepareMessage({ subject, participant: SESSION, instruction: "PERSON-WORDS", conversation: [{ from: "person", who: "alice", text: "EARLIER-WORDS", at: new Date() }],
+    store, instance: { host: hostOf(INSTANCE) }, product: null });
+  // The chapters for the page, as MOD-source-register's recipe names its part in the tab: the file, the version and its hash, with the chapter's text.
+  ready.prepared.parts.push({ name: "09_system-modeling.md — SRC-vibe-coding 2026-10-05, version hash abc123", text: "CHAPTER-TEXT", recipe: "chapters-for-page", size: 1, sources: ["SRC-vibe-coding"], required: true });
+  const inputs = [];
+  const prior = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const { pathname } = new URL(String(url));
+    const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    if (pathname === "/v1/ask") { const body = JSON.parse(init.body); inputs.push(body.input); return json({ ask: `ask-${inputs.length}`, session: body.session ?? "JOB-1" }); }
+    if (pathname.startsWith("/v1/ask/")) return json({ state: "done", text: "ok", calls: [], usage: null, error: null });
+    return json({ lines: [], next: 0, partial: "", ended: true });
+  };
+  try {
+    let kept = null;
+    for (let message = 1; message <= 11; message += 1) await runSession(ready, { kept, keep: (session) => { kept = session; } });
+    assert.deepEqual(kept, { bridge: "mac", agent: "opencode", id: "JOB-1", sent: 11 });
+  } finally { globalThis.fetch = prior; }
+  const instruction = "Before anything else, you must read these files of Agent M in full";
+  const files = ["- `../../AGENTS.md`", "- `../../docs/sources/SRC-vibe-coding/2026-10-05/09_system-modeling.md`"];
+  inputs.forEach((input, at) => {
+    const told = [0, 5, 10].includes(at);
+    assert.equal(input.startsWith(instruction), told, `message ${at + 1}: ${input.slice(0, 80)}`);
+    for (const file of files) assert.equal(input.includes(file), told, `message ${at + 1} names ${file}`);
+    assert.equal(/need not read them again while they are\s+still in your context/.test(input), at === 5 || at === 10, `message ${at + 1}: the note`);
+    assert.equal(input.includes("INSTANCE-RULES-TEXT") || input.includes("CHAPTER-TEXT"), false, `message ${at + 1} gives no file's text`);
+    assert.equal(input.includes("EARLIER-WORDS"), at === 0, `message ${at + 1}: the conversation so far only where the session starts`);
+    assert.ok(input.includes("PERSON-WORDS"));
+  });
 });
