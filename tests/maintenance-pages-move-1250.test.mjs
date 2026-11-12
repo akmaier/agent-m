@@ -238,8 +238,7 @@ test("issue — when the token may not comment the item is written and the page 
 
 // ---------------------------------------------------------------- ITM-1254: UC-033 1a and 4a on the issue's page
 // Readings the texts leave open, which these tests state (the pull request names them):
-//   - 1a: for an open issue whose class is none yet (no label defect, change or not-reproducible), the place of the move says why it is not offered, <p class="move-not-offered">, and leads to UC-012 with <button class="uc-012"> "UC-012, step 2", which goes, on a
-//     click, to Agent M's own use case (the context's `go("use-case", { id: "UC-012", product: "" })`, the empty product naming the instance itself). An issue classified as not reproducible is classified, so 1a does not apply to it.
+//   - 1a: an open issue that carries neither the label defect nor change offers no Move to backlog, and nothing in its place.
 //   - 4a: the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each <li class="existing-item" data-item="<identifier>"> with its identifier and title and <button> "Add to <identifier>";
 //     the person's click on it writes through `moveToBacklog` with `existing` the identifier, and the page shows <p class="move-added"> with that identifier, or the comment to copy as Add does.
 
@@ -248,30 +247,22 @@ const EXISTING_TEXT = ["---", "id: ITM-001", "title: Export keeps every page", "
   "# ITM-001 Export keeps every page", "", "## Outcome", "", "Every page is exported.", "", "## Acceptance", "", "- A unit test.", ""].join("\n");
 
 // TST-1254201 · level: component · module: MOD-maintenance-pages
-// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
-// given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a class; the issue 8 labelled not-reproducible
-// input: the route issue for 6, 8 and 5; on 5 the lead to UC-012 clicked by a person
-// expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to Agent M's own use case UC-012 — the empty product — and before which nothing goes
-test("issue — an issue not classified yet is not offered Move to backlog and is led to UC-012, step 2 (UC-033 1a)", async () => {
+// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; UC-033
+// given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a label; the issue 8 labelled not-reproducible
+// input: the route issue for 6, 8 and 5
+// expect: 6 offers Move to backlog; 8 and 5, which carry neither the label defect nor change, offer no Move to backlog and no lead to UC-012, and nothing goes
+test("issue — an issue with neither the label defect nor change is not offered Move to backlog (UC-033 1a)", async () => {
   const w = start();
   const six = await opened(w, 6);
   assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a bug is offered the move");
-  assert.equal(byClass(six, "uc-012").length, 0);
-  const eight = await open(w, 8);
-  await waitFor(() => byClass(eight, "implement-issue").length > 0);
-  await flush();
-  assert.equal(buttonsOf(eight, "Move to backlog").length, 0);
-  assert.equal(byClass(eight, "uc-012").length, 0, "an issue classified as not reproducible is classified");
-  const five = await open(w, 5);
-  await waitFor(() => byClass(five, "uc-012").length > 0);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 0);
-  assert.match(textOf(one(five, "move-not-offered") ?? { textContent: "" }), /not classified/i);
-  const lead = one(five, "uc-012");
-  assert.ok(lead, "the lead to UC-012 is offered");
-  assert.equal(textOf(lead), "UC-012, step 2");
-  assert.deepEqual(w.context.went, [], "nothing goes before the click");
-  await trusted(lead);
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
+  for (const number of [8, 5]) {
+    const detail = await open(w, number);
+    await waitFor(() => byClass(detail, "implement-issue").length > 0);
+    await flush();
+    assert.equal(buttonsOf(detail, "Move to backlog").length, 0, `issue ${number}`);
+    assert.equal(byClass(detail, "uc-012").length, 0, `issue ${number}: no lead to UC-012`);
+  }
+  assert.deepEqual(w.context.went, [], "nothing goes");
 });
 
 // TST-1254202 · level: component · module: MOD-maintenance-pages, MOD-issue-handling, MOD-work-plans
