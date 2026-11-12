@@ -28,6 +28,8 @@ realises:
   - A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL
   - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
   - NO MODEL READS A CREDENTIAL
+  - A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE
+  - A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE
 ---
 # UC-011 Hand a job to a local CLI session
 
@@ -38,8 +40,9 @@ they control, through the Agent M Bridge already running there.
 
 - **Author** — runs the Bridge, and chooses in its window the agents it offers.
 - **Local CLI session** — the coding agent the Bridge starts for the job, in that agent's working folder; it performs the
-  job with its own tools and login, in a checkout the Bridge made for it, and pushes its branches into the job's outbox;
-  the Bridge alone reaches the repositories.
+  job with its own tools and login, in a checkout the Bridge made for it, as any session of that agent does: it pushes,
+  opens pull requests and merges itself, with the job's repository token from an ignored file of the checkout, and
+  follows Agent M's `AGENTS.md`.
 
 ## Precondition
 
@@ -59,11 +62,12 @@ they control, through the Agent M Bridge already running there.
    the site hands the job over to the Bridge of a connection that offers the participant's model, with that Bridge's
    token.
 3. The Bridge checks the token, brings the clones in the agent's working folder to the job's commits — the product's
-   branch, and the instance at the commit the job's record names — and starts the agent there with the participant's
-   model and the task.
+   branch, and the instance at the commit the job's record names —, leaves the token of the job's repository in a file
+   of the checkout that git ignores, and starts the agent there with the participant's model and the task; the input
+   names that file and says to use the token without reading it.
 4. The job's artifacts reach the default branch, where they are open; a code change the CLI session commits on a branch
-   and pushes into the job's outbox goes to that branch instead, which the Bridge pushes to the product and opens a pull
-   request for — a merge request on GitLab — through the server's API, with the token it holds for the product.
+   goes to that branch instead, which the CLI session pushes to the product and opens a pull request for — a merge
+   request on GitLab — with that token, follows its CI and merges as the product's process lets it.
 5. The Bridge writes the job's end record with its last commit and reports what was committed, and the site shows the
    new artifacts for review.
 
@@ -77,8 +81,8 @@ sequenceDiagram
     M->>B: job and inputs with token
     B->>B: check token, clones at the job's commits
     B->>C: task in the agent's working folder
-    C-->>B: artifacts committed, branch in the outbox
-    B->>B: push, pull request with the product's token
+    C->>C: push, pull request, CI, merge with the token from the ignored file
+    C-->>B: artifacts committed
     B-->>M: commit
     M-->>A: artifacts ready for review
 ```
@@ -122,8 +126,8 @@ sequenceDiagram
 - **3c. Neither a token the Bridge holds nor the computer's git login reaches the product or the instance.** The job ends
   failed and names the repository with git's reason; the author stores or renews that repository's token in the
   dashboard, which hands it to the Bridge (UC-044, step 4, 3c).
-- **4a. The Bridge holds no token for the product.** Where the computer's own git login pushes the branch, the Bridge
-  pushes it and opens no pull request, and the job's end names the branch without one.
+- **4a. The Bridge holds no token for the product.** No token file is left; the CLI session works with the computer's
+  own git login, where it has one.
 - **2a. The browser blocks the call** — Safari does for `http://127.0.0.1`. The site names the reason and
   points to the route over HTTPS through the jump host (1c, 4) and to UC-010.
 

@@ -111,8 +111,9 @@ enters the repository the way every proposal does.
    - **A CLI session** is bound neither by this table nor by the plan of 4a: it receives the message, with the
      conversation so far and the page's context, through its Bridge, its input beginning with Agent M's `AGENTS.md`,
      and does the work asked for in its own checkout with its own tools, as any session of that agent does — it reads,
-     edits, runs code and tests, reaches the web, commits and pushes, with its own tools and login; the Bridge alone
-     reaches the repositories, with the token it keeps (UC-011, steps 3 and 4). It is started with the model chosen.
+     edits, runs code and tests, reaches the web, commits, pushes, opens pull requests, follows CI and merges, with
+     the repository token the Bridge leaves for it in an ignored file of the checkout (UC-011, step 3). It is started
+     with the model chosen.
      Its answer says what it did; what it committed stands in the repository.
 5. The answer appears in the conversation. An edit an endpoint proposed opens in the editor of UC-018 as its
    difference against the current text; a change of requirements, of a use case or of the architecture it handed on
