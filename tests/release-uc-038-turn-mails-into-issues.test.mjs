@@ -1,5 +1,5 @@
 // Release coverage for UC-038 "Turn mails into issues". The release-level guard that every requirement UC-038 realises with an automatic check is covered by executable evidence, that the system tests walk the main flow and every
-// alternative flow the item names — 2a, 4b, 4c, 6a, 7a, 7b and 8a — and, for the requirements that concern what a whole session does with a mailbox, its mails, its participants and the tracker, release cases that run the page over the fixtures:
+// alternative flow the item names — 2a, 4b, 4c, 6a, 7a, 7b, 7c and 8a — and, for the requirements that concern what a whole session does with a mailbox, its mails, its participants and the tracker, release cases that run the page over the fixtures:
 // a whole session leaves the mails in the mailbox and in no write of Agent M that names a sender, a name, a subject or a sentence of a mail, the issues carry the identifiers and the labels, and a participant at a place the mailbox does not allow
 // receives nothing. And, for the inbox of steps 1 to 4 and 7: opening Mail reads the mailbox at once and every five minutes while it stays open; a reading lists only the mails of the last 30 days, as the mail server
 // selects them, an older undecided mail stays in the mailbox unlisted (2b); the mails are listed newest first with sender, subject and date, the undecided ones in bold, the decided ones with their issue or mark and
@@ -58,7 +58,7 @@ const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 // guards: UC-038; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: UC-038's `realises` list, SPEC's current Check lines, the two system tests of UC-038 and the files that check the requirements
 // input: compare the realised requirements with the SPEC's Check lines; read the declarations of the system tests
-// expect: every realised requirement is checked at review only, or its Check names files that exist — a system test of UC-038 among the evidence, each with a level — or a file listed as missing; the system tests declare the main flow and each alternative flow the item names: 2a, 4b, 4c, 6a, 6c, 7a, 7b, 8a
+// expect: every realised requirement is checked at review only, or its Check names files that exist — a system test of UC-038 among the evidence, each with a level — or a file listed as missing; the system tests declare the main flow and each alternative flow the item names: 2a, 4b, 4c, 6a, 6c, 7a, 7b, 7c, 8a
 test("TST-965201: UC-038 release coverage names every automatic requirement and the system tests walk every flow", () => {
   const realised = ucRealises();
   const checks = specChecks();
@@ -84,7 +84,7 @@ test("TST-965201: UC-038 release coverage names every automatic requirement and 
   const declarations = [GRAPH_SYSTEM, BRIDGE_SYSTEM].flatMap((file) => testDeclarations(file, read(file)));
   assert.ok(declarations.length >= 11, "known positive: the declarations of the system tests are found");
   const declared = declarations.map((one) => `${one.guards.join("; ")} ${one.given ?? ""} ${one.input ?? ""} ${one.expect ?? ""}`).join("\n");
-  for (const phrase of ["UC-038 main flow", ...["2a", "4b", "4c", "6a", "7a", "7b", "8a"].map((flow) => `UC-038 alternative ${flow}`)]) {
+  for (const phrase of ["UC-038 main flow", ...["2a", "4b", "4c", "6a", "7a", "7b", "7c", "8a"].map((flow) => `UC-038 alternative ${flow}`)]) {
     assert.ok(declared.includes(phrase), `the system tests declare ${phrase}`);
   }
   assert.ok(declarations.every((one) => one.level === "system"), "every declaration of the system tests is level system");
@@ -227,7 +227,8 @@ test("TST-965205: opening Mail reads the mailbox at once and again every five mi
   mock.timers.enable({ apis: ["setTimeout"] });
   const { p, A } = await session();
   await lastly(p, async () => {
-    const readings = () => p.graph.requests.filter((request) => request.method === "GET" && /\/mailFolders\/inbox\/messages/.test(decodeURIComponent(request.address))).length;
+    // A reading of the last 30 days asks Graph for the INBOX's messages received since a day; finding a listed mail by its identifier, which each reading's repliesDue does (UC-038 step 7), lists them without that filter.
+    const readings = () => p.graph.requests.filter((request) => request.method === "GET" && /\/mailFolders\/inbox\/messages.*receivedDateTime ge/.test(decodeURIComponent(request.address))).length;
     await listed(p, 3);
     assert.equal(clicks.count, 0);
     assert.equal(readings(), 1, "opening Mail read the mailbox once, without a click");

@@ -1,6 +1,6 @@
 // UC-038 "Turn mails into issues" as a system path: the author opens the route `mail` on the main page, started by MOD-site-frame's startPage over the view of MOD-maintenance-pages, in the browser of
 // tests/maintenance-pages-world.mjs (the repositories, the participants' register, the model endpoints ep1 and ep2, GitHub's issues of alice/product), over the mailbox on the Microsoft route — a fixture server of
-// Microsoft Graph in place of graph.microsoft.com (tests/uc-039-world.mjs) — and walks the main flow (steps 1 to 10) and the alternative flows 2a, 4b, 4c, 6a, 6c, 7a, 7b and 8a, each reached by a person's input: the
+// Microsoft Graph in place of graph.microsoft.com (tests/uc-039-world.mjs) — and walks the main flow (steps 1 to 10) and the alternative flows 2a, 4b, 4c, 6a, 6c, 7a, 7b, 7c and 8a, each reached by a person's input: the
 // opening of Mail, which reads the mailbox, Mail opened again, which reads it anew, a mail opened from the list, a chosen participant and a typed name, Propose, an edit of the title and the text, Create issue, Add to #n, Not an issue. The Bridge route (the IMAP server) is walked in
 // tests/system-uc-038-bridge-route.test.mjs.
 // Run: node --test tests/system-uc-038-turn-mails-into-issues.test.mjs
@@ -322,5 +322,31 @@ test("alternative 8a: an issue that cannot be created says which refusal it is, 
     assert.match(textOf(one(item, "mail-result")), /permission|refus|alice\/product/i);
     assert.ok(byClass(item, "token-step").length > 0, "the token step is linked");
     assert.deepEqual(p.w.kept.created, [], "nothing was written");
+  });
+});
+
+// TST-965011 · level: system · module: MOD-maintenance-pages
+// guards: UC-038; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS; CLOSING AN ISSUE PREPARES ITS REPLIES
+// given: the closed issue 4 of alice/product lists a, which the INBOX holds and no reply note names, and gone, which no folder of the mailbox holds
+// input: the issue's page opened (#issue/number=4/product=<the product>); a click on the link of a; the address that click writes followed; then the address #mail/id=<gone>
+// expect: the issue names a and gone, each a link to mail/<id>; the click writes #mail/id=<a>…; the mail page opens a, its text shown, marked to answer with Answer; for gone it says "<gone>: not found in the mailbox." (flow: UC-038 alternative 7c)
+test("alternative 7c: a mail opened from its issue's link is found by its identifier, and one no longer in the mailbox is named as not found", async () => {
+  const gone = await mailOf("gone");
+  const p = await open({ fragment: `#issue/number=4/product=${encodeURIComponent(PRODUCT_URL)}`, issues: [issueRecord(4, "closed", [A, gone])] });
+  await lastly(p, async () => {
+    await waitFor(() => byClass(p.main(), "mail-link").length > 0 || byClass(p.main(), "issue-problem").length > 0);
+    const links = byClass(p.main(), "mail-link");
+    assert.deepEqual(links.map((node) => textOf(node)), [A.id, gone.id], "the issue names its mails by their identifiers");
+    links[0].dispatchEvent(new Event("click"));
+    await flush();
+    assert.ok(globalThis.location.hash.startsWith(`#mail/id=${encodeURIComponent(A.id)}`), globalThis.location.hash);
+    await hashTo(globalThis.location.hash);
+    await mailboxRead(p);
+    await waitFor(() => byClass(one(p.main(), "mail-details"), "mail-text").length > 0);
+    assert.match(textOf(one(one(p.main(), "mail-details"), "mail-text")), /error E42/);
+    assert.equal(textOf(one(one(p.main(), "mail-details"), "answer-mail")), "Answer", "a mail of a closed issue without a reply note is to answer");
+    await hashTo(`#mail/id=${gone.id}`);
+    await waitFor(() => byClass(p.main(), "mail-not-found").length > 0);
+    assert.equal(textOf(one(p.main(), "mail-not-found")), `${gone.id}: not found in the mailbox.`);
   });
 });

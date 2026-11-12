@@ -69,6 +69,7 @@ export const ROUTES = [
   { address: "#schedule", shows: "This is the book's default schedule", ids: { 904: { drawn: 190, sheets: 191, targets: 192, widths: 193, diagrams: 194 }, 905: { drawn: 125, wcag: 126, diagrams: 127 } } },
   { address: "#generate", shows: "Generate tests", ids: { 904: { drawn: 195, sheets: 196, targets: 197, widths: 198, diagrams: 199 }, 905: { drawn: 128, wcag: 129, diagrams: 130 } } },
   { address: "#trace/key=tests", shows: "Tests", ids: { 904: { drawn: 200, sheets: 201, targets: 202, widths: 203, diagrams: 204 }, 905: { drawn: 131, wcag: 132, diagrams: 133 } } },
+  { address: "#issues", shows: "Issues", ids: { 904: { drawn: 207, sheets: 208, targets: 209, widths: 210, diagrams: 211 }, 905: { drawn: 134, wcag: 135, diagrams: 136 } } },
 ];
 
 // The numbers of the generated tests that are no route's, by series: the planted cases and the tests over several routes at once.

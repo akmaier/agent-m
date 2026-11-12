@@ -550,15 +550,16 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   assert.match(fallback, /#use-case\/id=UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
-      assert.ok(["add", "setup", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add, Setup and Settings routes, the test pages' routes runs, schedule, generate and release, the trace pages' route trace, the maintenance pages' routes mail and replies and the implementation pages' routes process, roles and backlog have no dashboard file");
+      assert.ok(["add", "setup", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "issues", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add, Setup and Settings routes, the test pages' routes runs, schedule, generate and release, the trace pages' route trace, the maintenance pages' routes mail, replies and issues and the implementation pages' routes process, roles and backlog have no dashboard file");
       const dispatched = fs.readFileSync(APP_FILE, "utf8");
       if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
       else if (v.view === "settings") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "settings"\)/, "#settings dispatches the public route");
       else if (v.view === "release") assert.match(dispatched, /testPages\.routes\.find\(\(r\) => r\.name === "release"\)/, "#release dispatches the public route");
       else if (v.view === "runs" || v.view === "schedule" || v.view === "generate") assert.match(dispatched, /kind === "runs" \|\| kind === "schedule" \|\| kind === "generate"\) \{\s*await renderProductRoute\(testPages, kind,/, `#${v.view} dispatches the test pages' public route`);
       else if (v.view === "trace") assert.match(dispatched, /renderProductRoute\(tracePages, "trace",/, "#trace dispatches the trace pages' public route");
-      else if (v.view === "mail") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "mail"\)/, "#mail dispatches the maintenance pages' public route");
-      else if (v.view === "replies") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "replies"\)/, "#replies dispatches the maintenance pages' public route");
+      else if (v.view === "mail") assert.match(dispatched, /kind === "mail" \|\| kind === "replies"\) \{[\s\S]*?maintenancePages\.routes\.find\(\(r\) => r\.name === kind\)/, "#mail dispatches the maintenance pages' public route");
+      else if (v.view === "replies") assert.match(dispatched, /kind === "mail" \|\| kind === "replies"\) \{[\s\S]*?maintenancePages\.routes\.find\(\(r\) => r\.name === kind\)/, "#replies dispatches the maintenance pages' public route");
+      else if (v.view === "issues") assert.match(dispatched, /kind === "issues" \|\| kind === "issue"\) \{[\s\S]*?maintenancePages\.routes\.find\(\(r\) => r\.name === kind\)/, "#issues dispatches the maintenance pages' public route");
       else if (v.view === "backlog") assert.match(dispatched, /implementationPages\.routes\.find\(\(r\) => r\.name === "backlog"\)/, "#backlog dispatches the implementation pages' public route");
       else if (v.view === "process" || v.view === "roles") assert.match(dispatched, /implementationPages\.routes\.find\(\(r\) => r\.name === kind\)/, `#${v.view} dispatches the implementation pages' public route`);
       else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
