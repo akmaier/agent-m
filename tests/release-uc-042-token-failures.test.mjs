@@ -18,7 +18,6 @@ import { openDashboard, repoServer, richDocument, press, TOKEN } from "./app-har
 const INSTANCE = "akmaier/agent-m";
 const key = (name) => `agent-m:${INSTANCE}:${name}`;
 const LAST_TEST = key("last-test:github-token");
-const RENEW = "https://github.com/settings/personal-access-tokens";
 const RESET = "2030-01-02T03:04:05.000Z";
 const tokenEntries = () => ({ [key("github-token")]: JSON.stringify({ value: TOKEN, name: "GitHub token",
   expires: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10) }) });
@@ -200,8 +199,8 @@ test("TST-475307: a first network failure leaves the token's last-test evidence 
 // module: MOD-settings-pages; MOD-repository-hosts
 // guards: UC-042; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: a successful public Test, then a controlled HTTP 401 with no established expiry/revocation cause
-// input: public Test again and inspect its immediate request error and the token's renewal control
-// expect: refused is recorded; authentication request refusal names GitHub token and renewal without asserting expiry or another unproven cause
+// input: public Test again and inspect its immediate request error
+// expect: refused is recorded; authentication request refusal names GitHub token and renewal without asserting expiry or another unproven cause; where Renew leads is TST-1803206's (tests/release-uc-042-renew-token.test.mjs)
 test("TST-475308: a genuine 401 records refusal but does not assert why authentication failed", async () => {
   const state = await world(), view = await settings(state); await works(state, view);
   state.failure = "refused";
@@ -209,7 +208,6 @@ test("TST-475308: a genuine 401 records refusal but does not assert why authenti
   assert.equal(JSON.parse(localStorage.getItem(LAST_TEST)).outcome, "refused", "401 is conclusive refusal evidence");
   assert.match(one(view.row, "settings-repository-status").textContent, /Refused/);
   assert.match(message, /GitHub token/); assert.match(message, /Renew/i);
-  assert.equal(one(view.row, "settings-repository-renew").href, RENEW);
   assert.match(message, /authentication/i, "the failed authentication request is named, not an assumed cause");
   assert.match(message, /refused|rejected/i);
   assert.doesNotMatch(message, /expired|regenerated|deleted|revoked/i, "a 401 does not establish expiry, regeneration, deletion or revocation");
