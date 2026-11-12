@@ -154,7 +154,10 @@ function githubRenewal(part, expected, renewLink) {
     assert.equal(query.expires_in, "90", "the prefilled link asks for 90 days");
   }
   assert.match(shown.text, /Only select repositories/, "failure node: the repository choice is spelled out beside the link");
-  assert.ok(shown.text.includes(expected.pick), `failure node: ${expected.pick} is named as the repository to pick`);
+  // The repository to pick is named with the choice, after it — the token's name or the line's title, which name it before,
+  // do not count.
+  assert.ok(shown.text.slice(shown.text.search(/Only select repositories/)).includes(expected.pick),
+    `failure node: ${expected.pick} is named as the repository to pick`);
 }
 
 // The paste field for the new value is beside the link in `part`: the person ticks what the notice there asks to be read, pastes

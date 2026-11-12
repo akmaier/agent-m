@@ -880,8 +880,38 @@ test("release · UC-042 2: Clear asks once, says what stops working, and removes
   assert.match(statusOf(githubRow(panes)), /Cleared/);
 });
 
+// UC-042 1a and 1b — Renew. 1a: "Every dashboard page shows a line *Your GitHub token expires on …* with **Renew** — a product's
+// pages the same line for the product's own token —; it opens GitHub's page for a new token prefilled as when the token was set up
+// — the instance's as in UC-014, step 7, a product's as in UC-001, step 3 — with the repositories to pick named beside it, and the
+// paste field for the new value." 1b: "The line says which token, and **Renew** as in 1a; for a GitLab project token, the
+// project's *Access tokens* page." Renew is the one control named Renew in a line — a link, or a button whose press shows what it
+// opens on the page. Every prefilled detail, the repositories beside the link and the paste field are checked by
+// tests/release-uc-042-renew-token.test.mjs; here, that Renew is on every page and leads to the right page.
+const GITHUB_NEW_TOKEN = "https://github.com/settings/personal-access-tokens/new";
+const renewControls = (root) => [...root.querySelectorAll("button"), ...root.querySelectorAll("a")].filter((control) => /^\s*Renew\b/.test(control.textContent ?? ""));
+// The person activates the one Renew in `root`. -> the addresses the page then links, in the frame's notice place and in <main>,
+// with Renew's own if it is a link.
+async function renewFrom(w, page, root, what) {
+  const found = renewControls(root);
+  assert.equal(found.length, 1, `${what}: one Renew`);
+  if (found[0].localName === "button") await pressPublic(w, found[0]);
+  return [...(found[0].href ? [String(found[0].href)] : []), ...hrefs(page.el("token-banner")), ...hrefs(page.main())];
+}
+// The address of GitHub's page for a new token among `addresses`, asking for every permission of ONE GITHUB TOKEN SERVES EVERY
+// FEATURE — the same permissions as when the token was set up.
+function newTokenPage(addresses, what) {
+  const pages = addresses.filter((x) => x.startsWith(GITHUB_NEW_TOKEN));
+  assert.ok(pages.length >= 1, `failure node: ${what}: Renew leads to GitHub's page for a new token`);
+  for (const address of pages) {
+    const query = Object.fromEntries(new URL(address).searchParams);
+    for (const [permission, level] of Object.entries(PERMISSIONS)) assert.equal(query[permission], level, `${what}: ${permission}`);
+  }
+  return pages[0];
+}
+
 // UC-042 1a · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a token expires within fourteen days. Expected: every dashboard page
-// shows, in the frame's notice place, "Your GitHub token expires on <date> (Agent M · akmaier/agent-m)." with Renew to GitHub's token page;
+// shows, in the frame's notice place, "Your GitHub token expires on <date> (Agent M · akmaier/agent-m)." with one Renew, which
+// leads to GitHub's page for a new token with every permission; before it is activated, no page for a new token is linked there;
 // the settings line shows ⚠ expires on <date>.
 test("release · UC-042 1a: a token expiring within fourteen days is warned of on every page, with Renew", async () => {
   const w = await world();
@@ -897,30 +927,14 @@ test("release · UC-042 1a: a token expiring within fourteen days is warned of o
     await page.go(hash);
     const banner = page.el("token-banner");
     assert.match(stripTags(banner), new RegExp(`Your GitHub token expires on ${soon} \\(Agent M · akmaier/agent-m\\)\\.`), hash);
-    assert.ok(hrefs(banner).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), `${hash}: Renew`);
+    newTokenPage(await renewFrom(w, page, page.byId("token-banner"), hash), hash);
   }
 });
 
-// UC-042 1a — "Renew; it opens GitHub's page of that token … and the paste field for the new value." Expected: the line that
-// warns of the expiry offers, beside Renew, the field in which the new value is pasted — or a control that opens it.
-test("release · UC-042 1a: the expiry line offers the paste field for the renewed value",
-  { todo: "FINDING R3 — the expiry line names where to paste, but offers no paste field (backlog item to be added by the Product Owner)" }, async () => {
-    const w = await world();
-    const page = await open(w), panes = await settingsPanes(page), row = githubRow(panes);
-    await pressPublic(w, repositoryControl(row, "change"));
-    const ack = repositoryControl(row, "ack"); ack.checked = true; await ack.fire("change");
-    repositoryControl(row, "secret").value = TOKEN;
-    repositoryControl(row, "expiry").value = daysFromToday(3);
-    await pressPublic(w, repositoryControl(row, "save"));
-    await page.go("#uc");
-    const banner = page.el("token-banner");
-    assert.ok(/<input\b/.test(banner) || hrefs(banner).some((x) => x.startsWith("#settings")) || /data-[a-z-]*(change|renew|paste)/.test(banner),
-      "a paste field, or a control that opens it");
-  });
-
 // UC-042 1b · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a server refused a token. Expected: the GitHub token's line shows
-// ✗ refused, and the frame's notice at the top says "The server refused your token Agent M · akmaier/agent-m." with Renew to
-// GitHub's token page; for a GitLab project token, its line shows ✗ refused and links the project's Access tokens page.
+// ✗ refused, and the frame's notice at the top says "The server refused your token Agent M · akmaier/agent-m." with one Renew,
+// which leads to GitHub's page for a new token with every permission; for a GitLab project token, its line shows ✗ refused and
+// its one Renew leads to the project's Access tokens page, not to GitHub.
 test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a GitLab project's with its Access tokens page", async () => {
   let refused = false;
   const gitlab = gitlabServer();
@@ -934,14 +948,18 @@ test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a Git
   await pressPublic(w, repositoryControl(githubRow(panes), "test"));
   assert.match(statusOf(githubRow(panes)), /Refused/);
   await page.go("#uc");
-  const banner = page.el("token-banner");
-  assert.match(stripTags(banner), /The server refused your token Agent M · akmaier\/agent-m\./);
-  assert.ok(hrefs(banner).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "Renew");
+  assert.match(stripTags(page.el("token-banner")), /The server refused your token Agent M · akmaier\/agent-m\./);
+  newTokenPage(await renewFrom(w, page, page.byId("token-banner"), "GitHub token"), "GitHub token");
   panes = await settingsPanes(page);
   const line = gitlabRow(panes);
   await pressPublic(w, repositoryControl(line, "test"));
   assert.match(statusOf(line), /Refused/);
-  assert.equal(repositoryControl(line, "renew").href, `${GL_ADDRESS}/-/settings/access_tokens`, "the project's Access tokens page");
+  const found = renewControls(line);
+  assert.equal(found.length, 1, "the GitLab line: one Renew");
+  if (found[0].localName === "button") await pressPublic(w, found[0]);
+  const addresses = [...(found[0].href ? [String(found[0].href)] : []), ...hrefs(gitlabRow(panes).innerHTML)];
+  assert.ok(addresses.includes(`${GL_ADDRESS}/-/settings/access_tokens`), "failure node: the project's Access tokens page");
+  assert.ok(!addresses.some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "a GitLab project token is not renewed on GitHub");
 });
 
 // UC-042 3a — no token that can write to the product. Expected: the product section is read-only — no switch, no + Collaborator
@@ -1097,12 +1115,20 @@ test("release · A USED-UP RATE LIMIT IS NAMED: the account's or the network's l
   assert.match(stripTags(perm.main()), /permission/i, "a plain 403 is a missing permission");
 });
 
-// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — Expected: when GitHub refuses the stored token (401) on a page load, the
-// page names the GitHub token and links GitHub's token page on which it is renewed, and the frame's notice at the top says "The
-// server refused your token Agent M · akmaier/agent-m."
+// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — "When a server refuses a stored token, the dashboard names that token and
+// links the page on which it is renewed with the same permissions and repositories." Expected: when GitHub refuses the stored
+// token (401) on a page load, the page names the GitHub token, the frame's notice at the top says "The server refused your token
+// Agent M · akmaier/agent-m.", and its Renew (UC-042 1b) leads to GitHub's page for a new token with every permission, with
+// "Only select repositories" and akmaier/agent-m named on the page.
 test("release · AN EXPIRED TOKEN IS NAMED: a refused token is named with the link to renew it", async () => {
-  const page = await open(await world({ refuse: limitOn(401, {}) }));
+  const w = await world({ refuse: limitOn(401, {}) });
+  const page = await open(w);
   assert.match(stripTags(page.main()), /GitHub token/);
-  assert.ok(hrefs(page.main()).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "the renewal link");
   assert.match(stripTags(page.el("token-banner")), /The server refused your token Agent M · akmaier\/agent-m\./);
+  newTokenPage(await renewFrom(w, page, page.byId("token-banner"), "refused token"), "refused token");
+  // Beside the link: in the part of the page that shows it — the frame's notice place or <main>.
+  const part = [page.el("token-banner"), page.main()].find((html) => hrefs(html).some((x) => x.startsWith(GITHUB_NEW_TOKEN)));
+  const shown = stripTags(part), choice = shown.search(/Only select repositories/);
+  assert.ok(choice >= 0, "failure node: the repositories of the renewal are named beside the link");
+  assert.ok(shown.slice(choice).includes(INSTANCE), "failure node: the instance is named as the repository to pick, with the choice");
 });
