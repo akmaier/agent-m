@@ -138,9 +138,12 @@ keeps them in its own cache in `localStorage`, whose keys Access lists among the
     names, all of them where it is `null`, selected by the mail server — on the Bridge route IMAP's `SEARCH SINCE`, on the
     provider's route a filter on the date received —, so that no other mail is fetched; read without changing anything:
     nothing marked as read, moved, flagged or deleted (`READING THE MAILBOX CHANGES NOTHING IN IT`).
-  - `find(id: string) -> Promise<Mail | null>` — the mail with this `MAIL-` identifier in the named folders, found by
-    hashing their mails' `Message-ID`s; `null` — *not found in the mailbox* — when none matches, never a guess (`A MAIL
-    IS FOUND AGAIN BY ITS IDENTIFIER`).
+  - `find(ids: string[]) -> Promise<Record<string, Mail | null>>` — the mails with these `MAIL-` identifiers in the named
+    folders, all found in one lookup: the `Message-ID`s of each named folder's mails are listed once for every identifier
+    — on the Bridge route in one request to the Bridge, on the Graph route in one listing of each folder — and hashed,
+    and only the mails that match are fetched in full; each identifier is answered with its mail, or with `null` — *not
+    found in the mailbox* — when none matches, never a guess (`A MAIL IS FOUND AGAIN BY ITS IDENTIFIER`). An empty list is
+    answered `{}` without crossing the network.
   - `drafts() -> Promise<{ ref: DraftRef, inReplyTo: string | null, mail: Mail }[]>` and `sent(since: string | null) ->
     Promise<Mail[]>` — the mailbox's Drafts and Sent folders, recognised by the mailbox's own markings.
   - `storeDraft(draft: Draft) -> Promise<DraftRef>` — the reply stored in Drafts and nowhere else (`A REPLY DRAFT IS KEPT

@@ -103,8 +103,8 @@ are kept by Access in this browser.
 - `repliesDue(mailbox: Mailbox, products: { address: string, host: Host }[]) -> Promise<RepliesDue>` — every issue that
   lists mails, grouped: closed with a listed mail that has no note — whoever closed it (`CLOSING AN ISSUE PREPARES ITS
   REPLIES`); labelled `waiting-for-reporter` with a newer mail in the thread (`A REPORTER'S ANSWER IS SHOWN AT ITS
-  ISSUE`); open. Each listed mail is found in the mailbox by its identifier, with its draft in Drafts if there is one
-  (`THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS`). A reply found in Sent that no issue notes yet is noted in its
+  ISSUE`); open. The listed mails of the issues it groups are found in the mailbox by their identifiers, all in one
+  `find`, each with its draft in Drafts if there is one (`THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS`). A reply found in Sent that no issue notes yet is noted in its
   issue now (`A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO`). Crosses the network; errors as `readNewMail`.
 - `storeReplies(mailbox: Mailbox, replies: { mail: Mail, body: string }[]) -> Promise<{ id: string, draft: DraftRef |
   null, problem: string | null }[]>` — each reply stored as a draft in Drafts, threaded on its mail, addressed to that

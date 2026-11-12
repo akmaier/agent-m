@@ -66,7 +66,8 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |
 
 The mail operations are `test`, `read`, `find`, `drafts`, `sent`, `store-draft`, `update-draft`, `show-draft`,
-`confirm-send` and `send`. `confirm-send` takes `{ ref, sha256 }` and answers `{ confirmation }`: a single-use value bound
+`confirm-send` and `send`. `find` takes `{ ids }`, every `MAIL-` identifier of one lookup, and answers `{ mails }`, which
+maps each of them to its mail or to `null`. `confirm-send` takes `{ ref, sha256 }` and answers `{ confirmation }`: a single-use value bound
 to that draft and that SHA-256, valid for minutes; `send` takes `{ ref, sha256, confirmation }` (`THE BRIDGE SENDS ONLY
 WITH A CONFIRMATION OF THE MAIL SHOWN`). The server passes the other operations' arguments and answers through without
 reading them; their fields are those of the mail route, which the page's mail route and the Bridge's mail handler share
