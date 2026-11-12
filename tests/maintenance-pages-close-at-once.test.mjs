@@ -51,12 +51,12 @@ async function prompted(run) {
 const writes = (w) => w.kept.github.filter((request) => request.method !== "GET");
 const issueNow = (w, number) => w.kept.issues.find((each) => each.number === number);
 
-// TST-20261112601 · level: component · module: MOD-maintenance-pages
+// TST-20261112701 · level: component · module: MOD-maintenance-pages
 // guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-012
 // given: the open issue 5 of alice/product, labelled defect
 // input: the route issue/5 drawn; Close clicked by a person with no reason, then by a script with REASON typed (counter-proofs), then by a person with REASON typed
 // expect: without a reason nothing is written and the page says a reason is needed; the script's click writes nothing; the person's click writes exactly two requests to the issue — the comment REASON, then the state closed — and no commit; the issue is closed with one comment, REASON, and the page says it is closed
-test("TST-20261112601 Close closes an open issue at once, without a change of code, with the reason typed as its comment", async () => {
+test("TST-20261112701 Close closes an open issue at once, without a change of code, with the reason typed as its comment", async () => {
   const w = started([issue(5, "open", ["defect"])]);
   const target = await drawn(w, "issue", { number: "5" });
   const close = one(target, "close-issue");
@@ -79,12 +79,12 @@ test("TST-20261112601 Close closes an open issue at once, without a change of co
   assert.match(textOf(one(target, "close-done")), /closed/i);
 });
 
-// TST-20261112602 · level: component · module: MOD-maintenance-pages
+// TST-20261112702 · level: component · module: MOD-maintenance-pages
 // guards: UC-012
 // given: the closed issue 9, labelled defect; known positive — the open issue 6, unlabelled
 // input: the routes issue/6 and issue/9 drawn
 // expect: the open issue offers Close; the closed one offers none
-test("TST-20261112602 a closed issue offers no Close", async () => {
+test("TST-20261112702 a closed issue offers no Close", async () => {
   const w = started([issue(6, "open"), issue(9, "closed", ["defect"])]);
   assert.equal(byClass(await drawn(w, "issue", { number: "6" }), "close-issue").length, 1, "known positive: an open issue offers Close");
   const closed = await drawn(w, "issue", { number: "9" });
@@ -92,12 +92,12 @@ test("TST-20261112602 a closed issue offers no Close", async () => {
   assert.equal(byClass(closed, "close-issue").length, 0);
 });
 
-// TST-20261112603 · level: component · module: MOD-maintenance-pages
+// TST-20261112703 · level: component · module: MOD-maintenance-pages
 // guards: AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; UC-012
 // given: the open issues 6, labelled defect, 7, labelled change, and 5, with no label
 // input: Implement pressed by a person on each
 // expect: the request of 6 says its class is its label defect, a bug, that of 7 its label change, a change, that of 5 that it carries neither label; each says not to classify the issue anew and none asks to propose a class or to wait for a confirmation
-test("TST-20261112603 Implement's request names the class the label gives and asks for no classification anew", async () => {
+test("TST-20261112703 Implement's request names the class the label gives and asks for no classification anew", async () => {
   const w = started([issue(5, "open"), issue(6, "open", ["defect"]), issue(7, "open", ["change"])]);
   const requests = {};
   for (const number of [5, 6, 7]) {
@@ -113,12 +113,12 @@ test("TST-20261112603 Implement's request names the class the label gives and as
   }
 });
 
-// TST-20261112604 · level: component · module: MOD-maintenance-pages
+// TST-20261112704 · level: component · module: MOD-maintenance-pages
 // guards: AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; UC-033
 // given: the open issues 6, labelled defect (known positive), 8, labelled not-reproducible, and 5, with no label
 // input: the route issues drawn; the routes issue/6, issue/8 and issue/5 drawn
 // expect: the list names 6 defect and 5 and 8 "not classified"; 6 offers Move to backlog; 8 and 5 offer neither Move to backlog nor a lead to UC-012, and their pages name them "not classified"
-test("TST-20261112604 an issue with neither the label defect nor change is not classified and is not offered Move to backlog (UC-033 1a)", async () => {
+test("TST-20261112704 an issue with neither the label defect nor change is not classified and is not offered Move to backlog (UC-033 1a)", async () => {
   const w = started([issue(5, "open"), issue(6, "open", ["defect"]), issue(8, "open", ["not-reproducible"])]);
   const list = await drawn(w, "issues");
   const classOf = (number) => textOf(one(byClass(list, "issue").find((node) => node.getAttribute("data-issue") === String(number)), "issue-class"));

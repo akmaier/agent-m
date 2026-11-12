@@ -129,8 +129,7 @@ test("TST-1254301 two issues describing the same work end as one item with both 
 
 // TST-1254302 · level: release · module: MOD-maintenance-pages
 // guards: UC-033
-// given: UC-033 alternative flow 1a, as accepted: "The issue carries neither the label `defect` nor `change`. **Move to backlog** is not offered." The open issues 6 labelled defect and 9 labelled
-//   change (known positives: each is offered Move to backlog); the open issues 5 with no label and 8 labelled question only
+// given: UC-033 alternative flow 1a, as accepted: "The issue carries neither the label `defect` nor `change`. **Move to backlog** is not offered." The open issues 6 labelled defect and 9 labelled change (known positives: each is offered Move to backlog); the open issues 5 with no label and 8 labelled question only
 // input: each issue's page opened; then the issue 5 labelled defect on the tracker, and its page opened again
 // expect: the issues 6 and 9 show one Move to backlog each; the issues 5 and 8 show Implement and no Move to backlog anywhere on the page; labelled defect, the issue 5 shows one Move to backlog
 // Planted fault: Move to backlog offered to an issue without defect or change (`const move = [el("div", "issue-move-box", await moveSection(…))]`, the guard `cls === undefined ? [] :` dropped, in renderIssue,
