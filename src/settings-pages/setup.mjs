@@ -18,7 +18,7 @@
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { readSetting, writeSetting, clearSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { repositoryChoiceSteps, sharedPagesNotice, defaultExpiry, tokenRefusal, TOKEN_DAYS } from "./products.mjs";
+import { repositoryChoiceSteps, sharedPagesNotice, defaultExpiry, tokenRefusal, tokenStep, instanceTokenName, TOKEN_DAYS } from "./products.mjs";
 import { heads } from "./routes.mjs";
 
 const EXPIRY_WARN_DAYS = 14;
@@ -59,9 +59,8 @@ export const route = {
     const store = context.store;
     const repository = context.instance.repository;
     const address = parseAddress(`https://github.com/${repository}`);
-    const tokenName = `Agent M · ${repository}`;
-    const link = connect(address, {}).webLinks().newToken(tokenName,
-      `Agent M dashboard of ${repository}: commits, issues, pull requests and runs of the work you start.`, TOKEN_DAYS);
+    const tokenName = instanceTokenName(repository);
+    const link = tokenStep(INSTANCE_TOKEN_KEY, address).page;
 
     const acknowledged = Boolean(readSetting(store, ACKNOWLEDGEMENT_KEY));
     const ack = el("input", "ack");
