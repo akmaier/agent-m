@@ -16,7 +16,7 @@ import { repliesDue } from "../src/mail-handling/index.mjs";
 
 const A = { id: "MAIL-ca171c6d1e8e76f0", messageId: "<sample@example.invalid>" };
 const PULL = "https://github.com/example/thesis-tool/pull/31";
-const mailbox = { drafts: async () => [], sent: async () => [], find: async () => null };
+const mailbox = { drafts: async () => [], sent: async () => [], find: async (ids) => Object.fromEntries(ids.map((id) => [id, null])) };
 const closedIssue = (number, closing) => ({ number, title: `Issue ${number}`, body: `Export fails.\n\nMails: \`${A.id}\``, labels: [], state: "closed", url: `https://example.invalid/${number}`,
   comments: [{ author: "agent-m", body: closing, date: "2026-10-12T09:00:00Z" }] });
 const dueOf = async (...issues) => (await repliesDue(mailbox, [{ address: "https://github.com/example/thesis-tool", host: { listIssues: async () => issues, commentOnIssue: async () => {}, listPullRequests: async () => [], listTags: async () => [], containsCommit: async () => false } }])).toAnswer;

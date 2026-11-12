@@ -1,4 +1,4 @@
-// imap.mjs — reading folders, finding a mail, Drafts and Sent (MOD-mail-protocols, Parts). Every folder is opened read-only
+// imap.mjs — reading folders, finding mails by their identifiers, Drafts and Sent (MOD-mail-protocols, Parts). Every folder is opened read-only
 // (READING THE MAILBOX CHANGES NOTHING IN IT); a login is sent only over TLS (THE MAIL SERVER IS REACHED ONLY OVER TLS).
 //
 // Module: MOD-mail-protocols
@@ -187,20 +187,34 @@ export function readMails(connection, Flow, since) {
   });
 }
 
-// The mail of one identifier: the envelopes' Message-IDs are hashed, and only the mail that matches is fetched in full.
-export function findMail(connection, Flow, id) {
+// The mails of every identifier asked, over one connection: each folder's envelopes are fetched once and their Message-IDs hashed, and
+// only the mails that match are fetched in full, in one fetch per folder — the first match of an identifier in the order of the folders.
+// Each identifier is answered with its Mail, or with null where none matches.
+export function findMails(connection, Flow, ids) {
   const { imap, account, password, folders } = connection;
+  const found = Object.fromEntries(ids.map((id) => [id, null]));
+  const wanted = new Set(ids);
+  if (!wanted.size) return Promise.resolve(found);
   return withClient(imap, account, password, Flow, async (client) => {
     for (const folder of folders) {
+      if (!wanted.size) break;
       const opened = await open(client, folder, imap);
       if (!opened.exists) continue;
+      const matches = new Map();
       for (const { uid, envelope } of await fetchAll(client, { uid: true, envelope: true })) {
-        if (!envelope?.messageId || (await mailId({ messageId: envelope.messageId, bytes: null })) !== id) continue;
-        const { source } = await client.fetchOne(uid, { source: true }, { uid: true });
-        return parseMail(source, folder);
+        if (!envelope?.messageId) continue;
+        const id = await mailId({ messageId: envelope.messageId, bytes: null });
+        if (wanted.has(id) && !matches.has(id)) matches.set(id, uid);
+      }
+      if (!matches.size) continue;
+      const byUid = new Map((await fetchAll(client, { uid: true, source: true }, [...matches.values()].join(","))).map((message) => [message.uid, message.source]));
+      for (const [id, uid] of matches) {
+        if (!byUid.has(uid)) continue;
+        found[id] = await parseMail(byUid.get(uid), folder);
+        wanted.delete(id);
       }
     }
-    throw bridgeFailure("not-found", `${id}: no mail with this identifier in ${folders.join(", ")}`);
+    return found;
   });
 }
 

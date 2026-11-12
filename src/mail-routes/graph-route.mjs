@@ -294,18 +294,25 @@ export function graphMailbox(connection) {
       }
       return mails;
     },
-    // The Message-IDs of the named folders' mails are hashed; only the mail that matches is fetched in full. None: null, never a guess.
-    async find(id) {
+    // Every identifier of one lookup: each named folder is listed once and its mails' Message-IDs hashed; only the mails that match are
+    // fetched in full, the first match of an identifier in the order of the folders. None: null, never a guess. No identifier, no request.
+    async find(ids) {
+      const found = Object.fromEntries(ids.map((id) => [id, null]));
+      const wanted = new Set(ids);
+      if (!wanted.size) return found;
       const accessToken = await token();
       for (const name of connection.folders) {
+        if (!wanted.size) break;
         const folder = await folderResource(accessToken, name);
         for (const message of await listMessages(accessToken, folder, name)) {
-          if (!message.internetMessageId || (await mailId({ messageId: message.internetMessageId, bytes: null })) !== id) continue;
+          if (!message.internetMessageId) continue;
+          const id = await mailId({ messageId: message.internetMessageId, bytes: null });
+          if (!wanted.has(id)) continue;
           const mail = await fetchMail(accessToken, message.id, name);
-          if (mail) return mail;
+          if (mail) { found[id] = mail; wanted.delete(id); }
         }
       }
-      return null;
+      return found;
     },
     // The mailbox's Drafts received on or after the day `from` names, as Graph selects them by their date received — all of them where it is null —, each with the reference of the draft on this route.
     async drafts(from) {

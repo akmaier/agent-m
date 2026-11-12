@@ -71,14 +71,10 @@ export function bridgeMailbox(connection, bridge) {
   return {
     // The mails of the named folders, opened read-only by the Bridge: nothing marked, moved, flagged or deleted.
     read: (since) => ask("read", { since }),
-    // The Bridge answers a miss with `not-found` whose message begins with the identifier: that is null, never a guess.
-    async find(id) {
-      try {
-        return await mailCall(bridge, "find", connection, { id });
-      } catch (error) {
-        if (error?.name === "BridgeFailed" && error.error === "not-found" && String(error.message).startsWith(`${id}:`)) return null;
-        throw named(error, connection);
-      }
+    // Every identifier of one lookup in one request; the Bridge answers each with its Mail or null, never a guess. No identifier, no request.
+    async find(ids) {
+      if (!ids.length) return {};
+      return (await ask("find", { ids })).mails;
     },
     drafts: (since) => ask("drafts", { since }),
     // The reply is stored by the Bridge in Drafts; a draft without a usable reply address is refused here, before any request.

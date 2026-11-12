@@ -26,7 +26,7 @@ const V12 = "3333333333333333333333333333333333333333";
 const V13 = "4444444444444444444444444444444444444444";
 const V10 = "5555555555555555555555555555555555555555";
 
-const mailbox = { read: async () => [], find: async () => null, drafts: async () => [], sent: async () => [] };
+const mailbox = { read: async () => [], find: async (ids) => Object.fromEntries(ids.map((id) => [id, null])), drafts: async () => [], sent: async () => [] };
 const issue = (number, comments, state = "closed") => ({ number, title: `Issue ${number}`, body: `Export fails.\n\nMails: \`${A.id}\``, labels: [], state, url: `https://example.invalid/${number}`,
   comments: comments.map((body) => ({ author: "agent-m", body, date: "2026-10-12T09:00:00Z" })) });
 const pull = (number, head, state = "merged", mergeCommit = state === "merged" ? head : null) => ({ number, title: "Fix", branch: "fix", base: "main", head, mergeCommit, state, draft: false, url: `${PRODUCT}/pull/${number}`, opened: "2026-10-01", merged: state === "merged" ? "2026-10-02" : null, closed: "2026-10-02", body: "" });

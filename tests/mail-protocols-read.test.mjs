@@ -206,12 +206,12 @@ test("TST-822001: read gives the fixture mails with their fields and identifiers
 // TST-822002 · level: unit · module: MOD-mail-protocols
 // guards: READING THE MAILBOX CHANGES NOTHING IN IT
 // given: the fixture of TST-822001, recording every IMAP command it receives
-// input: `read` and then `find` of MAIL-d2919bc6154c366f, each on its own connection
+// input: `read` and then `find` with args { ids: ["MAIL-d2919bc6154c366f"] }, each on its own connection
 // expect: both answered; the record shows EXAMINE of INBOX and Reports and at least one FETCH; no SELECT, STORE, COPY, MOVE, EXPUNGE or APPEND; no FETCH that asks for a body or RFC822 without PEEK
 test("TST-822002: read and find issue no STORE, COPY, MOVE, EXPUNGE and no non-peek FETCH", async () => {
   await withMails(async (imap, smtp) => {
     assert.equal((await call("read", connection(imap, smtp))).length, 3);
-    assert.equal((await call("find", connection(imap, smtp), { id: "MAIL-d2919bc6154c366f" })).folder, "Reports");
+    assert.equal((await call("find", connection(imap, smtp), { ids: ["MAIL-d2919bc6154c366f"] })).mails["MAIL-d2919bc6154c366f"].folder, "Reports");
     const lines = imap.logs.commands.map((entry) => entry.line.toUpperCase());
     assert.ok(lines.some((line) => /\bEXAMINE INBOX\b/.test(line)) && lines.some((line) => /\bEXAMINE REPORTS\b/.test(line)), "both folders examined");
     assert.ok(lines.some((line) => /\bFETCH\b/.test(line)), "positive: mails were fetched");
@@ -223,38 +223,55 @@ test("TST-822002: read and find issue no STORE, COPY, MOVE, EXPUNGE and no non-p
 // TST-822003 · level: unit · module: MOD-mail-protocols
 // guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
 // given: a local IMAP fixture in which the mail a2 (MAIL-58d1373af240df45) has been moved from INBOX to Reports; INBOX holds a1, Reports holds a2 and r1; the connection names INBOX and Reports
-// input: the handler `POST /v1/mail/find` with args { id: "MAIL-58d1373af240df45" }
-// expect: the answer is MAIL_A2 with folder "Reports" and nothing else
+// input: the handler `POST /v1/mail/find` with args { ids: ["MAIL-58d1373af240df45"] }
+// expect: the answer is { mails: { "MAIL-58d1373af240df45": MAIL_A2 with folder "Reports" } } and nothing else
 test("TST-822003: find finds a mail moved to a named folder", async () => {
   const moved = { ...MAILS, INBOX: [MAILS.INBOX[0]], Reports: [MAILS.INBOX[1], MAILS.Reports[0]] };
   await withMails(async (imap, smtp) => {
-    assert.deepEqual(await call("find", connection(imap, smtp), { id: "MAIL-58d1373af240df45" }), { ...MAIL_A2, folder: "Reports" });
+    assert.deepEqual(await call("find", connection(imap, smtp), { ids: ["MAIL-58d1373af240df45"] }), { mails: { "MAIL-58d1373af240df45": { ...MAIL_A2, folder: "Reports" } } });
   }, { mails: moved });
 });
 
 // TST-822004 · level: unit · module: MOD-mail-protocols
 // guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
 // given: the fixture of TST-822001, in which no mail has the identifier MAIL-0000000000000000
-// input: the handler `POST /v1/mail/find` with args { id: "MAIL-0000000000000000" }
-// expect: it fails with code `not-found` naming the identifier; it answers no mail
-test("TST-822004: find answers not-found for an identifier no mail has", async () => {
+// input: the handler `POST /v1/mail/find` with args { ids: ["MAIL-0000000000000000"] }
+// expect: it answers { mails: { "MAIL-0000000000000000": null } } — not found, no guess, no error —; the envelopes were fetched (known positive) and no mail's body was
+test("TST-822004: find answers null for an identifier no mail has", async () => {
   await withMails(async (imap, smtp) => {
-    await assert.rejects(call("find", connection(imap, smtp), { id: "MAIL-0000000000000000" }), (error) => {
-      assert.equal(error.code, "not-found");
-      assert.match(error.message, /MAIL-0000000000000000/);
-      return true;
-    });
+    assert.deepEqual(await call("find", connection(imap, smtp), { ids: ["MAIL-0000000000000000"] }), { mails: { "MAIL-0000000000000000": null } });
+    assert.ok(imap.logs.commands.some((entry) => /\bFETCH\b.*ENVELOPE/i.test(entry.line)), "known positive: the envelopes were fetched");
+    assert.deepEqual(imap.logs.fetched, []);
+  });
+});
+
+// TST-20261112803 · level: unit · module: MOD-mail-protocols
+// guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; READING THE MAILBOX CHANGES NOTHING IN IT; UC-038
+// given: the fixture of TST-822001 — INBOX holds a1 (uid 1) and a2 (uid 2), Reports holds r1 (uid 1) —, recording every command, login and body it sends
+// input: the handler `POST /v1/mail/find` with args { ids: ["MAIL-d2919bc6154c366f", "MAIL-bc650707dea32515", "MAIL-0000000000000000"] } — r1, a1 and an identifier of no mail
+// expect: { mails: { r1: MAIL_R1, a1: MAIL_A1, "MAIL-0000000000000000": null } }; one login; INBOX and Reports each examined once and their envelopes fetched in one FETCH each; the bodies of exactly INBOX uid 1 and Reports uid 1 sent — a2, which no identifier names, not fetched in full
+test("TST-20261112803: find answers several identifiers over one connection, each folder's envelopes fetched once, only the matches in full", async () => {
+  await withMails(async (imap, smtp) => {
+    const ids = ["MAIL-d2919bc6154c366f", "MAIL-bc650707dea32515", "MAIL-0000000000000000"];
+    assert.deepEqual(await call("find", connection(imap, smtp), { ids }),
+      { mails: { "MAIL-d2919bc6154c366f": MAIL_R1, "MAIL-bc650707dea32515": MAIL_A1, "MAIL-0000000000000000": null } });
+    assert.equal(imap.logs.logins.length, 1, "one connection, one login");
+    const lines = imap.logs.commands.map((entry) => entry.line.toUpperCase());
+    assert.equal(lines.filter((line) => /\bEXAMINE INBOX\b/.test(line)).length, 1);
+    assert.equal(lines.filter((line) => /\bEXAMINE REPORTS\b/.test(line)).length, 1);
+    assert.equal(lines.filter((line) => /\bFETCH\b.*ENVELOPE/.test(line)).length, 2, "one envelope fetch per folder");
+    assert.deepEqual(imap.logs.fetched, [{ folder: "INBOX", uid: 1 }, { folder: "Reports", uid: 1 }]);
   });
 });
 
 // TST-822005 · level: unit · module: MOD-mail-protocols
 // guards: THE MAIL SERVER IS REACHED ONLY OVER TLS
 // given: a local IMAP server that offers no STARTTLS and no implicit TLS
-// input: the handlers `read` and `find` of MAIL-bc650707dea32515, each with the connection of the fixture
+// input: the handlers `read` and `find` with { ids: ["MAIL-bc650707dea32515"] }, each with the connection of the fixture
 // expect: each fails with code `no-encryption`; the server receives no LOGIN or AUTHENTICATE, and no command contains the marker password
 test("TST-822005: read and find on a server without TLS answer no-encryption with no login sent", async () => {
   await withMails(async (imap, smtp) => {
-    for (const [operation, args] of [["read", {}], ["find", { id: "MAIL-bc650707dea32515" }]]) {
+    for (const [operation, args] of [["read", {}], ["find", { ids: ["MAIL-bc650707dea32515"] }]]) {
       await assert.rejects(call(operation, connection(imap, smtp), args), (error) => error.code === "no-encryption");
     }
     assert.ok(imap.logs.commands.length > 0, "positive: the server was reached");
@@ -286,7 +303,7 @@ test("TST-822006: drafts and sent give the folders the mailbox marks as Drafts a
 // TST-822007 · level: unit · module: MOD-mail-protocols
 // guards: THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST
 // given: the fixture of TST-822001 with the marker password; every write function of node:fs and the process output are watched
-// input: `read`, `find` of MAIL-bc650707dea32515, `drafts` and `sent`, each once
+// input: `read`, `find` with { ids: ["MAIL-bc650707dea32515"] }, `drafts` and `sent`, each once
 // expect: all four answered; no file is written, created, truncated or removed; nothing written to stdout or stderr contains the marker password; no answer contains it
 test("TST-822007: reading writes no file and no output holds the marker password", async (t) => {
   const writes = [], output = [];
@@ -303,7 +320,7 @@ test("TST-822007: reading writes no file and no output holds the marker password
   try {
     await withMails(async (imap, smtp) => {
       const c = connection(imap, smtp);
-      answers.push(await call("read", c), await call("find", c, { id: "MAIL-bc650707dea32515" }), await call("drafts", c), await call("sent", c));
+      answers.push(await call("read", c), await call("find", c, { ids: ["MAIL-bc650707dea32515"] }), await call("drafts", c), await call("sent", c));
       assert.ok(imap.logs.logins.length > 0, "positive: the fixture was logged in to");
     });
   } finally { t.mock.restoreAll(); syncBuiltinESMExports(); }

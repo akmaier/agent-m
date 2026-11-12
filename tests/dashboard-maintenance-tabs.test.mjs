@@ -43,7 +43,7 @@ async function opened(hash) {
     const { args } = JSON.parse(init.body);
     if (operation === "read") return json([recent]);
     if (operation === "drafts" || operation === "sent") return json([]);
-    if (operation === "find") { const found = [recent, old].find((each) => each.id === args.id); return found ? json(found) : json({ error: "not-found", message: "no such mail" }, 404); }
+    if (operation === "find") return json({ mails: Object.fromEntries(args.ids.map((id) => [id, [recent, old].find((each) => each.id === id) ?? null])) });
     return json({ error: "not-found", message: `unknown operation ${operation}` }, 404);
   };
   const server = await repoServer({ files: { "SPEC.md": "# SPEC\n" }, handlers: [bridge] });
