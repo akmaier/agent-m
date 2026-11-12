@@ -2,11 +2,13 @@
   "name": "agent-m-bridge-app",
   "version": "0.0.0",
   "private": true,
-  "description": "The packages of the Agent M Bridge app, at exact versions (MOD-bridge-build; ARC-050, ARC-051, ARC-052).",
+  "description": "The packages of the Agent M Bridge app, at exact versions (MOD-bridge-build; ARC-050, ARC-051, ARC-052, ARC-055).",
   "license": "MIT",
   "dependencies": {
+    "@xterm/headless": "6.0.0",
     "electron-updater": "6.8.9",
     "imapflow": "2.2.5",
+    "node-pty": "1.1.0",
     "nodemailer": "10.0.15",
     "postal-mime": "4.0.4",
     "ssh2": "1.17.0"

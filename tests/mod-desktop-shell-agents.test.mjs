@@ -187,7 +187,7 @@ const click = async (root, label, index = 0) => {
 // guards: UC-044; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
 // given: the production Bridge window entry with two installed agents, one of them kept with its working folder in the one folder /tmp/old, one missing supported agent, a constructed folder-dialog result, and a checkout that answers one repository checked out and one not reached
 // input: the Agents view is rendered, the one folder is chosen, and agents are saved
-// expect: the ticked agent is saved with its declaration and without a folder of its own, beside the chosen folder; the unticked installed agent is not offered; the missing agent shows an install link; after the save the checkout's result shows the commit of the repository checked out and the other with git's reason; counter-proof: the view offers no Test access and no field of an agent's own working folder
+// expect: the ticked agent is saved with its declaration, its Chrome setting off — the fixture names no Chrome integration — and without a folder of its own, beside the chosen folder; the unticked installed agent is not offered; the missing agent shows an install link; after the save the checkout's result shows the commit of the repository checked out and the other with git's reason; counter-proof: the view offers no Test access and no field of an agent's own working folder
 // Planted fault: omitting the Agents route leaves no Save agents control and this case fails before any save.
 // A kept agent's declaration: the place, the capabilities ticked and each model with its context.
 const DECLARED = { place: "this machine", capabilities: ["draft text"], models: [{ model: "claude-opus-5-5", context: 200000 }] };
@@ -251,9 +251,56 @@ test("TST-407002: window Agents view keeps the one folder and shows missing inst
   await click(document.body, "Choose folder");
   await click(document.body, "Save agents");
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(saved, { agents: [{ name: "claude", ...DECLARED }], folder: chosen },
+  assert.deepEqual(saved, { agents: [{ name: "claude", ...DECLARED, chrome: false }], folder: chosen },
     "failure node: only the ticked installed agent is saved, with its declaration and no folder of its own, beside the one folder chosen through the window bridge");
   assert.match(document.body.textContent, /shell-owner\/agent-m\s*checked out at 0123456789ab/, "failure node: the checkout's commit is shown");
   assert.match(document.body.textContent, /shell-owner\/refused\s*not reached: permission denied/,
     "failure node: a repository the Bridge does not reach is shown with git's reason");
+});
+
+// TST-20261112581 · level: unit · module: MOD-desktop-shell
+// guards: UC-044
+// given: the production Bridge window entry with claude and codex installed, both of whose Chrome integrations Agent.chrome names, claude kept with its Chrome setting on and codex kept with it off, and opencode installed without one
+// input: the Agents view is rendered; codex's tick Chrome is ticked; Save agents
+// expect: a tick Chrome stands in claude's panel, ticked, and in codex's, not ticked, and none in opencode's; the save keeps claude and codex each with chrome true, and opencode, ticked to be offered, with chrome false; counter-proof: before codex's tick, its panel's Chrome is not ticked
+test("TST-20261112581: the window offers a tick Chrome for an agent with a Chrome integration, saved with Save agents", async () => {
+  const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
+  document.head = document.createElement("head");
+  document.body = document.createElement("body");
+  globalThis.document = document;
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+  const browser = new EventTarget();
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { hash: "#agents" } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+  let saved = null;
+  const kept = (name, chrome) => ({ name, folder: `/tmp/work/${name}`, ...DECLARED, chrome });
+  browser.bridge = {
+    async state(action, value) {
+      if (action === "agents") return { platform: "linux", folder: "/tmp/work", capabilities: ["draft text"],
+        selected: [kept("claude", true), kept("codex", false), kept("opencode", false)],
+        agents: [
+          { name: "claude", installed: true, version: "2.1.322", loggedIn: true, chrome: true, install: { linux: "https://example.invalid/" } },
+          { name: "codex", installed: true, version: "0.167.2", loggedIn: true, chrome: true, install: { linux: "https://example.invalid/" } },
+          { name: "opencode", installed: true, version: "2.2.5", loggedIn: true, chrome: false, install: { linux: "https://example.invalid/" } },
+        ] };
+      if (action === "save-agents") { saved = value; return { saved: true }; }
+      if (action === "checkout") return { checkout: [] };
+      return { address: "http://127.0.0.1:4711", token: "fixture-token", paused: false };
+    },
+    async chooseFolder() { return null; }, async copy() {}, async quit() {}, async retryPort() {}, async pairAnew() {}, async pause() {}, async resume() {},
+  };
+  await import(`../src/desktop-shell/window.mjs?chrome-fixture=${Date.now()}`);
+  const panels = descendants(document.body, (node) => node.localName === "section" && /^(claude|codex|opencode) /.test(descendants(node, (each) => each.localName === "h2")[0]?.textContent ?? ""));
+  const chromeOf = (name) => {
+    const panel = panels.find((node) => descendants(node, (each) => each.localName === "h2")[0].textContent.startsWith(`${name} `));
+    return descendants(panel, (node) => node.localName === "label" && node.textContent.trim() === "Chrome").map((label) => label.childNodes.find((child) => child.localName === "input"));
+  };
+  assert.equal(chromeOf("claude").length, 1, "claude's panel has a tick Chrome");
+  assert.equal(chromeOf("claude")[0].checked, true);
+  assert.equal(chromeOf("codex")[0].checked, false, "counter-proof: codex's setting is off before its tick");
+  assert.equal(chromeOf("opencode").length, 0, "opencode has no Chrome integration and no tick");
+  chromeOf("codex")[0].checked = true;
+  await click(document.body, "Save agents");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(saved.agents.map(({ name, chrome }) => [name, chrome]), [["claude", true], ["codex", true], ["opencode", false]]);
 });

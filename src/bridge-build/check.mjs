@@ -25,7 +25,12 @@ export function run(command, args, { cwd, env } = {}) {
   });
 }
 
-// The first compiled Node addon, a `.node` file, below `root`, as a path relative to `base`; null when there is none.
+// The one package whose compiled addon the app holds: node-pty's, without which no pseudo-terminal is opened (ARC-055), compiled for the app's Electron on each
+// platform's runner by electron-builder's rebuild of the app's native dependencies (builder.mjs). Its folder is passed over; any other `.node` file is found.
+const BUILT_FOR_ELECTRON = "node-pty";
+const builtForElectron = (folder) => folder.split(/[\\/]/).slice(-2).join("/") === `node_modules/${BUILT_FOR_ELECTRON}`;
+
+// The first compiled Node addon, a `.node` file, below `root`, other than node-pty's, as a path relative to `base`; null when there is none.
 export function nativeAddon(root, base = root) {
   let entries;
   try {
@@ -36,6 +41,7 @@ export function nativeAddon(root, base = root) {
   for (const entry of entries) {
     const path = join(root, entry.name);
     if (entry.isDirectory()) {
+      if (builtForElectron(path)) continue;
       const found = nativeAddon(path, base);
       if (found) return found;
     } else if (entry.name.endsWith(".node")) {
@@ -58,7 +64,7 @@ export function shippedAddon(stage) {
     const folder = queue.shift();
     if (seen.has(folder)) continue;
     seen.add(folder);
-    const addon = nativeAddon(folder, stage);
+    const addon = builtForElectron(folder) ? null : nativeAddon(folder, stage);
     if (addon) return addon;
     for (const name of Object.keys(readJson(join(folder, "package.json"))?.dependencies ?? {})) {
       const nested = join(folder, "node_modules", name);

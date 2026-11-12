@@ -287,8 +287,9 @@ const TAB_TOOLS = ["list-files", "read-file", "search-files", "propose-edit", "h
 // given: the instance holds the AGENTS.md "# PLANTED-RULES-513208 …"; this browser declares the endpoint tooler, which uses tools, and the Bridge release-bridge offers the CLI session release-bridge:claude with the model agent-cli-model; on the page of the product's requirements
 // input: "What do I see on this page?" sent to tooler, which answers "One."; then the same words sent to release-bridge:claude, whose Bridge answers with an answer of the endpoint's form that plans a hand-over of a piece of kind converse
 // expect: the endpoint, held by the repository's single definition and the table of step 4 (UC-049 step 3: "It adds the system prompt from the repository's single definition: that context, Agent M's rules for what it drafts …, the chapters of the book Vibe Coding for the kind of work the page belongs to, and the tools it may use (step 4)"; step 4: "An endpoint works with the tools its declared capabilities allow, and with no other"): its request begins with the instance's AGENTS.md, holds the page and chapter 8, and offers exactly the tools list-files, read-file, search-files, propose-edit and hand-over — no command and no web page, which the table gives CI and a Bridge only;
-//   the CLI session (UC-049 step 4: "A CLI session is bound neither by this table nor by the plan of 4a: it receives the message, with the conversation so far and the page's context, through its Bridge, its input beginning with Agent M's `AGENTS.md` … It is started with the model chosen."): one ask to its Bridge and no request to an endpoint, naming the agent claude, the model agent-cli-model, the page's repository https://github.com/akmaier/lending-tool and the commit of the instance; its input begins with the instance's AGENTS.md and holds the words, the page (A LOAN HAS A DUE DATE), the conversation so far ("One.") and chapter 8;
+//   the CLI session (UC-049 step 4: "A CLI session is bound neither by this table nor by the plan of 4a. On the conversation's first message to it, its Bridge starts the agent … with the model chosen … Every message of the conversation, the first among them, is typed into that one running agent, giving the page's context and the person's words. The message that starts the session, and every fifth message after it, begins with the instruction that the agent must read Agent M's `AGENTS.md` and the book's chapters for the page (step 3) in full, named by their paths in the Bridge's clone of the instance and not given as text"; MOD-prompt-bar: "each named by the path of its file in the Bridge's clone of the instance, `../../` from the session's checkout"; ARC-055: "with the conversation so far only where the message starts a session"): one ask to its Bridge and no request to an endpoint, naming the agent claude, the model agent-cli-model, the page's repository https://github.com/akmaier/lending-tool and the commit of the instance; this message starts the session, so its input begins with the instruction — its first paragraph asks to read in full, and ../../AGENTS.md and ../../docs/sources/SRC-vibe-coding/2026-10-05/08_requirements-engineering.md (chapter 8, the page's kind of work) are named before the page, the conversation and the words —, gives neither the text of the instance's AGENTS.md nor that of chapter 8 (both known positives in the endpoint's input), and holds the words, the page (A LOAN HAS A DUE DATE) and the conversation so far ("One.");
 //   counter-proof — the filtered behaviour does not come back: the ask carries no tools and its input names none of the table's tools, no hand-over and no answer form of the endpoint, and differs from the endpoint's input; and the plan of a hand-over in the session's answer is not carried out (UC-049 4a: "The endpoint — a CLI session does the work itself (step 4) — plans the work"): no piece is shown, no job record is written and no workflow is started
+//   counter-proof of the instruction: with src/prompt-bar/send.mjs planted to put the instruction after the page, to name no chapter, to give the AGENTS.md text before the instruction, to append chapter 8's text, or to give the first message no instruction, this test fails
 test("TST-513208: an endpoint is driven by the repository's definition and the table of step 4, a CLI session by its Bridge, bound by neither table nor plan", async () => {
   const s = await scenario({ ...register(TOOLER, AGENT), answers: [{ answer: "x" }], instanceFiles: { "AGENTS.md": RULES } });
   const v = watch(s, { script: [answer("One.")] });
@@ -317,11 +318,24 @@ test("TST-513208: an endpoint is driven by the repository's definition and the t
   const [asked] = w.asks;
   assert.deepEqual([asked.agent, asked.model, asked.product], ["claude", "agent-cli-model", "https://github.com/akmaier/lending-tool"], "the session, its model and the repository of the page");
   assert.match(String(asked.instance), /^[0-9a-f]{40}$/, "the commit of the instance");
-  // "its input beginning with Agent M's `AGENTS.md`"
-  assert.ok(asked.input.startsWith(RULES.trimEnd()), `the session's input begins with the instance's AGENTS.md: ${asked.input.slice(0, 80)}`);
-  // "it receives the message, with the conversation so far and the page's context"; the chapters by step 3 ("Agent M gives the endpoint or CLI session …").
-  for (const [given, what] of [["What do I see on this page?", "the message"], ["One.", "the conversation so far"], ["A LOAN HAS A DUE DATE", "the page's context"],
-    ["Requirements Engineering in Practice", "the chapter for the page's kind of work"]]) assert.ok(asked.input.includes(given), `${what} is in the session's input`);
+  // "giving the page's context and the person's words"; ARC-055: "with the conversation so far only where the message starts a session" — this message starts it.
+  const PARTS = [["A LOAN HAS A DUE DATE", "the page's context"], ["One.", "the conversation so far"], ["What do I see on this page?", "the message"]];
+  for (const [given, what] of PARTS) assert.ok(asked.input.includes(given), `${what} is in the session's input`);
+  // "The message that starts the session … begins with the instruction that the agent must read Agent M's `AGENTS.md` and the book's chapters for the page (step 3)
+  // in full, named by their paths in the Bridge's clone of the instance" — MOD-prompt-bar: "`../../` from the session's checkout"; the page is one of requirements, chapter 8.
+  const first = asked.input.split("\n\n")[0];
+  assert.match(first, /\bread\b/i, `the session's input begins with the instruction to read: ${asked.input.slice(0, 120)}`);
+  assert.match(first, /in full/, `the instruction says to read in full: ${first}`);
+  const before = Math.min(...PARTS.map(([given]) => asked.input.indexOf(given)));
+  for (const path of ["../../AGENTS.md", "../../docs/sources/SRC-vibe-coding/2026-10-05/08_requirements-engineering.md"]) {
+    const at = asked.input.indexOf(path);
+    assert.ok(at >= 0 && at < before, `the instruction names ${path} before the page, the conversation and the words (at ${at}, the first of them at ${before})`);
+  }
+  // "and not given as text": the instance's AGENTS.md and chapter 8, which the endpoint's input holds (known positives), are not in the session's input.
+  const CHAPTER_8 = "Requirements engineering is where vague wishes become engineering commitments.";
+  assert.ok(tab.includes(CHAPTER_8), "known positive: the endpoint's input holds the text of chapter 8");
+  assert.equal(asked.input.includes(RULES.trimEnd()), false, "the session is not given the text of the instance's AGENTS.md");
+  assert.equal(asked.input.includes(CHAPTER_8), false, "the session is not given the text of chapter 8");
 
   // Counter-proof: "bound neither by this table nor by the plan of 4a".
   assert.equal("tools" in asked, false, "the ask carries no tools");

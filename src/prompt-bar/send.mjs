@@ -3,7 +3,8 @@
 // context and the person's words, the conversation so far, the subject's menu entry and the tools it refuses; a piece the tab runs is a
 // job of the kind it names, prepared the same way with `hand-over` among its refuses; each is prepared with MOD-job-runner's prepareJob in a MOD-runtimes tabContext and run
 // with runOnTab — a message without a job record, a piece with its record, queued on the tab's route (queueHere). A message to a CLI session is prepared the
-// same way but not run in the tab: its rules and parts, filled into session.md, go to the session's Bridge as one ask (runSession, UC-049 step 4).
+// same way but not run in the tab: its parts, filled into session.md, go to the session's Bridge as one ask, typed into the session the conversation keeps
+// (runSession, UC-049 step 4, ARC-055).
 //
 // Module: MOD-prompt-bar
 //
@@ -12,7 +13,7 @@
 // first, where recording is on, and a piece's only writes are its record's start, taking and end, which hold none of its task's words.
 
 import { readSetting } from "../browser-store/index.mjs";
-import { ask, bridgeAt, settingsOf } from "../bridge-client/index.mjs";
+import { ask, bridgeAt, bridgeJobLog, bridgeJobs, cancelOnBridge, settingsOf } from "../bridge-client/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { handOverParams, prepareJob, taskRefusal } from "../job-runner/index.mjs";
 import { queueJob, runOnTab, tabContext } from "../runtimes/index.mjs";
@@ -227,7 +228,7 @@ export function whyNot(prepared, offered) {
   ];
 }
 
-// ---------------------------------------------------------------- a message to a CLI session (UC-049 step 4)
+// ---------------------------------------------------------------- a message to a CLI session (UC-049 step 4; ARC-055)
 
 // A CLI session: a coding agent a Bridge offers, whose connection's route is `bridge <bridge> agent <agent>` (MOD-job-ledger, `route`).
 const SESSION_ROUTE = /^bridge\s+(\S+)\s+agent\s+(\S+)/;
@@ -235,33 +236,153 @@ const SESSION_ROUTE = /^bridge\s+(\S+)\s+agent\s+(\S+)/;
 /** isSession(participant: Participant) -> boolean — whether the participant is a CLI session, which the bar does not run in the tab (UC-049 step 4). */
 export const isSession = (participant) => SESSION_ROUTE.test(String(participant?.route ?? "").trim());
 
+// Where Agent M's files lie from a session's checkout: the Bridge's clone of the instance holds the checkout in `jobs/<id>/` (MOD-bridge-jobs).
+const FROM_CHECKOUT = "../../";
+// A part of the recipe chapters-for-page, as MOD-source-register names it: `<file> — <source> <version>, version hash <hash>`; the file lies in the
+// instance at docs/sources/<source>/<version>/<file>.
+const CHAPTER = /^(\S+) — (SRC-[^\s]+) (\S+), version hash /;
+// Every how many messages after the one that starts the session the instruction to read Agent M's files is given again (A CLI SESSION IS TOLD AGAIN EVERY
+// FIFTH MESSAGE TO READ AGENTS.MD).
+const READ_AGAIN_EVERY = 5;
 
-/**
- * sessionInput(prepared: Prepared) -> Promise<string> — what a CLI session is given with a message: the job's `rules`, Agent M's AGENTS.md, where the instance
- * holds it, then session.md with each named place filled by the parts of its recipe, each under its name, "(none)" where the recipe gave none.
- */
-export async function sessionInput(prepared) {
-  const filled = (await ownText("session.md")).replace(/\{\{([a-z-]+)\}\}/g, (_place, recipe) => {
-    const given = prepared.parts.filter((part) => part.recipe === recipe);
-    return given.length ? given.map((part) => `### ${part.name}\n\n${part.text}`).join("\n\n") : "(none)";
-  });
-  return `${prepared.rules ? `${prepared.rules.text}\n\n` : ""}${filled.trimEnd()}`;
+// session.md's template and its two instructions to read Agent M's files, each the text after its `<!-- read… -->` line.
+async function sessionText() {
+  const [template, ...blocks] = (await ownText("session.md")).split(/^<!-- (read(?: again)?):[^\n]*-->\n/m);
+  const instructions = {};
+  for (let at = 0; at < blocks.length; at += 2) instructions[blocks[at]] = blocks[at + 1].trim();
+  return { template, read: instructions.read, again: instructions["read again"] };
 }
 
 /**
- * runSession(ready: Ready) -> Promise<{ text: string, usage: unknown | null }> — sends a prepared message to the CLI session it names, as one ask to the
- * session's agent on its Bridge (MOD-bridge-client's `ask`), with the session's model, the address of the message's page's repository as `product` and the
- * commit of the instance it was prepared on as `instance`; the session's answer as it gave it. Throws NotFound where this browser keeps no Bridge of that
- * name, and what `ask` throws.
+ * sessionInput(prepared: Prepared, { sent }: { sent: number | null }) -> Promise<string> — what a CLI session is given with a message: session.md with each
+ * named place filled by the parts of its recipe, each under its name. `sent` is how many messages the conversation has sent to the session it keeps, null
+ * where the message starts one. With the message that starts the session, and with every fifth message after it, the input begins with the instruction to
+ * read Agent M's AGENTS.md — where the instance holds it, the job's `rules` — and the chapters for the page, each named by the path of its file in the
+ * Bridge's clone of the instance from the session's checkout and none given as text; with every fifth, also that they need not be read again while they are
+ * still in the agent's context. With any other message that place is empty. The conversation so far is given only where the message starts the session.
+ * The one place where a session's input is composed.
  */
-export async function runSession(ready) {
-  const [, bridgeName, agent] = SESSION_ROUTE.exec(String(ready.prepared.drafter.route).trim());
-  const bridge = ready.connections.bridges[bridgeName];
+export async function sessionInput(prepared, { sent = null } = {}) {
+  const starts = sent === null;
+  const { template, read, again } = await sessionText();
+  const files = [...(prepared.rules ? [`${FROM_CHECKOUT}AGENTS.md`] : []),
+    ...prepared.parts.filter((part) => part.recipe === "chapters-for-page").map((part) => CHAPTER.exec(part.name))
+      .filter(Boolean).map(([, file, source, version]) => `${FROM_CHECKOUT}docs/sources/${source}/${version}/${file}`)];
+  const instruction = starts ? read : sent % READ_AGAIN_EVERY === 0 ? again : "";
+  const given = (recipe) => {
+    const parts = prepared.parts.filter((part) => part.recipe === recipe);
+    return parts.length ? parts.map((part) => `### ${part.name}\n\n${part.text}`).join("\n\n") : "(none)";
+  };
+  const places = {
+    read: instruction ? instruction.replace("{{files}}", files.map((file) => `- \`${file}\``).join("\n")) : "",
+    conversation: starts ? `## The conversation\n\n${given("conversation")}` : "",
+  };
+  const filled = template.replace(/\{\{([a-z-]+)\}\}/g, (_place, name) => (name in places ? places[name] : given(name)));
+  return filled.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// How often the session's console is read while a message runs.
+const CONSOLE_POLL_MS = 500;
+// How many lines of the console the bar shows.
+const CONSOLE_LINES = 200;
+
+// How a session ended that the Bridge no longer runs, as its listing and its log say: by its agent — its listing `done` or `failed` (UC-049 4h) — or with its
+// Bridge (4g), with the last lines its console showed. A Bridge that does not answer ended it.
+async function howEnded(bridge, id) {
+  try {
+    const listed = (await bridgeJobs(bridge))?.find((job) => job.id === id) ?? null;
+    let lines = [];
+    try {
+      const log = await bridgeJobLog(bridge, id, 0);
+      lines = [...(log.lines ?? []), ...(log.partial ? String(log.partial).split("\n") : [])];
+    } catch { /* a log the Bridge no longer gives */ }
+    return { by: ["done", "failed"].includes(listed?.state) ? "agent" : "bridge", state: listed?.state ?? null, lines: lines.slice(-20) };
+  } catch {
+    return { by: "bridge", state: null, lines: [] };
+  }
+}
+
+// Follows a session's console with MOD-bridge-client's bridgeJobLog until `stop` is called, handing `onConsole` the lines it has shown so far and the part its
+// screen shows now.
+function followConsole(bridge, id, onConsole) {
+  let stopped = false, from = 0;
+  const lines = [];
+  (async () => {
+    while (!stopped) {
+      try {
+        const log = await bridgeJobLog(bridge, id, from);
+        lines.push(...(log.lines ?? []));
+        from = log.next ?? from;
+        if (!stopped) onConsole?.({ lines: lines.slice(-CONSOLE_LINES), partial: log.partial ?? "" });
+        if (log.ended) return;
+      } catch { return; }
+      await new Promise((resolve) => setTimeout(resolve, CONSOLE_POLL_MS));
+    }
+  })();
+  return () => { stopped = true; };
+}
+
+/** The Bridge and the agent of a CLI session's participant, and the Bridge as this browser keeps it. Throws NotFound where it keeps none of that name. */
+function sessionTarget(participant, bridges) {
+  const [, bridgeName, agent] = SESSION_ROUTE.exec(String(participant.route).trim());
+  const bridge = bridges[bridgeName];
   if (!bridge) throw Object.assign(new Error(`this browser keeps no Bridge named ${bridgeName}`), { name: "NotFound" });
+  return { bridgeName, agent, bridge };
+}
+
+/**
+ * runSession(ready: Ready, { kept, keep, onConsole, signal }) -> Promise<{ text: string, usage: null, ended: { by: "agent" | "bridge", state, lines } | null }> —
+ * sends a prepared message to the CLI session it names on its Bridge (MOD-bridge-client's `ask`; ARC-055), with the session's model, the address of the
+ * message's page's repository as `product`, the commit of the instance it was prepared on as `instance`, and, where the conversation keeps a session of that
+ * Bridge and agent (`kept`: { bridge, agent, id, sent }), that one as `session`. `keep` is handed the session the conversation keeps from then on — its
+ * Bridge, its agent, its identifier and how many messages were sent to it —, or null where it keeps none; `onConsole` the session's console while the
+ * message runs. A session the Bridge no longer runs (not-found) is forgotten and the message sent again, starting a new session, its end in `ended`. Throws
+ * SessionEnded { ended } where the agent exits before it answers, the session forgotten; Cancelled where `signal` was aborted; NotFound where this browser
+ * keeps no Bridge of that name; and what `ask` throws.
+ */
+export async function runSession(ready, { kept = null, keep = () => {}, onConsole = null, signal = null } = {}) {
+  const { bridgeName, agent, bridge } = sessionTarget(ready.prepared.drafter, ready.connections.bridges);
   const model = ready.prepared.drafter.model ?? undefined;
-  const { text, usage } = await ask(bridge, { agent, ...(model ? { model } : {}), product: ready.page.address, instance: ready.context.agentM.commit },
-    await sessionInput(ready.prepared));
-  return { text, usage };
+  const current = kept && kept.bridge === bridgeName && kept.agent === agent && typeof kept.id === "string" ? kept : null;
+  const send = async (session) => {
+    const input = await sessionInput(ready.prepared, { sent: session ? session.sent ?? 0 : null });
+    let id = session?.id ?? null, stop = () => {};
+    const target = { agent, ...(model ? { model } : {}), product: ready.page.address, instance: ready.context.agentM.commit, ...(session ? { session: session.id } : {}) };
+    try {
+      const { text } = await ask(bridge, target, input, { onSession: (named) => {
+        id = named;
+        keep({ bridge: bridgeName, agent, id: named, sent: (session && session.id === named ? session.sent ?? 0 : 0) + 1 });
+        stop = followConsole(bridge, named, onConsole);
+      } });
+      return { text, usage: null, ended: null };
+    } catch (failure) {
+      if (signal?.aborted) throw Object.assign(new Error("the message was stopped"), { name: "Cancelled" });
+      if (failure?.name === "BridgeFailed" && failure.error === "not-found" && session) {
+        keep(null);
+        const ended = await howEnded(bridge, session.id);
+        return { ...(await send(null)), ended };
+      }
+      if (failure?.name === "AskFailed" && id) {
+        keep(null);
+        throw Object.assign(new Error(failure.message), { name: "SessionEnded", ended: await howEnded(bridge, id) });
+      }
+      throw failure;
+    } finally {
+      stop();
+    }
+  };
+  return send(current);
+}
+
+/**
+ * endSession(store: Store, kept: { bridge, id }) -> Promise<{ confirmed }> — ends the session the conversation keeps, on its Bridge as this browser keeps it,
+ * with MOD-bridge-client's cancelOnBridge: its agent, with every process it started (UC-049 5a, 6d). Throws NotFound where this browser keeps no such
+ * Bridge, and what cancelOnBridge throws.
+ */
+export function endSession(store, kept) {
+  const route = `bridge ${kept.bridge} agent ${kept.agent}`;
+  const { bridge } = sessionTarget({ route }, connectionsOf({ route }, store).bridges);
+  return cancelOnBridge(bridge, kept.id);
 }
 
 /**

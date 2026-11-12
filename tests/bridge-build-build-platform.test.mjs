@@ -78,6 +78,15 @@ if (process.argv[2] === "ci") {
     fs.writeFileSync(at("asn1", "package.json"), JSON.stringify({ name: "asn1" }));
     fs.writeFileSync(at("asn1", "build", "native.node"), "compiled");
   }
+  if (process.env.FAKE_PTY_ADDON) {
+    // node-pty, which the app ships (ARC-055), with its prebuilt addons and the one compiled for the app's Electron.
+    const at = (...parts) => path.join(process.cwd(), "node_modules", "node-pty", ...parts);
+    for (const file of [["build", "Release", "pty.node"], ["prebuilds", "darwin-arm64", "pty.node"], ["prebuilds", "win32-x64", "conpty.node"]]) {
+      fs.mkdirSync(path.dirname(at(...file)), { recursive: true });
+      fs.writeFileSync(at(...file), "compiled");
+    }
+    fs.writeFileSync(at("package.json"), JSON.stringify({ name: "node-pty", dependencies: { "node-addon-api": "^7.1.0" } }));
+  }
   if (process.env.FAKE_ADDON) {
     const dir = path.join(process.cwd(), "node_modules", "ssh2", "build", "Release");
     fs.mkdirSync(dir, { recursive: true });
@@ -117,6 +126,12 @@ const app = {
 }[platform];
 fs.mkdirSync(path.dirname(app), { recursive: true });
 fs.copyFileSync(process.env.FAKE_APP, app);
+if (process.env.FAKE_PTY_ADDON) {
+  // electron-builder unpacks node-pty's addon beside the app's archive.
+  const unpacked = path.join(path.dirname(app), "resources", "app.asar.unpacked", "node_modules", "node-pty", "build", "Release");
+  fs.mkdirSync(unpacked, { recursive: true });
+  fs.writeFileSync(path.join(unpacked, "pty.node"), "compiled");
+}
 fs.chmodSync(app, 0o755);
 `;
 
@@ -187,7 +202,7 @@ function setting(platform, { env = {}, app = fakeApp() } = {}) {
   git("tag", TAG);
   const commit = git("rev-parse", "HEAD").stdout.trim();
 
-  const names = [...new Set([...SECRETS.macos, ...SECRETS.windows, "PATH", "FAKE_LOG", "FAKE_CONFIGS", "FAKE_BUILDER", "FAKE_APP", "FAKE_ADDON", "FAKE_TOOL_ADDON", "FAKE_TRANSITIVE_ADDON", "FAKE_TAMPER", "FAKE_NO_NAME"])];
+  const names = [...new Set([...SECRETS.macos, ...SECRETS.windows, "PATH", "FAKE_LOG", "FAKE_CONFIGS", "FAKE_BUILDER", "FAKE_APP", "FAKE_ADDON", "FAKE_TOOL_ADDON", "FAKE_TRANSITIVE_ADDON", "FAKE_PTY_ADDON", "FAKE_TAMPER", "FAKE_NO_NAME"])];
   const before = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   for (const name of SECRETS[platform]) process.env[name] = name === "BRIDGE_UPDATE_KEY" ? PRIVATE_PEM : `value of ${name}`;
   Object.assign(process.env, { PATH: `${bin}${delimiter}${process.env.PATH}`, FAKE_LOG: join(root, "log.jsonl"), FAKE_CONFIGS: configs, FAKE_BUILDER: join(root, "fake-builder"), FAKE_APP: join(root, "fake-app"), ...env });
@@ -261,6 +276,22 @@ test("buildPlatform — a .node file in the app gives NativeAddonFound naming it
     assert.ok(run.calls().some((call) => call.tool === "npm"), "the packages were installed");
     assert.ok(!run.calls().some((call) => call.tool === "electron-builder"), "nothing was built");
     assert.deepEqual(names(run.folder), []);
+  } finally { run.settle(); }
+});
+
+// TST-20261112591 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE; THE BRIDGE IS ONE FILE PER PLATFORM; UC-049
+// given: a Linux build whose installed packages hold node-pty's addons — node_modules/node-pty/build/Release/pty.node and its prebuilt ones —, and whose unpacked app holds node-pty's addon beside its archive
+// input: buildPlatform({ platform: "linux", checkout, tag, folder })
+// expect: it does not reject with NativeAddonFound: electron-builder is started, with a configuration that rebuilds the app's native dependencies from their sources for the app's Electron (npmRebuild and buildDependenciesFromSource true), and the AppImage is handed on; counter-proof: TST-961003's ssh2 addon still rejects
+test("TST-20261112591: node-pty's addon, built for the app's Electron, is the one compiled addon the app may hold", async () => {
+  const run = setting("linux", { env: { FAKE_PTY_ADDON: "1" } });
+  try {
+    const result = await run.build();
+    assert.ok(run.calls().some((call) => call.tool === "electron-builder"), "electron-builder was started");
+    assert.equal(run.config().npmRebuild, true);
+    assert.equal(run.config().buildDependenciesFromSource, true);
+    assert.ok(result.files.some((file) => file.name.endsWith(".AppImage")), "the AppImage is handed on");
   } finally { run.settle(); }
 });
 

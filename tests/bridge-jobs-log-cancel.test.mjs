@@ -174,23 +174,23 @@ const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { retu
 // guards: UC-044; UC-036
 // given: a job whose agent has printed its first line and waits for a gate
 // input: GET /v1/jobs/{id}/log, with no from, with from 0 and with from 1; then the gate opened, the job ended, and GET again from 1 and from the next
-// expect: while it runs: lines [the agent's first event line], next 1, ended false (the same for from 0), and no lines for from 1 with next 1; once it has ended: lines from 1 on are the agent's other lines (the answer, then the usage line), next their count, ended true; from the next, no line and ended true
+// expect: while it runs: lines [the agent's first event line], next 1, partial "" — no line being written —, ended false (the same for from 0), and no lines for from 1 with next 1; once it has ended: lines from 1 on are the agent's other lines (the answer, then the usage line), next their count, ended true; from the next, no line and ended true
 test("GET /v1/jobs/{id}/log gives the lines from a line on, as they grow, and says when the job has ended", async () => {
   await world(async (w) => {
     const job = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));
     watch(w, [{ name: "opencode", folder: w.folder("agent-work") }], { every: 50 });
     await w.until(() => runs(w).length === 1, "the agent to start");
     const live = await w.until(async () => { const got = await log(job.id); return got.lines.length ? got : null; }, "the first line");
-    assert.deepEqual(live, { lines: [FIRST], next: 1, ended: false });
+    assert.deepEqual(live, { lines: [FIRST], next: 1, partial: "", ended: false });
     assert.deepEqual(await log(job.id, 0), live);
-    assert.deepEqual(await log(job.id, 1), { lines: [], next: 1, ended: false });
+    assert.deepEqual(await log(job.id, 1), { lines: [], next: 1, partial: "", ended: false });
     w.release();
     await w.ended(job);
     const done = await w.until(async () => { const got = await log(job.id, 1); return got.ended ? got : null; }, "the job to end in its log");
     assert.equal(done.lines.length, 2, "the answer and the usage line");
     assert.match(done.lines[0], /"type":"text"/);
     assert.equal(done.next, 3);
-    assert.deepEqual(await log(job.id, done.next), { lines: [], next: 3, ended: true });
+    assert.deepEqual(await log(job.id, done.next), { lines: [], next: 3, partial: "", ended: true });
   }, { gated: true });
 });
 
@@ -283,7 +283,7 @@ test("the cancel of a job that has ended stops nothing and changes nothing", asy
 // guards: UC-044; UC-036
 // given: the routes bridgeApi gives for the log and the cancel
 // input: their answer forms and the handlers jobHandlers gives
-// expect: both handlers exist; the log answer of a running job has exactly the keys bridgeApi gives (lines, next, ended) and the cancel answer those it gives (confirmed): the form bridgeJobLog and cancelOnBridge read
+// expect: both handlers exist; the log answer of a running job has exactly the keys bridgeApi gives (lines, next, partial, ended) and the cancel answer those it gives (confirmed): the form bridgeJobLog and cancelOnBridge read
 test("the log and the cancel are answered in the form the protocol gives", async () => {
   const handlers = jobHandlers();
   for (const key of ["GET /v1/jobs/{id}/log", "POST /v1/jobs/{id}/cancel"]) assert.equal(typeof handlers[key], "function", key);
@@ -316,8 +316,8 @@ test("a job's log keeps every line its agent wrote, on disk too, and gives its l
     assert.deepEqual(bridgeJobs.jobLog(job.id, 0), { lines: [FIRST, ...numbered(1, 1500)], first: 0, next: 1501, partial: "working", ended: false });
     assert.deepEqual(bridgeJobs.jobLog(job.id, -1000), { lines: numbered(501, 1500), first: 501, next: 1501, partial: "working", ended: false });
     assert.ok(!bridgeJobs.jobLog(job.id, -1000).lines.includes("line 500"), "counter-proof: line 500 is not among the last 1000");
-    assert.deepEqual(await log(job.id), { lines: [FIRST, ...numbered(1, 1500)], next: 1501, ended: false });
-    assert.deepEqual(await log(job.id, 1400), { lines: numbered(1400, 1500), next: 1501, ended: false });
+    assert.deepEqual(await log(job.id), { lines: [FIRST, ...numbered(1, 1500)], next: 1501, partial: "working", ended: false });
+    assert.deepEqual(await log(job.id, 1400), { lines: numbered(1400, 1500), next: 1501, partial: "working", ended: false });
     const kept = join(DATA, "job-logs");
     assert.equal(readFileSync(join(kept, `${job.id}.log`), "utf8"), [FIRST, ...numbered(1, 1500), "working"].join("\n"));
     assert.equal(JSON.parse(readFileSync(join(kept, `${job.id}.json`), "utf8")).state, "running");

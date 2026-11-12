@@ -39,7 +39,7 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
  // guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
  // given: the public Bridge protocol
  // input: inspect its additive agents, jobs and asks route declarations
- // expect: every selected route and its declared method are public; the ask request has three bodies (agent, endpoint, endpoint with an exchange) and its answer carries calls
+ // expect: every selected route and its declared method are public; the ask request has three bodies (agent — with the running session a message to a CLI session is typed into —, endpoint, endpoint with an exchange) and its answer names the session of a message to a CLI session; the answer of an ask carries calls; a job's log answers with the part the agent is still writing (ARC-055)
  test("TST-323001: bridgeApi declares the selected agents, jobs and asks routes", () => {
   const selected = bridgeApi.routes.filter(({ method, path }) => [
     "GET /v1/agents", "POST /v1/jobs", "GET /v1/jobs", "GET /v1/jobs/{id}/log", "POST /v1/jobs/{id}/cancel", "POST /v1/ask", "GET /v1/ask/{ask}",
@@ -57,14 +57,14 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
   assert.deepEqual(declare.answer, { declared: "boolean" });
   assert.deepEqual(route("POST", "/v1/jobs"), { method: "POST", path: "/v1/jobs", request: { product: "string", record: "string", commit: "string", task: "string?" }, answer: { accepted: "string" } });
   assert.deepEqual(route("GET", "/v1/jobs").answer, { jobs: [{ id: "string", product: "string", kind: "string", agent: "string", state: "string", started: "string", usage: "object" }] });
-  assert.deepEqual(route("GET", "/v1/jobs/{id}/log"), { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", ended: "boolean" } });
+  assert.deepEqual(route("GET", "/v1/jobs/{id}/log"), { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", partial: "string", ended: "boolean" } });
   assert.deepEqual(route("POST", "/v1/jobs/{id}/cancel").answer, { confirmed: "boolean" });
   assert.deepEqual(route("POST", "/v1/ask").request, [
-    { agent: "string", model: "string?", input: "string", product: "string?", instance: "string?" },
+    { agent: "string", model: "string?", input: "string", product: "string?", instance: "string?", session: "string?" },
     { endpoint: { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] }, input: "string" },
     { endpoint: { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] }, exchange: { messages: ["object"], tools: ["object"] } },
   ]);
-  assert.deepEqual(route("POST", "/v1/ask").answer, { ask: "string" });
+  assert.deepEqual(route("POST", "/v1/ask").answer, { ask: "string", session: "string?" });
   assert.deepEqual(route("GET", "/v1/ask/{ask}").answer, { state: ["running", "done", "failed"], text: ["string", "null"], calls: [{ id: "string", name: "string", args: "object" }], usage: ["object", "null"], error: ["string", "null"] });
 });
 

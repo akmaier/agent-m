@@ -75,6 +75,9 @@ if [ "${AGENT_M_ROW:-}" = "component" ] && [ -n "${GITHUB_ACTIONS:-}" ]; then
 fi
 
 npm install --prefix src/bridge-build --omit=dev --ignore-scripts
+# node-pty's addon (ARC-055), which the tests of a CLI session kept in a pseudo-terminal load in the Node that runs them: compiled from its sources for that Node,
+# since the package holds no prebuilt addon for Linux, and its prebuilt helper for macOS is not executable as the package ships it.
+npm_config_build_from_source=true npm rebuild --prefix src/bridge-build node-pty
 
 # npm installs Electron's package without its executable; the package's install.js downloads it into dist/, as the tests' own
 # install does in its step "binary acquisition".

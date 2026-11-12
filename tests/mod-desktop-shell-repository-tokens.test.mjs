@@ -33,13 +33,13 @@ const folder = () => mkdtemp(join(tmpdir(), "agent-m-shell-tokens-"));
 // guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044
 // given: an empty data folder of a Bridge
 // input: saveSettings with folder /work/agents and the agents claude and codex with their declarations; loadSettings; then saveSettings with no folder; then a settings file written with an agent's own folder /old/claude and no folder
-// expect: the file holds folder /work/agents and the agents without any folder of their own; loaded, claude's working folder is /work/agents/claude and codex's /work/agents/codex; without the folder each agent's working folder is null; counter-proof: the agent's own /old/claude is not its working folder
+// expect: the file holds folder /work/agents and the agents, each with its Chrome setting off, without any folder of their own; loaded, claude's working folder is /work/agents/claude and codex's /work/agents/codex; without the folder each agent's working folder is null; counter-proof: the agent's own /old/claude is not its working folder
 test("TST-20261110501: the Bridge's settings keep one folder, and each agent's working folder is <folder>/<agent>", async () => {
   const data = await folder();
   saveSettings(data, { ...loadSettings(data), folder: "/work/agents", agents: [{ name: "claude", ...DECLARED }, { name: "codex", ...DECLARED }] });
   const file = JSON.parse(await readFile(join(data, "settings.json"), "utf8"));
   assert.equal(file.folder, "/work/agents");
-  assert.deepEqual(file.agents, [{ name: "claude", ...DECLARED }, { name: "codex", ...DECLARED }], "no agent keeps a folder of its own in the file");
+  assert.deepEqual(file.agents, [{ name: "claude", chrome: false, ...DECLARED }, { name: "codex", chrome: false, ...DECLARED }], "no agent keeps a folder of its own in the file");
   assert.deepEqual(loadSettings(data).agents.map(({ name, folder: working }) => [name, working]), [["claude", "/work/agents/claude"], ["codex", "/work/agents/codex"]]);
 
   saveSettings(data, { ...loadSettings(data), folder: null });
