@@ -504,7 +504,8 @@ function browserClearControls(context) {
   );
 }
 
-function repositoryLine(target, context, info) {
+// renewing: the key Renew of a notice named (the route's parameter `renew`), whose line opens its form at once.
+function repositoryLine(target, context, info, renewing = null) {
   if (info.key !== "github-token" && info.key !== "products" &&
     !info.key.startsWith("github-token:") && !info.key.startsWith("gitlab-token:")) return null;
   if (info.key === "products") {
@@ -535,12 +536,11 @@ function repositoryLine(target, context, info) {
   const change = el("button", "settings-repository-change btn", "Change");
   const result = el("p", "settings-repository-result");
   const address = repositoryAddress(context, info.key);
-  const links = address ? connect(address, {}).webLinks() : null;
-  const renewal = el("a", "settings-repository-renew", "Renew token ↗");
-  if (links) renewal.href = links.projectTokens ?? links.tokens;
-  else renewal.textContent = "Renewal link needs a repository address.";
   // UC-042 step 2: Change opens the token page of the use case that set the token up, with what to do there.
   const step = address ? tokenStep(info.key, address) : null;
+  // UC-042 1a, 1b: Renew opens what Change opens — that page, prefilled as when the token was set up, the repositories to pick beside
+  // it, and the paste field for the new value; the page is linked once, in that form.
+  const renewal = el("button", "settings-repository-renew btn small", "Renew");
   const tokenPage = el("a", "settings-repository-token-page", step?.text ?? "");
   if (step) Object.assign(tokenPage, { href: step.page, target: "_blank", rel: "noopener" });
   const tokenStepBox = el("div", "settings-repository-token", el("p", null, tokenPage),
@@ -576,7 +576,7 @@ function repositoryLine(target, context, info) {
     value.disabled = expiry.disabled = save.disabled = !acknowledgement.checked;
     if (acknowledgement.checked) value.focus();
   });
-  change.addEventListener("click", () => {
+  const openForm = () => {
     tokenStepBox.hidden = notice.hidden = acknowledgementLine.hidden = save.hidden = false;
     // UC-042 step 2: the new token is made from the prefilled link, so its expiry is preset to that link's 90 days.
     expiry.value = prefilledExpiry();
@@ -591,7 +591,8 @@ function repositoryLine(target, context, info) {
       result.textContent = "Read the shared-browser notice, then acknowledge it before saving a replacement token.";
       acknowledgement.focus();
     }
-  });
+  };
+  change.addEventListener("click", openForm);
   save.addEventListener("click", () => {
     const next = value.value.trim();
     if (!acknowledgement.checked || !next || !expiry.value) { result.textContent = "Acknowledge the notice, paste the token, and enter its expiry date first."; return; }
@@ -632,6 +633,8 @@ function repositoryLine(target, context, info) {
     value.value = "";
     status.textContent = `Cleared from this browser. ${consequence}`;
   });
+  renewal.addEventListener("click", openForm);
+  if (renewing === info.key) openForm();
   return el("section", "settings-repository panel",
     el("h3", null, info.label), status,
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
@@ -1255,7 +1258,7 @@ function configurationControls(context) {
 export const route = {
   ...heads.settings,
   subject: (params, context) => settingsSubject(context, () => drawnOn.get(context)?.textContent ?? ""),
-  async render(target, given) {
+  async render(target, given, params = {}) {
     drawnOn.set(given, target);
     // A line that renders the page again hands back the context of its tab; the page keeps its own.
     const context = given[PAGE] ?? pageContext(given);
@@ -1306,7 +1309,7 @@ export const route = {
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
       ...listSettings(context.store).flatMap((info) => {
-        const line = repositoryLine(target, inPlace, info);
+        const line = repositoryLine(target, inPlace, info, params.renew ?? null);
         return !line ? [] : info.key === "products" ? [line, productForm] : [line];
       }),
       recording.node, instanceSettings.node, ...(productList ? [productList] : []), product, ...(productSettings ? [productSettings.node] : []));
@@ -1325,7 +1328,21 @@ export const route = {
       { name: "Repositories", id: "settings-repositories", node: repositories },
       { name: "Endpoints & Agents", id: "settings-endpoints-agents", node: endpointPane },
       { name: "Usability", id: "settings-usability", node: usability },
-    ], chosenTabs.get(context), (id) => { chosenTabs.set(context, id); if (id === "settings-repositories") { recording.load(); instanceSettings.load(); productSettings?.load(); } });
+    ], params.renew ? "settings-repositories" : chosenTabs.get(context), (id) => { chosenTabs.set(context, id); if (id === "settings-repositories") { recording.load(); instanceSettings.load(); productSettings?.load(); } });
     target.replaceChildren(el("section", "head", el("h2", null, "Settings")), tabbed.tabs, ...tabbed.panels);
+  },
+};
+
+// The route `renew-token` — Renew of a token (UC-042 1a, 1b), drawn by the frame's notices under the line that warns of the token: the
+// token's own line of `settings`, params.key, with the form open that Change opens — the page on which the token was set up,
+// prefilled as then, the repositories to pick beside it, and the paste field for the new value. A key this browser keeps no token
+// under draws nothing.
+export const renewRoute = {
+  ...heads.renewToken,
+  async render(target, given, params = {}) {
+    const context = pageContext(given);
+    const info = listSettings(context.store).find((setting) => setting.key === params.key);
+    const line = info ? repositoryLine(target, context, info, info.key) : null;
+    target.replaceChildren(...(line ? [line] : []));
   },
 };

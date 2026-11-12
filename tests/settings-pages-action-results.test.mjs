@@ -55,7 +55,7 @@ test("TST-290125: refused product metadata does not replace public Settings with
   const repositories = pane("Repositories");
   assert.ok(repositories, "failure node: route.render keeps the public Repositories pane mounted after product metadata refusal");
   assert.match(repositories.textContent, /Refused/, "the stored refusal remains visible where the token is shown");
-  assert.match(repositories.textContent, /Renew token/, "the public token row retains its renewal path");
+  assert.match(repositories.textContent, /Renew/, "the public token row retains its renewal path");
 });
 
 // TST-290126 · level: component · module: MOD-settings-pages

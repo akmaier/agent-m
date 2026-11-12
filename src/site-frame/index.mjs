@@ -204,6 +204,18 @@ export function instanceOf(location) {
   return instanceOfPagesAddress(location) ?? UPSTREAM;
 }
 
+// renewHere(key, place, elsewhere) -> Promise<void> — the route renew-token of a view of this page drawn in `place` for the token `key`;
+// where no view serves it, `elsewhere` is called instead.
+async function renewHere(key, place, elsewhere) {
+  try {
+    await embedRoute("renew-token", place, { key });
+  } catch (error) {
+    if (error?.name !== "RouteNotLoaded") throw error;
+    place.replaceChildren();
+    elsewhere();
+  }
+}
+
 // The page started last: its kind, the routes its views serve, and the context of the route shown now. embedRoute reads it; each start replaces it.
 let started = null;
 
@@ -378,7 +390,11 @@ async function startSite({ page, views }) {
       notice("setup", { text: "Finish setting up: store your GitHub token on the settings page.", link: { label: "Settings", href: linkOf(page, "settings") } });
     }
     if (unknown !== null) notice("info", { text: `This browser does not keep the product ${unknown}; the instance is shown. Choose + Add product to add it.` });
-    showTokenNotices({ store, instance, product });
+    // UC-042 1a, 1b: Renew draws, under its notice, the token's line of Settings with its form open — the token's page prefilled as at
+    // set-up, the repositories to pick and the paste field (MOD-settings-pages' route renew-token) —, or, where no view of this page
+    // serves that route, goes to Settings, which opens the same line.
+    const renew = (key, place) => renewHere(key, place, () => context.go("settings", { renew: key }));
+    showTokenNotices({ store, product, renew });
 
     const byName = routes.find((candidate) => candidate.name === selected.name);
     const entryKey = labelOf(selected.name) ? selected.name : null;
@@ -426,7 +442,7 @@ async function startSite({ page, views }) {
     try {
       await route.render(target, context, shown.params);
     } catch (failure) {
-      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      if (failure?.name === "TokenRefused") refusedNotice(failure, { store, product, renew });
       else target.replaceChildren(routeProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
     }
   };
@@ -554,7 +570,7 @@ async function startBridge({ page, views }) {
     try {
       await named.render(target, context, params);
     } catch (failure) {
-      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      if (failure?.name === "TokenRefused") refusedNotice(failure, { store, renew: (key, place) => renewHere(key, place, () => context.go("settings", { renew: key })) });
       else target.replaceChildren(routeProblem(failure, readSetting(store, "github-token") !== null));
     }
   };

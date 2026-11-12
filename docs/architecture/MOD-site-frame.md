@@ -14,7 +14,6 @@ uses:
   - MOD-browser-store.secretValues
   - MOD-repository-hosts.parseAddress
   - MOD-repository-hosts.connect
-  - MOD-repository-hosts.webLinks
   - MOD-repository-hosts.HostError
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.readSnapshot
@@ -281,9 +280,14 @@ It keeps nothing but what is on the screen. It owns these formats:
   cannot be shown, reload it, and report it with the message below if it happens again —, and below them `readProblem`
   of it, with the error's message. It reads nothing and never throws.
 - `notice(kind: "token-expiring" | "token-refused" | "rate-limit" | "unreachable" | "setup" | "moved" | "info", detail:
-  { text: string, link?: { label: string, href: string } }) -> void` — shows a notice in the page's one place for them;
-  the frame itself shows a token's expiry from fourteen days before it (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`) with
-  its renewal page, and *Finish setting up* while no token is stored.
+  { text: string, link?: { label: string, href: string }, action?: { label: string, run: (place: Element) -> void } }) -> void`
+  — shows a notice in the page's one place for them, with the link, or with a button whose click hands `run` the place
+  under the notice; the frame itself shows a token's expiry from fourteen days before it (`A TOKEN'S EXPIRY IS WARNED OF IN
+  ADVANCE`) and a token the server refused, the one the refusal names, each with *Renew* (`AN EXPIRED TOKEN IS NAMED AND
+  ITS RENEWAL LINKED`, UC-042 1a, 1b): its click draws under the notice the route `renew-token` with the token's key
+  (`embedRoute`; the live page's app with the context of `#settings`) — the token's line of Settings with the page on which
+  it was set up, prefilled as then, the repositories to pick and the paste field —, or, on a page whose views serve no such
+  route, goes to `settings` with the parameter `renew`; and *Finish setting up* while no token is stored.
 - `schemaForm(schema: Schema, document: Document | null, options: { onSave: (document: Document) -> Promise<void>,
   extraChecks?: (document: Document) -> Finding[], secretKeys?: string[], readOnly?: boolean }) -> Element` — a form with
   one field per key and section of a schema of MOD-documents, a section edited in the renderer's editor; the findings of
@@ -306,7 +310,7 @@ It writes nothing.
   MOD-browser-store.expiringSoon — the expiry notice; MOD-browser-store.secretValues — handed to every host it connects,
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
-  each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token; MOD-repository-hosts.HostError —
+  each with its own token; MOD-repository-hosts.HostError —
   to tell a host's failure from a fault of the page itself; MOD-repository-hosts.Snapshot — the type of the snapshot a route's `reads` is given, whose `readMany` the frame calls;
   MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.readSnapshot — the default branch of the repository a route
   shows, asked once per page, and its snapshot there.

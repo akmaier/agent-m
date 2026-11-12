@@ -135,7 +135,7 @@ resource on its runner, queued to that runner's route; for its run panel it hand
 - `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
 - `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
   strategies, only when a job is prepared (`loadStrategies`).
-- `settings.mjs` — the one page of every setting, its tests, clears, export and import.
+- `settings.mjs` — the one page of every setting, its tests, clears, export and import, and the route `renew-token`, one line of it.
 - `setup.mjs` — getting one's own Agent M and finishing its setup.
 - `products.mjs` — adding a product.
 - `endpoints.mjs`, `participants.mjs`, `library.mjs`, `resources.mjs`, `mailbox.mjs`, `bridge.mjs` — the guided pages.
@@ -154,7 +154,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   value, so that a secret shown on *Show* is never part of what a participant is given:
   - `settings` — three sections — this browser, the instance, each product —, one line per setting with its state:
     works, with the date of the last successful test; expires on, from fourteen days before a token's recorded expiry;
-    refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*; each Bridge is a
+    refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*; a token's line has
+    *Renew* beside its expiry, which opens in place what *Change* opens — the page on which the token was set up, prefilled as
+    then (`tokenStep`: UC-014 step 7, UC-001 step 3, 3c), the repositories to pick beside it and the paste field for the new
+    value (UC-042 1a, 1b); with the parameter `renew` naming a token's key, the page shows the tab Repositories with that
+    line's form open; each Bridge is a
     line of its own, under its name, and its *Clear* names first the endpoints, mailbox and resources that
     name it (UC-042, 2a). The line
     *Notifications* of this browser's section (UC-047) shows the state `notificationState` gives: *off*, or switched on
@@ -195,6 +199,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     among them that every Pages site of the same owner can read this browser's store, and, for *Notifications*, what is
     checked and how often, that the checks go to the repository servers with this browser's tokens and nowhere else, and
     that nothing is checked while no page of the dashboard is open.
+  - `renew-token` — the one line of `settings` of the token whose key the parameter `key` names, its form open as *Renew*
+    opens it; nothing for a key this browser keeps no token under. MOD-site-frame draws it under the notice of that token.
   - `get-your-own`, `setup` — the fork, Pages and Actions steps with their direct links once the owner is known; then
     *Finish setting up*: the prefilled token page with the folded *Why these?* of its permissions (UC-014 step 7),
     *Only select repositories* and the instance named, the shared-origin

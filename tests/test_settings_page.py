@@ -248,7 +248,8 @@ return [products.defaultExpiry(new Date('2026-09-30T08:00:00Z')), link.searchPar
         self.assertEqual([n["kind"] for n in w[1]], ["token-expiring"])
         self.assertIn("expires on 2026-10-14", w[1][0]["text"])
         self.assertIn("GitHub token", w[1][0]["text"], "which token")
-        self.assertEqual(w[1][0]["href"], "https://github.com/settings/personal-access-tokens", "where it is renewed")
+        self.assertEqual((w[1][0]["label"], w[1][0]["renews"]), ("Renew", "github-token"), "Renew of that token")
+        self.assertEqual(w[1][0]["links"], 0, "counter-proof: no link to GitHub's list of tokens")
         self.assertIn("expires on 2026-09-30", w[2][0]["text"], "today: not yet expired")
         self.assertIn("expired on 2026-09-29", w[3][0]["text"])
         self.assertEqual(w[4], [], "no date recorded: nothing to warn of")
@@ -257,11 +258,11 @@ return [products.defaultExpiry(new Date('2026-09-30T08:00:00Z')), link.searchPar
         b = frame_notices("2026-09-30", [{"expires": "2026-10-10"}, {"expires": "2026-12-29"}, {"expires": None, "refused": True}])
         self.assertIn("2026-10-10", b[0][0]["text"])
         self.assertEqual(b[0][0]["label"], "Renew")
-        self.assertEqual(b[0][0]["href"], "https://github.com/settings/personal-access-tokens")
+        self.assertEqual(b[0][0]["renews"], "github-token", "Renew of the token named")
         self.assertEqual(b[1], [], "counter-proof: far from expiry, no notice")
         self.assertEqual(b[2][0]["kind"], "token-refused")
         self.assertIn("GitHub token", b[2][0]["text"])
-        self.assertEqual((b[2][0]["label"], b[2][0]["href"]), ("Renew", "https://github.com/settings/personal-access-tokens"))
+        self.assertEqual((b[2][0]["label"], b[2][0]["renews"], b[2][0]["links"]), ("Renew", "github-token", 0))
         app = (SRC / "site-frame" / "dashboard-app.mjs").read_text(encoding="utf-8")
         route = re.search(r"async function route\(\).*?\n}\n", app, re.S).group(0)
         self.assertIn("showBanner(", route, "the notices are drawn in route(), which renders every view")
@@ -294,8 +295,9 @@ return { preset, stored: bs.readSetting(store, "github-token") };
 
 
 FRAME_DOM = """
-const element = (name) => ({ localName: name, className: "", children: [], attrs: {}, textContent: "",
-  append(...items) { this.children.push(...items); }, setAttribute(k, v) { this.attrs[k] = v; } });
+const element = (name) => ({ localName: name, className: "", children: [], attrs: {}, textContent: "", listeners: {},
+  append(...items) { this.children.push(...items); }, setAttribute(k, v) { this.attrs[k] = v; },
+  addEventListener(type, f) { (this.listeners[type] ??= []).push(f); } });
 globalThis.document = { createElement: element };
 const mem = new Map();
 globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k),
@@ -304,7 +306,8 @@ globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), se
 
 
 def frame_notices(now: str, tokens: list) -> list:
-    """For each stored GitHub token { expires, refused? } the notices MOD-site-frame draws at `now`: [{ kind, text, label, href }]."""
+    """For each stored GitHub token { expires, refused? } the notices MOD-site-frame draws at `now`: [{ kind, text, label, links, renews }] —
+    the label of its control, the links it holds, and the key its Renew hands on when pressed (UC-042 1a, 1b)."""
     return js(FRAME_DOM + f"""
 const out = [];
 for (const token of {json.dumps(tokens)}) {{
@@ -313,9 +316,13 @@ for (const token of {json.dumps(tokens)}) {{
   browserStore.writeSetting(store, 'github-token', {{ value: 'github_pat_x', name: 'GitHub token', expires: token.expires, stored: '2026-09-01' }});
   if (token.refused) browserStore.writeSetting(store, 'last-test:github-token', {{ at: '2026-09-30', outcome: 'refused' }});
   const place = siteFrameNotices.noticePlace();
-  const host = repositoryHosts.connect(repositoryHosts.parseAddress('https://github.com/a/agent-m'), {{}});
-  siteFrameNotices.showTokenNotices({{ store, instance: {{ host }}, now: new Date('{now}T12:00:00Z') }});
-  out.push(place.children.map((p) => ({{ kind: p.className.replace('notice ', ''), text: p.children[0], label: p.children[2].textContent, href: p.children[2].attrs.href }})));
+  const renewed = [];
+  siteFrameNotices.showTokenNotices({{ store, renew: (key) => renewed.push(key), now: new Date('{now}T12:00:00Z') }});
+  out.push(place.children.filter((p) => p.localName === 'p').map((p) => {{
+    for (const f of p.children[2].listeners.click ?? []) f();
+    return {{ kind: p.className.replace('notice ', ''), text: p.children[0], label: p.children[2].textContent,
+      links: p.children.filter((c) => c.localName === 'a').length, renews: renewed.pop() ?? null }};
+  }}));
 }}
 return out;
 """)
@@ -361,8 +368,9 @@ class GitLabTokensOnThePage(unittest.TestCase):
     TITLE = "GitLab token: gitlab.example.org/grp/sub/proj"
 
     def test_one_line_per_token_with_test_change_clear(self):
-        r = live(LINE + "const l = line(await render(), %s); const renew = elements(l.node, (e) => e.className === 'settings-repository-renew')[0];"
-                 " return { buttons: l.buttons, status: status(l), renew: renew.href };" % json.dumps(self.TITLE), GL_SETUP, now="2026-09-30")
+        r = live(LINE + "const l = line(await render(), %s); const renew = elements(l.node, (e) => e.className.split(' ').includes('settings-repository-renew'))[0];"
+                 " renew.dispatchEvent(new Event('click')); const page = elements(l.node, (e) => e.className === 'settings-repository-token-page')[0];"
+                 " return { buttons: l.buttons, status: status(l), renew: page.href };" % json.dumps(self.TITLE), GL_SETUP, now="2026-09-30")
         for control in ("Test", "Change", "Clear"):
             self.assertIn(control, r["buttons"], control)
         self.assertIn("2026-12-29", r["status"], "the expiry date recorded with the token")
