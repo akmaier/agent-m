@@ -229,9 +229,12 @@ test("A USED-UP RATE LIMIT IS NAMED — a GitLab product's limit is named by its
   assert.equal(shell.writeRefusalText(err, p, AT), text);
 });
 
-test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — the load error still names a refused token and links its renewal", async () => {
+// UC-042 1b: the line at the top names the refused token with its Renew, the token's prefilled page (MOD-site-frame's notices);
+// the load error names the refusal and points there, and links no Renew of its own — none to GitHub's list of tokens.
+test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — the load error still names a refused token and points to its Renew at the top", async () => {
   const html = shell.loadErrorHtml({ error: await refused(401, limitHeaders(5000, 4999)), product: GH, ref: "main", hasToken: true, now: AT });
   assert.match(html, /GitHub rejected authentication with your GitHub token/);
-  assert.ok(html.includes("https://github.com/settings/personal-access-tokens"), "the renewal link");
+  assert.match(html, /Renew it with <strong>Renew<\/strong> in the line at the top of this page/, "where it is renewed");
+  assert.doesNotMatch(html, /href="https:\/\/github\.com\/settings\/personal-access-tokens"/, "counter-proof: no Renew to GitHub's list of tokens");
   assert.doesNotMatch(html, /used up/);
 });
