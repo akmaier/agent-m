@@ -772,7 +772,7 @@ into Agent M's settings.
 Each repository token leaves the browser only to the API of the server that issued it — as the authorisation header of
 its requests, or sealed to the public key of one of that server's repositories as that repository's CI secret — or in the
 body of a request to a Bridge this browser is paired with, which sends it on only to that server, as the authorisation
-of its git and API requests for the token's repository.
+of its git and API requests for the token's repository, and to the CLI session it starts for a job of that repository.
 *Check:* `tests/review-core.test.mjs`; `tests/repository-hosts-ci-secret.test.mjs` — a product's token stored as
 `AGENT_M_TOKEN` reaches only its own server, sealed in the body of the request that stores the secret; counter-proof: the
 token in the clear in any body or address fails. `tests/bridge-repository-tokens.test.mjs` — a token handed to a fixture
@@ -781,11 +781,24 @@ and appears in no clone's configuration, remote address or command line; counter
 receives it in no request.
 
 **NO MODEL READS A CREDENTIAL** *(PO A. Maier)*
-No token, key or password that Agent M, its Bridge or its CI holds reaches a model: neither in what is sent to it nor
-through a tool it calls, whether that tool reads files, the environment or the processes of the machine it works on.
+No token, key or password that Agent M, its Bridge or its CI holds is sent to a model, nor read through a tool Agent M
+gives a model, whether that tool reads files, the environment or the processes of the machine it works on.
 *Check:* `tests/checkout-tools-credentials.test.mjs` — in a fixture checkout whose driver holds an endpoint key and whose
 `.git/config` would hold a token, every tool's attempt to read either answers without it; counter-proof: the driver's
 request to its own endpoint still carries the key.
+
+**A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE** *(PO A. Maier)*
+A CLI session that a Bridge starts for a job finds the repository token of the job's repository in a file of its
+checkout that git ignores.
+*Check:* `tests/bridge-repository-tokens.test.mjs` — a fixture Bridge starting a job of a fixture product leaves the
+product's token in that file, which `git status` does not list; counter-proof: the token stands in no commit and no
+remote address, and the instance's token and the Bridge's pairing token stand in no file of the checkout.
+
+**A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE** *(PO A. Maier)*
+The input a Bridge gives a CLI session names the file that holds its repository token and tells it to use the token
+without reading the file.
+*Check:* `tests/bridge-repository-tokens.test.mjs` — the input of a job a fixture Bridge starts names the file and says
+not to read it; counter-proof: the token stands in no input.
 
 **THE SHARED PAGES ORIGIN IS DISCLOSED** *(PO A. Maier)*
 The settings page states, before a token or key is stored, that every GitHub Pages site under the
