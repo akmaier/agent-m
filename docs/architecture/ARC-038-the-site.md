@@ -201,7 +201,7 @@ conversation's draft, the main page the conversation's job, and the settings pag
 | MOD-test-pages | `src/test-pages/` | Tests and Releases: the Tests entry's views; the schedule, the runs of a commit, generating tests; the release panel with the release test report |
 | MOD-maintenance-pages | `src/maintenance-pages/` | Maintenance: issues with their analysis, class, fix and move to the backlog; mail read into issues; replies to answer, drafts and sending, asking a reporter |
 | MOD-settings-pages | `src/settings-pages/` | Settings: every setting on one page with its test, change, clear and its notices; getting one's own Agent M; adding a product; participants; endpoints; the source library and a product's links; resources; the mailbox; the Bridge, the jump host and remote sessions; export and import |
-| MOD-notifications | `src/notifications/` | the browser's notifications of what waits for the person's acceptance: the switch, with the browser's permission asked on the person's click; a check every five minutes while a page is open; what was notified; the service worker that opens the page where a file is accepted |
+| MOD-notifications | `src/notifications/` | the browser's notifications of what waits for the person's acceptance: the switch, with the browser's permission asked on the person's click; a check every minute while a page is open; what was notified; the service worker that opens the page where a file is accepted |
 | MOD-prompt-bar | `src/prompt-bar/` | the prompt bar of UC-049: the participants this browser reaches directly, with their processing places; the conversation held in the browser tab; each message sent as a job of the kind the page's subject names, with the page as its context, run in the tab without a job record; a handed-over job followed; the conversation record and the instance's switch of recording |
 
 ```mermaid
@@ -333,7 +333,7 @@ audit MOD-test-pages' route `tests-views`, the Tests entry's views.
   pages it does not occur for the trace views: MOD-review-pages lists Architecture and MOD-test-pages lists Tests.
 - A view never computes a status of its own; anything it shows can be recomputed by the service that owns it.
 - The site can be opened from any fork's Pages address and shows that fork's instance.
-- Notifications arrive only while a page of the dashboard is open in that browser, and at most every five minutes; each
+- Notifications arrive only while a page of the dashboard is open in that browser, and at most every minute; each
   check reads the snapshot and the tags of every repository the browser keeps, which count against the servers' rate
   limits, and a page reads each blob once.
 - A click on a notification opens a new window or tab: the worker controls no page, so it cannot navigate an open one.
