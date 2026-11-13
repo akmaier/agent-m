@@ -132,8 +132,9 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
       if (!wanted?.folder || typeof body.input !== "string") throw failure("invalid-request", "This Bridge offers no such agent with a working folder, or the input is no text.");
       if (body.model !== undefined && typeof body.model !== "string") throw failure("invalid-request", "An agent ask names its model as text, or names none.");
       if (body.product !== undefined) {
-        if (!products.some((each) => each?.address === body.product) || !instance) {
-          throw failure("invalid-request", "A message to a CLI session names a product this Bridge serves.");
+        // A served product's address, or the instance's own: a page of the instance talks to a session working in its checkout of the instance.
+        if (!instance || (body.product !== instance && !products.some((each) => each?.address === body.product))) {
+          throw failure("invalid-request", "A message to a CLI session names a product this Bridge serves, or the instance.");
         }
         if (body.session !== undefined && (typeof body.session !== "string" || !body.session)) throw failure("invalid-request", "A message names its running session as text, or names none.");
         // A message to a CLI session (UC-049 step 4, ARC-055): typed into the running session it names, or starting one; not-found for one this Bridge does not run.
