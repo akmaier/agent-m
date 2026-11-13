@@ -2274,9 +2274,10 @@ found.
 **A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE** *(PO A. Maier)*
 Before Agent M writes text drawn from a mail — an issue's text, report data — to an issue tracker or a
 repository, it searches the text for every name, mail address, phone number and account found in that
-mail, and writes nothing while one is found.
+mail, and writes nothing while one is found that the person has not marked as naming no one.
 *Check:* `tests/test_mail_privacy.py` — an issue text containing the sender's name, or a name from the
-mail's signature, is refused and the hit named; counter-proof: the same text without the name passes.
+mail's signature, is refused and the hit named; counter-proof: the same text without the name passes, and
+so does the text once the person has marked that hit as naming no one.
 
 **A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL** *(PO A. Maier)*
 A job that writes to a repository is given the neutral issue and the report data as the issue holds it —
