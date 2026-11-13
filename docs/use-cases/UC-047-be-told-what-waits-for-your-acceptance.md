@@ -68,7 +68,7 @@ sequenceDiagram
     D->>B: ask the permission to notify
     B-->>P: allow notifications?
     P->>B: allow
-    loop every five minutes, while a page is open
+    loop every minute, while a page is open
         D->>S: read the instance and each product (their tokens)
         D->>D: what waits for acceptance, against what was notified
         D->>B: a notification per file come to wait, or per kind and repository for more than three

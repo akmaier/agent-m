@@ -31,7 +31,7 @@ It belongs to the Site (ARC-038). Its one responsibility is telling the person, 
 what has come to wait for their acceptance — a SPEC change, a use case, an architecture file, a release test report — in
 the instance and in each product this browser keeps (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`): the switch,
 with the browser's permission asked only on the person's click (`NOTIFICATIONS ARE SWITCHED ON BY THE PERSON`); the check
-every five minutes while a page of the dashboard is open; what was notified, so that nothing is notified twice while it
+every minute while a page of the dashboard is open; what was notified, so that nothing is notified twice while it
 waits; and the service worker through which the browser shows a notification and opens, on a click, the page where the
 file is accepted. Agent M runs no server that could check while no page is open (`NO SERVER`), so nothing is checked
 then. It is no view: the frame starts its checks on the main and the review pages, and the settings page shows its
@@ -90,8 +90,8 @@ notification's text — what waits and where — is what leads the person on.
   checks of one page, started by the frame on the main and the review pages with this page's store, the instance as the
   frame connected it, `productHost`, which gives the host of a product by its entry in `products`, and the frame's
   writing of the address of a route of the review pages for a repository — the instance's or a product's address. Every
-  minute the page looks whether a check is due — the switch on, the browser's permission granted, and this browser's
-  last check five minutes old or older —, so that the pages open in this browser together check every five minutes, and
+  fifteen seconds the page looks whether a check is due — the switch on, the browser's permission granted, and this browser's
+  last check a minute old or older —, so that the pages open in this browser together check every minute, and
   a page opened after a pause checks at once (UC-047 2a). A check reads the snapshot of the default branch of the
   instance and of each product the store keeps — each through `productHost`, whose host, like the instance's, goes
   through the token and the stored secrets this browser holds at each call, so that a token cleared or replaced since is
