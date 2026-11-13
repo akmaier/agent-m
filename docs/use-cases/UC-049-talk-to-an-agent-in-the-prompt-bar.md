@@ -122,8 +122,7 @@ enters the repository the way every proposal does.
      follows CI and merges, with the repository token the Bridge leaves for it in an ignored file of the checkout
      (UC-011, step 3). The Bridge keeps what the terminal shows, its console; the prompt bar and the Bridge's window
      (UC-044, step 6) show it live while the agent works. The session runs until the author presses **Stop** (5a) or
-     **Clear conversation** (6d), or sends a message on a page of another product — that message starts a new session
-     in a checkout of that product —, and its checkout as long as it runs.
+     **Clear conversation** (6d), and its checkout as long as it runs.
      Its answer is what the agent printed after the message; what it committed stands in the repository. It reports no
      usage, and its cost is shown as unknown.
 5. The answer appears in the conversation. An edit an endpoint proposed opens in the editor of UC-018 as its
