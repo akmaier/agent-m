@@ -335,6 +335,11 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
    the height; under it the model and Draft reply in one row, To and Subject in one small line, a large text box, and the buttons. */
 .mail-details .mail-text { max-height: 40vh; overflow-y: auto; padding: .6rem .75rem; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .reply-under-mail { margin-top: .6rem; }
+/* A mail to decide: Propose in one row under the text, then the fields it fills — the title across the width, the issue's text large. */
+.mail-details .mail-propose-slot { margin: .6rem 0 .4rem; }
+.mail-details .mail-propose-row, .mail-details .mail-propose-row .mail-stage { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.mail-details .mail-step-review input.mail-title { box-sizing: border-box; width: 100%; }
+.mail-details .mail-step-review textarea.mail-body { box-sizing: border-box; width: 100%; min-height: 30vh; font: inherit; line-height: 1.5; }
 .reply-under-mail .reply-mails { list-style: none; margin: 0; padding: 0; }
 .reply-under-mail .reply-draft-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0 0 .4rem; }
 .reply-under-mail .reply-draft-row .reply-stage { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }

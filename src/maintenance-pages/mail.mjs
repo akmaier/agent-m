@@ -347,13 +347,13 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
     }
   }
 
-  const shown = el("section", "mail-step-review", el("h3", null, "The mail and its proposal"),
+  const shown = el("section", "mail-step-review",
     headOf(mail),
     el("pre", "mail-text", mail.text),
     el("label", null, "Product ", product), " ", el("label", null, "Kind ", kind),
     el("p", null, el("label", null, "Title ", title)), el("p", null, el("label", null, "Text ", body)), hitsList, proposalBox,
-    ...(attachments.length ? [el("ul", "mail-attachments", ...attachments), reportStage] : []), fold(STEP_TEXT.review));
-  const decisions = el("section", "mail-step-decide", create, " ", el("label", null, "Issue number ", number), " ", add, " ", none, result, fold(STEP_TEXT.decide));
+    ...(attachments.length ? [el("ul", "mail-attachments", ...attachments), reportStage] : []));
+  const decisions = el("section", "mail-step-decide", create, " ", el("label", null, "Issue number ", number), " ", add, " ", none, result);
   const item = el("div", "mail", shown, decisions);
   item.setAttribute("data-mail", mail.id);
   return { item, fill, product: () => chosen(), ticked: () => [...ticks].filter(([, tick]) => tick.checked === true).map(([name]) => name) };
@@ -379,7 +379,7 @@ export const personOf = (store) => readSetting(store, "github-token")?.name ?? "
 // Propose: the participants the mailbox allows, the run panel and its *Propose*, one click for all proposable mails (UC-038 4, 4a, 4c); the author checks every text before it is written. `entries()` gives the proposable mails
 // as they stand; `hooks.running` is true while a proposal runs, and `hooks.changed` draws the run panel anew.
 async function proposeSection(session, entries, reviews, choice, hooks) {
-  const section = el("section", "mail-step-propose", el("h3", null, "Propose"), fold(STEP_TEXT.propose));
+  const section = el("section", "mail-step-propose");
   const definition = await kindOf("propose-issues");
   const admitted = eligible(session.participants, { capabilities: definition.needs, places: [{ from: "the mailbox", allowed: session.allowed }] }).eligible;
   if (admitted.length === 0) {
@@ -403,8 +403,16 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
         products: (products.length ? products : [...session.products.values()]).slice(0, 1).map(({ address, host }) => ({ address, host })) };
       const job = await jobOf(session, "propose-issues", params, { drafter: chosen, reviewers: [] }, name);
       if (mine !== turn) return;
-      const result = el("div", "mail-propose-result");
-      stage.append(runPanel(job.prepared, { label: "Propose", onRun: async () => {
+      const result = el("span", "mail-propose-result");
+      // One button beside the model; what blocks the job is said in a line, and the job's details stay out of the way.
+      const blocking = [...(job.prepared.blocking ?? []).map((found) => `${found.what} — ${found.fix}`), ...((job.prepared.notFitting ?? []).length ? ["The inputs do not fit this model."] : [])];
+      const go = el("button", "btn primary mail-propose", "Propose");
+      go.type = "button";
+      if (blocking.length) { go.disabled = true; result.replaceChildren(el("span", "mail-propose-problem", blocking.join(" "))); }
+      go.addEventListener("click", async (event) => {
+        if (event?.isTrusted !== true || go.disabled) return;
+        go.disabled = true;
+        result.replaceChildren(el("span", "muted", "Proposing…"));
         hooks.running = true;
         try {
           const outcome = await runJobOf(session, job);
@@ -417,15 +425,17 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
           result.replaceChildren(el("p", "mail-propose-problem", `Nothing was proposed: ${failed(failure)}`));
         } finally {
           hooks.running = false;
+          go.disabled = false;
         }
-      } }), result);
+      });
+      stage.append(go, result);
     } catch (failure) {
       if (mine === turn) stage.append(el("p", "mail-propose-problem", failed(failure)));
     }
   }
   hooks.changed = refresh;
   select.addEventListener("change", refresh);
-  section.append(el("p", null, el("label", null, "Participant ", select)), stage);
+  section.append(el("div", "mail-propose-row", select, stage));
   refresh();
   return section;
 }
@@ -545,7 +555,8 @@ async function render(target, context, params = {}) {
       return;
     }
     if (!row) { details.replaceChildren(el("p", "muted mail-none", "Choose a mail in the list to read it here.")); return; }
-    if (row.kind === "proposable") { details.replaceChildren(back, state.reviews.get(row.id).item); return; }
+    // A mail to decide: Propose stands right under its text, as a mail program's action row, above the fields it fills.
+    if (row.kind === "proposable") { details.replaceChildren(back, state.reviews.get(row.id).item); details.querySelector(".mail-text")?.after(proposeSlot); return; }
     const shown = el("div", "mail mail-decided-details");
     shown.setAttribute("data-mail", row.id);
     shown.append(headOf(row.mail), el("pre", "mail-text", row.mail.text));
