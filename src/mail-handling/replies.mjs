@@ -148,12 +148,14 @@ function replyAddress(mail) {
  */
 export async function storeReplies(mailbox, replies) {
   const stored = [];
-  for (const { mail, body } of replies) {
+  for (const { mail, body, draft: existing = null } of replies) {
     const to = replyAddress(mail);
     if (!to) { stored.push({ id: mail.id, draft: null, problem: NOT_SENDABLE }); continue; }
     const quoted = mail.text.split(/\r?\n/).map((line) => `> ${line}`).join("\n");
     try {
-      const draft = await mailbox.storeDraft({ replyTo: mail, to, subject: `Re: ${mail.subject}`, body: `${body}\n\n${quoted}` });
+      // A mail that has a draft already gets that draft replaced; any other gets a new one.
+      const reply = { replyTo: mail, to, subject: `Re: ${mail.subject}`, body: `${body}\n\n${quoted}` };
+      const draft = existing ? await mailbox.updateDraft(existing, reply) : await mailbox.storeDraft(reply);
       stored.push({ id: mail.id, draft, problem: null });
     } catch (error) {
       if (error?.name !== "NoReplyAddress") throw error;

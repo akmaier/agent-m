@@ -292,7 +292,8 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
     const allowed = (connection.places ?? []).map((each) => each.place);
     const admitted = eligible(participants, { capabilities: definition.needs, places: [{ from: "the mailbox", allowed }] }).eligible;
     const host = products.get(due.product)?.host;
-    const draftable = opts.question ? [opts.entry] : due.mails.filter((each) => each.mail && !each.noted && !each.draft && replyAddress(each.mail) !== null);
+    // Under a mail, a mail with a draft can be drafted again: the new text replaces the draft.
+    const draftable = opts.question ? [opts.entry] : due.mails.filter((each) => each.mail && !each.noted && (opts.compact || !each.draft) && replyAddress(each.mail) !== null);
     if (draftable.length === 0 || !host) { if (!opts.compact) section.append(el("p", "muted", "No mail of this issue is left to draft.")); return section; }
     if (admitted.length === 0) { section.append(el("p", "reply-no-participant", `No participant that can draft text works at a place this mailbox allows (${allowed.join(", ") || "none"}).`)); return section; }
     const select = participantSelect(admitted, connection.places);
@@ -330,7 +331,7 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
         if (opts.compact) {
           // Under a mail: one button beside the model; what blocks the job is said in a line, and the job's details stay out of the way.
           const blocking = [...(prepared.blocking ?? []).map((found) => `${found.what} — ${found.fix}`), ...((prepared.notFitting ?? []).length ? ["The inputs do not fit this model."] : [])];
-          const go = button("draft-reply", "Draft reply", async () => { go.disabled = true; result.replaceChildren(el("span", "muted", "Drafting…")); await run(); go.disabled = false; });
+          const go = button("draft-reply", draftable.some((each) => each.draft) ? "Draft again (replaces the draft)" : "Draft reply", async () => { go.disabled = true; result.replaceChildren(el("span", "muted", "Drafting…")); await run(); go.disabled = false; });
           if (blocking.length) { go.disabled = true; result.replaceChildren(el("span", "reply-problem", blocking.join(" "))); }
           stage.append(go, result);
         } else stage.append(runPanel(prepared, { onRun: run }), result);

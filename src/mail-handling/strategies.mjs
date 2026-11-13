@@ -80,11 +80,11 @@ const DRAFTED_BY_AI = "This reply was drafted by AI.";
  */
 async function mailDrafts(result, context) {
   const { due, mailbox } = context.params;
-  const open = new Map(due.mails.filter((each) => each.mail && !each.noted).map(({ id, mail }) => [id, mail]));
+  const open = new Map(due.mails.filter((each) => each.mail && !each.noted).map(({ id, mail, draft }) => [id, { mail, draft: draft ?? null }]));
   const notes = [];
   const replies = [];
   for (const { mail: id, text } of result.draft.replies) {
-    if (open.has(id)) replies.push({ mail: open.get(id), body: `${text}\n\n${DRAFTED_BY_AI}` });
+    if (open.has(id)) replies.push({ mail: open.get(id).mail, draft: open.get(id).draft, body: `${text}\n\n${DRAFTED_BY_AI}` });
     else notes.push(`No draft for ${id}: the issue lists no mail of it without a reply.`);
   }
   const shown = await storeReplies(mailbox, replies);
