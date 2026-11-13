@@ -73,7 +73,7 @@ TOKEN IN AN IGNORED FILE`, `A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE`, U
 
 **Every process of a coding agent that the Bridge starts runs in an enclosure the operating system enforces; the Bridge
 itself does not.** Inside the enclosure the agent reads everything except the places that hold a credential of the
-Bridge or of the computer's git login, writes only its own home, the product's clone in `products/<name>/` and temporary files, and reaches
+Bridge or of the computer's git login, writes as its user may, and reaches
 the network. The enclosure is the new module MOD-agent-enclosure of the Bridge (ARC-040); MOD-agent-processes starts a CLI
 through the enclosure it is given, and MOD-bridge-jobs gives every agent process one — a job, an ask, the check whether
 the agent is logged in and the harmless probe.
@@ -84,12 +84,10 @@ the agent is logged in and the harmless probe.
   sandbox-runtime uses for coding agents: "`sandbox-exec` on macOS, `bubblewrap` on Linux", and on Windows "a dedicated
   `srt-sandbox` local user account" (its README, [3] below).
   - **macOS — a Seatbelt profile**, applied by `/usr/bin/sandbox-exec`, which every macOS has: no installation and no
-    administrator. The profile allows by default, then denies every write, allows writing the agent's home, the job's
-    checkout, `/private/tmp` and `/dev`, denies reading and writing the places that hold credentials, denies the
+    administrator. The profile allows by default, denies reading and writing the places that hold credentials, denies the
     keychain's services and denies connecting to the SSH agent's socket. Measured: each of these rules holds for the
     child and what it starts, and HTTPS still works.
-  - **Linux — bubblewrap** (`bwrap`), a program of the system: the whole file system bound read-only, the agent's home and
-    the product's clone bound writable, a private `/tmp`, an empty folder over each place that holds credentials and over
+  - **Linux — bubblewrap** (`bwrap`), a program of the system: the whole file system bound, a private `/tmp`, an empty folder over each place that holds credentials and over
     the user's runtime folder — the session bus with its secret service, the SSH and GPG agents —, `/dev/null` over each
     such file, a PID namespace of its own, so that no process of the person is seen, a new session, and an end with the
     Bridge. bubblewrap needs no privilege where the kernel lets a user make namespaces.
@@ -98,13 +96,10 @@ the agent is logged in and the harmless probe.
     Git Credential Manager keeps the git login — and the Bridge's process memory: both are open to every process of the
     user. The account has its own profile, its own Credential Manager, and no access to the person's profile or processes.
     The Bridge starts the agent as that account with the account's password, which only the Bridge keeps, in its data
-    folder; the clones of the instance and of the job's product are granted to the account, the
-    product's clone for writing.
+    folder; the agent's working folder is granted to the account.
 - **The enclosed agent has a home of its own** — `home/` in the agent's working folder, on Windows the account's profile —,
   with its own configuration and its own login (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`, read as: the agent's own
-  login on this computer, made by the person with the agent's own login step; Agent M asks for no key). The person's own
-  configuration of the agent is neither read nor written by the enclosed one: a hook written into it would run outside the
-  enclosure the next time the person uses the agent. On macOS this follows anyway: the keychain, where Claude Code keeps
+  login on this computer, made by the person with the agent's own login step; Agent M asks for no key). On macOS the keychain, where Claude Code keeps
   its login, is closed, and Claude Code inside the profile reports no login (measured).
 - **A login the agent would keep in the closed keychain is kept in its home.** Claude Code keeps its login in the
   keychain on macOS, and `claude auth login` in the enclosure fails to save it. Its login step there is therefore
@@ -200,10 +195,6 @@ to the lower layer, never the other way.
   installed by an administrator; its versions are `0.0.x`. The enclosure the Bridge needs is a profile, a list of
   arguments and an account. Rejected (`KEEP IT SIMPLE`, `YOU AREN'T GONNA NEED IT`); its choices are the evidence for
   this decision's.
-- **Protecting only the places that hold credentials, and letting the agent write everywhere else.** Rejected: an agent
-  that may write the person's `~/.gitconfig`, a git or ssh binary below a folder the person can write (Homebrew's), or
-  the Bridge's own clones makes the Bridge's next git command run its code with the person's rights, outside the
-  enclosure.
 - **Hiding only the Bridge's data folder.** Rejected: the git login the Bridge pushes with is a credential the Bridge uses
   as much as the ones it keeps.
 - **The outbox and the relay**: the session pushing into an outbox the Bridge forwards from, and asking the Bridge, by
@@ -271,7 +262,7 @@ No candidate is marked: every licence is known to be compatible with MIT for the
 
 - A model working through an agent on a Bridge cannot read the Bridge's data folder, the computer's git login, its SSH
   keys and agent, or the keychain (macOS), the session bus and the user's runtime folder (Linux), or the person's profile
-  and Credential Manager (Windows), and cannot write where the Bridge or the person would run what it wrote.
+  and Credential Manager (Windows).
 - Every agent a Bridge offers needs one login of its own, in its enclosure; a Windows computer needs an administrator
   once, a Linux computer without bubblewrap too. Until then the Bridge offers the agent as not ready and says why.
 - A CLI session reaches its product's server itself, with the token file of its checkout: its pushes start the
