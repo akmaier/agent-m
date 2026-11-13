@@ -172,7 +172,8 @@ sequenceDiagram
 - **5b. The participant finds no matching product.** The proposal says so; the author picks the
   product or chooses *Not an issue*.
 - **6a. The check finds personal data in the neutral text.** The hit is marked; **Create issue** stays
-  disabled until the author has edited it out. The finding also counts towards the measured rate of
+  disabled until the author has edited it out, or has pressed **Not a person** beside the hit — for a word that
+  names no one, such as the name of a mailbox. A hit so marked is no longer counted for this mail. The finding also counts towards the measured rate of
   the participant (SPEC `THE PRODUCT ISSUE CARRIES NO PERSONAL DATA`).
 - **6b. The product has switched pseudonymisation off** (UC-042). Report data goes into the issue
   unchanged; the panel says so above the data. The issue text itself is still checked and stays
