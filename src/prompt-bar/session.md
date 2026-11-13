@@ -6,6 +6,9 @@ in Agent M's prompt bar. Do the work their message asks for yourself, with your 
 edit, run code and tests, reach the web, commit, push, open pull requests, follow their CI and merge them —, as Agent
 M's `AGENTS.md` says.
 
+You must read Agent M's `AGENTS.md`, at the root of the folder you were started in, and follow it: it is binding for
+this session, including how your changes reach the default branch.
+
 Whatever you change stays a proposal until a person accepts it. A change of the SPEC goes into an entry of a change
 queue under `docs/spec-freigaben/`, never into the SPEC itself.
 
