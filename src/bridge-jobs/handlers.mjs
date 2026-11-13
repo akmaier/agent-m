@@ -2,9 +2,8 @@ import { agentDriver, installedAgents, testAgent } from "../agent-processes/inde
 import { endpointDriver, endpointExchange, listModels as nodeListModels, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 import { listPartitions } from "./probes.mjs";
 import { enclosureOf } from "./enclosures.mjs";
-import { startSession, toldOf } from "./session.mjs";
+import { converse } from "./conversations.mjs";
 import { cancelJob, handOver, jobLog, listJobs } from "./watch.mjs";
-import { foldersOf, removeClone } from "./workfolders.mjs";
 
 function validEndpointConfig(value) {
   return value && typeof value === "object" && typeof value.name === "string"
@@ -36,34 +35,17 @@ function asked({ name, kind, baseUrl, model, key }, prompt) {
 // A drafting request to an agent, in its working folder and its enclosure, through its driver, started with the model the ask names (none: the agent's own
 // default): the answer and the usage, or the failure. The agent may write nothing of the working folder — its clones are the Bridge's —, only its own home
 // and temporary files.
-async function drafted({ name, folder }, model, prompt, enclosures) {
+async function drafted({ name, folder, chrome = false }, model, prompt, enclosures) {
   const enclosure = await enclosureOf(enclosures, folder);
   await enclosure.prepare({ writable: [], readable: [] });
   const agent = (await installedAgents({ enclosure, workdir: folder })).find((candidate) => candidate.name === name);
-  return agentDriver(agent, { workdir: folder, keyVariable: null, enclosure, writable: [] }, { name, model })
+  return agentDriver(agent, { workdir: folder, keyVariable: null, enclosure, writable: [], chrome }, { name, model })
     .send({ prompt, parts: [], output: null, findings: [], previous: null, workdir: null });
-}
-
-// A message of the prompt bar to a CLI session (UC-049 step 4): the session started as a job's is (session.mjs) — the clones at the instance's commit the ask
-// names, its checkout of the product with the token file —, in its enclosure with its checkout alone writable, its input the ask's followed by token.md where a
-// file is left; its answer and usage, or the failure. The checkout is removed once the session has answered.
-async function conversed({ name, folder }, { model, input, product, instance: commit }, { instance, enclosures, id }) {
-  const enclosure = await enclosureOf(enclosures, folder);
-  try {
-    const session = await startSession({ folder, instance, commit, product, id });
-    await enclosure.prepare({ writable: [session.working], readable: [session.instanceFolder, session.clone] });
-    const agent = (await installedAgents({ enclosure, workdir: session.working })).find((candidate) => candidate.name === name);
-    const told = await toldOf({ file: session.file, address: product });
-    return await agentDriver(agent, { workdir: session.working, keyVariable: null, enclosure, writable: [session.working] }, { name, model })
-      .send({ prompt: told ? `${input}\n\n${told}` : input, parts: [], output: null, findings: [], previous: null, workdir: null });
-  } finally {
-    await removeClone(foldersOf(folder).job(id));
-  }
 }
 
 /**
  * jobHandlers({ testEndpoint, listModels, partitions, agents, enclosures, instance, products }) — the handlers of the jobs routes. `agents` are the agents the Bridge offers, as its
- * settings name them with their working folders: `{ name, folder }`; `enclosures(folder)` gives each its enclosure (ARC-054), without which none of them is
+ * settings name them with their working folders and their Chrome setting: `{ name, folder, chrome }`, `chrome` handed to every start of that agent; `enclosures(folder)` gives each its enclosure (ARC-054), without which none of them is
  * started. `instance` is the instance's address and `products` the products the Bridge serves (`{ address }`), for a message of the prompt bar to a CLI session.
  * The asks in flight are kept in memory only.
  */
@@ -99,9 +81,9 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
     "GET /v1/jobs/{id}/log": async ({ params, query }) => {
       const from = query?.from === undefined ? 0 : Number(query.from);
       if (query?.from !== undefined && (String(query.from).trim() === "" || !Number.isInteger(from) || from < 0)) throw failure("invalid-request", "The first line wanted is a whole number of at least 0.");
-      // The protocol's answer, { lines, next, ended }, of the log the Bridge's window reads too.
-      const { lines, next, ended } = jobLog(params.id, from);
-      return { lines, next, ended };
+      // The protocol's answer, { lines, next, partial, ended }, of the log the Bridge's window reads too.
+      const { lines, next, partial, ended } = jobLog(params.id, from);
+      return { lines, next, partial, ended };
     },
     // Stops the agent's process; answers once it has ended, after which the job commits nothing more.
     "POST /v1/jobs/{id}/cancel": async ({ params }) => cancelJob(params.id),
@@ -153,10 +135,13 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
         if (!products.some((each) => each?.address === body.product) || typeof body.instance !== "string" || !body.instance || !instance) {
           throw failure("invalid-request", "A message to a CLI session names a product this Bridge serves and a commit of the instance.");
         }
+        if (body.session !== undefined && (typeof body.session !== "string" || !body.session)) throw failure("invalid-request", "A message names its running session as text, or names none.");
+        // A message to a CLI session (UC-049 step 4, ARC-055): typed into the running session it names, or starting one; not-found for one this Bridge does not run.
+        const { session, answer } = converse(wanted, { model: body.model ?? null, input: body.input, product: body.product, instance: body.instance, session: body.session },
+          { instance, enclosures });
         asks.set(ask, entry);
-        conversed(wanted, { model: body.model ?? null, input: body.input, product: body.product, instance: body.instance }, { instance, enclosures, id: ask })
-          .then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }), (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));
-        return { ask };
+        answer.then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }), (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));
+        return { ask, session };
       }
       asks.set(ask, entry);
       drafted(wanted, body.model ?? null, body.input, enclosures).then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }),

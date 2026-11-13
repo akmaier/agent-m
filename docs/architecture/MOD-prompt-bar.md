@@ -260,7 +260,7 @@ and sends nothing while the job does not
   message starts a session, since a running session has seen every earlier message. With the message that starts the
   session, and with every fifth message after it, the input begins with that instruction: that the agent must read, in
   full and before anything else, Agent M's `AGENTS.md` and the chapters for the page, each named by the path of its file
-  in the Bridge's clone of the instance, `../../` from the session's checkout (MOD-bridge-jobs), and none given as text,
+  in the Bridge's clone of the instance, the working folder the session is started in (MOD-bridge-jobs), and none given as text,
   which the job's `rules` and the recipe `chapters-for-page` hold; with every fifth message, also that the agent need not
   read them again while they are still in its context (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`, `A CLI SESSION IS
   TOLD AGAIN EVERY FIFTH MESSAGE TO READ AGENTS.MD`). With any other message, that place is empty. The conversation

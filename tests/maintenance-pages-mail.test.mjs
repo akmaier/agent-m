@@ -140,7 +140,7 @@ const FIVE_MINUTES = 5 * 60 * 1000;
 // a Bridge that counts the readings answers those operations here, empty and not found, and counts only the operation `read`.
 const notARead = (url) => {
   if (url.pathname === "/v1/mail/read") return null;
-  if (url.pathname === "/v1/mail/find") return new Response(JSON.stringify({ error: "not-found", message: "no such mail" }), { status: 404, headers: { "Content-Type": "application/json" } });
+  if (url.pathname === "/v1/mail/find") return new Response(JSON.stringify({ mails: {} }), { status: 200, headers: { "Content-Type": "application/json" } });
   return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
 };
 async function open(world_, goes = []) {

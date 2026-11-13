@@ -3,7 +3,7 @@
 // styles, with no style of its own"; `view` "its routes, in the order of the tabs, so that the entry opens on Mail … under **Mail**, `mail`, `replies` and `replies/<issue>`; under **Issues**, `issues` and
 // `issue/<number>`"; the list "reads the product's open and closed issues … (`listIssues` with `state: "all"` and `comments: false`), each with its state"; "for an issue that lists mails, each of its mails
 // named by its identifier (`listedMailIds`), as a link to `mail/<id>`"; on `mail`, "each mail that `repliesDue`, read with each reading, gives under `toAnswer` with `noted` false marked *to answer*, its
-// details offering *Answer*, which opens `replies/<issue>` of its issue; and a link *Replies* to `replies`. With `<id>`, a `MAIL-` identifier, the mail of that identifier is opened — the one of the list, or
+// details showing under the mail its reply as `replies/<issue>` shows the reply to that one mail …; and a link *Replies* to `replies`. With `<id>`, a `MAIL-` identifier, the mail of that identifier is opened — the one of the list, or
 // else the one the mailbox's `find` gives, a mail older than 30 days among them — as a mail clicked; one the mailbox does not hold is shown as *not found in the mailbox*". UC-046 step 2, UC-012 step 2,
 // UC-038 steps 1, 4, 7 and 7c, UC-039 step 1.
 // Run: node --test --test-timeout=60000 tests/maintenance-pages-tabs.test.mjs
@@ -18,7 +18,7 @@
 //     followed by /product=<the product> where the page has one; the current tab carries `primary` and aria-current="page". A click on a tab goes, through the context's `go`, to its route.
 //   - The list names each issue's state in <span class="issue-state">: open or closed. The issue page lists its mails in <ul class="issue-mails"> of <a class="mail-link"> named by the identifier, whose href
 //     is #mail/id=<id>/product=<the product>; a click goes to the route mail with { id }.
-//   - On `mail`, a line to answer carries <span class="mail-to-answer">to answer</span>; its details hold <button class="answer-mail"> Answer, whose click goes to replies with { issue, product }; the page
+//   - On `mail`, a line to answer carries <span class="mail-to-answer">to answer</span>; its details hold its reply under the mail (<div class="reply-under-mail">) and no Answer; the page
 //     holds <a class="replies-link"> Replies, whose click goes to replies. A mail not in the list but found is shown as a mail clicked: its details with its text; a mail not found is <p class="mail-not-found">.
 // The counter-proofs are recorded in the pull request.
 
@@ -133,9 +133,9 @@ test("TST-20261112004 an issue from mail names each of its mails as a link to th
 // TST-20261112005 · level: component · module: MOD-maintenance-pages
 // guards: CLOSING AN ISSUE PREPARES ITS REPLIES; UC-038; UC-039
 // given: the closed issue 4 listing plain, without a reply note; the closed issue 7 listing answered, with one; the open issue 6 listing open; all three mails in the reading
-// input: the route mail drawn and read; plain and answered opened; Answer and Replies clicked
-// expect: only plain's line is marked to answer; its details offer Answer, which goes to replies with issue 4 of the product; answered's details offer none; the link Replies goes to replies
-test("TST-20261112005 a decided mail of a closed issue without a reply note is marked to answer, and Answer opens that issue's replies", async () => {
+// input: the route mail drawn and read; plain and answered opened; Replies clicked
+// expect: only plain's line is marked to answer; its details show its reply under the mail and offer no Answer; answered's details show no reply; the link Replies goes to replies
+test("TST-20261112005 a decided mail of a closed issue without a reply note is marked to answer, and its reply is written under it", async () => {
   const [plain, answered, open] = [await mailOf("plain"), await mailOf("answered"), await mailOf("open")];
   const date = new Date().toISOString().slice(0, 10);
   const { noteText } = await import("../src/mail-records/index.mjs");
@@ -147,13 +147,11 @@ test("TST-20261112005 a decided mail of a closed issue without a reply note is m
   assert.deepEqual(marked, [plain.id]);
   assert.equal(textOf(byClass(target, "mail-to-answer")[0]), "to answer");
   openMail(target, answered.id);
-  assert.equal(byClass(one(target, "mail-details"), "answer-mail").length, 0, "counter-proof: a mail with a reply note offers no Answer");
+  assert.equal(byClass(one(target, "mail-details"), "reply-under-mail").length, 0, "counter-proof: a mail with a reply note shows no reply");
   openMail(target, plain.id);
-  const answer = one(one(target, "mail-details"), "answer-mail");
-  assert.equal(textOf(answer), "Answer");
-  answer.dispatchEvent(new Event("click"));
-  await flush();
-  assert.deepEqual(w.context.went.at(-1), ["replies", { issue: "4", product: PRODUCT_URL }]);
+  await waitFor(() => byClass(one(target, "mail-details"), "reply-under-mail").length > 0);
+  assert.equal(byClass(one(target, "mail-details"), "reply-under-mail").length, 1);
+  assert.equal(byClass(one(target, "mail-details"), "answer-mail").length, 0, "no Answer");
   const replies = one(target, "replies-link");
   assert.equal(textOf(replies), "Replies");
   replies.dispatchEvent(new Event("click"));
@@ -178,7 +176,7 @@ test("TST-20261112006 mail/<id> opens the mail of the list, else the one the mai
   await mailRead(second);
   await waitFor(() => itemOf(one(second, "mail-details"), old.id) !== undefined);
   assert.match(textOf(one(second, "mail-details")), /An old report of a broken export\./);
-  assert.ok(w.kept.bridge.some((call) => call.operation === "find" && call.args.id === old.id), "the mailbox is asked for it by find");
+  assert.ok(w.kept.bridge.some((call) => call.operation === "find" && call.args.ids.includes(old.id)), "the mailbox is asked for it by find");
   const third = await drawn(w, "mail", { id: "MAIL-0000000000000000" });
   await mailRead(third);
   await waitFor(() => byClass(third, "mail-not-found").length > 0);
@@ -189,13 +187,15 @@ test("TST-20261112006 mail/<id> opens the mail of the list, else the one the mai
 // guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; CLOSING AN ISSUE PREPARES ITS REPLIES; UC-038
 // given: the closed issue 4 lists three mails without a reply note: recent, which the reading holds; old, older than 30 days, which the reading does not hold but the mailbox does; and bare, which the reading holds without a Message-ID
 // input: the route mail drawn and the mailbox read once
-// expect: the mailbox is asked by find for old and for bare and not for recent — recent is found in the reading by the hash of its Message-ID, bare has none to hash —; recent and bare are marked to answer as before; counter-proof: old's find is asked, so a page that asked for every listed mail would be seen asking for recent too
+// expect: the mailbox is asked by one find for old and for bare and not for recent — recent is found in the reading by the hash of its Message-ID, bare has none to hash —; recent and bare are marked to answer as before; counter-proof: old's find is asked, so a page that asked for every listed mail would be seen asking for recent too
 test("TST-2026111701 a reading finds the listed mails it holds in itself and asks the mailbox only for the others", async () => {
   const [recent, old, bare] = [await mailOf("recent"), await mailOf("old", { date: "2026-07-01T08:00:00Z" }), await mailOf("bare", { messageId: null })];
   const w = world({ mails: [recent, old, bare], reading: [recent, bare], issues: [issueRecord(4, "closed", [recent, old, bare])] });
   const target = await drawn(w, "mail");
   await mailRead(target);
-  const asked = w.kept.bridge.filter((call) => call.operation === "find").map((call) => call.args.id);
+  const finds = w.kept.bridge.filter((call) => call.operation === "find");
+  assert.equal(finds.length, 1, "the rest is passed on in one find");
+  const asked = finds.flatMap((call) => call.args.ids);
   assert.ok(asked.includes(old.id), "counter-proof: the mailbox is asked for the mail the reading does not hold");
   assert.ok(asked.includes(bare.id), "a mail without a Message-ID is not found by a hash of one, so the mailbox is asked for it as before");
   assert.equal(asked.includes(recent.id), false, "the mail the reading holds is not asked for again");

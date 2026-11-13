@@ -116,16 +116,25 @@ async function agents(target, context) {
     models.input.rows = 3; models.input.cols = 48;
     panel.append(made("p", "", where.caption), capabilities, made("p", "", models.caption),
       made("p", "muted small", "One model per line: its name and its context in tokens, for example claude-opus-5-5 200000."));
-    rows.push({ agent, tick, place: where.input, ticks, models: models.input });
+    // For an agent with a Chrome integration, a tick Chrome: every session of the agent is then started with it, so that it can use the person's Chrome;
+    // off until ticked (UC-044 step 3).
+    let chrome = null;
+    if (agent.chrome === true) {
+      chrome = document.createElement("input");
+      chrome.type = "checkbox"; chrome.checked = kept?.chrome === true;
+      panel.append(made("p", "", made("label", "", chrome, " Chrome"), made("span", "muted small", " — start its sessions with its Chrome integration, which uses your Chrome")));
+    }
+    rows.push({ agent, tick, place: where.input, ticks, models: models.input, chrome });
     panels.push(panel);
   }
   const absent = missing.length ? [made("section", "panel", made("h2", "", "Not installed"), made("ul", "", ...missing))] : [];
   // Save agents keeps the ticked agents and the folder; the Bridge then checks out at once, and its result is shown when the checkout has ended.
   const save = button("Save agents", async () => {
     const agents = rows.filter(({ agent, tick }) => agent.installed && tick.checked)
-      .map(({ agent, place, ticks, models }) => ({ name: agent.name, place: place.value.trim() || "this machine",
+      .map(({ agent, place, ticks, models, chrome }) => ({ name: agent.name, place: place.value.trim() || "this machine",
         capabilities: ticks.filter(([, box]) => box.checked).map(([capability]) => capability),
-        models: models.value.split("\n").map((line) => line.trim().split(/\s+/)).filter(([model]) => model).map(([model, context]) => ({ model, context: Number(context) || null })) }));
+        models: models.value.split("\n").map((line) => line.trim().split(/\s+/)).filter(([model]) => model).map(([model, context]) => ({ model, context: Number(context) || null })),
+        chrome: chrome?.checked === true }));
     await window.bridge.state("save-agents", { agents, folder: folder.input.value.trim() || null });
     const saved = `Saved ${agents.length} agent(s).`;
     result.textContent = `${saved} Checking out the instance and the products…`;

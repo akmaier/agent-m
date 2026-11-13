@@ -125,20 +125,21 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
   a served product there at its checkout, and a product a job connects to when the job connects to it; the agent,
   which cannot write the folder, clones none. A product whose folder holds a clone of another repository of the same
   name is refused, naming both;
-- **one checkout per running CLI session of that agent in `jobs/<id>/`**, `<id>` the job's identifier or, for a
-  session of the prompt bar, the session's, made from the Bridge's clone of the product, removed with the token file in
+- **one checkout per running CLI session of that agent in `products/<name>-<id>/`**, `<name>` the repository's name and
+  `<id>` the job's identifier or, for a session of the prompt bar, the session's, made from the Bridge's clone of the
+  product, the one folder the agent may write; the agent itself is started in the working folder, at the clone of the
+  instance, and works on the product in this checkout. It is removed with the token file in
   it when the session ends; a session's checkout that a quit the Bridge did not see through — its computer restarted —
   left there is removed at the Bridge's next start (UC-049 4g);
 - **the agent's home `home/`** (MOD-agent-enclosure).
 
-`home/` and `jobs/` are excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there
-sees them.
+`home/` is excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there sees it.
 
 **The clones at the session's start.** Before every CLI session starts, the Bridge fetches its clone of the product and
 its clone of the instance from their origins, checks the instance's clone out at the commit the job's record names
 (`agent_m`, MOD-job-ledger) — for a session of the prompt bar, the commit of the instance the ask that starts it names — and removes
 every file of it that git neither tracks nor ignores, so that nothing an earlier session left there is read as the
-present state; the agent's home, `jobs/` and `products/`, which git ignores there, stay. The session's checkout is made
+present state; the agent's home and `products/`, which git ignores there, stay. The session's checkout is made
 anew for every session, at the head of the product's default branch the fetch brought.
 
 **The jobs' logs** — `job-logs/` in the Bridge's per-user data folder (MOD-desktop-shell), readable by its user only and

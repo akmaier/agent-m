@@ -1,7 +1,8 @@
 // The Microsoft Graph route reads and finds mails and lists Drafts and Sent (ITM-836) — MOD-mail-routes' Mailbox operations read, find,
 // drafts and sent on the Graph route, as the accepted text of docs/architecture/MOD-mail-routes.md states them: "read(since) — the mails of
-// the named folders, read without changing anything", "find(id) — the mail with this MAIL- identifier in the named folders, found by hashing
-// their mails' Message-IDs; null when none matches, never a guess", "drafts() -> { ref: DraftRef, inReplyTo, mail }[] and sent(since) ->
+// the named folders, read without changing anything", "find(ids) — the mails with these MAIL- identifiers in the named folders, all found in
+// one lookup ... on the Graph route in one listing of each folder ... only the mails that match are fetched in full; each identifier is
+// answered with its mail, or with null ... when none matches, never a guess. An empty list is answered {} without crossing the network", "drafts() -> { ref: DraftRef, inReplyTo, mail }[] and sent(since) ->
 // Mail[]", with the failures SignInExpired, PermissionDeclined, Throttled and Unreachable; Mail and DraftRef { route: "graph", id }; the
 // mails "for mails Microsoft Graph returns in their raw form" parsed by the vendored postal-mime; id the MAIL- identifier of MOD-mail-records.
 // For UC-038.
@@ -19,7 +20,7 @@
 //     the list gives each message's `id` and `internetMessageId`, and follows `@odata.nextLink` when it is an address of Microsoft Graph;
 //   - a message's raw form is `/me/messages/<id>/$value`; it is parsed with postal-mime; read's `since` is Graph's `$filter=receivedDateTime ge
 //     <the start of the day it names, UTC>` on the list, so that only the messages Graph selects are fetched, and so is sent's;
-//   - find hashes the `internetMessageId`s of the named folders and fetches the raw form of the one that matches only;
+//   - find lists each named folder once, hashes the `internetMessageId`s and fetches the raw form of the ones that match only;
 //   - `folder` of a Mail is the name the connection gives, "Drafts" for Drafts, "Sent Items" for Sent.
 // Nothing reaches the network. Each test states its input and its expected result before it runs (given / input / expect). The
 // counter-proofs are recorded in the pull request.
@@ -165,29 +166,51 @@ test("drafts and sent — on the Microsoft route: the Drafts with their DraftRef
 
 // TST-478303 · level: unit · module: MOD-mail-routes
 // guards: UC-038; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
-// given: the fake Graph with mails in INBOX (two) and Reports (one, with an HTML part only); the identifier of <rep-1@example.org> and an identifier of no mail
-// input: mailbox(connection with folders INBOX and Reports, null).find(identifier of <rep-1@example.org>); .find("MAIL-0000000000000000")
-// expect: the first is the Mail <rep-1@example.org> from the second named folder, folder "Reports", its text "Seventh report." from its HTML part, and only the raw form of that one mail was fetched; the second is null, not an error and no guess, and no raw form was fetched
-test("find — on the Microsoft route: a mail in a second named folder by the hash of its Message-ID, and null for none", async () => {
+// given: the fake Graph with mails in INBOX (two, listed over two pages) and Reports (one, with an HTML part only); the identifiers of <rep-1@example.org> and <in-2@example.org>, and an identifier of no mail
+// input: mailbox(connection with folders INBOX and Reports, null).find([identifier of <rep-1@example.org>, identifier of <in-2@example.org>, "MAIL-0000000000000000"]); then .find(["MAIL-0000000000000000"])
+// expect: the first answers each identifier: <rep-1@example.org> from the second named folder, folder "Reports", its text "Seventh report." from its HTML part; <in-2@example.org> from INBOX; "MAIL-0000000000000000" null, not an error and no guess; each folder's list was asked once — the first page of INBOX, its next page, and Reports — and only the raw forms of those two mails were fetched; the second is { "MAIL-0000000000000000": null }, the folders listed and no raw form fetched
+test("find — on the Microsoft route: the mails of several identifiers, each folder listed once, and null for none", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   signedIn();
   let requests = fakeGraph();
-  const found = await mailbox(CONNECTION, null).find(identifier("<rep-1@example.org>"));
-  assert.equal(found.messageId, "<rep-1@example.org>");
-  assert.equal(found.id, identifier("<rep-1@example.org>"));
-  assert.match(found.text, /^Seventh report\.\s*$/, "a mail with an HTML part only gives its text without the markup");
-  assert.equal(found.folder, "Reports");
-  assert.equal(rawFetched(requests).length, 1, "only the matching mail was fetched in full");
+  const [rep, in2] = [identifier("<rep-1@example.org>"), identifier("<in-2@example.org>")];
+  const found = await mailbox(CONNECTION, null).find([rep, in2, "MAIL-0000000000000000"]);
+  assert.deepEqual(Object.keys(found).sort(), [rep, in2, "MAIL-0000000000000000"].sort());
+  assert.equal(found[rep].messageId, "<rep-1@example.org>");
+  assert.equal(found[rep].id, rep);
+  assert.match(found[rep].text, /^Seventh report\.\s*$/, "a mail with an HTML part only gives its text without the markup");
+  assert.equal(found[rep].folder, "Reports");
+  assert.equal(found[in2].messageId, "<in-2@example.org>");
+  assert.equal(found[in2].folder, "INBOX");
+  assert.equal(found["MAIL-0000000000000000"], null);
+  const listed = requests.map((request) => new URL(request.address)).filter((url) => /\/messages$/.test(url.pathname)).map((url) => decodeURIComponent(url.pathname) + (url.searchParams.has("page") ? "?page" : ""));
+  assert.deepEqual(listed, ["/v1.0/me/mailFolders/inbox/messages", "/v1.0/me/mailFolders/inbox/messages?page", "/v1.0/me/mailFolders/REPORTS-ID/messages"], "each folder listed once");
+  assert.equal(rawFetched(requests).length, 2, "only the matching mails were fetched in full");
   requests = fakeGraph();
-  assert.equal(await mailbox(CONNECTION, null).find("MAIL-0000000000000000"), null);
+  assert.deepEqual(await mailbox(CONNECTION, null).find(["MAIL-0000000000000000"]), { "MAIL-0000000000000000": null });
   assert.ok(requests.length > 0, "known positive: the folders were listed");
   assert.equal(rawFetched(requests).length, 0);
+});
+
+// TST-20261112802 · level: unit · module: MOD-mail-routes
+// guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; UC-038
+// given: the fake Graph, which records every request
+// input: mailbox(connection of the Microsoft route, null).find([])
+// expect: {} and no request at all; counter-proof: find([identifier of <in-1@example.org>]) on the same fake makes requests
+test("find — on the Microsoft route: an empty list is answered {} without a request", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  signedIn();
+  const requests = fakeGraph();
+  assert.deepEqual(await mailbox(CONNECTION, null).find([]), {});
+  assert.equal(requests.length, 0, "no request for an empty list");
+  await mailbox(CONNECTION, null).find([identifier("<in-1@example.org>")]);
+  assert.ok(requests.length > 0, "counter-proof: a list with an identifier makes its requests");
 });
 
 // TST-478304 · level: unit · module: MOD-mail-routes
 // guards: READING THE MAILBOX CHANGES NOTHING IN IT; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the fake Graph, which records every request; its INBOX list once names a next page at another origin (https://evil.example/steal)
-// input: read(null), find(an identifier), drafts() and sent(null) on the Microsoft route
+// input: read(null), find([an identifier]), drafts() and sent(null) on the Microsoft route
 // expect: every recorded request is a GET without a body, to an address of https://graph.microsoft.com/v1.0 with the token only as `Bearer <token>` in its Authorization header; the token is in no address; no request goes to evil.example, and the foreign next page is not followed but fails as Unreachable
 test("read, find, drafts and sent — on the Microsoft route: only GETs to Microsoft Graph, the token only in the authorisation header", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
@@ -195,7 +218,7 @@ test("read, find, drafts and sent — on the Microsoft route: only GETs to Micro
   const requests = fakeGraph();
   const box = mailbox(CONNECTION, null);
   await box.read(null);
-  await box.find(identifier("<rep-1@example.org>"));
+  await box.find([identifier("<rep-1@example.org>")]);
   await box.drafts();
   await box.sent(null);
   assert.ok(requests.length >= 10, "known positive: requests were made");
@@ -222,12 +245,12 @@ for (const [what, status, name, check] of [
   // TST-478305 · level: unit · module: MOD-mail-routes
   // guards: UC-038; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER
   // given: a fake Graph that fails every request, each time in one way
-  // input: read(null), find(an identifier), drafts() and sent(null) on the Microsoft route, for each failure
+  // input: read(null), find([an identifier]), drafts() and sent(null) on the Microsoft route, for each failure
   // expect: the error of the file for all four operations — SignInExpired for 401, PermissionDeclined naming Mail.ReadWrite for 403, Throttled with retryAfter 17 for 429, Unreachable with the reason for 503 and for a failed fetch — and nothing else
   test(`read, find, drafts and sent — on the Microsoft route: ${what} is answered with ${name}`, async () => {
     assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
     signedIn();
-    for (const run of [(box) => box.read(null), (box) => box.find("MAIL-0000000000000000"), (box) => box.drafts(), (box) => box.sent(null)]) {
+    for (const run of [(box) => box.read(null), (box) => box.find(["MAIL-0000000000000000"]), (box) => box.drafts(), (box) => box.sent(null)]) {
       fakeGraph({ status });
       await assert.rejects(run(mailbox(CONNECTION, null)), (error) => {
         assert.equal(error.name, name);
@@ -293,5 +316,25 @@ test("sent — on the Microsoft route: the date received is filtered by Graph, a
   requests = fakeGraph();
   assert.deepEqual((await mailbox(CONNECTION, null).sent("2026-10-14")).map((mail) => mail.messageId), ["<se-1@example.org>"]);
   assert.deepEqual([...new Set(listRequests(requests).map(receivedFilter))], ["receivedDateTime ge 2026-10-14T00:00:00Z"]);
+  assert.equal(rawFetched(requests).length, 1);
+});
+
+// TST-20261112309 · level: unit · module: MOD-mail-routes
+// guards: THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; READING THE MAILBOX CHANGES NOTHING IN IT
+// given: the fake Graph of TST-478301, whose Drafts hold dr-1 (received 5 October 2026), and which lists only the messages a `$filter=receivedDateTime ge` selects
+// input: mailbox(connection of the Microsoft route, null).drafts("2026-10-06"); counter-proof: .drafts("2026-10-05")
+// expect: the list request of drafts carries `$filter=receivedDateTime ge 2026-10-06T00:00:00Z`, no raw form is fetched and the answer is []; with the 5th the filter names that day, the raw form of dr-1 is fetched and the answer is its one draft
+test("TST-20261112309 drafts — on the Microsoft route: the date received is filtered by Graph, and only the drafts it selects are fetched", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  signedIn();
+  let requests = fakeGraph();
+  assert.deepEqual(await mailbox(CONNECTION, null).drafts("2026-10-06"), []);
+  const lists = listRequests(requests).filter((request) => request.address.includes("/drafts/"));
+  assert.ok(lists.length > 0, "known positive: Drafts were listed");
+  assert.deepEqual([...new Set(lists.map(receivedFilter))], ["receivedDateTime ge 2026-10-06T00:00:00Z"]);
+  assert.deepEqual(rawFetched(requests), []);
+  requests = fakeGraph();
+  assert.deepEqual((await mailbox(CONNECTION, null).drafts("2026-10-05")).map((draft) => draft.mail.messageId), ["<dr-1@example.org>"]);
+  assert.deepEqual([...new Set(listRequests(requests).map(receivedFilter))], ["receivedDateTime ge 2026-10-05T00:00:00Z"]);
   assert.equal(rawFetched(requests).length, 1);
 });

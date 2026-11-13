@@ -93,7 +93,7 @@ test("TST-1446003: the buttons of the replies pages carry the frame's class btn"
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 // given: the world with an unclassified open issue 5, an open issue 6 labelled defect and an open issue 7 labelled change
 // input: the route issue for each
-// expect: the buttons Bug, Change, Not reproducible and Reject issue of the class step are drawn, and every button of the three pages carries the class btn
+// expect: Implement is drawn on each page and Move to backlog on 6 and 7, and every button of the three pages carries the class btn
 test("TST-1446004: the buttons of the issue pages carry the frame's class btn", async () => {
   const record = (number, labels) => ({ number, title: `Export loses pages ${number}`, body: "FIRST RULE is broken.", state: "open", labels, comments: [] });
   const w = world({ mails: [], issues: [record(5, []), record(6, ["defect"]), record(7, ["change"])] });
@@ -101,11 +101,11 @@ test("TST-1446004: the buttons of the issue pages carry the frame's class btn", 
   const drawn = [];
   for (const number of ["5", "6", "7"]) {
     const detail = await opened(w, { number }, "issue");
-    await waitFor(() => byClass(detail, "set-class").length > 0 && byClass(detail, "issue-analysis").length > 0);
+    await waitFor(() => byClass(detail, "implement-issue").length > 0 && (number === "5" || byClass(detail, "move-to-backlog").length > 0));
     drawn.push(detail);
   }
   const names = drawn.flatMap(namesOf);
-  for (const wanted of ["set-class", "reject"]) assert.ok(names.includes(wanted), `${wanted} is drawn: ${names.join(", ")}`);
+  for (const wanted of ["implement-issue", "move-to-backlog"]) assert.ok(names.includes(wanted), `${wanted} is drawn: ${names.join(", ")}`);
   assert.deepEqual(drawn.flatMap(buttonFindings), []);
 });
 

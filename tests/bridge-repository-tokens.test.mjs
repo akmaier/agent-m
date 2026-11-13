@@ -24,8 +24,8 @@
 // environment it is started with. Where the module file leaves a reading open, the test states the one it takes:
 //   - "nothing is written" for a refused list: the file holds the bytes it held before.
 //   - The agent's side is checked where the enclosure makes it: agentEnvironment, the environment an agent receives, and hiddenPaths, the places it hides.
-//   - The CLI session is a fixture executable named opencode, alone with a git wrapper on PATH, started through the fixture enclosure of
-//     tests/enclosure-fixture.mjs; its git is given no include of the Bridge's tokens.
+//   - The CLI session is the fixture agent opencode of tests/agent-processes.d/terminal-agent.mjs, kept running in a pseudo-terminal (ARC-055), alone with a
+//     git wrapper on PATH, started through the fixture enclosure of tests/enclosure-fixture.mjs; its git is given no include of the Bridge's tokens.
 // Each test states its input and its expected result before it runs (given / input / expect).
 
 import assert from "node:assert/strict";
@@ -41,6 +41,7 @@ import { startSession } from "../src/bridge-jobs/session.mjs";
 import { agentEnvironment, hiddenPaths } from "../src/agent-enclosure/holders.mjs";
 import { pairAnew } from "../src/bridge-http/index.mjs";
 import { openEnclosures } from "./enclosure-fixture.mjs";
+import { terminalAgent } from "./agent-processes.d/terminal-agent.mjs";
 
 process.env.GIT_CONFIG_GLOBAL = "/dev/null";
 process.env.GIT_CONFIG_SYSTEM = "/dev/null";
@@ -356,9 +357,9 @@ test("TST-20261112201: a CLI session finds its product's token in a file of its 
 
 // TST-20261112202 · level: component · module: MOD-bridge-jobs
 // guards: A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE; A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE; NO MODEL READS A CREDENTIAL; UC-049; UC-011
-// given: the fixture server of TST-20261112201 with widget and the instance; the Bridge's data folder keeping their tokens; jobHandlers of a Bridge offering the fixture CLI session opencode with a working folder, its enclosures the fixture's, the instance's address and widget among its products; opencode records what it is given on its standard input, and pushes a branch with its own git
-// input: POST /v1/ask { agent: opencode, model: opencode/big-pickle, input: "INPUT-MARKER: split the requirement", product: widget, instance: the instance's head }; GET /v1/ask/{ask} until it is no longer running; then POST /v1/ask naming a product the Bridge does not serve
-// expect: the ask is done with the session's answer "I pushed JOB-ask."; the session's input begins with the input of the request and then names the file <checkout>/.agent-m-token and says to use the token without reading the file; the session's push reached widget; the checkout is removed after the answer; counter-proof: neither token stands in the session's input, and the ask for another product is invalid-request
+// given: the fixture server of TST-20261112201 with widget and the instance; the Bridge's data folder keeping their tokens; jobHandlers of a Bridge offering the fixture CLI session opencode with a working folder, its enclosures the fixture's, the instance's address and widget among its products; opencode records every message typed into its terminal, and, for each, pushes a branch with its own git
+// input: POST /v1/ask { agent: opencode, model: opencode/big-pickle, input: "INPUT-MARKER: split the requirement", product: widget, instance: the instance's head }; GET /v1/ask/{ask} until it is no longer running; then POST /v1/jobs/{session}/cancel; then POST /v1/ask naming a product the Bridge does not serve
+// expect: the ask is done with the session's answer, "answer to" the last line it was typed; the message typed into the session begins with the input of the request and then names the file <checkout>/.agent-m-token and says to use the token without reading the file; the session's push reached widget; the checkout lives while the session runs and is removed with its token file once the session is cancelled; counter-proof: neither token stands in what the session was typed, and the ask for another product is invalid-request
 test("TST-20261112202: the input of a CLI session names its token file and says to use the token without reading it, and holds no token", async (t) => {
   restoredEnvironment(t);
   const root = world(t);
@@ -374,15 +375,11 @@ test("TST-20261112202: the input of a CLI session names its token file and says 
   const bin = join(root, "session-bin"), told = join(root, "told.txt");
   mkdirSync(bin);
   writeFileSync(join(bin, "git"), `#!/bin/sh\nexec '${REAL_GIT}' "$@"\n`, { mode: 0o755 });
-  const event = JSON.stringify({ type: "text", part: { text: "I pushed JOB-ask." } });
-  writeFileSync(join(bin, "opencode"), `#!/bin/sh
-case "$1" in --version) echo 1.4.0;; models) echo opencode/big-pickle;;
-run) /bin/cat > '${told}'; printf 'change\\n' > change.md && git checkout -q -b JOB-ask && git add -A && git commit -q -m change && git push -q origin JOB-ask
-printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":3,"output":2}}}';; esac
-`, { mode: 0o755 });
+  terminalAgent(bin, "opencode");
   const prior = { PATH: process.env.PATH, HOME: process.env.HOME };
-  Object.assign(process.env, { PATH: bin, HOME: root, GIT_AUTHOR_NAME: "Agent", GIT_COMMITTER_NAME: "Agent" });
-  t.after(() => Object.assign(process.env, prior));
+  Object.assign(process.env, { PATH: `${bin}:/bin:/usr/bin`, HOME: root, GIT_AUTHOR_NAME: "Agent", GIT_COMMITTER_NAME: "Agent", FIXTURE_TOLD: told,
+    FIXTURE_ACTION: "printf 'change\\n' > change.md && git checkout -q -b JOB-ask && git add -A && git commit -q -m change && git push -q origin JOB-ask" });
+  t.after(() => { Object.assign(process.env, prior); delete process.env.FIXTURE_TOLD; delete process.env.FIXTURE_ACTION; });
 
   const folder = join(root, "work");
   mkdirSync(folder);
@@ -392,7 +389,7 @@ printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":3,"ou
   const handlers = jobHandlers({ agents: [{ name: "opencode", folder }], enclosures: enclosed, instance: instance.address, products: [{ address: widget.address }] });
   const commit = git(root, "--git-dir", instance.origin, "rev-parse", "main");
   const asked = (body) => handlers["POST /v1/ask"]({ params: {}, query: {}, body });
-  const { ask } = await asked({ agent: "opencode", model: "opencode/big-pickle", input: "INPUT-MARKER: split the requirement", product: widget.address, instance: commit });
+  const { ask, session } = await asked({ agent: "opencode", model: "opencode/big-pickle", input: "INPUT-MARKER: split the requirement", product: widget.address, instance: commit });
   let answer;
   for (const end = Date.now() + 30000; Date.now() < end;) {
     answer = await handlers["GET /v1/ask/{ask}"]({ params: { ask }, query: {}, body: null });
@@ -400,15 +397,17 @@ printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":3,"ou
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   assert.equal(answer.state, "done", JSON.stringify(answer));
-  assert.equal(answer.text, "I pushed JOB-ask.");
+  assert.match(answer.text, /^answer to .+\.$/);
   const input = readFileSync(told, "utf8");
-  const file = join(folder, "jobs", ask, ".agent-m-token");
+  const file = join(folder, "jobs", session, ".agent-m-token");
   assert.ok(input.startsWith("INPUT-MARKER: split the requirement"), input.slice(0, 200));
   assert.ok(input.includes(file), `the input names the file ${file}`);
   assert.match(input, /without reading the file/, "the input says to use the token without reading the file");
   assert.ok(!input.includes(widgetToken) && !input.includes(instanceToken), "counter-proof: no token stands in the input");
   assert.equal(git(root, "--git-dir", widget.origin, "show", "JOB-ask:change.md"), "change", "the session pushed with the token from the file");
-  assert.equal(existsSync(join(folder, "jobs", ask)), false, "the checkout and its token file are removed after the answer");
+  assert.equal(existsSync(file), true, "the checkout with its token file lives while the session runs");
+  assert.deepEqual(await handlers["POST /v1/jobs/{id}/cancel"]({ params: { id: session }, query: {}, body: null }), { confirmed: true });
+  assert.equal(existsSync(join(folder, "jobs", session)), false, "the checkout and its token file are removed once the session has ended");
   await assert.rejects(asked({ agent: "opencode", input: "x", product: "https://github.com/acme/elsewhere", instance: commit }), (error) => error?.code === "invalid-request",
     "counter-proof: a product the Bridge does not serve is refused");
 });

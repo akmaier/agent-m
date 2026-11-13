@@ -32,7 +32,7 @@ const buildFailed = (reason) => new ReleaseError("BuildFailed", { reason }, `the
 /**
  * electron-builder's configuration for one platform, made from `appDescription` (MOD-desktop-shell) and the release: the app's name, its main entry, its
  * window and its preload, its icons and the resources `build.json` and `update-key.pem`; the one file the platform's table names; the feed of the
- * instance's releases; and Electron's fuses (Data).
+ * instance's releases; Electron's fuses (Data); and node-pty's addon compiled for the app's Electron.
  */
 export function builderConfig(description, { platform, version, appId, owner, repository, folders, resources, output }) {
   const named = (ext) => `${NAME}-${version}-${platform}.${ext}`;
@@ -48,6 +48,10 @@ export function builderConfig(description, { platform, version, appId, owner, re
     asar: true,
     electronFuses: fuses,
     directories: { output, buildResources: dirname(description.main) },
+    // The app's native dependencies — node-pty's addon (ARC-055) — compiled from their sources for the app's Electron, on the runner of each platform and,
+    // for the universal macOS app, for each of its architectures.
+    npmRebuild: true,
+    buildDependenciesFromSource: true,
     files: ["package.json", "LICENSE", description.main, description.window, description.preload, ...folders.map((folder) => `src/${folder}/**/*`)],
     extraMetadata: { version, main: description.main },
     extraResources: [

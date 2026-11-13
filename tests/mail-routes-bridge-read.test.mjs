@@ -1,7 +1,8 @@
 // The Bridge route reads and finds mails and lists Drafts and Sent (ITM-834) — MOD-mail-routes' Mailbox operations read, find, drafts and
 // sent on the Bridge route, as the accepted text of docs/architecture/MOD-mail-routes.md states them: "read(since) — the mails of the named
-// folders, read without changing anything", "find(id) — the mail with this MAIL- identifier in the named folders ... null — not found in the
-// mailbox — when none matches, never a guess", "drafts() -> { ref: DraftRef, inReplyTo, mail }[] and sent(since) -> Mail[]", failing with
+// folders, read without changing anything", "find(ids) — the mails with these MAIL- identifiers in the named folders, all found in one
+// lookup ... on the Bridge route in one request to the Bridge ... each identifier is answered with its mail, or with null — not found in the
+// mailbox — when none matches, never a guess. An empty list is answered {} without crossing the network", "drafts() -> { ref: DraftRef, inReplyTo, mail }[] and sent(since) -> Mail[]", failing with
 // the Bridge route's BridgeUnavailable, NoEncryption, LoginRefused, FolderNotFound and Unreachable. For UC-038.
 // Run: node --test tests/mail-routes-bridge-read.test.mjs
 //
@@ -10,11 +11,10 @@
 // Level: unit
 //
 // The Bridge is a fake behind `fetch`, reached with MOD-bridge-client's real bridgeAt and mailCall; its answers are those the Bridge
-// (MOD-mail-protocols) gives: read -> Mail[], find -> one Mail or the error `not-found` whose message begins with the identifier, drafts ->
+// (MOD-mail-protocols) gives: read -> Mail[], find -> { mails } mapping each identifier asked to its Mail or to null, drafts ->
 // { ref, inReplyTo, mail }[], sent -> Mail[]. Values the module file leaves open, and the reading this file takes (the pull request names them):
-//   - the arguments of the request: { since } for read and sent (null when none), { id } for find, {} for drafts;
-//   - find's miss is the Bridge's `not-found` whose message begins with the asked identifier; a `not-found` that names a folder of the
-//     connection is FolderNotFound with that `folder`;
+//   - the arguments of the request: { since } for read and sent (null when none), { ids } for find (MOD-bridge-http), {} for drafts;
+//   - find answers the Bridge's `mails` as they are; a `not-found` that names a folder of the connection is FolderNotFound with that `folder`;
 //   - the answers are returned as the Bridge gave them, field for field.
 // Nothing reaches the network. Each test states its input and its expected result before it runs (given / input / expect). The
 // counter-proofs are recorded in the pull request.
@@ -83,27 +83,41 @@ test("read — on the Bridge route: one read call with the date, and the Bridge'
 
 // TST-483402 · level: unit · module: MOD-mail-routes
 // guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; UC-038
-// given: a fake Bridge that answers find with the Mail of the identifier MAIL-000002
-// input: mailbox(connection of the Bridge route, bridge).find("MAIL-000002")
-// expect: the Mail as the Bridge gave it; one request, POST /v1/mail/find, body { connection, args: { id: "MAIL-000002" } }
-test("find — on the Bridge route: the mail of a known identifier", async () => {
+// given: a fake Bridge that answers find with { mails } giving the Mails of the identifiers MAIL-000002 and MAIL-000003
+// input: mailbox(connection of the Bridge route, bridge).find(["MAIL-000002", "MAIL-000003"])
+// expect: { "MAIL-000002": its Mail, "MAIL-000003": its Mail } as the Bridge gave them; one request for both, POST /v1/mail/find, body { connection, args: { ids: ["MAIL-000002", "MAIL-000003"] } }
+test("find — on the Bridge route: the mails of several identifiers in one request", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
-  const given = mail(2);
-  const requests = fakeBridge(() => json(given));
-  assert.deepEqual(await mailbox(CONNECTION, BRIDGE).find("MAIL-000002"), given);
-  assertOneRequest(requests, "find", { id: "MAIL-000002" });
+  const given = { "MAIL-000002": mail(2), "MAIL-000003": mail(3, { folder: "Reports" }) };
+  const requests = fakeBridge(() => json({ mails: given }));
+  assert.deepEqual(await mailbox(CONNECTION, BRIDGE).find(["MAIL-000002", "MAIL-000003"]), given);
+  assertOneRequest(requests, "find", { ids: ["MAIL-000002", "MAIL-000003"] });
 });
 
 // TST-483403 · level: unit · module: MOD-mail-routes
 // guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; UC-038
-// given: a fake Bridge that answers find for an unknown identifier with its error not-found, whose message begins with that identifier
-// input: mailbox(connection of the Bridge route, bridge).find("MAIL-000099")
-// expect: null — nothing thrown, no other mail; one request, POST /v1/mail/find
+// given: a fake Bridge that answers find with { mails } giving the Mail of MAIL-000002 and null for the unknown identifier MAIL-000099
+// input: mailbox(connection of the Bridge route, bridge).find(["MAIL-000002", "MAIL-000099"])
+// expect: { "MAIL-000002": its Mail, "MAIL-000099": null } — nothing thrown, no other mail; one request, POST /v1/mail/find, args { ids: ["MAIL-000002", "MAIL-000099"] }
 test("find — on the Bridge route: null for an identifier the Bridge does not find", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
-  const requests = fakeBridge(failure("not-found", "MAIL-000099: no mail with this identifier in INBOX, Reports", 404));
-  assert.equal(await mailbox(CONNECTION, BRIDGE).find("MAIL-000099"), null);
-  assertOneRequest(requests, "find", { id: "MAIL-000099" });
+  const requests = fakeBridge(() => json({ mails: { "MAIL-000002": mail(2), "MAIL-000099": null } }));
+  assert.deepEqual(await mailbox(CONNECTION, BRIDGE).find(["MAIL-000002", "MAIL-000099"]), { "MAIL-000002": mail(2), "MAIL-000099": null });
+  assertOneRequest(requests, "find", { ids: ["MAIL-000002", "MAIL-000099"] });
+});
+
+// TST-20261112801 · level: unit · module: MOD-mail-routes
+// guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; UC-038
+// given: a fake Bridge that records every request and would answer find with a mail
+// input: mailbox(connection of the Bridge route, bridge).find([])
+// expect: {} and no request at all; counter-proof: find(["MAIL-000002"]) on the same fake makes one request
+test("find — on the Bridge route: an empty list is answered {} without a request", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  const requests = fakeBridge(() => json({ mails: { "MAIL-000002": mail(2) } }));
+  assert.deepEqual(await mailbox(CONNECTION, BRIDGE).find([]), {});
+  assert.equal(requests.length, 0, "no request for an empty list");
+  await mailbox(CONNECTION, BRIDGE).find(["MAIL-000002"]);
+  assert.equal(requests.length, 1, "counter-proof: a list with an identifier makes its request");
 });
 
 // TST-483404 · level: unit · module: MOD-mail-routes
@@ -139,7 +153,7 @@ test("sent — on the Bridge route: the Mails of Sent since a date", async () =>
 
 const CALLS = [
   ["read", (box) => box.read(null)],
-  ["find", (box) => box.find("MAIL-000002")],
+  ["find", (box) => box.find(["MAIL-000002"])],
   ["drafts", (box) => box.drafts()],
   ["sent", (box) => box.sent(null)],
 ];
@@ -147,7 +161,7 @@ const CALLS = [
 // TST-483406 · level: unit · module: MOD-mail-routes
 // guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
 // given: a fake Bridge that fails with a mail server's answer, for each of the four operations
-// input: read(null), find(id), drafts(), sent(null) of mailbox(connection of the Bridge route, bridge)
+// input: read(null), find([id]), drafts(), sent(null) of mailbox(connection of the Bridge route, bridge)
 // expect: each makes exactly one request; each rejects; the password stands in no thrown error — not in its name, message or fields — and in no address or header
 test("read, find, drafts, sent — on the Bridge route: the password in no error and in no request but the body", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
@@ -179,7 +193,7 @@ for (const [what, bridge, answer, name, check] of FAILS) {
   // TST-483407 · level: unit · module: MOD-mail-routes
   // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; UC-038
   // given: a fake Bridge that fails, each time as Access's client names the failure
-  // input: read(null), find(id), drafts() and sent(null) of mailbox(connection of the Bridge route, bridge), for each
+  // input: read(null), find([id]), drafts() and sent(null) of mailbox(connection of the Bridge route, bridge), for each
   // expect: for all four the error of the file — BridgeUnavailable with Access's reason for no token, no answer, a refused token, a timeout and a paused Bridge; NoEncryption naming the server; LoginRefused with the server's answer; FolderNotFound naming the folder; Unreachable with the mail server's message — and nothing else
   test(`read, find, drafts, sent — on the Bridge route: ${what} is answered with ${name}`, async () => {
     assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
@@ -193,3 +207,16 @@ for (const [what, bridge, answer, name, check] of FAILS) {
     }
   });
 }
+
+// TST-20261112306 · level: unit · module: MOD-mail-routes
+// guards: THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
+// given: a fake Bridge that answers drafts with one entry { ref: { route: "bridge", uid: 7, uidValidity: 1 }, inReplyTo, mail }
+// input: mailbox(connection of the Bridge route, bridge).drafts("2026-10-01")
+// expect: the entry as the Bridge gave it; one request, POST /v1/mail/drafts, body { connection, args: { since: "2026-10-01" } }
+test("TST-20261112306 drafts — on the Bridge route: the drafts of Drafts since a date", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  const given = [{ ref: { route: "bridge", uid: 7, uidValidity: 1 }, inReplyTo: "<m1@example.org>", mail: mail(3, { inReplyTo: "<m1@example.org>", folder: "Drafts" }) }];
+  const requests = fakeBridge(() => json(given));
+  assert.deepEqual(await mailbox(CONNECTION, BRIDGE).drafts("2026-10-01"), given);
+  assertOneRequest(requests, "drafts", { since: "2026-10-01" });
+});

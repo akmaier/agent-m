@@ -68,6 +68,17 @@ test("TST-419001: bridgeApi declares the mail route, its ten operations, the fie
   assert.deepEqual(route.errors, { "confirmation-refused": 409, "no-encryption": 502, "login-refused": 502, "upstream-failed": 502 });
 });
 
+// TST-20261112804 · level: unit · module: MOD-bridge-http
+// guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; UC-038
+// given: the accepted Bridge API: "`find` takes `{ ids }`, every `MAIL-` identifier of one lookup, and answers `{ mails }`, which maps each of them to its mail or to `null`"
+// input: the route of the mail operations in bridgeApi.routes
+// expect: its field `find` is { args: { ids: ["string"] }, answer: { mails: "object" } } — the identifiers a list of strings, the answer one object keyed by them
+test("TST-20261112804: bridgeApi declares the fields of find — { ids } in, { mails } out", () => {
+  const route = mailRoute();
+  assert.ok(route, "the route is declared");
+  assert.deepEqual(route.find, { args: { ids: ["string"] }, answer: { mails: "object" } });
+});
+
 // TST-419002 · level: unit · module: MOD-bridge-http
 // guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge whose mail handlers answer each operation with its own marker, recording what they are given

@@ -53,11 +53,12 @@ function declarationOf(value) {
 }
 
 // An offered agent as the settings keep it, and in memory with its working folder `<folder>/<agent>`, which follows from the one folder and is no
-// setting of its own (MOD-desktop-shell, Data: folder): null while no folder is chosen. An agent's own folder of an earlier file is not kept.
+// setting of its own (MOD-desktop-shell, Data: folder): null while no folder is chosen. An agent's own folder of an earlier file is not kept. `chrome`, whether
+// the Bridge starts every session of the agent with its Chrome integration (UC-044 step 3), is off until the person ticks it; a declaration leaves it as it is.
 function agentOf(value, folder) {
   if (!object(value)) return null;
   const name = text(value.name);
-  return name ? { name, folder: folder ? join(folder, name) : null, ...declarationOf(value) } : null;
+  return name ? { name, folder: folder ? join(folder, name) : null, chrome: value.chrome === true, ...declarationOf(value) } : null;
 }
 
 // declareAgent(dataFolder, agent, declaration) -> settings — keeps the declaration of an agent the Bridge offers (`PUT /v1/agents/{agent}`, UC-044 step 5): its place,

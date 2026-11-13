@@ -10,13 +10,12 @@
 //
 // The world is tests/maintenance-pages-world.mjs: its model endpoint ep1 is the participant local-llm, its fake GitHub holds the issues of alice/product with their comments and labels and takes git commits to the product. The page, MOD-issue-handling,
 // MOD-work-plans, MOD-spec-changes, MOD-documents, MOD-site-frame and MOD-repository-hosts are the real ones. Readings the texts leave open, which the tests state (the pull request names them):
-//   - The move is a section of the issue's page, <section class="issue-move">, shown for an open issue whose class is bug or change — by its label, or by the person's click on a class — and for no other class; it offers <button> "Move to backlog" (the person's click).
+//   - The move is a section of the issue's page, <section class="issue-move">, shown for an open issue whose class is bug or change — by its label — and for no other class; it offers <button> "Move to backlog" (the person's click).
 //   - The click draws the item as a form of MOD-site-frame's schemaForm (<div class="schema-form">, one <div class="field" data-key="<key>"> with an <input> for each key of the item), whose list-valued keys (realises, modules, tests, origin) are typed as one text,
 //     the names separated by commas; its one button is "Add"; it is offered only while no error remains (disabled otherwise), and the findings of MOD-work-plans' backlogFindings are shown beside the form as <li class="error">. The identifier the form holds is
 //     provisional: `saveItems` gives the item the next one that no history holds.
-//   - `changed` is every requirement the entries of the queues name as added or changed in `entryView`'s impact, in the order of the queues' entries, once each, for the queues whose `**Issue:**` line names this issue and this product. The analysis is the page's proposal, if
-//     the person ran one: a bug realises the requirement the answer of `analyse-issue` names as violated (ITM-1374), and nothing until the person names it where the answer names none; its `modules` are the modules of the architecture whose folder holds a file it
-//     names as wrong, none without a proposal.
+//   - `changed` is every requirement the entries of the queues name as added or changed in `entryView`'s impact, in the order of the queues' entries, once each, for the queues whose `**Issue:**` line names this issue and this product. The page holds no analysis: a bug's item realises
+//     nothing and changes no module until the person names them.
 //   - Add is the person's click on the form's button. It writes through `moveToBacklog`; the page then shows <p class="move-added"> with the item's identifier, or, when the comment was refused for want of the permission, <div class="move-comment"> with <pre class="comment-text">,
 //     the issue's address as <a class="comment-issue"> and <button> "Copy comment".
 
@@ -99,7 +98,7 @@ const issueOf = (w, number) => w.kept.issues.find((each) => each.number === numb
 /** The issue opened and its move section drawn. */
 async function opened(w, number) {
   const detail = await open(w, number);
-  await waitFor(() => byClass(detail, "issue-analysis").length > 0 && moveOf(detail) !== undefined);
+  await waitFor(() => moveOf(detail) !== undefined);
   assert.ok(moveOf(detail), `issue ${number} shows the section to move it to the backlog`);
   return detail;
 }
@@ -158,29 +157,22 @@ test("issue — Move to backlog prefills the item with the requirements the issu
 
 // TST-1250202 · level: component · module: MOD-maintenance-pages, MOD-issue-handling
 // guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
-// given: the issue 6 labelled defect; the participant's analysis proposes the class bug and names the files src/store/read.mjs and tests/store.test.mjs as wrong; the product holds the modules MOD-store (src/store/) and MOD-pages (src/pages/); the queues of the product name the issue 6 with a change of SECOND RULE
-// input: the analysis run by a person; Move to backlog by a person; the requirement FIRST RULE typed; Add by a person
-// expect: the item changes MOD-store alone and realises nothing yet — a bug takes no requirement from the queues, and the analysis names none —, so that Add is disabled with an error that names what it realises; once FIRST RULE is typed Add is enabled and commits the item with the origin https://github.com/alice/product/issues/6, and comments on and labels issue 6
-test("issue — for a bug the item changes the modules of the files the analysis names as wrong, takes no requirement from the queues, and is added once the person names what it realises", async () => {
+// given: the issue 6 labelled defect; the product holds the modules MOD-store (src/store/) and MOD-pages (src/pages/); the queues of the product name the issue 6 with a change of SECOND RULE
+// input: Move to backlog by a person; the requirement FIRST RULE and the module MOD-store typed; Add by a person
+// expect: the item realises nothing and changes no module yet — a bug takes no requirement from the queues, and the page holds no analysis —, so that Add is disabled with an error that names what it realises; once FIRST RULE and MOD-store are typed Add is enabled and commits the item with the origin https://github.com/alice/product/issues/6, and comments on and labels issue 6
+test("issue — for a bug the item takes no requirement from the queues, and is added once the person names what it realises and the modules it changes", async () => {
   const w = start();
-  const detail = await open(w, 6);
-  await waitFor(() => byClass(detail, "participant").length > 0 && moveOf(detail) !== undefined);
-  const radio = byClass(detail, "participant").find((each) => each.value === "local-llm");
-  radio.checked = true;
-  one(detail, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
-  await waitFor(() => byClass(detail, "run-panel").length > 0);
-  await trusted(buttonsOf(one(detail, "run-panel"), "Run")[0]);
-  await waitFor(() => byClass(detail, "issue-proposal").length > 0 || byClass(detail, "issue-problem").length > 0);
-  assert.equal(byClass(detail, "issue-problem").length, 0, textOf(detail));
+  const detail = await opened(w, 6);
   const form = await moved(detail);
   assert.deepEqual(namesIn(fieldOf(form, "realises").value), []);
-  assert.deepEqual(namesIn(fieldOf(form, "modules").value), ["MOD-store"]);
+  assert.deepEqual(namesIn(fieldOf(form, "modules").value), []);
   assert.deepEqual(namesIn(fieldOf(form, "origin").value), [ADDRESS(6)]);
   assert.equal(buttonsOf(form, "Add")[0].disabled, true, "Add waits for the requirement");
   assert.match(textOf(byClass(form, "error").find((node) => /realises/i.test(textOf(node)))), /realises/i);
   fieldOf(form, "realises").value = "FIRST RULE";
   fieldOf(form, "realises").dispatchEvent(new Event("input"));
+  fieldOf(form, "modules").value = "MOD-store";
+  fieldOf(form, "modules").dispatchEvent(new Event("input"));
   await waitFor(() => buttonsOf(form, "Add")[0].disabled === false);
   assert.equal(buttonsOf(form, "Add")[0].disabled, false);
 
@@ -197,44 +189,11 @@ test("issue — for a bug the item changes the modules of the files the analysis
   assert.deepEqual(issueOf(w, 6).labels.sort(), ["backlog", "defect"]);
 });
 
-// TST-1374101 · level: component · module: MOD-maintenance-pages
-// guards: A BACKLOG ITEM NAMES WHAT IT REALISES; UC-033
-// given: the issue 6 labelled defect; the participant's analysis proposes the class bug, names the files src/store/read.mjs and tests/store.test.mjs as wrong and FIRST RULE as the requirement violated; the product holds MOD-store (src/store/) and MOD-pages (src/pages/); the queues of the product name the issue 6 with a change of SECOND RULE
-// input: the analysis run by a person; Move to backlog by a person; Add by a person, with nothing typed
-// expect: the item is prefilled with realises FIRST RULE alone — the requirement the analysis names as violated, none from the queues — and modules MOD-store; no error names what it realises and Add is enabled; Add commits the item with realises FIRST RULE and modules MOD-store
-test("TST-1374101: issue — a bug's item realises the requirement the analysis names as violated, and is added without the person typing it", async () => {
-  const w = start({ answer: () => ({ draft: { ...PROPOSAL, violated: "FIRST RULE" }, answers: [] }) });
-  const detail = await open(w, 6);
-  await waitFor(() => byClass(detail, "participant").length > 0 && moveOf(detail) !== undefined);
-  const radio = byClass(detail, "participant").find((each) => each.value === "local-llm");
-  radio.checked = true;
-  one(detail, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
-  await waitFor(() => byClass(detail, "run-panel").length > 0);
-  await trusted(buttonsOf(one(detail, "run-panel"), "Run")[0]);
-  await waitFor(() => byClass(detail, "issue-proposal").length > 0 || byClass(detail, "issue-problem").length > 0);
-  assert.equal(byClass(detail, "issue-problem").length, 0, textOf(detail));
-  const form = await moved(detail);
-  assert.deepEqual(namesIn(fieldOf(form, "realises").value), ["FIRST RULE"]);
-  assert.deepEqual(namesIn(fieldOf(form, "modules").value), ["MOD-store"]);
-  assert.equal(byClass(form, "error").filter((node) => /realises/i.test(textOf(node))).length, 0, textOf(form));
-  await waitFor(() => buttonsOf(form, "Add")[0].disabled === false);
-  assert.equal(buttonsOf(form, "Add")[0].disabled, false, textOf(form));
-
-  await trusted(buttonsOf(form, "Add")[0]);
-  await waitFor(() => byClass(moveOf(detail), "move-added").length > 0 || byClass(moveOf(detail), "issue-problem").length > 0);
-  assert.equal(byClass(moveOf(detail), "issue-problem").length, 0, textOf(moveOf(detail)));
-  const files = addedFiles(w);
-  assert.equal(files.length, 1);
-  assert.match(files[0].content, /realises:\n {2}- FIRST RULE\n(?! {2}- )/);
-  assert.match(files[0].content, /modules:\n {2}- MOD-store\n(?! {2}- )/);
-});
-
 // TST-1250203 · level: component · module: MOD-maintenance-pages
 // guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
 // given: the issues 5 (no class), 6 (defect), 7 (change) and 8 (not-reproducible)
-// input: the route issue for 6, 7, 8 and 5; on 5 the person's clicks on Bug, on Not reproducible and on Change
-// expect: 6 and 7 offer Move to backlog; 8 does not; 5 does not until the click on Bug, offers it after it, not after the click on Not reproducible, and offers it after the click on Change
+// input: the route issue for 6, 7, 8 and 5
+// expect: 6 and 7 offer Move to backlog; 8 and 5 do not
 test("issue — Move to backlog is offered for an issue classified as a bug or a change, and for no other", async () => {
   const w = start();
   for (const number of [6, 7]) {
@@ -242,20 +201,13 @@ test("issue — Move to backlog is offered for an issue classified as a bug or a
     assert.equal(buttonsOf(moveOf(detail), "Move to backlog").length, 1, `issue ${number}`);
   }
   const eight = await open(w, 8);
-  await waitFor(() => byClass(eight, "issue-analysis").length > 0);
+  await waitFor(() => byClass(eight, "implement-issue").length > 0);
   await flush();
   assert.equal(buttonsOf(eight, "Move to backlog").length, 0);
   const five = await open(w, 5);
-  await waitFor(() => byClass(five, "set-class").length > 0);
+  await waitFor(() => byClass(five, "implement-issue").length > 0);
+  await flush();
   assert.equal(buttonsOf(five, "Move to backlog").length, 0);
-  const setClass = async (cls, offered) => {
-    await trusted(byClass(five, "set-class").find((node) => node.getAttribute("data-class") === cls));
-    await waitFor(() => buttonsOf(five, "Move to backlog").length === (offered ? 1 : 0));
-    assert.equal(buttonsOf(five, "Move to backlog").length, offered ? 1 : 0, cls);
-  };
-  await setClass("bug", true);
-  await setClass("not-reproducible", false);
-  await setClass("change", true);
 });
 
 // TST-1250204 · level: component · module: MOD-maintenance-pages, MOD-issue-handling
@@ -286,8 +238,7 @@ test("issue — when the token may not comment the item is written and the page 
 
 // ---------------------------------------------------------------- ITM-1254: UC-033 1a and 4a on the issue's page
 // Readings the texts leave open, which these tests state (the pull request names them):
-//   - 1a: for an open issue whose class is none yet (no label defect, change or not-reproducible), the place of the move says why it is not offered, <p class="move-not-offered">, and leads to UC-012 with <button class="uc-012"> "UC-012, step 2", which goes, on a
-//     click, to Agent M's own use case (the context's `go("use-case", { id: "UC-012", product: "" })`, the empty product naming the instance itself), as the fix leads to UC-017. An issue classified as not reproducible is classified, so 1a does not apply to it.
+//   - 1a: an open issue that carries neither the label defect nor change offers no Move to backlog, and nothing in its place.
 //   - 4a: the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each <li class="existing-item" data-item="<identifier>"> with its identifier and title and <button> "Add to <identifier>";
 //     the person's click on it writes through `moveToBacklog` with `existing` the identifier, and the page shows <p class="move-added"> with that identifier, or the comment to copy as Add does.
 
@@ -296,34 +247,22 @@ const EXISTING_TEXT = ["---", "id: ITM-001", "title: Export keeps every page", "
   "# ITM-001 Export keeps every page", "", "## Outcome", "", "Every page is exported.", "", "## Acceptance", "", "- A unit test.", ""].join("\n");
 
 // TST-1254201 · level: component · module: MOD-maintenance-pages
-// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
-// given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a class; the issue 8 labelled not-reproducible
-// input: the route issue for 6, 8 and 5; on 5 the lead to UC-012 clicked by a person, then the person's click on Bug
-// expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to Agent M's own use case UC-012 — the empty product — and before which nothing goes; after the click on Bug, Move to backlog is offered and the lead is gone
-test("issue — an issue not classified yet is not offered Move to backlog and is led to UC-012, step 2 (UC-033 1a)", async () => {
+// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; UC-033
+// given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a label; the issue 8 labelled not-reproducible
+// input: the route issue for 6, 8 and 5
+// expect: 6 offers Move to backlog; 8 and 5, which carry neither the label defect nor change, offer no Move to backlog and no lead to UC-012, and nothing goes
+test("issue — an issue with neither the label defect nor change is not offered Move to backlog (UC-033 1a)", async () => {
   const w = start();
   const six = await opened(w, 6);
   assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a bug is offered the move");
-  assert.equal(byClass(six, "uc-012").length, 0);
-  const eight = await open(w, 8);
-  await waitFor(() => byClass(eight, "issue-analysis").length > 0);
-  await flush();
-  assert.equal(buttonsOf(eight, "Move to backlog").length, 0);
-  assert.equal(byClass(eight, "uc-012").length, 0, "an issue classified as not reproducible is classified");
-  const five = await open(w, 5);
-  await waitFor(() => byClass(five, "set-class").length > 0 && byClass(five, "uc-012").length > 0);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 0);
-  assert.match(textOf(one(five, "move-not-offered") ?? { textContent: "" }), /not classified/i);
-  const lead = one(five, "uc-012");
-  assert.ok(lead, "the lead to UC-012 is offered");
-  assert.equal(textOf(lead), "UC-012, step 2");
-  assert.deepEqual(w.context.went, [], "nothing goes before the click");
-  await trusted(lead);
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
-  await trusted(byClass(five, "set-class").find((node) => node.getAttribute("data-class") === "bug"));
-  await waitFor(() => buttonsOf(five, "Move to backlog").length === 1);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 1);
-  assert.equal(byClass(five, "uc-012").length, 0);
+  for (const number of [8, 5]) {
+    const detail = await open(w, number);
+    await waitFor(() => byClass(detail, "implement-issue").length > 0);
+    await flush();
+    assert.equal(buttonsOf(detail, "Move to backlog").length, 0, `issue ${number}`);
+    assert.equal(byClass(detail, "uc-012").length, 0, `issue ${number}: no lead to UC-012`);
+  }
+  assert.deepEqual(w.context.went, [], "nothing goes");
 });
 
 // TST-1254202 · level: component · module: MOD-maintenance-pages, MOD-issue-handling, MOD-work-plans

@@ -95,6 +95,21 @@ test("mailCall — each operation of the mail route posts to its own path, and n
   assert.equal(calls.length, before);
 });
 
+// TST-20261112805 · level: unit · module: MOD-bridge-client
+// guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-038
+// given: a Bridge on the loopback that answers find with { mails } for two identifiers
+// input: mailCall(bridge, "find", connection, { ids: [two MAIL- identifiers] })
+// expect: one request, POST /v1/mail/find, whose body is { connection, args: { ids } } with both identifiers; the answer { mails } as the Bridge gave it
+test("mailCall — find carries every identifier of one lookup in one request", async (t) => {
+  const ids = ["MAIL-0000000000000001", "MAIL-0000000000000002"];
+  const answer = { mails: { [ids[0]]: { id: ids[0], subject: "One" }, [ids[1]]: null } };
+  const calls = withFetch(t, () => json(answer));
+  assert.deepEqual(await mailCall(bridgeAt(BRIDGE), "find", CONNECTION, { ids }), answer);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "http://127.0.0.1:4711/v1/mail/find");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { connection: CONNECTION, args: { ids } });
+});
+
 // TST-472072 · level: unit · module: MOD-bridge-client
 // guards: UC-037; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge that answers each error code of its mail route with the status bridgeApi gives it, and its own message

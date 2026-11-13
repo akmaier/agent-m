@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { OWN_DRAFT_MARK, connectionParts, testImap, readMails, findMail, markedFolder, storeDraft, showDraft, sendDraft } from "./imap.mjs";
+import { OWN_DRAFT_MARK, bridgeFailure, connectionParts, testImap, readMails, findMails, markedFolder, storeDraft, showDraft, sendDraft } from "./imap.mjs";
 import { testSmtp, sendBytes } from "./smtp.mjs";
 import { confirm, spend } from "./confirmations.mjs";
 
@@ -44,7 +44,13 @@ async function replyBytes({ account, sender, address }, mailer, { replyTo, to, s
   return built.message;
 }
 
-const shownMail = ({ sha256, mail }, ref) => ({
+// The `ids` of find: every MAIL- identifier of one lookup, a list of strings (MOD-bridge-http); anything else is no request of find.
+function identifiers(ids) {
+  if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) throw bridgeFailure("invalid-request", "find takes { ids }, a list of MAIL- identifiers.");
+  return ids;
+}
+
+const shownMail =({ sha256, mail }, ref) => ({
   ref, sha256, from: mail.from, to: mail.to, cc: mail.cc, subject: mail.subject, body: mail.text,
   attachments: mail.attachments.map(({ name, type, size }) => ({ name, type, size })),
 });
@@ -54,8 +60,8 @@ export function mailHandlers(libraries = {}) {
   return {
     "POST /v1/mail/test": async ({ body }) => testMailbox(body?.connection, resolved),
     "POST /v1/mail/read": async ({ body }) => readMails(connectionParts(body?.connection), resolved.ImapFlow, body?.args?.since ?? null),
-    "POST /v1/mail/find": async ({ body }) => findMail(connectionParts(body?.connection), resolved.ImapFlow, body?.args?.id),
-    "POST /v1/mail/drafts": async ({ body }) => (await markedFolder(connectionParts(body?.connection), resolved.ImapFlow, "\\Drafts", null))
+    "POST /v1/mail/find": async ({ body }) => ({ mails: await findMails(connectionParts(body?.connection), resolved.ImapFlow, identifiers(body?.args?.ids)) }),
+    "POST /v1/mail/drafts": async ({ body }) => (await markedFolder(connectionParts(body?.connection), resolved.ImapFlow, "\\Drafts", body?.args?.since ?? null))
       .map(({ uid, uidValidity, mail }) => ({ ref: { route: "bridge", uid, uidValidity }, inReplyTo: mail.inReplyTo, mail })),
     "POST /v1/mail/sent": async ({ body }) => (await markedFolder(connectionParts(body?.connection), resolved.ImapFlow, "\\Sent", body?.args?.since ?? null))
       .map(({ mail }) => mail),

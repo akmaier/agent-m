@@ -143,7 +143,12 @@ function bridgeAnswer(url, init, next) {
   bridgeCalls.push(`${init?.method ?? "GET"} ${pathname}`);
   if (pathname === "/v1/pair") return json({ bridge: { name: "mac", version: "1.0.0", platform: "darwin" }, origin: "https://alice.github.io" });
   if (pathname === "/v1/agents") return json({ agents: bridgeAgents.map((declared) => ({ version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] });
-  if (pathname === "/v1/ask") { requests.push({ url: String(url), body: String(init?.body ?? ""), page: showing() }); return json({ ask: "ask-1" }); }
+  if (pathname === "/v1/ask") {
+    requests.push({ url: String(url), body: String(init?.body ?? ""), page: showing() });
+    // A message to a CLI session is answered with the session it is typed into (ARC-055): the one it names, else the one it starts.
+    const body = JSON.parse(String(init?.body ?? "{}"));
+    return json({ ask: "ask-1", ...(body.product ? { session: body.session ?? "JOB-20261112-1200-s001" } : {}) });
+  }
   if (pathname === "/v1/ask/ask-1") return json({ state: "done", text: next(), calls: [], usage: null });
   return new Response("{}", { status: 404 });
 }
@@ -211,6 +216,14 @@ async function sends(it, text) {
   await tick();
 }
 const answer = (text, extra = {}) => ({ answer: text, ...extra });
+// A message to a CLI session, sent and waited for: it runs while the bar's currentJob names it (its answer is followed on the Bridge with real waits).
+async function sendsToSession(it, text) {
+  one(it.target, "instruction").value = text;
+  one(it.target, "send").dispatchEvent(trusted());
+  await until(() => currentJob() !== null, "the message runs");
+  await until(() => currentJob() === null, "the message has run", 20000);
+  await tick();
+}
 
 // TST-600020 · level: component · module: MOD-prompt-bar
 // guards: UC-049; THE PAGE NAMES WHERE IT SENDS
@@ -715,8 +728,8 @@ test("grip — the person sets the bar's height, and the tab keeps it", async ()
 // guards: UC-049; EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; THE PAGE NAMES WHERE IT SENDS
 // given: the one CLI session mac:opencode, which the Bridge mac lists ready, declaring draft text at "this machine"; the instance's AGENTS.md "# The rules of the instance"; the session answers first, as plain text, "I split the requirement, committed it and opened its pull request.", then the envelope of a converse answer whose plan hands a piece on
 // input: Send "split this requirement"; then Send "and the next one"
-// expect: before the first ask the page names "mac:opencode — this machine" under "Sent to"; each message is one POST /v1/ask to the Bridge with the agent opencode, its model model-opencode, the instance's address as product and the instance's commit the bar read as instance; the input begins with the instance's AGENTS.md and holds the page and the person's words, and none of the endpoint's prompt — no plan to hand on, no form of an answer, no tool —; the plain answer is shown in the conversation as the session's message; the second answer is shown as it came, and no piece of a plan is shown or handed over, nothing is committed, and no Review the draft is offered; counter-proof: the endpoint drafter-a given the same plain answer says it could not be read
-test("TST-1112005: a message to a CLI session goes to its Bridge with the page, the conversation and AGENTS.md first, and its answer is shown as it gives it", async () => {
+// expect: before the first ask the page names "mac:opencode — this machine" under "Sent to"; each message is one POST /v1/ask to the Bridge with the agent opencode, its model model-opencode, the instance's address as product and the instance's commit the bar read as instance; the first names no session, the second the session JOB-20261112-1200-s001 the Bridge answered the first with; the first input begins with the instruction that the agent must read Agent M's files, naming ../../AGENTS.md — the instance's AGENTS.md in the Bridge's clone of the instance from the session's checkout —, and gives none of its text, and holds the page and the person's words; the second begins with no such instruction; and none of the endpoint's prompt — no plan to hand on, no form of an answer, no tool —; the second input holds nothing of the conversation so far, which the running session has seen (ARC-055); the plain answer is shown in the conversation as the session's message, its cost as unknown; the second answer is shown as it came, and no piece of a plan is shown or handed over, nothing is committed, and no Review the draft is offered; counter-proof: the endpoint drafter-a given the same plain answer says it could not be read
+test("TST-1112005: a message to a CLI session goes to its Bridge with the page and AGENTS.md first, into the session the conversation keeps, and its answer is shown as it gives it", async () => {
   const plan = JSON.stringify({ draft: { answer: "I hand it on.", handOver: [{ kind: "change-requirements", works_on: [], task: "split it", after: [] }] }, answers: [] });
   endpointAnswers("I split the requirement, committed it and opened its pull request.", plan);
   const it = page({ offer: [session("opencode")], instanceFiles: { "AGENTS.md": "# The rules of the instance\n" } });
@@ -728,17 +741,25 @@ test("TST-1112005: a message to a CLI session goes to its Bridge with the page, 
   const body = JSON.parse(asks[0].body);
   assert.deepEqual({ agent: body.agent, model: body.model, product: body.product, instance: body.instance },
     { agent: "opencode", model: "model-opencode", product: INSTANCE_WEB, instance: it.instance.head() });
-  assert.ok(body.input.startsWith("# The rules of the instance"), body.input.slice(0, 120));
+  assert.ok(body.input.startsWith("Before anything else, you must read these files of Agent M in full"), body.input.slice(0, 120));
+  assert.ok(body.input.includes("- `../../AGENTS.md`"), body.input.slice(0, 400));
+  assert.equal(body.input.includes("# The rules of the instance"), false, "the file is named by its path, not given as text");
   assert.ok(body.input.includes("split this requirement") && body.input.includes("The page shows UC-007, drafted for mac:opencode."), body.input);
   for (const endpointOnly of ["hand-over", "handOver", "The form of your answer", "\"draft\""]) assert.equal(body.input.includes(endpointOnly), false, `no ${endpointOnly} in a session's input`);
   assert.equal(body.tools, undefined, "no tool is offered");
   const said = byClass(it.target, "message").filter((node) => node.className.includes("participant")).map(textOf);
   assert.ok(said.some((text) => text.includes("I split the requirement, committed it and opened its pull request.")), said.join(" | "));
   assert.equal(byClass(it.target, "problem").length, 0, "the plain answer is read");
+  assert.equal(body.session, undefined, "the first message starts the session");
+  assert.match(textOf(one(it.target, "cost")), /unknown/, "its cost is shown as unknown");
 
   await sends(it, "and the next one");
   assert.equal(requests.filter((each) => each.url.endsWith("/v1/ask")).length, 2, "one ask per message and nothing more");
-  assert.ok(JSON.parse(requests.filter((each) => each.url.endsWith("/v1/ask"))[1].body).input.includes("I split the requirement"), "the conversation so far goes with it");
+  const next = JSON.parse(requests.filter((each) => each.url.endsWith("/v1/ask"))[1].body);
+  assert.equal(next.session, "JOB-20261112-1200-s001", "the second message is typed into the session the first started");
+  assert.ok(next.input.includes("and the next one"));
+  assert.equal(next.input.includes("I split the requirement"), false, "nothing of the conversation is sent to the running session again");
+  assert.equal(next.input.includes("you must read"), false, "the second message carries no instruction to read Agent M's files");
   assert.equal(byClass(it.target, "hand-over").length, 0, "no piece of a plan is shown");
   assert.equal(byClass(it.target, "review").length, 0, "no draft is offered for review");
   assert.equal(it.instance.attempts.length, 0, "nothing is committed: no piece is handed over");
@@ -748,4 +769,156 @@ test("TST-1112005: a message to a CLI session goes to its Bridge with the page, 
   await drawn(bound);
   await sends(bound, "split this requirement");
   assert.ok(textOf(one(bound.target, "problem")).includes("could not be read"), "counter-proof: an endpoint stays bound to its answer's form");
+});
+
+// ---------------------------------------------------------------- a CLI session kept running for the conversation (UC-049 step 4, 4b, 4g, 4h, 5a, 6d; ARC-055)
+
+// A Bridge mac that keeps CLI sessions as ARC-055 says, behind the global fetch: POST /v1/ask answers with the session it types the message into — the one the
+// request names, else a new one — or, where `outcomes` says so, 404 not-found; its ask answers running once, then done with the outcome's text, or failed with the
+// agent's exit; GET /v1/jobs lists each session with its state, GET /v1/jobs/{id}/log gives its console, POST /v1/jobs/{id}/cancel ends it. Every request is kept.
+function sessionBridge({ outcomes, listed = {}, console: shown = { lines: ["fixture opencode ready", "> split this requirement"], partial: "✻ working" } }) {
+  requests = [];
+  bridgeCalls = [];
+  const kept = { sent: [], asks: new Map(), jobs: new Map(Object.entries(listed)), cancels: [], made: 0 };
+  globalThis.fetch = async (url, init) => {
+    const { pathname } = new URL(String(url));
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(String(init.body)) : null;
+    kept.sent.push({ method, pathname, body, page: showing() });
+    if (pathname === "/v1/pair") return json({ bridge: { name: "mac", version: "1.0.0", platform: "darwin" }, origin: "https://alice.github.io" });
+    if (pathname === "/v1/agents") return json({ agents: bridgeAgents.map((declared) => ({ version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] });
+    if (pathname === "/v1/ask" && method === "POST") {
+      const outcome = outcomes.shift() ?? { text: "done" };
+      if (outcome.notFound) return new Response(JSON.stringify({ error: "not-found", message: "This Bridge runs no such session." }), { status: 404, headers: { "content-type": "application/json" } });
+      const session = body.session ?? `JOB-20261112-1200-s${String(++kept.made).padStart(3, "0")}`;
+      kept.jobs.set(session, "running");
+      const ask = `ask-${kept.sent.length}`;
+      kept.asks.set(ask, { outcome, session, polled: 0 });
+      return json({ ask, session });
+    }
+    if (pathname.startsWith("/v1/ask/")) {
+      const entry = kept.asks.get(pathname.slice("/v1/ask/".length));
+      entry.polled += 1;
+      if ((entry.polled < 2 || entry.outcome.hangs) && !kept.cancels.includes(entry.session)) return json({ state: "running", text: null, calls: [], usage: null, error: null });
+      if (entry.outcome.exit !== undefined || kept.cancels.includes(entry.session)) {
+        kept.jobs.set(entry.session, kept.cancels.includes(entry.session) ? "cancelled" : entry.outcome.exit === 0 ? "done" : "failed");
+        return json({ state: "failed", text: null, calls: [], usage: null, error: `the agent exited with ${entry.outcome.exit ?? 137} before it answered` });
+      }
+      return json({ state: "done", text: entry.outcome.text, calls: [], usage: null, error: null });
+    }
+    if (pathname === "/v1/jobs") return json({ jobs: [...kept.jobs].map(([id, state]) => ({ id, product: INSTANCE_WEB, kind: "converse", agent: "opencode", state, started: "2026-11-12T12:00:00Z", usage: null })) });
+    const log = /^\/v1\/jobs\/([^/]+)\/log$/.exec(pathname);
+    if (log) return json({ lines: shown.lines, next: shown.lines.length, partial: shown.partial, ended: kept.jobs.get(decodeURIComponent(log[1])) !== "running" });
+    const cancel = /^\/v1\/jobs\/([^/]+)\/cancel$/.exec(pathname);
+    if (cancel) { kept.cancels.push(decodeURIComponent(cancel[1])); kept.jobs.set(decodeURIComponent(cancel[1]), "cancelled"); return json({ confirmed: true }); }
+    return new Response("{}", { status: 404 });
+  };
+  const asks = () => kept.sent.filter((each) => each.method === "POST" && each.pathname === "/v1/ask").map((each) => each.body);
+  return { kept, asks };
+}
+const keptSession = (it) => readTabValue(it.store, "prompt-bar:session");
+
+// TST-20261112601 · level: component · module: MOD-prompt-bar
+// guards: UC-049; EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+// given: the one CLI session mac:opencode; a Bridge mac that keeps sessions, whose console of a session shows the lines "fixture opencode ready", "> split this requirement" and, being written, "✻ working"; the instance's AGENTS.md "# The rules of the instance"
+// input: Send "split this requirement"; then the bar drawn anew on the same tab — the page reloaded — and Send "and the next one"
+// expect: while the first message runs, the bar shows the session's console under it — its lines and the part its screen shows; the tab keeps the session { bridge: mac, agent: opencode, id: JOB-20261112-1200-s001, sent: 1 } as soon as the Bridge named it; after the reload the second message names that session, holds nothing of the conversation so far and no instruction to read Agent M's files, and the tab counts two messages sent to it
+test("TST-20261112601: the conversation keeps its CLI session, shows its console while it works, and a reloaded tab's next message goes to the same session", async () => {
+  const bridge = sessionBridge({ outcomes: [{ text: "I split it." }, { text: "Done." }] });
+  const tab = new Storage();
+  const it = page({ offer: [session("opencode")], instanceFiles: { "AGENTS.md": "# The rules of the instance\n" }, tab });
+  await drawn(it);
+  one(it.target, "instruction").value = "split this requirement";
+  one(it.target, "send").dispatchEvent(trusted());
+  await until(() => one(it.target, "session-console") && textOf(one(it.target, "session-console")).includes("✻ working"), "the session's console under the message");
+  assert.ok(textOf(one(it.target, "session-console")).includes("fixture opencode ready"), textOf(one(it.target, "session-console")));
+  assert.deepEqual(keptSession(it), { bridge: "mac", agent: "opencode", id: "JOB-20261112-1200-s001", sent: 1 });
+  await until(() => currentJob() === null, "the message has run", 20000);
+  await tick();
+  it.bar.stop();
+  const again = page({ offer: [session("opencode")], instanceFiles: { "AGENTS.md": "# The rules of the instance\n" }, tab });
+  await drawn(again);
+  await sendsToSession(again, "and the next one");
+  const [first, second] = bridge.asks();
+  assert.equal(first.session, undefined);
+  assert.equal(second.session, "JOB-20261112-1200-s001");
+  assert.equal(second.input.includes("you must read"), false, second.input.slice(0, 80));
+  assert.equal(second.input.includes("I split it."), false, "nothing of the conversation is sent again");
+  assert.equal(keptSession(again).sent, 2);
+});
+
+// TST-20261112602 · level: component · module: MOD-prompt-bar
+// guards: UC-049
+// given: a conversation that keeps the session JOB-20261112-1200-s001 of mac:opencode, answered "I split it."; then the Bridge answers the next message naming it with not-found, and lists the session cancelled — it ended with its Bridge (4g)
+// input: Send "and the next one"
+// expect: the bar says that the session ended with its Bridge; the message is sent again without a session, starting JOB-20261112-1200-s002, with the conversation so far — "I split it." among it — once, beginning with the instruction to read Agent M's files; its answer "Done again." is shown; the tab keeps the new session
+test("TST-20261112602: a session its Bridge ended is named so, and the message starts a new session given the conversation so far", async () => {
+  const bridge = sessionBridge({ outcomes: [{ text: "I split it." }, { notFound: true }, { text: "Done again." }] });
+  const it = page({ offer: [session("opencode")] });
+  await drawn(it);
+  await sendsToSession(it, "split this requirement");
+  await sendsToSession(it, "and the next one");
+  const [, refused, again] = bridge.asks();
+  assert.equal(refused.session, "JOB-20261112-1200-s001");
+  assert.equal(again.session, undefined, "the message is sent again, starting a new session");
+  assert.ok(again.input.includes("I split it."), "the new session is given the conversation so far");
+  assert.match(textOf(it.target), /ended with its Bridge/);
+  assert.ok(byClass(it.target, "message").some((node) => textOf(node).includes("Done again.")));
+  assert.deepEqual(keptSession(it), { bridge: "mac", agent: "opencode", id: "JOB-20261112-1200-s002", sent: 1 });
+  assert.ok(again.input.startsWith("Before anything else, you must read"), "the new session is told to read Agent M's files");
+});
+
+// TST-20261112603 · level: component · module: MOD-prompt-bar
+// guards: UC-049
+// given: a Bridge whose session's agent exits with 3 before it answers the first message; its listing then failed; its console's last lines "fixture opencode ready", "> split this requirement" and "✻ working"
+// input: Send "split this requirement"; then Send "try again"
+// expect: the bar shows what the console showed last and that the session ended with its agent's exit — its exit 3 named —; the tab keeps no session; the next message starts a new session (no session named) given the conversation so far, "split this requirement" among it
+test("TST-20261112603: a session whose agent exits shows the console's last lines and the exit, and the next message starts a new session", async () => {
+  const bridge = sessionBridge({ outcomes: [{ exit: 3 }, { text: "Now it works." }] });
+  const it = page({ offer: [session("opencode")] });
+  await drawn(it);
+  await sendsToSession(it, "split this requirement");
+  const said = textOf(it.target);
+  assert.match(said, /ended by its agent/, said);
+  assert.match(said, /exited with 3/, said);
+  assert.ok(textOf(one(it.target, "session-console")).includes("> split this requirement"), "the console's last lines are shown");
+  assert.equal(keptSession(it), null, "the conversation forgets the session");
+  await sendsToSession(it, "try again");
+  const second = bridge.asks()[1];
+  assert.equal(second.session, undefined);
+  assert.ok(second.input.includes("split this requirement"));
+});
+
+// TST-20261112604 · level: component · module: MOD-prompt-bar
+// guards: UC-049; A CANCELLED JOB WRITES NOTHING MORE
+// given: a session of mac:opencode whose ask is still running; and, on a second page, a conversation that keeps a session answered "I split it."
+// input: Stop while the first message runs; on the second page Clear conversation, then Send "start afresh"
+// expect: Stop sends POST /v1/jobs/JOB-20261112-1200-s001/cancel, the bar says it stopped, and the tab keeps no session; Clear conversation sends the cancel of the kept session, empties the conversation and keeps no session; the next message names no session and is given no earlier message
+test("TST-20261112604: Stop and Clear conversation end the session the conversation keeps", async () => {
+  const bridge = sessionBridge({ outcomes: [{ text: "never", hangs: true }] });
+  const it = page({ offer: [session("opencode")] });
+  await drawn(it);
+  one(it.target, "instruction").value = "split this requirement";
+  one(it.target, "send").dispatchEvent(trusted());
+  await until(() => keptSession(it) !== null, "the session is kept");
+  click(one(it.target, "stop"));
+  await until(() => currentJob() === null, "the message has ended", 20000);
+  await tick();
+  assert.ok(bridge.kept.cancels.includes("JOB-20261112-1200-s001"), JSON.stringify(bridge.kept.cancels));
+  assert.match(textOf(one(it.target, "status")), /Stopped/);
+  assert.equal(keptSession(it), null);
+
+  const other = sessionBridge({ outcomes: [{ text: "I split it." }, { text: "Fresh." }] });
+  const second = page({ offer: [session("opencode")] });
+  await drawn(second);
+  await sendsToSession(second, "split this requirement");
+  click(one(second.target, "clear"));
+  await until(() => other.kept.cancels.length === 1, "the kept session is cancelled");
+  assert.equal(other.kept.cancels[0], "JOB-20261112-1200-s001");
+  assert.equal(byClass(second.target, "message").length, 0);
+  assert.equal(keptSession(second), null);
+  await sendsToSession(second, "start afresh");
+  const next = other.asks()[1];
+  assert.equal(next.session, undefined);
+  assert.equal(next.input.includes("split this requirement"), false, "no earlier message is given");
 });

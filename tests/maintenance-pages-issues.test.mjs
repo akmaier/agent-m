@@ -1,4 +1,4 @@
-// A product's issues are analysed, and the class is confirmed, corrected or the issue rejected in one click (ITM-582) — MOD-maintenance-pages' routes `issues` and `issue/<number>` over MOD-issue-handling's confirmClass and recipe issue-context, as the accepted text of docs/architecture/MOD-maintenance-pages.md states them (:117-120): "`issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`". UC-012 steps 2 to 4, 3a and 4a.
+// A product's issues are listed and each one shown (ITM-582) — MOD-maintenance-pages' routes `issues` and `issue/<number>`, as the accepted text of docs/architecture/MOD-maintenance-pages.md states them: "`issues`, `issue/<number>` — the product's issues; *Implement*, which puts the request to handle the issue as UC-012 does … into the prompt bar". UC-012 step 2. Implement itself is tests/maintenance-pages-implement.test.mjs'.
 // Run: node --test tests/maintenance-pages-issues.test.mjs
 //
 // Module: MOD-maintenance-pages; MOD-issue-handling; MOD-job-runner
@@ -9,12 +9,8 @@
 // MOD-repository-hosts are the real ones. Readings the texts leave open, which the tests state (the pull request names them):
 //   - The product is the one the frame has chosen (`context.product`); without one the page says so and reads nothing. Route names: `issues` (in the menu entry maintenance) and `issue` (out of the menu), whose parameter `number` is the issue's number: the address is `#issue/number=<n>`.
 //   - `issues` lists the open and closed issues (UC-012 step 2; MOD-maintenance-pages: `listIssues` with `state: "all"`): <ul class="issue-list"> of <li class="issue" data-issue="<n>"> with <a class="issue-link"> (href `#issue/number=<n>/product=<the product, percent-encoded>`; its click, by a person, goes to the route `issue` with `number`), the title, and <span class="issue-class"> — the class its label says:
-//     defect, change or not-reproducible, else "not classified".
-//   - `issue` shows <h2> with the number and title, <pre class="issue-text"> with the issue's text, <span class="issue-class">, and, for an open issue, <section class="issue-analysis"> and <section class="issue-decision">. A closed issue shows its text and its class only.
-//   - The analysis: <input class="participant"> (radio) for each participant of the instance's register that declares draft text, with its place; <input class="person">; once a participant and a name are given, the run panel of the kind analyse-issue over this issue; Run (the person's click) runs the job in this tab and its start
-//     record is committed to the product. The proposal is <section class="issue-proposal"> with <p class="proposed-class"> (the class), <p class="proposed-reasoning"> and <li class="proposed-wrong"> for each file named. Nothing is written to the issue by the analysis.
-//   - The decision: <button class="set-class" data-class="bug|change|not-reproducible"> — labelled "Bug", "Change", "Not reproducible" before a proposal, "Confirm <class>" for the class proposed and "Correct to <class>" for another after it —, <input class="reject-reason"> and <button class="reject"> "Reject issue",
-//     disabled while the reason is blank. A click is a person's (`isTrusted`) or does nothing. After a class click the page shows <p class="issue-classified" data-class data-how="confirmed|corrected|set">; after a rejection <p class="issue-rejected"> with the reason; a failure is <p class="issue-problem">, nothing is half done, and the controls stay.
+//     defect or change (UC-012 step 3), else "not classified" — a label not-reproducible included.
+//   - `issue` shows <h2> with the number and title, <pre class="issue-text"> with the issue's text, <span class="issue-class">, and, for an open issue, <button class="implement-issue"> Implement. A closed issue shows its text and its class only.
 // The counter-proofs are recorded in the pull request.
 
 import test, { afterEach } from "node:test";
@@ -84,7 +80,7 @@ async function analysed(w) {
 // guards: UC-012; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: known positive first — the page is loaded; the product alice/product with the open issues 5 to 8, of which 6 to 8 carry the label defect, change and not-reproducible, and the closed issue 9
 // input: the route issues is drawn; the link of issue 5 is clicked by a script and then by a person
-// expect: the issues requested are of the state all; the list holds 5, 6, 7, 8 and 9, with the class each label says — "not classified" for 5, defect, change, not-reproducible; the link of 5 has the href #issue/number=5/product=<the product>; the script's click goes nowhere and the person's goes to the route issue with number 5
+// expect: the issues requested are of the state all; the list holds 5, 6, 7, 8 and 9, with the class each label says — "not classified" for 5, defect, change, "not classified" for 8, whose label is neither defect nor change; the link of 5 has the href #issue/number=5/product=<the product>; the script's click goes nowhere and the person's goes to the route issue with number 5
 test("issues — lists the product's open and closed issues with their class, and a person's click on one goes to its page", async () => {
   const w = start();
   const target = await open(w, "issues");
@@ -92,7 +88,7 @@ test("issues — lists the product's open and closed issues with their class, an
   assert.deepEqual(w.listed, ["all"]);
   const items = byClass(target, "issue");
   assert.deepEqual(items.map((node) => [node.getAttribute("data-issue"), textOf(one(node, "issue-class"))]),
-    [["5", "not classified"], ["6", "defect"], ["7", "change"], ["8", "not-reproducible"], ["9", "defect"]]);
+    [["5", "not classified"], ["6", "defect"], ["7", "change"], ["8", "not classified"], ["9", "defect"]]);
   assert.ok(textOf(items[0]).includes("Export is cut off"));
   const link = one(items[0], "issue-link");
   assert.equal(link.getAttribute("href"), `#issue/number=5/product=${encodeURIComponent(PRODUCT_URL)}`);
@@ -127,186 +123,25 @@ test("issues — says to choose a product where none is chosen, and that there i
 // guards: UC-012
 // given: the open issue 5 with no label, and the closed issue 9 labelled defect
 // input: the route issue with number 5, 9 and 99
-// expect: issue 5: its number, title and text, "not classified", the analysis (participants and name) and the decision — buttons Bug, Change, Not reproducible and Reject issue, the last disabled —; issue 9: its text and class defect and neither analysis nor decision; 99: a problem naming it, and nothing else
-test("issue — shows the issue with the analysis and the decision, a closed issue without them, and says when the issue is not there", async () => {
+// expect: issue 5: its number, title and text, "not classified", and Implement; issue 9: its text and class defect and no Implement; 99: a problem naming it, and nothing else
+test("issue — shows the issue with Implement, a closed issue without it, and says when the issue is not there", async () => {
   const w = start();
   const detail = await open(w, "issue", { number: "5" });
   await waitFor(() => byClass(detail, "issue-text").length > 0);
   assert.ok(textOf(detail).includes("#5") && textOf(detail).includes("Export is cut off"));
   assert.equal(one(detail, "issue-text").textContent, ISSUE_TEXT);
   assert.equal(textOf(one(detail, "issue-class")), "not classified");
-  assert.equal(byClass(detail, "issue-analysis").length, 1);
-  assert.deepEqual(byClass(detail, "set-class").map((node) => [node.getAttribute("data-class"), node.textContent]), [["bug", "Bug"], ["change", "Change"], ["not-reproducible", "Not reproducible"]]);
-  const reject = buttonsOf(detail, "Reject issue")[0];
-  assert.equal(reject.disabled, true);
+  assert.deepEqual(buttonsOf(detail, "Implement").length, 1);
 
   const closed = await open(w, "issue", { number: "9" });
   await waitFor(() => byClass(closed, "issue-text").length > 0);
   assert.equal(textOf(one(closed, "issue-class")), "defect");
-  assert.deepEqual([byClass(closed, "issue-analysis").length, byClass(closed, "issue-decision").length], [0, 0]);
+  assert.equal(byClass(closed, "implement-issue").length, 0);
 
   const missing = await open(w, "issue", { number: "99" });
   await waitFor(() => byClass(missing, "issue-problem").length > 0);
   assert.match(textOf(one(missing, "issue-problem")), /99/);
   assert.equal(byClass(missing, "issue-text").length, 0);
-});
-
-// TST-582304 · level: component · module: MOD-maintenance-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; UC-012
-// given: the issue 5 naming FIRST RULE; a register with local-llm (this machine) and cloud-llm (a provider in the USA), both declaring draft text, and checker, which declares only read the repository
-// input: the issue opened; a participant and a name given step by step
-// expect: the participants offered are local-llm and cloud-llm, each with its place, not checker; no run panel before both a participant and a name are given; then the panel names local-llm, its place, and the parts it receives — "issue #5" and "FIRST RULE" —; nothing is sent, stored or written to the issue yet
-test("Analyse — offers the participants that can draft text with their places, and its run panel names what the participant receives, before anything is sent", async () => {
-  const w = start();
-  const detail = await open(w, "issue", { number: "5" });
-  await waitFor(() => byClass(detail, "participant").length > 0);
-  assert.deepEqual(byClass(detail, "participant").map((radio) => radio.value), ["local-llm", "cloud-llm"]);
-  const places = byClass(detail, "issue-participant").map((node) => textOf(node));
-  assert.ok(places[0].includes("this machine") && places[1].includes("a provider in the USA"), places.join(" | "));
-  const radio = byClass(detail, "participant")[0];
-  radio.checked = true;
-  radio.dispatchEvent(new Event("change"));
-  await flush();
-  assert.equal(byClass(detail, "run-panel").length, 0, "no panel before a name is given");
-  one(detail, "person").value = "Reviewer Rae";
-  radio.dispatchEvent(new Event("change"));
-  await waitFor(() => byClass(detail, "run-panel").length > 0);
-  const panel = textOf(one(detail, "run-panel"));
-  assert.ok(panel.includes("local-llm") && panel.includes("this machine"), panel);
-  assert.ok(panel.includes("issue #5") && panel.includes("FIRST RULE"), panel);
-  assert.deepEqual([w.kept.endpoint, writesToIssues(w)], [[], []]);
-  assert.equal(w.kept.github.some((request) => request.method !== "GET"), false, "nothing is committed before Run");
-});
-
-// TST-582305 · level: component · module: MOD-maintenance-pages
-// guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-012
-// given: the run panel of TST-582304 and an endpoint that proposes the class change with its reasoning and two files that are wrong
-// input: a click a script makes on Run; the person's click on Run
-// expect: the script's click asks nothing; the endpoint is asked once and its request holds the issue's text and the requirement FIRST RULE; the job's start record is committed to the product; the page shows the class change, the reasoning and both files, and the decision's buttons now read Correct to bug, Confirm change and Correct to not reproducible; the analysis wrote nothing to the issue
-test("Analyse — runs on the person's click and shows the class proposed with its reasoning, and writes nothing to the issue", async () => {
-  const w = start();
-  const detail = await ready(w);
-  const run = buttonsOf(one(detail, "run-panel"), "Run")[0];
-  run.dispatchEvent(new Event("click"));
-  await flush();
-  assert.deepEqual(w.kept.endpoint, []);
-  await trusted(run);
-  await waitFor(() => byClass(detail, "issue-proposal").length > 0);
-  assert.equal(w.kept.endpoint.length, 1);
-  const sent = JSON.stringify(w.kept.endpoint[0].body);
-  assert.ok(sent.includes("is cut off after the second page") && sent.includes("The first rule holds."), "the request holds the issue and the requirement");
-  assert.ok(w.kept.github.some((request) => request.method !== "GET" && request.path.includes("/git/")), "the start record is committed");
-  assert.equal(textOf(one(detail, "proposed-class")).includes("change"), true);
-  assert.ok(textOf(one(detail, "proposed-reasoning")).includes("a requirement is missing"));
-  assert.deepEqual(byClass(detail, "proposed-wrong").map((node) => textOf(node)), PROPOSAL.wrong);
-  assert.deepEqual(byClass(detail, "set-class").map((node) => node.textContent), ["Correct to bug", "Confirm change", "Correct to not reproducible"]);
-  assert.deepEqual(writesToIssues(w), []);
-});
-
-// TST-582306 · level: component · module: MOD-maintenance-pages
-// guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-012
-// given: the proposal of TST-582305
-// input: a click a script makes on Confirm change; the person's click on it
-// expect: the script's click writes nothing; the person's writes the label change and removes defect and not-reproducible, and nothing else; the page shows "confirmed" and the class change, in the issue's class and in <p class="issue-classified">
-test("Confirm — one click on the class proposed sets its label and removes the other two", async () => {
-  const w = start();
-  const detail = await analysed(w);
-  const confirm = buttonsOf(detail, "Confirm change")[0];
-  confirm.dispatchEvent(new Event("click"));
-  await flush();
-  assert.deepEqual(writesToIssues(w), []);
-  await trusted(confirm);
-  await waitFor(() => byClass(detail, "issue-classified").length > 0);
-  assert.deepEqual(writesToIssues(w).sort(), ["DELETE /issues/5/labels/defect", "DELETE /issues/5/labels/not-reproducible", "POST /issues/5/labels"]);
-  assert.deepEqual(JSON.parse(w.kept.github.find((request) => request.method === "POST" && request.path.endsWith("/issues/5/labels")).body), { labels: ["change"] });
-  assert.deepEqual(issueOf(w, 5).labels, ["change"]);
-  const classified = one(detail, "issue-classified");
-  assert.deepEqual([classified.getAttribute("data-class"), classified.getAttribute("data-how")], ["change", "confirmed"]);
-  assert.equal(textOf(one(detail, "issue-class")), "change");
-  assert.equal(issueOf(w, 5).state, "open");
-});
-
-// TST-582307 · level: component · module: MOD-maintenance-pages
-// guards: ONE CLICK PER DECISION; UC-012
-// given: the proposal change of TST-582305, and an issue that carries the label change already
-// input: the person's click on Correct to bug
-// expect: the label defect is added and change and not-reproducible removed; the page shows "corrected" and the class bug; the issue stays open
-test("Correct — one click on another class than the one proposed sets that class", async () => {
-  const w = start({ issues: [issueRecord(5, "open", ["change"], "Export is cut off")] });
-  const detail = await analysed(w);
-  await trusted(buttonsOf(detail, "Correct to bug")[0]);
-  await waitFor(() => byClass(detail, "issue-classified").length > 0);
-  assert.deepEqual(issueOf(w, 5).labels, ["defect"]);
-  const classified = one(detail, "issue-classified");
-  assert.deepEqual([classified.getAttribute("data-class"), classified.getAttribute("data-how")], ["bug", "corrected"]);
-  assert.equal(issueOf(w, 5).state, "open");
-});
-
-// TST-582308 · level: component · module: MOD-maintenance-pages
-// guards: ONE CLICK PER DECISION; UC-012
-// given: the issue 5 opened and not analysed
-// input: the person's click on Not reproducible
-// expect: the label not-reproducible is set and the others removed; the page shows "set" and the class not-reproducible — a class needs no analysis first
-test("Set a class — the author may classify an issue without an analysis", async () => {
-  const w = start();
-  const detail = await open(w, "issue", { number: "5" });
-  await waitFor(() => byClass(detail, "set-class").length > 0);
-  await trusted(buttonsOf(detail, "Not reproducible")[0]);
-  await waitFor(() => byClass(detail, "issue-classified").length > 0);
-  assert.deepEqual(issueOf(w, 5).labels, ["not-reproducible"]);
-  assert.equal(one(detail, "issue-classified").getAttribute("data-how"), "set");
-});
-
-// TST-582309 · level: component · module: MOD-maintenance-pages
-// guards: UC-012
-// given: the issue 5, open and unlabelled
-// input: the reason field empty, then blank, then "Duplicate of #3."; a click a script makes on Reject issue; the person's click
-// expect: Reject issue is disabled while the reason is blank and enabled once it is given; the script's click writes nothing; the person's comments the reason on the issue, closes it and touches no label; the page shows the rejection with its reason and offers neither analysis nor decision any more
-test("Reject — closes the issue with the reason in one click, and changes nothing else", async () => {
-  const w = start();
-  const detail = await open(w, "issue", { number: "5" });
-  await waitFor(() => byClass(detail, "reject-reason").length > 0);
-  const reason = one(detail, "reject-reason");
-  const reject = buttonsOf(detail, "Reject issue")[0];
-  assert.equal(reject.disabled, true);
-  reason.value = "   ";
-  reason.dispatchEvent(new Event("input"));
-  assert.equal(reject.disabled, true);
-  reason.value = "Duplicate of #3.";
-  reason.dispatchEvent(new Event("input"));
-  assert.equal(reject.disabled, false);
-  reject.dispatchEvent(new Event("click"));
-  await flush();
-  assert.deepEqual(writesToIssues(w), []);
-  await trusted(reject);
-  await waitFor(() => byClass(detail, "issue-rejected").length > 0);
-  assert.deepEqual(writesToIssues(w), ["POST /issues/5/comments", "PATCH /issues/5"]);
-  assert.deepEqual(w.kept.github.filter((request) => request.method === "POST" && request.path.endsWith("/issues/5/comments")).map((request) => JSON.parse(request.body).body), ["Duplicate of #3."]);
-  assert.equal(issueOf(w, 5).state, "closed");
-  assert.deepEqual(issueOf(w, 5).labels, []);
-  assert.ok(textOf(one(detail, "issue-rejected")).includes("Duplicate of #3."));
-  assert.deepEqual([byClass(detail, "issue-analysis").length, byClass(detail, "issue-decision").length], [0, 0]);
-});
-
-// TST-582310 · level: component · module: MOD-maintenance-pages
-// guards: UC-012
-// given: a token that may not comment (GitHub answers 403 to a comment), the issue 5
-// input: a reason given and the person's click on Reject issue
-// expect: the page shows a problem that says nothing was done by naming the permission; the issue is not closed and no label changed; the controls stay, so the click can be made again
-test("Reject — a refused comment is shown, and the issue stays open", async () => {
-  const w = start({ commentStatus: 403 });
-  const detail = await open(w, "issue", { number: "5" });
-  await waitFor(() => byClass(detail, "reject-reason").length > 0);
-  const reason = one(detail, "reject-reason");
-  reason.value = "Duplicate of #3.";
-  reason.dispatchEvent(new Event("input"));
-  await trusted(buttonsOf(detail, "Reject issue")[0]);
-  await waitFor(() => byClass(detail, "issue-problem").length > 0);
-  assert.match(textOf(one(detail, "issue-problem")), /permission|token/i);
-  assert.equal(issueOf(w, 5).state, "open");
-  assert.equal(writesToIssues(w).some((line) => line.startsWith("PATCH")), false);
-  assert.equal(buttonsOf(detail, "Reject issue")[0].disabled, false);
-  assert.equal(byClass(detail, "issue-rejected").length, 0);
 });
 
 // TST-582311 · level: component · module: MOD-maintenance-pages

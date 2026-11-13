@@ -37,8 +37,9 @@ function fakeMailbox({ found = {}, drafts = [], sent = [], sendFails = null, sen
   const calls = log;
   return { calls,
     read: async () => { calls.push(["mailbox.read"]); return []; },
-    find: async (id) => { calls.push(["mailbox.find", id]); return found[id] ?? null; },
-    drafts: async () => { calls.push(["mailbox.drafts"]); if (draftsFail) throw draftsFail; return drafts; },
+    // MOD-mail-routes' find(ids): every identifier asked answered with its Mail or null, in one call.
+    find: async (ids) => { calls.push(["mailbox.find", ids]); return Object.fromEntries(ids.map((id) => [id, found[id] ?? null])); },
+    drafts: async (since) => { calls.push(["mailbox.drafts", since]); if (draftsFail) throw draftsFail; return drafts; },
     sent: async (since) => { calls.push(["mailbox.sent", since]); return sent; },
     storeDraft: async (draft) => {
       calls.push(["mailbox.storeDraft", draft]);
@@ -210,6 +211,34 @@ test("TST-953008 finding the replies due stores and sends nothing", async () => 
   assert.deepEqual(callsOf(log, "host.listIssues"), [["host.listIssues", { state: "all" }]]);
 });
 
+// TST-20261112806
+// level: unit
+// module: MOD-mail-handling
+// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; UC-039
+// given: closed issue 8 lists A (no note) and B (reply-sent noted); closed issue 10 lists C, noted, so it is in no group; open issue 9 lists D; the mailbox holds A, B and D
+// input: repliesDue(mailbox, [{ address, host }])
+// expect: the mailbox's find is called once, with the listed mails of the issues it groups — A, B and D — and not C; each grouped mail is answered from that one find (A, B and D found); counter-proof: with issue 10 open, C is in that one find too
+test("TST-20261112806 the listed mails of the grouped issues are found in one find", async () => {
+  const issues = (tenState) => [
+    issue(8, listing(A, B), { state: "closed", comments: [comment(`Reply sent to \`${B.id}\` on 2026-10-12.`)] }),
+    issue(10, listing(C), { state: tenState, comments: [comment(`Reply sent to \`${C.id}\` on 2026-10-12.`)] }),
+    issue(9, listing(D)),
+  ];
+  const found = { [A.id]: mail(A), [B.id]: mail(B), [C.id]: mail(C), [D.id]: mail(D) };
+  let log = [];
+  const result = await handling.repliesDue?.(fakeMailbox({ found, log }), [{ address: PRODUCT, host: fakeHost(issues("closed")) }]);
+  const finds = callsOf(log, "mailbox.find");
+  assert.equal(finds.length, 1, "one find");
+  assert.deepEqual([...finds[0][1]].sort(), [A.id, B.id, D.id].sort());
+  assert.deepEqual(result?.toAnswer.flatMap((due) => due.mails.map((m) => [m.id, m.mail?.id ?? null])), [[A.id, A.id], [B.id, B.id]]);
+  assert.deepEqual(result?.open.flatMap((due) => due.mails.map((m) => [m.id, m.mail?.id ?? null])), [[D.id, D.id]]);
+  log = [];
+  await handling.repliesDue?.(fakeMailbox({ found, log }), [{ address: PRODUCT, host: fakeHost(issues("open")) }]);
+  const again = callsOf(log, "mailbox.find");
+  assert.equal(again.length, 1, "counter-proof: still one find");
+  assert.deepEqual([...again[0][1]].sort(), [A.id, B.id, C.id, D.id].sort());
+});
+
 // TST-953009
 // level: unit
 // module: MOD-mail-handling
@@ -375,6 +404,25 @@ test("TST-20261112303 repliesDue reads the Sent mails of the last 30 days: sent 
     const log = [];
     await handling.repliesDue?.(fakeMailbox({ found: { [A.id]: mail(A) }, log }), [{ address: PRODUCT, host: fakeHost([issue(8, listing(A), { state: "closed" })]) }]);
     asked.push(...callsOf(log, "mailbox.sent").map((call) => call[1]));
+    t.mock.timers.reset();
+  }
+  assert.deepEqual(asked, ["2026-10-06", "2026-02-13"]);
+});
+
+// TST-20261112308
+// level: unit
+// module: MOD-mail-handling
+// guards: THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; UC-039
+// given: the clock at 2026-11-05T12:00:00Z (node's mocked Date), then, as counter-proof, at 2026-03-15T00:30:00Z; a closed issue listing A
+// input: repliesDue, once at each now
+// expect: the mailbox's drafts is asked once each time, with the date 30 days before now — "2026-10-06", then "2026-02-13" —, never without a date, which reads the whole folder
+test("TST-20261112308 repliesDue reads the Drafts of the last 30 days: drafts with the date 30 days before now", async (t) => {
+  const asked = [];
+  for (const now of [Date.UTC(2026, 10, 5, 12, 0, 0), Date.UTC(2026, 2, 15, 0, 30, 0)]) {
+    t.mock.timers.enable({ apis: ["Date"], now });
+    const log = [];
+    await handling.repliesDue?.(fakeMailbox({ found: { [A.id]: mail(A) }, log }), [{ address: PRODUCT, host: fakeHost([issue(8, listing(A), { state: "closed" })]) }]);
+    asked.push(...callsOf(log, "mailbox.drafts").map((call) => call[1]));
     t.mock.timers.reset();
   }
   assert.deepEqual(asked, ["2026-10-06", "2026-02-13"]);

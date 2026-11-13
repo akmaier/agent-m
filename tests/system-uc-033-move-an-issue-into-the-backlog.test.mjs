@@ -1,4 +1,4 @@
-// System tests of UC-033 "Move an issue into the backlog": the main flow for a bug and for a change, as the dashboard's route `issue` reaches it — from the issue analysed and its class confirmed (UC-012) to the item prefilled, checked, added, and
+// System tests of UC-033 "Move an issue into the backlog": the main flow for a bug and for a change, as the dashboard's route `issue` reaches it — from the issue classified by its label (UC-012) to the item prefilled, checked, added, and
 // derived as ready or waiting for acceptance; the alternative flows 1a, 2a, 2b, 4a, 4b and 1b; the step that checks the item; and, once the item's pull request is merged, the issue closed with a link to it and to the item (step 6).
 // TST-804201 maps every flow of UC-033 to the system test that walks it.
 // Run: node --test tests/system-uc-033-move-an-issue-into-the-backlog.test.mjs
@@ -24,8 +24,8 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
-import { ADDRESS, BODY, EXISTING, PRODUCT_URL, addOf, analysed, buttonsOf, byClass, decided, drafted, errorsOf, fieldOf, flush, issueNow, issuesOf, itemFiles, itemOfFile, itemPath, itemText, jobRecord, moveOf, moved, one, openIssue,
-  pressAdd, pullOf, queueFiles, queueOf, recordWrites, restoreWorld, saved, startWorld, stateOf, textOf, trusted, typed, waitFor, warningsOf, writtenFiles } from "./uc-033-harness.mjs";
+import { ADDRESS, BODY, EXISTING, PRODUCT_URL, addOf, buttonsOf, byClass, errorsOf, fieldOf, flush, issueNow, issuesOf, itemFiles, itemOfFile, itemPath, itemText, jobRecord, moveOf, moved, one, openIssue,
+  pressAdd, pullOf, queueOf, recordWrites, restoreWorld, startWorld, stateOf, textOf, trusted, typed, waitFor, warningsOf, writtenFiles } from "./uc-033-harness.mjs";
 
 // The map reads files only and draws no page, so that there is no world to put back after it.
 afterEach(() => { if (globalThis.document) restoreWorld(); });
@@ -86,56 +86,47 @@ const idOf = (entry) => /^docs\/backlog\/(ITM-\d{3,})-/.exec(entry.path)[1];
 const treePaths = (write) => JSON.parse(write.body).tree.map((entry) => entry.path);
 const methods = (writes) => writes.map((write) => `${write.method} ${write.path}`);
 
-/** The issue `number` analysed by local-llm and its class `cls` confirmed by the person's click, and its move section waited for. */
-async function classified(w, number, cls) {
-  const detail = await analysed(await openIssue(w, number));
-  await decided(detail, cls);
-  await waitFor(() => moveOf(detail) !== undefined && buttonsOf(moveOf(detail), "Move to backlog").length === 1);
-  return detail;
-}
 
 // ---------------------------------------------------------------- the main flow, a bug
 
 // TST-804202 · level: system · module: system
 // guards: UC-033; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the open issue 5 of alice/product, not classified, whose text is "The export is cut off after the second page; FIRST RULE says nothing about page counts."; the architecture describes MOD-store (src/store/) and MOD-pages (src/pages/); the backlog holds ITM-0900 and ITM-800; local-llm analyses the issue as a bug that src/store/read.mjs causes
-// input: steps 1 to 4 — the Product Owner has local-llm analyse the issue and confirms the class bug (UC-012), presses Move to backlog, reads the item, names the requirement FIRST RULE, and presses Add
-// expect: before the confirmation the page offers no Move to backlog; after it the click writes nothing and shows the item prefilled — title "Export loses pages" from the issue, origin https://github.com/alice/product/issues/5, modules MOD-store (the module whose folder holds the file the analysis names), realises empty —, Add disabled with an error that names what it realises; once FIRST RULE is named, Add is enabled; Add writes in this order one tree and one commit to the default branch main, the comment and the label, and nothing else; the item file docs/backlog/ITM-<nnn>-export-loses-pages.md (the identifier after ITM-0900) holds title, level module, realises FIRST RULE, modules MOD-store, origin the issue's address and the issue's text as its outcome; the issue carries the labels defect and backlog and the comment "Backlog item `ITM-<nnn>` added: <the item file in the product's repository>"; the page says the item was added; the item is ready once FIRST RULE is accepted, and waits for acceptance while it is not
+// given: the open issue 6 of alice/product, labelled defect (UC-012), whose text is "The export is cut off after the second page; FIRST RULE says nothing about page counts."; the architecture describes MOD-store (src/store/) and MOD-pages (src/pages/); the backlog holds ITM-0900 and ITM-800
+// input: steps 1 to 4 — the Product Owner presses Move to backlog, reads the item, names the requirement FIRST RULE and the module MOD-store, and presses Add
+// expect: the click writes nothing and shows the item prefilled — title "Export drops the last page" from the issue, origin https://github.com/alice/product/issues/6, modules and realises empty —, Add disabled with an error that names what it realises; once FIRST RULE and MOD-store are named, Add is enabled; Add writes in this order one tree and one commit to the default branch main, the comment and the label, and nothing else; the item file docs/backlog/ITM-<nnn>-export-drops-the-last-page.md (the identifier after ITM-0900) holds title, level module, realises FIRST RULE, modules MOD-store, origin the issue's address and the issue's text as its outcome; the issue carries the labels defect and backlog and the comment "Backlog item `ITM-<nnn>` added: <the item file in the product's repository>"; the page says the item was added; the item is ready once FIRST RULE is accepted, and waits for acceptance while it is not
 test("TST-804202: UC-033 a confirmed bug is moved into the backlog with one Add, and its item is ready", async () => {
-  const w = startWorld({ analysis: AS_BUG });
-  const detail = await analysed(await openIssue(w, 5));
-  assert.equal(buttonsOf(detail, "Move to backlog").length, 0, "not offered before the class is confirmed");
-  await decided(detail, "bug");
-  await waitFor(() => moveOf(detail) !== undefined && buttonsOf(moveOf(detail), "Move to backlog").length === 1);
+  const w = startWorld();
+  const detail = await openIssue(w, 6);
   const before = writtenFiles(w).length;
   const form = await moved(detail);
   assert.equal(writtenFiles(w).length, before, "Move to backlog writes nothing");
-  assert.equal(fieldOf(form, "title").value, "Export loses pages");
-  assert.equal(fieldOf(form, "origin").value, ADDRESS(5));
-  assert.equal(fieldOf(form, "modules").value, "MOD-store");
+  assert.equal(fieldOf(form, "title").value, "Export drops the last page");
+  assert.equal(fieldOf(form, "origin").value, ADDRESS(6));
+  assert.equal(fieldOf(form, "modules").value, "");
   assert.equal(fieldOf(form, "realises").value, "");
   assert.equal(addOf(form).disabled, true, "an item that realises nothing is not offered for Add");
   assert.match(errorsOf(form), /realises/);
   await typed(fieldOf(form, "realises"), "FIRST RULE");
+  await typed(fieldOf(form, "modules"), "MOD-store");
   assert.equal(addOf(form).disabled, false, errorsOf(form));
 
   const recorder = recordWrites();
   try { await pressAdd(detail, form); } finally { recorder.stop(); }
-  assert.deepEqual(methods(recorder.writes), ["POST /git/trees", "POST /git/commits", "PATCH /git/refs/heads/main", "POST /issues/5/comments", "POST /issues/5/labels"]);
+  assert.deepEqual(methods(recorder.writes), ["POST /git/trees", "POST /git/commits", "PATCH /git/refs/heads/main", "POST /issues/6/comments", "POST /issues/6/labels"]);
   const files = itemFiles(w);
   assert.equal(files.length, 1);
   const id = idOf(files[0]);
   assert.ok(Number(id.slice(4)) > 900, `${id} comes after ITM-0900`);
-  assert.equal(files[0].path, `docs/backlog/${id}-export-loses-pages.md`);
+  assert.equal(files[0].path, `docs/backlog/${id}-export-drops-the-last-page.md`);
   const item = itemOfFile(files[0]);
-  assert.equal(item.fields.title, "Export loses pages");
+  assert.equal(item.fields.title, "Export drops the last page");
   assert.equal(item.fields.level, "module");
   assert.deepEqual(item.fields.realises, ["FIRST RULE"]);
   assert.deepEqual(item.fields.modules, ["MOD-store"]);
-  assert.deepEqual(item.fields.origin, [ADDRESS(5)]);
+  assert.deepEqual(item.fields.origin, [ADDRESS(6)]);
   assert.ok(item.sections.some((section) => section.text.includes(BODY)), "the issue's text is the item's outcome");
-  assert.deepEqual(issueNow(w, 5).labels.sort(), ["backlog", "defect"]);
-  assert.deepEqual(issueNow(w, 5).comments, [NOTE(id, files[0].path)]);
+  assert.deepEqual(issueNow(w, 6).labels.sort(), ["backlog", "defect"]);
+  assert.deepEqual(issueNow(w, 6).comments, [NOTE(id, files[0].path)]);
   assert.equal(textOf(one(moveOf(detail), "move-added")), `Added ${id} to the backlog.`);
   assert.equal(stateOf(item, ["FIRST RULE"]).state, "ready", "a bug item is ready");
   assert.equal(stateOf(item, []).state, "waiting for acceptance", "counter-proof: while FIRST RULE is not accepted it waits");
@@ -145,20 +136,18 @@ test("TST-804202: UC-033 a confirmed bug is moved into the backlog with one Add,
 
 // TST-804203 · level: system · module: system
 // guards: UC-033; EVOLUTION ENTERS THROUGH THE SPECIFICATION; EVERY ARTIFACT NAMES ITS ORIGIN; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
-// given: the open issue 5, not classified; local-llm analyses it as a change and drafts the new requirement EVERY EXPORT KEEPS ALL PAGES; the product links the person's own source SRC-alice; another issue of the product, 6, has a queue of its own that changes SECOND RULE
-// input: the Product Owner confirms the class change (UC-012 step 4), drafts the change and saves it as a queue naming the issue (UC-012 step 6); presses Move to backlog, names the module MOD-store, and presses Add
-// expect: the form is prefilled with realises EVERY EXPORT KEEPS ALL PAGES, the entry of the queue that names issue 5, and not SECOND RULE, which the queue of issue 6 changes, and with origin the issue's address; Add writes the item file alone, SPEC.md and the queues unchanged by it; the item is waiting for acceptance, the reason names EVERY EXPORT KEEPS ALL PAGES, and no job can start for it, the reason naming it; once the product has accepted EVERY EXPORT KEEPS ALL PAGES the same item is ready, by itself, and nothing of its file changed
+// given: the open issue 7, labelled change, with a queue naming it that adds the new requirement EVERY EXPORT KEEPS ALL PAGES (UC-012 step 6); another issue of the product, 6, has a queue of its own that changes SECOND RULE
+// input: the Product Owner presses Move to backlog, names the module MOD-store, and presses Add
+// expect: the form is prefilled with realises EVERY EXPORT KEEPS ALL PAGES, the entry of the queue that names issue 7, and not SECOND RULE, which the queue of issue 6 changes, and with origin the issue's address; Add writes the item file alone, SPEC.md and the queues unchanged by it; the item is waiting for acceptance, the reason names EVERY EXPORT KEEPS ALL PAGES, and no job can start for it, the reason naming it; once the product has accepted EVERY EXPORT KEEPS ALL PAGES the same item is ready, by itself, and nothing of its file changed
 test("TST-804203: UC-033 a change is moved into the backlog with the requirements its queue changes, waits for their acceptance, and is ready by itself once they are accepted", async () => {
   const other = queueOf("2026-10-20c_other-issue", 6, [{ name: "FIRST RULE", text: "The first rule holds." }, { name: "SECOND RULE", text: "The second rule holds on every page." }]);
-  const w = startWorld({ analysis: AS_CHANGE, change: CHANGE, product: other });
-  const detail = await analysed(await openIssue(w, 5));
-  await decided(detail, "change");
-  await saved(await drafted(detail));
-  assert.ok(queueFiles(w).some((entry) => entry.content.includes(`**Issue:** #5 of ${PRODUCT_URL}`)), "the queue names the issue");
-  await waitFor(() => moveOf(detail) !== undefined && buttonsOf(moveOf(detail), "Move to backlog").length === 1);
+  const mine = queueOf("2026-10-20a_export", 7, [{ name: "FIRST RULE", text: "The first rule holds.", check: "`tests/unit.test.mjs`" }, { name: "SECOND RULE", text: "The second rule holds." },
+    { name: NEW.name, text: NEW.rule, check: `\`${NEW.check}\`` }]);
+  const w = startWorld({ product: { ...other, ...mine } });
+  const detail = await openIssue(w, 7);
   const form = await moved(detail);
   assert.equal(fieldOf(form, "realises").value, NEW.name);
-  assert.equal(fieldOf(form, "origin").value, ADDRESS(5));
+  assert.equal(fieldOf(form, "origin").value, ADDRESS(7));
   assert.equal(fieldOf(form, "modules").value, "", "no module is named: the Product Owner names it");
   assert.equal(addOf(form).disabled, true);
   await typed(fieldOf(form, "modules"), "MOD-store");
@@ -174,10 +163,10 @@ test("TST-804203: UC-033 a change is moved into the backlog with the requirement
   assert.ok(!writtenFiles(w).some((entry) => entry.path === "SPEC.md"), "the SPEC is not written");
   const item = itemOfFile(files[0]);
   assert.deepEqual(item.fields.realises, [NEW.name]);
-  assert.deepEqual(item.fields.origin, [ADDRESS(5)]);
+  assert.deepEqual(item.fields.origin, [ADDRESS(7)]);
   assert.deepEqual(item.fields.modules, ["MOD-store"]);
-  assert.deepEqual(issueNow(w, 5).labels.sort(), ["backlog", "change"]);
-  assert.deepEqual(issueNow(w, 5).comments, [NOTE(idOf(files[0]), files[0].path)]);
+  assert.deepEqual(issueNow(w, 7).labels.sort(), ["backlog", "change"]);
+  assert.deepEqual(issueNow(w, 7).comments, [NOTE(idOf(files[0]), files[0].path)]);
 
   const waiting = stateOf(item, ["FIRST RULE"]);
   assert.equal(waiting.state, "waiting for acceptance");
@@ -229,33 +218,24 @@ test("TST-804204: UC-033 the item is checked and what fails is named, the Produc
   assert.equal(addOf(second).disabled, false, "a warning refuses nothing");
 });
 
-// ---------------------------------------------------------------- 1a: the issue is not classified yet
+// ---------------------------------------------------------------- 1a: the issue carries neither the label defect nor change
 
 // TST-804205 · level: system · module: system
-// guards: UC-033; ONE CLICK PER DECISION
-// given: the open issues 5 (not classified), 6 (defect) and 8 (not reproducible); known positive first — issue 6 is offered Move to backlog
-// input: the Product Owner opens issue 5, presses the lead "UC-012, step 2", and then confirms the class bug; opens issue 8
-// expect: issue 5 offers no Move to backlog and says it is not classified, leading to "UC-012, step 2"; the lead goes once, to the use case UC-012 of the instance itself; after the click on Bug the move is offered and the lead is gone; issue 8, whose class is not reproducible, is classified and offers neither the move nor the lead
-test("TST-804205: UC-033 1a an issue not classified yet is not offered the move and is led to UC-012", async () => {
+// guards: UC-033; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
+// given: the open issues 5 (no label), 6 (defect) and 8 (not-reproducible); known positive first — issue 6 is offered Move to backlog
+// input: the Product Owner opens issue 5 and issue 8
+// expect: neither issue 5 nor issue 8 carries the label defect or change, and neither offers Move to backlog or a lead to UC-012; nothing goes
+test("TST-804205: UC-033 1a an issue with neither the label defect nor change is not offered the move", async () => {
   const w = startWorld();
   const six = await openIssue(w, 6);
-  assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a classified bug is offered the move");
-
-  const five = await openIssue(w, 5);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 0);
-  assert.match(textOf(one(five, "move-not-offered")), /not classified/i);
-  assert.equal(textOf(one(five, "uc-012")), "UC-012, step 2");
+  assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a bug is offered the move");
+  for (const number of [5, 8]) {
+    const detail = await openIssue(w, number, { offered: false });
+    assert.equal(byClass(detail, "implement-issue").length, 1, `issue ${number}: the page is drawn`);
+    assert.equal(buttonsOf(detail, "Move to backlog").length, 0, `issue ${number}`);
+    assert.equal(byClass(detail, "uc-012").length, 0, `issue ${number}`);
+  }
   assert.deepEqual(w.context.went, []);
-  await trusted(one(five, "uc-012"));
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
-  await trusted(byClass(five, "set-class").find((node) => node.getAttribute("data-class") === "bug"));
-  await waitFor(() => buttonsOf(five, "Move to backlog").length === 1);
-  assert.equal(buttonsOf(five, "Move to backlog").length, 1);
-  assert.equal(byClass(five, "uc-012").length, 0, "the lead is gone");
-
-  const eight = await openIssue(w, 8, { offered: false });
-  assert.equal(buttonsOf(eight, "Move to backlog").length, 0);
-  assert.equal(byClass(eight, "uc-012").length, 0);
 });
 
 // ---------------------------------------------------------------- 2a: the change's entries are rejected
@@ -398,15 +378,18 @@ test("TST-804210: UC-033 1b a product that works from a plan has no backlog, and
 
 // TST-804212 · level: system · module: system
 // guards: UC-033; A BACKLOG ITEM NAMES WHAT IT REALISES
-// given: the open issue 5, whose text names FIRST RULE; local-llm analyses it as a bug that src/store/read.mjs causes and names FIRST RULE as the requirement violated
-// input: the Product Owner confirms the class bug and presses Move to backlog
-// expect: step 2 — for a bug the item is prefilled with realises FIRST RULE, "the requirement that UC-012's analysis named as violated"; Add is enabled once nothing fails (the module MOD-store is prefilled from the file the analysis names)
-test("TST-804212: UC-033 step 2 a bug's item is prefilled with the requirement the analysis named as violated", async () => {
-  const w = startWorld({ analysis: { ...AS_BUG, violated: "FIRST RULE" } });
-  const detail = await classified(w, 5, "bug");
+// given: the open issue 6, labelled defect
+// input: the Product Owner presses Move to backlog, then names FIRST RULE as the requirement the code violates and MOD-store as the module the fix touches
+// expect: step 2 — for a bug the item's realises and modules are not prefilled and Add is not enabled; once the Product Owner names them, the fields hold FIRST RULE and MOD-store and Add is enabled
+test("TST-804212: UC-033 step 2 the Product Owner names a bug's violated requirement and its modules", async () => {
+  const w = startWorld();
+  const detail = await openIssue(w, 6);
   const form = await moved(detail);
-  assert.equal(fieldOf(form, "realises").value, "FIRST RULE");
-  assert.equal(fieldOf(form, "modules").value, "MOD-store");
+  assert.deepEqual([fieldOf(form, "realises").value, fieldOf(form, "modules").value], ["", ""], "nothing is prefilled for the Product Owner to name");
+  assert.equal(addOf(form).disabled, true, "known positive: an item that names nothing is not added");
+  await typed(fieldOf(form, "realises"), "FIRST RULE");
+  await typed(fieldOf(form, "modules"), "MOD-store");
+  assert.deepEqual([fieldOf(form, "realises").value, fieldOf(form, "modules").value], ["FIRST RULE", "MOD-store"]);
   assert.equal(addOf(form).disabled, false, errorsOf(form));
 });
 
