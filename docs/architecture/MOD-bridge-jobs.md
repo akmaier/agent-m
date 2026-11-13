@@ -126,7 +126,7 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
   a served product there at its checkout, and a product a job connects to when the job connects to it; the agent,
   which cannot write `products/` itself, clones none. A product whose folder holds a clone of another repository of the
   same name is refused, naming both. The product's clone is the one folder a CLI session may write: the agent itself is
-  started in the working folder, at the clone of the instance, and works on the product in its clone.;
+  started in the working folder, at the clone of the instance, and works on the product in its clone;
 - **the agent's home `home/`** (MOD-agent-enclosure).
 
 `home/` is excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there sees it.
