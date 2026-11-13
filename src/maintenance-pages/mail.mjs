@@ -618,7 +618,7 @@ async function render(target, context, params = {}) {
     if (!have) { problem(el("p", "mailbox-problem", "No mailbox is connected in this browser. Connect one on the Settings page first.")); return; }
     let found;
     try {
-      found = await readNewMail(have.box, [...products.values()].map((each) => ({ address: each.address, host: each.host })), readSetting(store, "not-an-issue") ?? []);
+      found = await readNewMail(have.box, [...products.values()].map((each) => ({ address: each.address, host: each.host })), readSetting(store, "not-an-issue") ?? [], [have.connection.address, have.connection.sender?.address]);
     } catch (failure) {
       const reason = el("p", "mailbox-problem", `The mailbox could not be read, so nothing was read: ${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`);
       if (failure?.name === "SignInExpired" && have.connection.graph) {

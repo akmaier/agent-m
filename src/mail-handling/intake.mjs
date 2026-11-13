@@ -26,9 +26,9 @@ const issueText = (issue) => ({
   comments: issue.comments.map((comment) => ({ body: comment.body, createdAt: comment.date })),
 });
 
-/** The addresses of every header of a mail, and its text: what MOD-personal-data reads of a mail. */
-const mailText = (mail) => ({
-  addresses: [mail.from, ...mail.replyTo, ...mail.to, ...mail.cc],
+/** The addresses of every header of a mail, and its text: what MOD-personal-data reads of a mail. The mailbox's own address names no person of the mail. */
+const mailText = (mail, own) => ({
+  addresses: [mail.from, ...mail.replyTo, ...mail.to, ...mail.cc].filter((header) => !own.has(String(header?.address ?? "").toLowerCase())),
   text: mail.text,
 });
 
@@ -42,8 +42,10 @@ const mailText = (mail) => ({
  * @param {{ read: (since: string | null) => Promise<object[]> }} mailbox
  * @param {{ address: string, host: object }[]} products
  * @param {string[]} marked
+ * @param {string[]} [own] — the mailbox's own addresses
  */
-export async function readNewMail(mailbox, products, marked) {
+export async function readNewMail(mailbox, products, marked, own = []) {
+  const ownAddresses = new Set(own.filter(Boolean).map((address) => address.toLowerCase()));
   const mails = await mailbox.read(readSince());
 
   const listed = new Set();
@@ -79,7 +81,7 @@ export async function readNewMail(mailbox, products, marked) {
         result.unwritten.push({ product: match.thread.address, issue: match.issue, error: error?.name ?? "Error" });
       }
     }
-    result.proposable.push({ mail, people: peopleIn(mailText(mail)) });
+    result.proposable.push({ mail, people: peopleIn(mailText(mail, ownAddresses)) });
   }
   return result;
 }
