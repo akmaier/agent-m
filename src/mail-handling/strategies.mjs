@@ -62,7 +62,10 @@ async function replyInputs(context, params) {
     if (found.length !== 1) throw new TypeError(`reply-inputs: a question is asked of the one listed mail it answers; the issue gives ${found.length} found in the mailbox.`);
     return [part("issue", lines.join("\n")), part("question", `The person's point to ask the reporter:\n${question.trim()}`), partOf(found[0])];
   }
-  lines.push("", `Solved by: ${due.closedBy ?? "not known"}`, `Release: ${due.release ?? "not known"}`);
+  // Where the reporter can see the new version: the product's repository, and for GitHub its GitHub Pages address.
+  const github = /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(String(due.product ?? ""));
+  lines.push("", `Solved by: ${due.closedBy ?? "not known"}`, `Release: ${due.release ?? "not known"}`, `Repository: ${due.product ?? "not known"}`,
+    ...(github ? [`Published page, if the product uses GitHub Pages: https://${github[1].toLowerCase()}.github.io/${github[2]}/`] : []));
   const mails = due.mails.filter((each) => each.mail && !each.noted).map(partOf);
   return [part("issue", lines.join("\n")), ...mails];
 }

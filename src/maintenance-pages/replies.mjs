@@ -174,8 +174,8 @@ function draftBlock(box, mail, initial, ctx, { sendNow = false } = {}) {
       }
     };
     const send = button("send-reply", ctx.mode === "ask" ? "Send and wait" : "Send", sendIt);
-    block.replaceChildren(el("p", null, "To: ", el("span", "draft-to", shown.to.map(who).join(", ")), shown.cc?.length ? ` · Cc: ${shown.cc.map(who).join(", ")}` : ""),
-      el("p", null, "Subject: ", el("span", "draft-subject", shown.subject)), el("p", null, body),
+    block.replaceChildren(el("p", "reply-head", "To: ", el("span", "draft-to", shown.to.map(who).join(", ")), shown.cc?.length ? ` · Cc: ${shown.cc.map(who).join(", ")}` : "",
+      " · Subject: ", el("span", "draft-subject", shown.subject)), el("p", "reply-body", body),
       el("ul", "draft-attachments", ...(shown.attachments ?? []).map((each) => el("li", null, `${each.name} (${each.size} bytes)`))), el("p", null, save, " ", send), ...sendingNotice(ctx.store), edited, outcome);
     if (now) await sendIt();
   }
@@ -208,8 +208,8 @@ function composeBlock(box, mail, ctx) {
   };
   const save = button("save-draft", "Save draft", () => store(false));
   const send = button("send-reply", "Send", () => store(true));
-  block.append(el("p", null, "To: ", el("span", "draft-to", who(to))), el("p", null, "Subject: ", el("span", "draft-subject", `Re: ${mail.subject}`)), el("p", null, body),
-    el("p", "muted", "The original, quoted below your text:"), el("pre", "compose-quoted", mail.text), el("p", null, save, " ", send), ...sendingNotice(ctx.store), outcome);
+  block.append(el("p", "reply-head", "To: ", el("span", "draft-to", who(to)), " · Subject: ", el("span", "draft-subject", `Re: ${mail.subject}`)), el("p", "reply-body", body),
+    el("p", "muted compose-quoted-note", "The original, quoted below your text:"), el("pre", "compose-quoted", mail.text), el("p", null, save, " ", send), ...sendingNotice(ctx.store), outcome);
   return block;
 }
 
@@ -232,7 +232,7 @@ function mailItem(entry, due, box, host, extra) {
     item.append(el("p", "reply-missing", `${id}: not found in the mailbox. Name the folder in the mailbox connection, or decide not to reply.`), el("p", null, none()));
     return item;
   }
-  item.append(el("p", null, el("span", "reply-reporter", who(mail.from)), " · ", el("span", "reply-date", mail.date), " · ", el("span", "reply-subject", mail.subject)));
+  if (!extra.compact) item.append(el("p", null, el("span", "reply-reporter", who(mail.from)), " · ", el("span", "reply-date", mail.date), " · ", el("span", "reply-subject", mail.subject)));
   if (fresh.has(id)) item.append(el("p", "reply-new", "New: this mail came after your question."));
   if (fresh.has(id)) item.append(el("pre", "reply-text", mail.text));
   if (arrived.has(id)) {
@@ -280,7 +280,7 @@ async function arrivalsOf(host, due) {
 
 // Draft replies: the participants the mailbox allows, the run panel and Run.
 async function draftingSection(due, ctx, redraw, opts = {}) {
-  const section = el("section", opts.question ? "question-drafting" : "reply-drafting", el("h3", null, opts.question ? "Draft question" : "Draft replies"), fold(opts.question ? STEP_TEXT.question : STEP_TEXT.drafting));
+  const section = el("section", opts.question ? "question-drafting" : "reply-drafting", ...(opts.compact ? [] : [el("h3", null, opts.question ? "Draft question" : "Draft replies"), fold(opts.question ? STEP_TEXT.question : STEP_TEXT.drafting)]));
   const { context, connection, box, products } = ctx;
   try {
     const definition = await kindOf("draft-replies");
@@ -293,7 +293,7 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
     const admitted = eligible(participants, { capabilities: definition.needs, places: [{ from: "the mailbox", allowed }] }).eligible;
     const host = products.get(due.product)?.host;
     const draftable = opts.question ? [opts.entry] : due.mails.filter((each) => each.mail && !each.noted && !each.draft && replyAddress(each.mail) !== null);
-    if (draftable.length === 0 || !host) { section.append(el("p", "muted", "No mail of this issue is left to draft.")); return section; }
+    if (draftable.length === 0 || !host) { if (!opts.compact) section.append(el("p", "muted", "No mail of this issue is left to draft.")); return section; }
     if (admitted.length === 0) { section.append(el("p", "reply-no-participant", `No participant that can draft text works at a place this mailbox allows (${allowed.join(", ") || "none"}).`)); return section; }
     const select = participantSelect(admitted, connection.places);
     const name = personOf(context.store);
@@ -314,7 +314,7 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
           connect: async () => host, participants, places: { sources: {}, mailbox: allowed }, gates: [], person: name, now, agentM, jobId: id };
         const prepared = await prepareJob("draft-replies", jobContext, { drafter: chosen, reviewers: [] });
         const result = el("div", "reply-run-result");
-        const panel = runPanel(prepared, { onRun: async () => {
+        const run = async () => {
           try {
             const record = { id, kind: "draft-replies", worksOn: [issueAddress(due)], participant: chosen.name, model: chosen.model, route: recordRoute({ kind: "tab" }, chosen), ...(chosen.route ? { declares: { context: chosen.context ?? null, capabilities: chosen.capabilities ?? [] } } : {}), run: null, retries: null, startedBy: name, start: now, agentM,
               inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })),
@@ -326,15 +326,22 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
           } catch (failure) {
             result.replaceChildren(el("p", "reply-problem", `The replies could not be drafted: ${failed(failure)}`));
           }
-        } });
-        stage.append(panel, result);
+        };
+        if (opts.compact) {
+          // Under a mail: one button beside the model; what blocks the job is said in a line, and the job's details stay out of the way.
+          const blocking = [...(prepared.blocking ?? []).map((found) => `${found.what} — ${found.fix}`), ...((prepared.notFitting ?? []).length ? ["The inputs do not fit this model."] : [])];
+          const go = button("draft-reply", "Draft reply", async () => { go.disabled = true; result.replaceChildren(el("span", "muted", "Drafting…")); await run(); go.disabled = false; });
+          if (blocking.length) { go.disabled = true; result.replaceChildren(el("span", "reply-problem", blocking.join(" "))); }
+          stage.append(go, result);
+        } else stage.append(runPanel(prepared, { onRun: run }), result);
       } catch (failure) {
         stage.append(el("p", "reply-problem", failed(failure)));
       }
     }
     select.addEventListener("change", refresh);
     point?.addEventListener("input", refresh);
-    section.append(...(point ? [el("p", null, el("label", null, "Your point to ask ", point))] : []), el("p", null, el("label", null, "Participant ", select)), stage);
+    if (opts.compact) section.append(el("div", "reply-draft-row", select, stage));
+    else section.append(...(point ? [el("p", null, el("label", null, "Your point to ask ", point))] : []), el("p", null, el("label", null, "Participant ", select)), stage);
     refresh();
   } catch (failure) {
     section.append(el("p", "reply-problem", failed(failure)));
@@ -352,7 +359,8 @@ export async function replyOf(due, entry, ctx, redraw) {
   const host = ctx.products.get(due.product)?.host;
   const none = { fresh: new Set(), arrived: new Set() };
   const { fresh, arrived } = host ? await arrivalsOf(host, one).catch(() => none) : none;
-  return el("div", "reply-under-mail", el("ul", "reply-mails", mailItem(entry, one, ctx.box, host, { group: "to-answer", arrived, fresh, redraw, ctx })), await draftingSection(one, ctx, redraw));
+  return el("div", "reply-under-mail", await draftingSection(one, ctx, redraw, { compact: true }),
+    el("ul", "reply-mails", mailItem(entry, one, ctx.box, host, { group: "to-answer", arrived, fresh, redraw, ctx, compact: true })));
 }
 
 function groupsOf(out, ctx) {

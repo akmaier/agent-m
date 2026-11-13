@@ -331,6 +331,18 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .mail-details .mail-title, .mail-details .mail-body { box-sizing: border-box; width: 100%; }
 .mail-details .mail-body { min-height: 8rem; }
 .mail-details .mail-back { display: none; }
+/* The mail read and its reply share the right side as a mail program shows them: the mail above, scrolling within about half
+   the height; under it the model and Draft reply in one row, To and Subject in one small line, a large text box, and the buttons. */
+.mail-details .mail-text { max-height: 40vh; overflow-y: auto; padding: .6rem .75rem; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.reply-under-mail { margin-top: .6rem; }
+.reply-under-mail .reply-mails { list-style: none; margin: 0; padding: 0; }
+.reply-under-mail .reply-draft-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0 0 .4rem; }
+.reply-under-mail .reply-draft-row .reply-stage { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.reply-under-mail .reply-head { margin: 0 0 .3rem; color: var(--muted); font-size: .85rem; }
+.reply-under-mail .reply-body { margin: 0 0 .4rem; }
+.reply-under-mail textarea.draft-body, .reply-under-mail textarea.compose-body { box-sizing: border-box; width: 100%; min-height: 40vh; resize: vertical;
+  font: inherit; font-size: 1rem; line-height: 1.5; padding: .6rem .75rem; }
+.reply-under-mail .compose-quoted, .reply-under-mail .compose-quoted-note { display: none; }
 @media (max-width: 760px) {
   .mail-inbox { grid-template-columns: minmax(0, 1fr); }
   .mail-inbox.mail-open-shown > .mail-step-list { display: none; }

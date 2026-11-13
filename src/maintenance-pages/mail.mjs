@@ -454,17 +454,10 @@ const decisionOf = (decisions) => (decisions.length === 0
   ? ["not an issue"]
   : decisions.flatMap((each, at) => [...(at ? [", "] : []), link(issueRoute(each.issue, each.product), "issue-link", `#${each.issue}`)]));
 
-// The link *Replies*: it goes to the route `replies` through the context's `go`, which writes nothing.
-function repliesLink(context) {
-  const node = link("#replies", "replies-link", "Replies");
-  node.addEventListener("click", (event) => { event?.preventDefault?.(); context.go("replies", {}); });
-  return el("p", "mail-replies", node);
-}
-
 async function render(target, context, params = {}) {
   listed = []; // a page drawn anew lists no mail until its reading has answered
   const page = el("div", "mail-page");
-  const head = [tabsOf("mail", context), repliesLink(context)];
+  const head = [tabsOf("mail", context)];
   let readings = 0;
   page.setAttribute("data-readings", "0");
   const status = el("p", "mail-status muted", "Reading the mailbox…");
