@@ -51,7 +51,7 @@ Bridge ends.**
 
 - **One process, started by a message** (UC-049 step 4). The agent is started with its register row's *Session*
   arguments — its interactive mode, in its auto mode —, the conversation's model (*Model* column) and the Bridge's
-  setting for that agent's Chrome integration (UC-044 step 3), in the session's checkout of the product made as a job's
+  setting for that agent's Chrome integration (UC-044 step 3), in the product's clone in `products/<name>/`, prepared as a job's
   session's is, in its enclosure (ARC-054). A message that names no running session starts one; a message that names one
   is typed into it.
 - **A message is typed as one input** (UC-049 step 4, *"typed into that one running agent"*): one bracketed paste

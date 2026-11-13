@@ -72,7 +72,8 @@ EXPORT`): those the page hands over, and the queued ones it takes itself from th
 the same job runner, catalogue and ledger as the page and CI, and the agent's own login on this computer (`A LOCAL AGENT
 USES THE PERSON'S OWN LOGIN`). Every process of an agent it starts runs in that agent's enclosure (ARC-054). Before a
 CLI session starts — a job's, or a conversation's of the prompt bar —, it brings the clones of the working folder to the
-job's commits, makes the session's checkout of the product, whose origin is the product's repository, and leaves in
+job's commits — the product's clone in `products/<name>/`, whose origin is the product's repository, is where the
+session works — and leaves in
 it, in a file git ignores, the repository token the paired browser handed it for that product (`A CLI SESSION FINDS ITS
 REPOSITORY'S TOKEN IN AN IGNORED FILE`); the session's input names the file and says to use the token without reading it
 (`A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE`). The session then pushes, opens its pull request, follows its CI and
@@ -123,14 +124,10 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
 - **one clone per served product in `products/<name>/`**, `<name>` the repository's name, the folder `git clone` gives
   it, which Agent M's `.gitignore` ignores (`A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER`). The Bridge clones
   a served product there at its checkout, and a product a job connects to when the job connects to it; the agent,
-  which cannot write the folder, clones none. A product whose folder holds a clone of another repository of the same
-  name is refused, naming both;
-- **one checkout per running CLI session of that agent in `products/<name>-<id>/`**, `<name>` the repository's name and
-  `<id>` the job's identifier or, for a session of the prompt bar, the session's, made from the Bridge's clone of the
-  product, the one folder the agent may write; the agent itself is started in the working folder, at the clone of the
-  instance, and works on the product in this checkout. It is removed with the token file in
-  it when the session ends; a session's checkout that a quit the Bridge did not see through — its computer restarted —
-  left there is removed at the Bridge's next start (UC-049 4g);
+  which cannot write `products/` itself, clones none. A product whose folder holds a clone of another repository of the
+  same name is refused, naming both. The product's clone is the one folder a CLI session may write: the agent itself is
+  started in the working folder, at the clone of the instance, and works on the product in its clone. One agent works
+  on one product at a time; more at once take more Bridges;
 - **the agent's home `home/`** (MOD-agent-enclosure).
 
 `home/` is excluded from the instance's clone in its `.git/info/exclude`, so that no command of git there sees it.
@@ -139,8 +136,8 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
 its clone of the instance from their origins, checks the instance's clone out at the commit the job's record names
 (`agent_m`, MOD-job-ledger) — for a session of the prompt bar, at the head of the instance's default branch as just fetched — and removes
 every file of it that git neither tracks nor ignores, so that nothing an earlier session left there is read as the
-present state; the agent's home and `products/`, which git ignores there, stay. The session's checkout is made
-anew for every session, at the head of the product's default branch the fetch brought.
+present state; the agent's home and `products/`, which git ignores there, stay. The product's clone is pulled: its
+default branch fast-forwarded to the head the fetch brought.
 
 **The jobs' logs** — `job-logs/` in the Bridge's per-user data folder (MOD-desktop-shell), readable by its user only and
 hidden by every enclosure (MOD-agent-enclosure), written only by `joblogs.mjs` (`THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX
@@ -175,16 +172,10 @@ on a command line, in a remote address, in a clone's configuration or in an envi
 chosen by its enclosure and names no such file. For an address the file holds no section for, git asks the computer's own
 credential helpers, as it would without the Bridge.
 
-**The session's checkout.** The Bridge makes it from its clone of the product, which it has just fetched: an empty
-repository fetching that clone's `refs/remotes/origin/*` and its tags over a local path, `origin/HEAD` set to the branch
-the clone names as the origin's default, and that branch checked out, tracking it. Then the checkout's `origin` is set
-to the product's address with git's usual fetch refspec, so that the session's `git fetch`, `git pull` and `git push`
-reach the product's repository itself — every product alike, public or private, on GitHub or on a GitLab server.
-
 **The token file.** Where the Bridge holds a repository token for the product (*The repository tokens*), it leaves that
-token, alone, as the text of the file `.agent-m-token` at the root of the checkout, readable by its user only, and
-names the file in the checkout's `.git/info/exclude`, so that git ignores it: `git status` does not list it and no
-commit takes it. The checkout's configuration names, as its credential helper, after an empty entry that sets aside the
+token, alone, as the text of the file `.agent-m-token` at the root of the product's clone, readable by its user only, and
+names the file in the clone's `.git/info/exclude`, so that git ignores it: `git status` does not list it and no
+commit takes it. The clone's configuration names, as its credential helper, after an empty entry that sets aside the
 computer's own helpers, a shell function that answers git's `get` with the server's user — `x-access-token` on GitHub,
 `oauth2` on a GitLab server — and the file's text as the password: the session's git authenticates with the token
 without the token standing in the configuration, a remote address or a command line. No other credential is left: not
@@ -245,7 +236,7 @@ settings (MOD-desktop-shell).
     request names (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), answered with its text and the
     usage it reported. A request that names a `product` — a served product's address, or the instance's own — is a
     message of the prompt bar to a CLI session (UC-049 step 4, ARC-055). Without a `session`, the Bridge starts one as
-    it starts a job's — *The clones at the session's start*, *The session's checkout*, *The token file* —, with
+    it starts a job's — *The clones at the session's start*, *The token file* —, with
     MOD-agent-processes' `startSession` in the agent's enclosure, lists it as a job of the kind `converse` under a new
     identifier, and types into it the request's `input` followed by `token.md` where a file is left; with a `session` it
     holds running, it types the request's `input` into that one. The ask's `session` is the session's identifier; its

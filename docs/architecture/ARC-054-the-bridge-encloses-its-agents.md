@@ -73,7 +73,7 @@ TOKEN IN AN IGNORED FILE`, `A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE`, U
 
 **Every process of a coding agent that the Bridge starts runs in an enclosure the operating system enforces; the Bridge
 itself does not.** Inside the enclosure the agent reads everything except the places that hold a credential of the
-Bridge or of the computer's git login, writes only its own home, the session's checkout and temporary files, and reaches
+Bridge or of the computer's git login, writes only its own home, the product's clone in `products/<name>/` and temporary files, and reaches
 the network. The enclosure is the new module MOD-agent-enclosure of the Bridge (ARC-040); MOD-agent-processes starts a CLI
 through the enclosure it is given, and MOD-bridge-jobs gives every agent process one — a job, an ask, the check whether
 the agent is logged in and the harmless probe.
@@ -89,7 +89,7 @@ the agent is logged in and the harmless probe.
     keychain's services and denies connecting to the SSH agent's socket. Measured: each of these rules holds for the
     child and what it starts, and HTTPS still works.
   - **Linux — bubblewrap** (`bwrap`), a program of the system: the whole file system bound read-only, the agent's home and
-    the job's checkout bound writable, a private `/tmp`, an empty folder over each place that holds credentials and over
+    the product's clone bound writable, a private `/tmp`, an empty folder over each place that holds credentials and over
     the user's runtime folder — the session bus with its secret service, the SSH and GPG agents —, `/dev/null` over each
     such file, a PID namespace of its own, so that no process of the person is seen, a new session, and an end with the
     Bridge. bubblewrap needs no privilege where the kernel lets a user make namespaces.
@@ -98,8 +98,8 @@ the agent is logged in and the harmless probe.
     Git Credential Manager keeps the git login — and the Bridge's process memory: both are open to every process of the
     user. The account has its own profile, its own Credential Manager, and no access to the person's profile or processes.
     The Bridge starts the agent as that account with the account's password, which only the Bridge keeps, in its data
-    folder; the job's checkout and the clones of the instance and of the job's product are granted to the account, the
-    checkout for writing.
+    folder; the clones of the instance and of the job's product are granted to the account, the
+    product's clone for writing.
 - **The enclosed agent has a home of its own** — `home/` in the agent's working folder, on Windows the account's profile —,
   with its own configuration and its own login (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`, read as: the agent's own
   login on this computer, made by the person with the agent's own login step; Agent M asks for no key). The person's own
@@ -121,12 +121,11 @@ the agent is logged in and the harmless probe.
   home and the folders below it —, the git identity the computer's configuration names for its commits, and the login
   its home keeps for it, and nothing else: no key variable, no SSH agent, no session bus.
 - **The session pushes, opens its pull request, follows its CI and merges itself** (UC-011 step 4; `KEEP IT SIMPLE`: no
-  relay between the agent and its server). Before the session starts, the Bridge brings its own clone of the product up
-  to the origin with its credentials and makes the session's checkout from that clone, over a local path; it then sets
-  the checkout's origin to the product's repository, so that the session's `git fetch`, `git pull` and `git push` reach
-  the server itself. Where the Bridge holds a token for the product, it leaves that token alone in a file of the
-  checkout that git ignores — named in the checkout's `.git/info/exclude`, so that no commit takes it — and names, as the
-  checkout's credential helper, a shell function that hands git the file's text: the token stands in no configuration,
+  relay between the agent and its server). Before the session starts, the Bridge pulls its clone of the product from
+  the origin with its credentials; the session works in that clone, whose origin is the product's repository, so that
+  its `git fetch`, `git pull` and `git push` reach the server itself. Where the Bridge holds a token for the product, it
+  leaves that token alone in a file of the clone that git ignores — named in the clone's `.git/info/exclude`, so that no
+  commit takes it — and names, as the clone's credential helper, a shell function that hands git the file's text: the token stands in no configuration,
   remote address or command line. The session's input names the file and says to use the token without reading it — a
   command of the server's client is given it as `"$(cat <file>)"` —, so that the token stands in no input and in no
   answer. No other credential is left in the checkout. Where the Bridge holds no token for the product, no file is left
