@@ -1,6 +1,6 @@
 // checks.mjs — watchForAcceptance: the checks of one page (docs/architecture/MOD-notifications.md, Interfaces, Data).
-// Every minute, whether a check is due: the switch on, the browser's permission granted, and this browser's last
-// check five minutes old or older, or never run — so that a page opened after a pause checks at once (UC-047 2a). A
+// Every fifteen seconds, whether a check is due: the switch on, the browser's permission granted, and this browser's last
+// check a minute old or older, or never run — so that a page opened after a pause checks at once (UC-047 2a). A
 // due check reads the snapshot of the default branch of the instance and of each product this browser keeps, each
 // with its own host — the instance's as the frame connected it, a product's as the frame's productHost gives it, through
 // its own token and the secrets stored at each call (A CLEAR IS A REAL CLEAR; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT) —, takes from each what waits for
@@ -18,8 +18,8 @@ import { readSetting, writeSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { currentRegistration } from "./permission.mjs";
 
-const CHECK_EVERY_MS = 60 * 1000; // every minute, the page looks whether a check is due
-const DUE_AFTER_MS = 5 * 60 * 1000; // this browser's last check five minutes old or older
+const CHECK_EVERY_MS = 15 * 1000; // every fifteen seconds, the page looks whether a check is due
+const DUE_AFTER_MS = 60 * 1000; // this browser's last check a minute old or older
 
 // The review pages' route key a kind of waiting file is shown under (MOD-notifications, Data): the single-file row's
 // "<k>/<id>" and the more-than-three row's "<k>", both built by the frame's own addressOf; a release test report's
