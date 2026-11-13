@@ -292,6 +292,15 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .prompt-bar .conversation:empty, .prompt-bar .status:empty { display: none; }
 /* What a sent message shows — where it went, the console of a CLI session, the answer — scrolls inside the bar, as the conversation does. */
 .prompt-bar .status { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.prompt-bar .status[hidden] { display: none; }
+/* The split between the conversation and the console: a thin grip to drag, and the button that folds the console away. */
+.prompt-bar .bar-split { display: flex; align-items: center; gap: .5rem; }
+.prompt-bar .split-grip { flex: 1 1 auto; height: 10px; cursor: ns-resize; touch-action: none; display: flex; justify-content: center; align-items: center; }
+.prompt-bar .split-grip::before { content: ""; width: 3rem; height: 4px; border-radius: 2px; background: var(--line); }
+.prompt-bar .split-grip:hover::before { background: var(--accent); }
+.prompt-bar .split-grip.idle { cursor: default; }
+.prompt-bar .split-grip.idle::before { visibility: hidden; }
+.prompt-bar button.fold { font-size: .75rem; padding: .1rem .45rem; margin-left: auto; }
 /* Where the message went takes one small line: "About …", "Sent to:" and the destinations run on, inline. */
 .prompt-bar .status > .about, .prompt-bar .status > .sends, .prompt-bar .status > .destinations { display: inline; margin: 0; padding: 0;
   color: var(--muted); font-size: .8rem; }

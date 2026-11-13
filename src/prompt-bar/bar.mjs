@@ -46,6 +46,8 @@ const PLAN = "prompt-bar:plan";
 const CHOSEN = "prompt-bar:participant";
 const SESSION = "prompt-bar:session";
 const HEIGHT = "prompt-bar:height";
+// The part of the bar's free height the conversation takes above the split, and whether the console below it is folded away; the tab keeps both.
+const SPLIT = "prompt-bar:split", FOLDED = "prompt-bar:console-folded";
 // The bar's height a person sets with its grip, in pixels: at least LOWEST, at most nine tenths of the window; a key press moves it by STEP.
 const LOWEST = 120, STEP = 40;
 const FIXED = "position: fixed; bottom: 0; left: 0; right: 0;";
@@ -891,7 +893,46 @@ export function startPromptBar(target, setup) {
     grip.setAttribute("aria-orientation", "horizontal");
     grip.setAttribute("aria-label", "Drag up or down, or use the arrow keys, to set the height of the prompt bar");
     grip.setAttribute("tabindex", "0");
-    const bar = el("section", "prompt-bar", grip, recorded, chooser, conversation, input, el("div", "bar-foot", notes, el("div", "buttons", send, stop)), status, followed);
+    // The split between the conversation above and the console below: dragged, it sets how the bar's free height is shared; its button folds the console away.
+    const splitGrip = el("div", "split-grip");
+    splitGrip.setAttribute("role", "separator");
+    splitGrip.setAttribute("aria-orientation", "horizontal");
+    splitGrip.setAttribute("aria-label", "Drag up or down to share the bar between the conversation and the console");
+    const fold = el("button", "fold", "Hide console");
+    fold.type = "button";
+    const split = el("div", "bar-split", splitGrip, fold);
+    const foot = el("div", "bar-foot", notes, el("div", "buttons", send, stop));
+    const bar = el("section", "prompt-bar", grip, recorded, chooser, conversation, input, foot, split, status, followed);
+    const shared = (share) => {
+      const kept = Math.max(0.1, Math.min(0.9, share));
+      conversation.style.flex = `${kept} 1 0`;
+      status.style.flex = `${1 - kept} 1 0`;
+      try { writeTabValue(store, SPLIT, kept); } catch { /* the tab keeps no values */ }
+    };
+    const folded = (on) => {
+      status.hidden = on;
+      fold.textContent = on ? "Show console" : "Hide console";
+      splitGrip.classList.toggle("idle", on);
+      try { writeTabValue(store, FOLDED, on); } catch { /* the tab keeps no values */ }
+    };
+    let heldSplit = null, heldFolded = false;
+    try { heldSplit = readTabValue(store, SPLIT); heldFolded = readTabValue(store, FOLDED) === true; } catch { /* the tab keeps no values */ }
+    if (typeof heldSplit === "number") shared(heldSplit);
+    folded(heldFolded);
+    fold.addEventListener("click", () => folded(!status.hidden));
+    splitGrip.addEventListener("pointerdown", (event) => {
+      if (status.hidden) return;
+      event.preventDefault?.();
+      splitGrip.setPointerCapture?.(event.pointerId);
+      // The free height is what the conversation and the console share; the field, the buttons and the split between them keep their size.
+      const free = Math.max(1, conversation.offsetHeight + status.offsetHeight);
+      const top = conversation.getBoundingClientRect().top, between = input.offsetHeight + foot.offsetHeight + split.offsetHeight;
+      const move = (moved) => shared((moved.clientY - top - between) / free);
+      const end = () => { splitGrip.removeEventListener("pointermove", move); splitGrip.removeEventListener("pointerup", end); splitGrip.removeEventListener("pointercancel", end); };
+      splitGrip.addEventListener("pointermove", move);
+      splitGrip.addEventListener("pointerup", end);
+      splitGrip.addEventListener("pointercancel", end);
+    });
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
     bar.setAttribute("style", FIXED);
