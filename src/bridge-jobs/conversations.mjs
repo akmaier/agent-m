@@ -3,8 +3,8 @@
 //
 // Module: MOD-bridge-jobs
 //
-// A conversation's first message to a CLI session starts it as a job's session is started (session.mjs) — the clones at the instance's commit the message
-// names, its checkout of the product with the token file —, the agent kept running in a pseudo-terminal of MOD-agent-processes' startSession in its enclosure,
+// A conversation's first message to a CLI session starts it as a job's session is started (session.mjs) — the instance's clone at its default branch as just
+// fetched, its checkout of the product with the token file —, the agent kept running in a pseudo-terminal of MOD-agent-processes' startSession in its enclosure,
 // its checkout alone writable; every later message of the conversation is typed into that one. The session is listed and logged as a job this Bridge took
 // (watch.mjs), of the kind `converse`, under an identifier of its own, and has no job record. It ends when it is cancelled, when its agent exits or when the
 // Bridge quits; its checkout and its token file are then removed, and its log is kept.
@@ -31,7 +31,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const running = new Map();
 
 // A session started for the first message of a conversation: listed at once, its checkout and its agent made in the background.
-function open(id, agent, { model, product, instance: commit }, { instance, enclosures }) {
+function open(id, agent, { model, product }, { instance, enclosures }) {
   const listed = { id, product, kind: KIND, agent: agent.name, state: "running", started: new Date().toISOString(), usage: null };
   // The session's log, as watch.mjs keeps a job's: the lines scrolled off its screen, and, while it runs, what its screen shows as the part still written.
   const log = { lines: [], first: 0, ended: false, screen: () => [], get partial() { return this.ended ? "" : this.screen().join("\n"); } };
@@ -44,7 +44,8 @@ function open(id, agent, { model, product, instance: commit }, { instance, enclo
 
   held.ready = (async () => {
     const enclosure = await enclosureOf(enclosures, agent.folder);
-    const session = await startSession({ folder: agent.folder, instance, commit, product, id });
+    // A session of the prompt bar starts on the instance's default branch as just fetched (MOD-bridge-jobs, The clones at the session's start).
+    const session = await startSession({ folder: agent.folder, instance, product, id });
     await enclosure.prepare({ writable: [session.working], readable: [session.instanceFolder, session.clone] });
     const installed = (await installedAgents({ enclosure, workdir: session.working })).find((each) => each.name === agent.name);
     held.told = await toldOf({ file: session.file, address: product });
@@ -89,7 +90,7 @@ function open(id, agent, { model, product, instance: commit }, { instance, enclo
 }
 
 /**
- * converse(agent: { name, folder, chrome }, request: { model, input, product, instance, session? }, { instance, enclosures }) -> { session: string, answer:
+ * converse(agent: { name, folder, chrome }, request: { model, input, product, session? }, { instance, enclosures }) -> { session: string, answer:
  * Promise<{ text: string, usage: null }> } — a message of the prompt bar to a CLI session (ARC-055): without `session`, a new session started for it, under a
  * new identifier, typed the input followed by token.md where a token file is left; with `session`, typed into that running session. The answer is what the
  * agent printed after the message, once its screen shows that it waits; it fails, naming the agent's exit code, where the agent exits first. Throws not-found,

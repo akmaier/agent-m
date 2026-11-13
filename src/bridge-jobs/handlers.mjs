@@ -132,12 +132,12 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
       if (!wanted?.folder || typeof body.input !== "string") throw failure("invalid-request", "This Bridge offers no such agent with a working folder, or the input is no text.");
       if (body.model !== undefined && typeof body.model !== "string") throw failure("invalid-request", "An agent ask names its model as text, or names none.");
       if (body.product !== undefined) {
-        if (!products.some((each) => each?.address === body.product) || typeof body.instance !== "string" || !body.instance || !instance) {
-          throw failure("invalid-request", "A message to a CLI session names a product this Bridge serves and a commit of the instance.");
+        if (!products.some((each) => each?.address === body.product) || !instance) {
+          throw failure("invalid-request", "A message to a CLI session names a product this Bridge serves.");
         }
         if (body.session !== undefined && (typeof body.session !== "string" || !body.session)) throw failure("invalid-request", "A message names its running session as text, or names none.");
         // A message to a CLI session (UC-049 step 4, ARC-055): typed into the running session it names, or starting one; not-found for one this Bridge does not run.
-        const { session, answer } = converse(wanted, { model: body.model ?? null, input: body.input, product: body.product, instance: body.instance, session: body.session },
+        const { session, answer } = converse(wanted, { model: body.model ?? null, input: body.input, product: body.product, session: body.session },
           { instance, enclosures });
         asks.set(ask, entry);
         answer.then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }), (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));

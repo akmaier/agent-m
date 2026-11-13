@@ -347,7 +347,7 @@ export async function runSession(ready, { kept = null, keep = () => {}, onConsol
   const send = async (session) => {
     const input = await sessionInput(ready.prepared, { sent: session ? session.sent ?? 0 : null });
     let id = session?.id ?? null, stop = () => {};
-    const target = { agent, ...(model ? { model } : {}), product: ready.page.address, instance: ready.context.agentM.commit, ...(session ? { session: session.id } : {}) };
+    const target = { agent, ...(model ? { model } : {}), product: ready.page.address, ...(session ? { session: session.id } : {}) };
     try {
       const { text } = await ask(bridge, target, input, { onSession: (named) => {
         id = named;
