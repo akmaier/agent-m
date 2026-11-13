@@ -284,7 +284,7 @@ export async function sessionInput(prepared, { sent = null } = {}) {
 // How often the session's console is read while a message runs.
 const CONSOLE_POLL_MS = 500;
 // How many lines of the console the bar shows.
-const CONSOLE_LINES = 200;
+const CONSOLE_LINES = 80;
 
 // How a session ended that the Bridge no longer runs, as its listing and its log say: by its agent — its listing `done` or `failed` (UC-049 4h) — or with its
 // Bridge (4g), with the last lines its console showed. A Bridge that does not answer ended it.

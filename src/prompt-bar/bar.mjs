@@ -870,6 +870,13 @@ export function startPromptBar(target, setup) {
     globalThis.addEventListener?.("agent-m:prompt", prefill);
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
+    // Enter sends the message; Shift+Enter starts a new line in it.
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault?.();
+      // The key press is the person's action, as the browser marks it (`isTrusted`), and sends as a click on Send does.
+      if (!send.disabled) onSend(event);
+    });
     // Clear conversation empties the tab's conversation and what the bar shows of the last message; while a message runs it does nothing — Stop ends that first.
     clear.addEventListener("click", () => {
       if (send.disabled) return;
@@ -909,8 +916,18 @@ export function startPromptBar(target, setup) {
       status.style.flex = `${1 - kept} 1 0`;
       try { writeTabValue(store, SPLIT, kept); } catch { /* the tab keeps no values */ }
     };
+    // Folding the console takes its height off the bar, which then stands lower at the bottom of the window; unfolding gives it back.
+    let gone = 0;
     const folded = (on) => {
-      status.hidden = on;
+      if (on && !status.hidden) {
+        gone = status.offsetHeight;
+        status.hidden = true;
+        if (gone) shown(current() - gone);
+      } else if (!on && status.hidden) {
+        status.hidden = false;
+        if (gone) held = sized(current() + gone);
+        gone = 0;
+      }
       fold.textContent = on ? "Show console" : "Hide console";
       splitGrip.classList.toggle("idle", on);
       try { writeTabValue(store, FOLDED, on); } catch { /* the tab keeps no values */ }
@@ -918,7 +935,6 @@ export function startPromptBar(target, setup) {
     let heldSplit = null, heldFolded = false;
     try { heldSplit = readTabValue(store, SPLIT); heldFolded = readTabValue(store, FOLDED) === true; } catch { /* the tab keeps no values */ }
     if (typeof heldSplit === "number") shared(heldSplit);
-    folded(heldFolded);
     fold.addEventListener("click", () => folded(!status.hidden));
     splitGrip.addEventListener("pointerdown", (event) => {
       if (status.hidden) return;
@@ -936,12 +952,17 @@ export function startPromptBar(target, setup) {
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
     bar.setAttribute("style", FIXED);
-    const sized = (height) => {
+    // The bar drawn `height` high; sized also keeps the height — with the folded console's height added, so that unfolding after a reload gives it back.
+    const shown = (height) => {
       const highest = Math.round((globalThis.innerHeight ?? 800) * 0.9);
       const kept = Math.max(LOWEST, Math.min(highest, Math.round(height)));
       bar.setAttribute("style", `${FIXED} height: ${kept}px; max-height: ${kept}px;`);
       grip.setAttribute("aria-valuenow", String(kept));
-      try { writeTabValue(store, HEIGHT, kept); } catch { /* the tab keeps no values */ }
+      return kept;
+    };
+    const sized = (height) => {
+      const kept = shown(height);
+      try { writeTabValue(store, HEIGHT, kept + (status.hidden ? gone : 0)); } catch { /* the tab keeps no values */ }
       return kept;
     };
     let held = null;
@@ -963,6 +984,7 @@ export function startPromptBar(target, setup) {
       grip.addEventListener("pointercancel", end);
     });
     target.replaceChildren(bar);
+    folded(heldFolded);
     // The jobs handed over on an earlier page of this tab go on being followed, and a plan's next piece run here goes on once the draft before it is dropped.
     let handedOver = null;
     try {

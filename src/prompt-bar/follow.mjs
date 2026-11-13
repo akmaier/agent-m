@@ -14,6 +14,9 @@ import { listJobs } from "../job-ledger/index.mjs";
 import { cancelJob, jobLog, liveState } from "../runtimes/index.mjs";
 import { defaultSnapshot } from "./send.mjs";
 
+// How many lines of a job's log the bar shows.
+const LOG_LINES = 80;
+
 /**
  * answerIn(log: string | null, id: string) -> string | null — the answer a run on CI left in its log for the job `id` (MOD-workflow-entries: between the lines
  * `--- answer of <id> ---` and `--- end of the answer of <id> ---`), each line without the time stamp the server puts before it; null where the log holds none.
@@ -93,6 +96,7 @@ export function followJob({ id, address, host, store, show }) {
 
   // The job's log, asked once the runtime has taken the job: the CI run's address once, the Bridge's stream once, whose lines are shown as they come.
   async function logOf(bridges) {
+    // The bar shows the last LOG_LINES lines of a job's log; the Bridge's window keeps more.
     if (view.address !== null || streaming || record.end || !record.taken) return;
     const log = await jobLog(record, { host }, bridges);
     if (log.address) view.address = log.address;
@@ -103,6 +107,7 @@ export function followJob({ id, address, host, store, show }) {
           for await (const line of log.stream) {
             if (stopped) return;
             view.lines.push(line);
+            if (view.lines.length > LOG_LINES) view.lines.splice(0, view.lines.length - LOG_LINES);
             emit();
           }
         } catch (failure) {
