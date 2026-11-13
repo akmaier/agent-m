@@ -150,6 +150,7 @@ async function agents(target, context) {
 // holds the last CONSOLE_LINES lines; the Bridge keeps the whole log.
 const CONSOLE_EVERY_MS = 500;
 const CONSOLE_LINES = 1000;
+const SHOWN_JOBS = 5;
 const STATE_BADGES = { running: "b-open", done: "b-applied", failed: "b-stale", cancelled: "b-changed" };
 // The drawing of the Jobs view that asks now: a later drawing, or another route shown, ends the asking of an earlier one.
 let jobsDrawn = 0;
@@ -166,9 +167,15 @@ async function jobs(target, context, params = {}) {
     if (key === listed) return;
     listed = key;
     if (!taken.length) { list.replaceChildren(made("p", "", "This Bridge has taken no job since it started. A job its agents take is listed here, with what its agent writes.")); return; }
-    list.replaceChildren(table(["Job", "Kind", "Agent", "Product", "State", "Taken", ""], taken.map((each) => [each.id, each.kind, each.agent, each.product,
+    // Newest first; five rows are shown, the older ones are reached by scrolling the list.
+    const rows = table(["Job", "Kind", "Agent", "Product", "State", "Taken", ""], [...taken].reverse().map((each) => [each.id, each.kind, each.agent, each.product,
       made("span", `badge ${STATE_BADGES[each.state] ?? "b-open"}`, each.state), new Date(each.started).toLocaleString(),
-      each.id === job?.id ? made("span", "muted small", "shown below") : button("Show console", () => context.go("jobs", { job: each.id }), "small")])));
+      each.id === job?.id ? made("span", "muted small", "shown below") : button("Show console", () => context.go("jobs", { job: each.id }), "small")]));
+    const box = made("div", "", rows);
+    Object.assign(box.style, { position: "relative", overflowY: "auto" });
+    list.replaceChildren(box);
+    const sixth = rows.querySelectorAll("tbody tr")[SHOWN_JOBS];
+    if (sixth) box.style.maxHeight = `${sixth.offsetTop}px`;
   };
   // The console's text: the lines held and the one being written; it stays at the newest line unless the person has scrolled up from it.
   const show = () => {
