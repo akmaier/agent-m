@@ -300,6 +300,10 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .prompt-bar .split-grip:hover::before { background: var(--accent); }
 .prompt-bar .split-grip.idle { cursor: default; }
 .prompt-bar .split-grip.idle::before { visibility: hidden; }
+/* With no console below it, the split has nothing to share: its grip is not shown. */
+.prompt-bar:has(.status:empty) .split-grip { cursor: default; }
+.prompt-bar:has(.status:empty) .split-grip::before { visibility: hidden; }
+.prompt-bar .following[hidden] { display: none; }
 .prompt-bar button.fold { font-size: .75rem; padding: .1rem .45rem; margin-left: auto; }
 /* Where the message went takes one small line: "About …", "Sent to:" and the destinations run on, inline. */
 .prompt-bar .status > .about, .prompt-bar .status > .sends, .prompt-bar .status > .destinations { display: inline; margin: 0; padding: 0;

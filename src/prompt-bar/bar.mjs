@@ -920,11 +920,13 @@ export function startPromptBar(target, setup) {
     let gone = 0;
     const folded = (on) => {
       if (on && !status.hidden) {
-        gone = status.offsetHeight;
+        gone = status.offsetHeight + followed.offsetHeight;
         status.hidden = true;
+        followed.hidden = true;
         if (gone) shown(current() - gone);
       } else if (!on && status.hidden) {
         status.hidden = false;
+        followed.hidden = false;
         if (gone) held = sized(current() + gone);
         gone = 0;
       }
