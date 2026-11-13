@@ -290,6 +290,17 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .prompt-bar .buttons { display: flex; gap: .5rem; justify-content: flex-end; margin-left: auto; }
 .prompt-bar .conversation { list-style: none; padding: 0; display: grid; align-content: start; gap: .35rem; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .prompt-bar .conversation:empty, .prompt-bar .status:empty { display: none; }
+/* What a sent message shows — where it went, the console of a CLI session, the answer — scrolls inside the bar, as the conversation does. */
+.prompt-bar .status { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* Where the message went takes one small line: "About …", "Sent to:" and the destinations run on, inline. */
+.prompt-bar .status > .about, .prompt-bar .status > .sends, .prompt-bar .status > .destinations { display: inline; margin: 0; padding: 0;
+  color: var(--muted); font-size: .8rem; }
+.prompt-bar .status > .about::after { content: " "; }
+.prompt-bar .status > .sends::after { content: " "; }
+.prompt-bar .status > .destinations { list-style: none; }
+.prompt-bar .status > .destinations > .destination { display: inline; }
+.prompt-bar .status > .destinations > .destination + .destination::before { content: ", "; }
+.prompt-bar .status > .destinations + * { margin-top: .3rem; }
 
 /* The mail page (maintenance-pages/mail.mjs): the inbox as a mail program lists it — one line per mail, a button with sender, date and subject, the
    undecided ones bold — and the mail clicked beside the list on a wide screen; on a narrow one it takes the list's place, with a way back. */
