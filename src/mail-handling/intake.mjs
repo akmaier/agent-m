@@ -111,12 +111,14 @@ function needHost(host, kind) {
   if (!host) throw new TypeError(`decideMail: the decision ${kind} needs the product's host.`);
 }
 
-async function create(mail, { title, text, label }, host) {
+async function create(mail, { title, text, label, notPersons = [] }, host) {
   needHost(host, "create");
   if (!MAIL_LABELS.includes(label)) {
     throw new TypeError(`decideMail: an issue from a mail is labelled ${MAIL_LABELS.join(" or ")}, not ${JSON.stringify(label)}.`);
   }
-  const hits = [...personHits(title, mail.people), ...personHits(text, mail.people)];
+  // A hit the person marked as naming no one (`notPersons`, the words as found, any case) does not hold the issue back (UC-038 6a).
+  const passed = new Set(notPersons.map((word) => String(word).toLowerCase()));
+  const hits = [...personHits(title, mail.people), ...personHits(text, mail.people)].filter((hit) => !passed.has(String(hit.value).toLowerCase()));
   if (hits.length) {
     throw Object.assign(new Error(`The text names the mail's people: ${hits.map((hit) => hit.value).join(", ")}.`), { name: "PersonFound", hits });
   }

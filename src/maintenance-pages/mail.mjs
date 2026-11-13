@@ -243,15 +243,22 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, onDeci
   const chosen = () => (needsProduct ? null : products.get(product.value) ?? [...products.values()][0] ?? null);
   const issueNumber = () => (/^\d+$/.test(String(number.value ?? "").trim()) ? Number(number.value) : null);
 
-  const create = button("create-issue", "Create issue", () => decide({ kind: "create", product: chosen()?.address, title: title.value, text: body.value, label: kind.value }));
+  // The words of hits the author marked Not a person, in lower case (UC-038 6a).
+  const notPersons = new Set();
+  const create = button("create-issue", "Create issue", () => decide({ kind: "create", product: chosen()?.address, title: title.value, text: body.value, label: kind.value, notPersons: [...notPersons] }));
   const add = button("add-to-issue", "Add to #n", () => decide({ kind: "add", product: chosen()?.address, issue: issueNumber() }));
   const none = button("not-an-issue", "Not an issue", () => decide({ kind: "not-an-issue" }));
   create.disabled = true;
   add.disabled = true;
 
   function refresh() {
-    const hits = [...personHits(String(title.value ?? ""), people), ...personHits(String(body.value ?? ""), people)];
-    hitsList.replaceChildren(...hits.map((hit) => el("li", "mail-hit", `${hit.kind}: ${hit.value}`)));
+    const hits = [...personHits(String(title.value ?? ""), people), ...personHits(String(body.value ?? ""), people)].filter((hit) => !notPersons.has(String(hit.value).toLowerCase()));
+    hitsList.replaceChildren(...hits.map((hit) => {
+      const pass = el("button", "btn small not-a-person", "Not a person");
+      pass.type = "button";
+      pass.addEventListener("click", () => { notPersons.add(String(hit.value).toLowerCase()); refresh(); });
+      return el("li", "mail-hit", `${hit.kind}: ${hit.value} `, pass);
+    }));
     create.disabled = hits.length > 0 || !String(title.value ?? "").trim() || !String(body.value ?? "").trim() || chosen() === null;
     const n = issueNumber();
     add.textContent = n === null ? "Add to #n" : `Add to #${n}`;
