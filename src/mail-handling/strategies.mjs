@@ -67,9 +67,12 @@ async function replyInputs(context, params) {
   return [part("issue", lines.join("\n")), ...mails];
 }
 
+// The sentence that ends the text of every reply a language model drafted, above the quoted mail (A REPLY DRAFTED BY A MODEL SAYS SO).
+const DRAFTED_BY_AI = "This reply was drafted by AI.";
+
 /**
  * The writer `mail-drafts`. Parameters: `due`, as for `reply-inputs`, and `mailbox`. Stores each drafted text, `result.draft.replies`
- * as `{ mail: string, text: string }[]`, through `storeReplies`; it sends nothing. A text for a mail the issue does not list, or that
+ * as `{ mail: string, text: string }[]`, followed by the sentence that it was drafted by AI, through `storeReplies`; it sends nothing. A text for a mail the issue does not list, or that
  * has a reply, is stored for no one and named in `notes`, as is a mail that cannot be answered. `shown` is what `storeReplies` gave.
  */
 async function mailDrafts(result, context) {
@@ -78,7 +81,7 @@ async function mailDrafts(result, context) {
   const notes = [];
   const replies = [];
   for (const { mail: id, text } of result.draft.replies) {
-    if (open.has(id)) replies.push({ mail: open.get(id), body: text });
+    if (open.has(id)) replies.push({ mail: open.get(id), body: `${text}\n\n${DRAFTED_BY_AI}` });
     else notes.push(`No draft for ${id}: the issue lists no mail of it without a reply.`);
   }
   const shown = await storeReplies(mailbox, replies);

@@ -42,8 +42,8 @@ export { taskRefusal } from "./builtins.mjs";
  * Everything a strategy may read: the kind, the job's parameters, the product and the instance, opening another
  * repository, the participants, the places every restricted source and the mailbox allow, the gates at this job's points,
  * the person, the time, Agent M's version, and the job's identifier. `instance.checkout` is the folder of a checkout of the
- * instance, at the commit `agentM.commit`, in which the participant works and from which the instance's snapshot is read; null in a
- * browser. `product.checkout` is the folder of the checkout of the product in which a model endpoint's tools work (MOD-checkout-tools); null or
+ * instance, at the commit `agentM.commit`, in which the participant works and from which the instance's snapshot is read — on a Bridge its clone of
+ * the instance, on CI the job workflow's checkout —; null in a browser. `product.checkout` is the folder of the checkout of the product in which a model endpoint's tools work (MOD-checkout-tools); null or
  * absent where there is none.
  * @typedef {{ kind: KindDefinition, params: Record<string, unknown>, product: { address: string, snapshot: Snapshot,
  *   host: Host | null, checkout?: string | null }, instance: { snapshot: Snapshot, host: Host | null, checkout?: string | null }, connect: (address: string) => Promise<Host>,
@@ -117,7 +117,8 @@ export { taskRefusal } from "./builtins.mjs";
 /**
  * What a run panel shows before the person's click: blocking holds the findings of preconditions, of eligibility and of a
  * check that needs what the context lacks — test-declarations without the product's host — that keep the job from starting.
- * rules is Agent M's AGENTS.md, from the instance — its text, or its path in a checkout of the instance —, with which every input to a model
+ * rules is Agent M's AGENTS.md, from the instance — its text, or, for a coding agent on a Bridge, its path in the Bridge's clone of the instance
+ * followed by the sentence that the agent must read it in full; on CI, where the context names the job workflow's checkout, its text —, with which every input to a model
  * begins; null where the instance has none. form is the form the draft is checked by, chosen from the kind's checks, with which the
  * drafter's input continues after rules; null for a kind without a check of form. blocking also holds the error under A DRAFTING JOB
  * RECEIVES THE FORM ITS DRAFT IS CHECKED BY where the instance's SPEC.md lacks a piece of the form.

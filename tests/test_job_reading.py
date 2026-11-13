@@ -3,7 +3,7 @@
 # Guards: AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION
 # Guards: AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
 # Guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
-# Guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+# Guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
 # Level: component
 """SPEC: a job receives the chapters of the book *Vibe Coding* for its work, in full.
 
@@ -19,7 +19,9 @@ regression test before it fixes anything; on the architecture derive-architectur
 review-architecture; implementation implement. Asked through node (tests/jsrun.py).
 
 Every input a model receives begins with Agent M's own AGENTS.md, the one at the root of the instance repository: its text in the
-browser, its path in a checkout of the instance. A fixture instance and a fixture product, each with an AGENTS.md of its own text,
+browser and on CI, and for a coding agent on a Bridge the instruction to read it in full, naming its path in the Bridge's clone of the
+instance. The chapters likewise reach a coding agent on a Bridge as the instruction to read each file in full by its path there, and a
+participant on CI by their text. A fixture instance and a fixture product, each with an AGENTS.md of its own text,
 tell the instance's file from the product's; what a model receives is the text a driver sends, MOD-job-runner's driverPrompt of
 its input.
 """
@@ -284,11 +286,13 @@ PRODUCT_SPEC = ("# Fixture product — Specification\n\n**Form of a requirement:
 FORM_HEADING = "## The form your draft is checked by"
 
 # The fixture instance — this repository's files, with an AGENTS.md of its own text — and the fixture product, whose only file is its AGENTS.md. The
-# input of every kind's drafter, as its driver sends it (driverPrompt), in the browser and, with `checkout`, in a checkout of the instance, whose path
-# the input then names. In a checkout every strategy is a stand-in, so that no chapter is read from the fixture checkout.
+# input of every kind's drafter, as its driver sends it (driverPrompt), in the browser and, with `checkout`, in a checkout of the instance: for a coding
+# agent on a Bridge (`drafter`, of the type CLI agent) the input then names the file's path there, with every strategy a stand-in, so that no chapter is read
+# from the fixture checkout; for a coding agent on CI (of the type CI agent), whose context names the job workflow's checkout, the chapters are read by the
+# real recipes.
 FIRST = """
 const fs = process.getBuiltinModule("node:fs");
-const root = %s, rules = %s, productRules = %s, checkout = %s, productSpec = %s;
+const root = %s, rules = %s, productRules = %s, checkout = %s, productSpec = %s, drafter = %s;
 const commit = "a".repeat(40);
 const snapshotOf = (path, read) => ({ repository: { server: "github", origin: "https://github.com", path, web: "https://github.com/" + path },
   ref: "main", commit, paths: [], read, blob: () => null });
@@ -296,7 +300,7 @@ const instance = snapshotOf("akmaier/agent-m", async (path) => {
   if (path === "AGENTS.md") return rules;
   try { return fs.readFileSync(root + path, "utf8"); } catch { return null; } });
 const product = snapshotOf("acme/product", async (path) => (path === "AGENTS.md" ? productRules : path === "SPEC.md" ? productSpec : null));
-if (checkout === null) jobRunner.registerStrategies("MOD-source-register", { recipes: Object.fromEntries(
+if (checkout === null || drafter.type !== "CLI agent") jobRunner.registerStrategies("MOD-source-register", { recipes: Object.fromEntries(
   Object.entries(sourceRegister.sourceStrategies.recipes).filter(([name]) => name.startsWith("chapters-for-"))) });
 const empty = { recipes: async () => [], preconditions: async () => null, checks: () => [],
   steps: async (draft) => ({ draft, findings: [] }), writers: async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) };
@@ -310,9 +314,6 @@ for (const name of names) {
     catch (error) { if (error.name !== "DuplicateStrategy") throw error; }
   }
 }
-const drafter = { name: "reader", type: "CLI agent", model: "a-model", context: 10000000, price: null,
-  capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools",
-  "reach the web"], place: "this machine", route: "bridge lab-pc agent claude" };
 const out = {};
 for (const name of names) {
   const kind = await jobCatalogue.kindOf(name);
@@ -415,6 +416,26 @@ return out;
 """
 
 
+# The drafter of FIRST: a coding agent on a Bridge (MOD-participant-list's Connection type `CLI agent`), and a coding agent on CI (`CI agent`).
+ON_BRIDGE = {"name": "reader", "type": "CLI agent", "model": "a-model", "context": 10000000, "price": None,
+             "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"],
+             "place": "this machine", "route": "bridge lab-pc agent claude"}
+ON_CI = {**ON_BRIDGE, "type": "CI agent", "place": "GitHub's hosted runners", "route": "ci hosted agent claude secret ANTHROPIC_API_KEY"}
+
+
+def without_participant(kind):
+    """Whether the kind's definition names no participant (`participant: none`): its job sends nothing to a model, on a Bridge or anywhere."""
+    text = (ROOT / "src" / "job-catalogue" / "kinds" / kind / "kind.md").read_text(encoding="utf-8")
+    return re.search(r"^participant: none$", text, re.M) is not None
+
+
+def told_to_read(sent, path):
+    """Whether `sent` begins with the instruction to read the file at `path` in full: the path, then a sentence that the agent must read it in full."""
+    if not sent.startswith(path + "\n\n"):
+        return False
+    return "must read it in full" in sent[len(path) + 2:].split("\n\n")[0]
+
+
 def begins_with(sent, first):
     """Whether the input `sent` begins with `first` — Agent M's AGENTS.md, as its text or its path."""
     return sent.startswith(first)
@@ -423,12 +444,14 @@ def begins_with(sent, first):
 class AgentsFirst(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.browser = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), "null", json.dumps(PRODUCT_SPEC)))
+        cls.browser = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), "null", json.dumps(PRODUCT_SPEC), json.dumps(ON_BRIDGE)))
         cls.folder = tempfile.TemporaryDirectory()
         cls.checkout = cls.folder.name
         Path(cls.checkout, "AGENTS.md").write_text(INSTANCE_RULES, encoding="utf-8")
         cls.in_checkout = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.checkout),
-                                      json.dumps(PRODUCT_SPEC)))
+                                      json.dumps(PRODUCT_SPEC), json.dumps(ON_BRIDGE)))
+        cls.on_ci = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.checkout),
+                                json.dumps(PRODUCT_SPEC), json.dumps(ON_CI)))
         cls.message = js(MESSAGE % (json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES)))
         cls.product_folder = tempfile.TemporaryDirectory()
         cls.endpoint_in_checkout = js(CHECKOUT % (json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.product_folder.name)))
@@ -453,17 +476,33 @@ class AgentsFirst(unittest.TestCase):
 
     # TST-1350022 · level: component · module: MOD-job-runner
     # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
-    # given: every kind of the job catalogue for a participant that works in a fixture checkout of the instance, at the record's commit, holding AGENTS.md
+    # given: every kind of the job catalogue for a coding agent on a Bridge whose clone of the instance is a fixture checkout, at the record's commit, holding AGENTS.md
     # input: the input each kind's driver sends in its first exchange, and the file it begins by naming
-    # expect: each input begins with the path of AGENTS.md in the checkout, a file that holds the instance's AGENTS.md; no input holds the file's text
-    def test_every_kind_in_a_checkout_begins_with_the_path_of_agents_md_there(self):
+    # expect: each input begins with the instruction to read AGENTS.md in full, naming its path in the checkout, a file that holds the instance's AGENTS.md; no
+    # input holds the file's text
+    def test_every_kind_on_a_bridge_begins_with_the_instruction_to_read_agents_md_there(self):
         path = str(Path(self.checkout) / "AGENTS.md")
         self.assertEqual(Path(path).read_text(encoding="utf-8"), INSTANCE_RULES, "known positive: the path names the instance's file")
         self.assertGreater(len(self.in_checkout), 20)
         for name, sent in self.in_checkout.items():
+            if without_participant(name):
+                continue
             with self.subTest(name):
-                self.assertTrue(begins_with(sent[0], path), sent[0][:120])
+                self.assertTrue(told_to_read(sent[0], path), sent[0][:160])
                 self.assertNotIn("INSTANCE-RULES-TEXT", sent[0])
+
+    # TST-1350027 · level: component · module: MOD-job-runner
+    # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+    # given: every kind of the job catalogue for a coding agent on CI, whose context names the job workflow's checkout of the instance — the fixture checkout
+    # input: the input each kind's driver sends in its first exchange
+    # expect: more than 20 kinds; each input begins with the instance's AGENTS.md in full, and names no path of it
+    def test_every_kind_on_ci_begins_with_the_instances_agents_md_in_full(self):
+        path = str(Path(self.checkout) / "AGENTS.md")
+        self.assertGreater(len(self.on_ci), 20)
+        for name, sent in self.on_ci.items():
+            with self.subTest(name):
+                self.assertTrue(begins_with(sent[0], INSTANCE_RULES), sent[0][:120])
+                self.assertNotIn(path, sent[0])
 
     # TST-1350023 · level: component · module: MOD-prompt-bar
     # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
@@ -480,7 +519,8 @@ class AgentsFirst(unittest.TestCase):
     # TST-1350024 · level: component · module: MOD-job-runner
     # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
     # given: the input implement sent in the browser, and in a checkout
-    # input: the check over the input as sent; over it with the file left out, with the file put after the rest, and with the product's file in its place; and over the checkout's input with the path left out
+    # input: the check over the input as sent; over it with the file left out, with the file put after the rest, and with the product's file in its place; and over the
+    # Bridge's input with the path left out, and with the file's text given to the coding agent on a Bridge in the place of the instruction
     # expect: the first passes; each of the others fails
     def test_counter_proof_an_input_without_the_file_with_it_later_or_with_the_products_fails(self):
         sent = self.browser["implement"][0]
@@ -491,8 +531,9 @@ class AgentsFirst(unittest.TestCase):
         self.assertFalse(begins_with(PRODUCT_RULES + rest, INSTANCE_RULES), "the product's file in its place")
         path = str(Path(self.checkout) / "AGENTS.md")
         in_checkout = self.in_checkout["implement"][0]
-        self.assertTrue(begins_with(in_checkout, path))
-        self.assertFalse(begins_with(in_checkout[len(path):], path), "the path left out")
+        self.assertTrue(told_to_read(in_checkout, path))
+        self.assertFalse(told_to_read(in_checkout[len(path):], path), "the path left out")
+        self.assertFalse(told_to_read(self.on_ci["implement"][0], path), "a coding agent on a Bridge given the file's text")
 
     # TST-1350025 · level: component · module: MOD-workflow-entries
     # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
@@ -578,11 +619,11 @@ def form_problems(kind, sent):
 class FormGiven(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.browser = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), "null", json.dumps(PRODUCT_SPEC)))
+        cls.browser = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), "null", json.dumps(PRODUCT_SPEC), json.dumps(ON_BRIDGE)))
         cls.folder = tempfile.TemporaryDirectory()
         Path(cls.folder.name, "AGENTS.md").write_text(INSTANCE_RULES, encoding="utf-8")
         cls.in_checkout = js(FIRST % (json.dumps(str(ROOT) + "/"), json.dumps(INSTANCE_RULES), json.dumps(PRODUCT_RULES), json.dumps(cls.folder.name),
-                                      json.dumps(PRODUCT_SPEC)))
+                                      json.dumps(PRODUCT_SPEC), json.dumps(ON_BRIDGE)))
         cls.drafting = [name for name in cls.browser if {"requirement-form", "document-schema"} & set(checks_of(name))]
 
     @classmethod
@@ -628,6 +669,131 @@ class FormGiven(unittest.TestCase):
         self.assertEqual(form_problems("derive-use-cases", use_cases), [])
         module = schema_pieces()["src/documents/schemas/module.schema.md"]
         self.assertEqual(form_problems("derive-use-cases", use_cases.replace(module, "")), ["src/documents/schemas/module.schema.md"])
+
+
+# The chapter parts of the kinds `only` (every kind when null) for `drafter`, prepared with MOD-source-register's real chapter recipes and the instance read
+# from `checkout`, a fixture checkout of the instance at the record's commit that the context names: the Bridge's clone of the instance for a coding agent on a
+# Bridge, the job workflow's checkout for a coding agent on CI. A preparation that throws gives its error's name and the file it names.
+CHAPTERS_ON = """
+const fs = process.getBuiltinModule("node:fs");
+const checkout = %s, drafter = %s, only = %s;
+const commit = "a".repeat(40);
+const read = async (path) => { try { return fs.readFileSync(checkout + "/" + path, "utf8"); } catch { return null; } };
+const snapshot = { repository: { server: "github", origin: "https://github.com", path: "akmaier/agent-m",
+  web: "https://github.com/akmaier/agent-m" }, ref: "main", commit, paths: [], read, blob: () => null };
+jobRunner.registerStrategies("MOD-source-register", { recipes: Object.fromEntries(
+  Object.entries(sourceRegister.sourceStrategies.recipes).filter(([name]) => name.startsWith("chapters-for-"))) });
+const empty = { recipes: async () => [], preconditions: async () => null, checks: () => [],
+  steps: async (draft) => ({ draft, findings: [] }), writers: async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) };
+const named = (kind) => ({ preconditions: kind.preconditions, recipes: kind.recipes.map((recipe) => recipe.name),
+  checks: kind.checks, steps: kind.steps, writers: [kind.writer] });
+const names = only ?? await jobCatalogue.kindNames();
+for (const name of await jobCatalogue.kindNames()) {
+  const kind = await jobCatalogue.kindOf(name);
+  for (const [category, list] of Object.entries(named(kind))) for (const strategy of list) {
+    try { jobRunner.registerStrategies("tests/test_job_reading.py#chapters", { [category]: { [strategy]: empty[category] } }); }
+    catch (error) { if (error.name !== "DuplicateStrategy") throw error; }
+  }
+}
+const out = {};
+for (const name of names) {
+  const kind = await jobCatalogue.kindOf(name);
+  const context = { kind, params: {}, product: { address: "https://github.com/akmaier/agent-m", snapshot, host: null },
+    instance: { snapshot, host: null, checkout }, connect: async () => null, participants: [drafter],
+    places: { sources: {}, mailbox: null }, gates: [], person: null, now: new Date(), agentM: { version: "unreleased", commit }, jobId: null };
+  try {
+    const job = await jobRunner.prepareJob(name, context, { drafter: kind.participant === "one" ? drafter : null, reviewers: [] });
+    out[name] = { ok: true, parts: await Promise.all(job.parts.filter((part) => part.sources.includes("SRC-vibe-coding")).map(async (part) =>
+      ({ name: part.name, text: part.text, sha256: await textTools.sha256(part.text) }))) };
+  } catch (error) {
+    out[name] = { ok: false, error: error.name, file: error.file ?? null };
+  }
+}
+return out;
+"""
+
+
+def checkout_of_the_instance(corrupt=None):
+    """A temporary checkout of the instance holding SRC-vibe-coding's register entry and its chapter files; `corrupt` names a chapter file of the newest
+    version whose bytes are changed."""
+    folder = tempfile.TemporaryDirectory()
+    root = Path(folder.name)
+    register = root / "docs" / "sources"
+    register.mkdir(parents=True)
+    (register / "SRC-vibe-coding.md").write_bytes(ENTRY.read_bytes())
+    for chapter in newest_version_files().values():
+        target = register / "SRC-vibe-coding" / chapter.parent.name / chapter.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(chapter.read_bytes() + (b"\nchanged\n" if chapter.name == corrupt else b""))
+    return folder
+
+
+class ChaptersOnABridgeAndOnCI(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.chapters = newest_version_files()
+        cls.folder = checkout_of_the_instance()
+        cls.checkout = Path(cls.folder.name)
+        cls.on_bridge = js(CHAPTERS_ON % (json.dumps(str(cls.checkout)), json.dumps(ON_BRIDGE), "null"))
+        cls.on_ci = js(CHAPTERS_ON % (json.dumps(str(cls.checkout)), json.dumps(ON_CI), "null"))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.folder.cleanup()
+
+    def path_of(self, chapter):
+        file = self.chapters[chapter]
+        return str(self.checkout / "docs" / "sources" / "SRC-vibe-coding" / file.parent.name / file.name)
+
+    # TST-1350031 · level: component · module: MOD-source-register
+    # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
+    # given: every kind of each work, for a coding agent on a Bridge whose clone of the instance is a fixture checkout holding the book's chapter files
+    # input: the chapter parts prepareJob gives each kind, and the files they name
+    # expect: each chapter of the kind's work is given as the instruction to read its file in full, naming its path in the checkout — a file whose SHA-256 is the
+    # one the register records —, and no part holds the chapter's text
+    def test_a_coding_agent_on_a_bridge_is_told_to_read_each_chapter_by_its_path(self):
+        for work, (kinds, chapters) in WORK.items():
+            for kind in kinds:
+                with self.subTest(kind=kind):
+                    got = self.on_bridge[kind]
+                    self.assertTrue(got["ok"], got)
+                    for chapter in chapters:
+                        path = self.path_of(chapter)
+                        parts = [part for part in got["parts"] if self.chapters[chapter].name in part["name"]]
+                        self.assertEqual(len(parts), 1, f"{kind}: one part of chapter {chapter}")
+                        self.assertTrue(told_to_read(parts[0]["text"], path), parts[0]["text"][:200])
+                        self.assertEqual(hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+                                         hashlib.sha256(self.chapters[chapter].read_bytes()).hexdigest())
+                        first = self.chapters[chapter].read_text(encoding="utf-8").split("\n# ", 1)[1].split("\n", 1)[0]
+                        self.assertNotIn(first, parts[0]["text"], "known negative: the chapter's heading is not given")
+
+    # TST-1350032 · level: component · module: MOD-source-register
+    # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
+    # given: every kind of each work, for a coding agent on CI, whose context names the job workflow's checkout of the instance — the same fixture checkout
+    # input: the chapter parts prepareJob gives each kind
+    # expect: each chapter of the kind's work is given by its text, whose SHA-256 is the chapter file's; known positive: the same kinds on a Bridge were given paths
+    def test_a_participant_on_ci_is_given_each_chapter_by_its_text(self):
+        for work, (kinds, chapters) in WORK.items():
+            for kind in kinds:
+                with self.subTest(kind=kind):
+                    got = self.on_ci[kind]
+                    self.assertTrue(got["ok"], got)
+                    for chapter in chapters:
+                        parts = [part for part in got["parts"] if self.chapters[chapter].name in part["name"]]
+                        self.assertEqual(len(parts), 1, f"{kind}: one part of chapter {chapter}")
+                        self.assertEqual(parts[0]["sha256"], hashlib.sha256(self.chapters[chapter].read_bytes()).hexdigest())
+                        self.assertFalse(told_to_read(parts[0]["text"], self.path_of(chapter)))
+
+    # TST-1350033 · level: component · module: MOD-source-register
+    # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
+    # given: a fixture checkout of the instance whose file of chapter 13 differs from the SHA-256 the register records; known positive: the unchanged checkout
+    # input: prepareJob of write-tests for a coding agent on a Bridge
+    # expect: the unchanged checkout is prepared; the changed one is refused as HashMismatch, naming 13_software-testing.md
+    def test_a_chapter_file_whose_sha256_differs_is_refused_by_name(self):
+        self.assertTrue(self.on_bridge["write-tests"]["ok"], "known positive")
+        with checkout_of_the_instance(corrupt=self.chapters[13].name) as folder:
+            got = js(CHAPTERS_ON % (json.dumps(folder), json.dumps(ON_BRIDGE), json.dumps(["write-tests"])))["write-tests"]
+        self.assertEqual((got["ok"], got["error"], got["file"]), (False, "HashMismatch", self.chapters[13].name))
 
 
 if __name__ == "__main__":

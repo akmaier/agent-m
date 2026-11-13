@@ -1,8 +1,11 @@
 // The book's chapters read in a checkout of the instance (ITM-392) — the four chapter recipes of MOD-source-register's `sourceStrategies`, as the accepted text of
-// docs/architecture/MOD-source-register.md states them (Interfaces: "For a job whose participant works in a checkout of the instance — the context's `instance.checkout` —, each part holds
-// instead the path of the chapter's file in that checkout and none of its text, once the file read there has the SHA-256 the version records ... None of these parts may be left out ...
-// Throws as `readContent` throws, `NotRegistered { source }` ... and `ChapterMissing { chapter, version }`"), and the SPEC requirement A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS
-// THERE ("each chapter ... as the path of the chapter's file in that checkout, whose SHA-256 is the one the source register records"). For UC-010 step 3 and UC-011 step 3.
+// docs/architecture/MOD-source-register.md states them (Interfaces: "For a job whose participant is a coding agent on a Bridge — the context naming `instance.checkout` on a Bridge,
+// the Bridge's clone of the instance —, each part holds instead the instruction to read the chapter's file in full, naming its path in that clone, and none of its text, once the file
+// read there has the SHA-256 the version records ... None of these parts may be left out ... Throws as `readContent` throws, `NotRegistered { source }` ... and `ChapterMissing
+// { chapter, version }`"), and the SPEC requirement A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE ("each chapter ... as the instruction to read the chapter's file in full,
+// named by its path in the Bridge's clone of the instance, whose SHA-256 is the one the source register records"). The job runner names the checkout to the recipes only for a coding
+// agent on a Bridge (tests/job-runner-checkout.test.mjs). A part's text is read here as the instruction this module gives: the path, a blank line, then the sentence that the agent must
+// read the file in full. For UC-010 step 3 and UC-011 step 3.
 // Run: node --test tests/source-register-checkout.test.mjs
 //
 // Module: MOD-source-register
@@ -52,6 +55,9 @@ function contextOf(checkout, { entry = entryOf(FILES), held = FILES } = {}) {
     instance: { snapshot, host: null, ...(checkout === undefined ? {} : { checkout }) } } };
 }
 const recipe = (name, context) => sourceStrategies.recipes[name](context, {});
+// The path a part's instruction names, and whether the instruction tells the agent to read the file in full.
+const pathIn = (part) => part.text.split("\n\n")[0];
+const toldToRead = (part) => /must read it in full/.test(part.text.split("\n\n")[1] ?? "");
 const folders = [];
 const checkout = (files = FILES) => { const folder = checkoutWith(files); folders.push(folder); return folder; };
 test.after(() => { for (const folder of folders) rmSync(folder, { recursive: true, force: true }); });
@@ -69,7 +75,8 @@ test("chapter recipes — in a checkout, each part holds the path of its chapter
     const parts = await recipe(name, context);
     assert.equal(parts.length, chapters.length, name);
     for (const [at, part] of parts.entries()) {
-      assert.equal(realpathSync(part.text), pathOf(folder, fileOf(chapters[at])), `${name}: path`);
+      assert.equal(realpathSync(pathIn(part)), pathOf(folder, fileOf(chapters[at])), `${name}: path`);
+      assert.ok(toldToRead(part), `${name}: the instruction to read the file in full`);
       assert.ok(!part.text.includes("of the book, in full"), "none of the text");
       assert.deepEqual([part.sources, part.required], [[BOOK], true]);
       for (const word of [fileOf(chapters[at]), VERSION, versionHash(FILES)]) assert.ok(part.name.includes(word), `${name}: ${word}`);
@@ -100,7 +107,7 @@ test("chapter recipes — a chapter file in the checkout whose bytes differ fail
 test("chapter recipes — only the files of the recipe's own chapters are checked in the checkout", async () => {
   const folder = checkout({ ...FILES, [fileOf(10)]: "another text\n" });
   const [part] = await recipe("chapters-for-requirements", contextOf(folder).context);
-  assert.equal(realpathSync(part.text), pathOf(folder, fileOf(8)));
+  assert.equal(realpathSync(pathIn(part)), pathOf(folder, fileOf(8)));
 });
 
 // TST-472891 · level: unit · module: MOD-source-register
@@ -162,8 +169,9 @@ test("chapter recipes — over this repository, every chapter is a path of a fil
     const parts = await recipe(name, context);
     assert.equal(parts.length, chapters.length, name);
     for (const part of parts) {
-      assert.ok(onDisk.includes(part.text.split("/").at(-1)) && part.text.startsWith(folder), `${name}: ${part.text}`);
-      assert.equal(hex(readFileSync(part.text, "utf8")), recorded[part.text.split("/").at(-1)], "the hash the register records");
+      const path = pathIn(part);
+      assert.ok(onDisk.includes(path.split("/").at(-1)) && path.startsWith(folder) && toldToRead(part), `${name}: ${part.text}`);
+      assert.equal(hex(readFileSync(path, "utf8")), recorded[path.split("/").at(-1)], "the hash the register records");
       assert.ok(part.text.length < 400, "a path, not a text");
     }
   }
