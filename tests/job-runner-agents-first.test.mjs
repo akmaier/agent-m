@@ -1,8 +1,9 @@
-// Every model reads Agent M's AGENTS.md first — MOD-job-runner's composition of a job's input, as the proposed requirement EVERY MODEL READS AGENT M'S
-// AGENTS.MD FIRST states it (docs/spec-freigaben/2026-10-25_every-model-reads-agents-md-first/01-process-execution-and-jobs.md): "The input Agent M sends
-// to a language model — with a job, or with a message of the prompt bar — begins with Agent M's own `AGENTS.md`, the one at the root of the instance
-// repository, in full, whatever repository the job or the page works on; for a participant that works in a checkout of the instance, it begins with the
-// file's path there."
+// Every model reads Agent M's AGENTS.md first — MOD-job-runner's composition of a job's input, as the accepted requirement EVERY MODEL READS AGENT M'S
+// AGENTS.MD FIRST states it (SPEC.md): "The input Agent M sends to a language model — with a job, or with a message of the prompt bar to an endpoint or
+// one that starts a CLI session — begins with Agent M's own `AGENTS.md`, the one at the root of the instance repository, in full, whatever repository the
+// job or the page works on; for a coding agent on a Bridge, it begins instead with the instruction that the agent must read that file in full, naming its
+// path in the Bridge's clone of the instance." A coding agent on a Bridge is a participant of the type `CLI agent` (MOD-participant-list, Connection); a
+// coding agent on CI (`CI agent`) and a model endpoint get the file's text, though the context names a checkout of the instance (MOD-job-runner, Prepared).
 // Run: node --test tests/job-runner-agents-first.test.mjs
 //
 // Module: MOD-job-runner
@@ -40,13 +41,15 @@ try {
 const DRAFTER = { name: "drafter-a", type: "model endpoint", model: "model-a", context: 200000, price: null,
   capabilities: ["draft text", "read the repository"], place: "this machine", route: "endpoint e1" };
 const REVIEWER = { ...DRAFTER, name: "reviewer-b", model: "model-b", route: "endpoint e2" };
+const ON_BRIDGE = { ...DRAFTER, name: "drafter-bridge", type: "CLI agent", route: "bridge lab-pc agent claude" };
+const ON_CI = { ...DRAFTER, name: "drafter-ci", type: "CI agent", route: "ci hosted agent claude secret ANTHROPIC_API_KEY" };
 const snapshotOf = (path, files) => ({ repository: { server: "github", origin: "https://github.com", path, web: `https://github.com/${path}` },
   ref: "main", commit: COMMIT, paths: Object.keys(files), read: async (name) => files[name] ?? null, blob: () => null });
 const INSTANCE = snapshotOf("alice/instance", { "AGENTS.md": INSTANCE_RULES });
 const PRODUCT = snapshotOf("alice/product", { "AGENTS.md": PRODUCT_RULES });
 const contextOf = ({ instance = INSTANCE, product = PRODUCT, checkout = null } = {}) => ({ kind: null, params: {},
   product: { address: product.repository.web, snapshot: product, host: null }, instance: { snapshot: instance, host: null, checkout },
-  connect: async () => null, participants: [DRAFTER, REVIEWER], places: { sources: {}, mailbox: null }, gates: [], person: "alice",
+  connect: async () => null, participants: [DRAFTER, REVIEWER, ON_BRIDGE, ON_CI], places: { sources: {}, mailbox: null }, gates: [], person: "alice",
   now: new Date("2026-10-25T08:00:00Z"), agentM: { version: "unreleased", commit: COMMIT }, jobId: null });
 
 // The text a recording driver is asked to send; it stops the job after the first exchange.
@@ -54,11 +57,11 @@ const recorder = (participant, sent) => ({ participant, send: async (input) => {
   sent.push(driverPrompt(input));
   throw Object.assign(new Error("recorded"), { name: "Recorded" });
 } });
-async function sentBy(kind, context, { reviewers = [], from } = {}) {
-  const prepared = await prepareJob(kind, context, { drafter: from === undefined ? DRAFTER : null, reviewers });
+async function sentBy(kind, context, { reviewers = [], from, drafter = DRAFTER } = {}) {
+  const prepared = await prepareJob(kind, context, { drafter: from === undefined ? drafter : null, reviewers });
   const sent = [];
   try {
-    await runJob({ ...prepared, blocking: [], notFitting: [] }, { drafter: from === undefined ? recorder(DRAFTER, sent) : null,
+    await runJob({ ...prepared, blocking: [], notFitting: [] }, { drafter: from === undefined ? recorder(drafter, sent) : null,
       reviewers: reviewers.map((reviewer) => recorder(reviewer, sent)) }, { attended: true, context, from });
   } catch (error) {
     if (error.name !== "Recorded") throw error;
@@ -82,13 +85,32 @@ test("runJob — the drafter's input begins with the instance's AGENTS.md in ful
 
 // TST-1350002 · level: unit · module: MOD-job-runner
 // guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
-// given: a job whose participant works in a checkout of the instance at the record's commit; the instance's AGENTS.md read from it
+// given: a job whose participant is a coding agent on a Bridge (type `CLI agent`), working in a checkout of the instance at the record's commit
 // input: prepareJob and runJob of propose-groups; the text the drafter's driver sends
-// expect: the text begins with the path of AGENTS.md in the checkout, and holds none of the file's text
-test("runJob — in a checkout of the instance, the input begins with the path of its AGENTS.md there", async () => {
-  const { sent } = await sentBy("propose-groups", contextOf({ checkout: CHECKOUT }));
-  assert.ok(sent[0].startsWith(join(CHECKOUT, "AGENTS.md")), sent[0].slice(0, 120));
+// expect: the text begins with the path of AGENTS.md in the checkout, followed by the instruction that the agent must read it in full; none of the file's text
+test("runJob — for a coding agent on a Bridge, the input begins with the instruction to read AGENTS.md in full at its path there", async () => {
+  const { sent } = await sentBy("propose-groups", contextOf({ checkout: CHECKOUT }), { drafter: ON_BRIDGE });
+  const path = join(CHECKOUT, "AGENTS.md");
+  assert.ok(sent[0].startsWith(`${path}\n\n`), sent[0].slice(0, 120));
+  const instruction = sent[0].slice(path.length).split("\n\n")[1];
+  assert.match(instruction, /must read it in full/, "the instruction to read the file in full follows its path");
   assert.ok(!sent[0].includes("INSTANCE-RULES-TEXT"), "the file's text is not given");
+});
+
+// TST-1350006 · level: unit · module: MOD-job-runner
+// guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
+// given: the same context naming a checkout of the instance — on CI, the job workflow's checkout —, for a coding agent on CI (type `CI agent`) and for a model endpoint
+// input: prepareJob and runJob of propose-groups; the text each drafter's driver sends
+// expect: each text begins with the instance's AGENTS.md in full, and names no path of it; known positive: the same context for the agent on a Bridge names the path
+test("runJob — on CI and for a model endpoint, the input begins with the text of AGENTS.md though the context names a checkout", async () => {
+  const path = join(CHECKOUT, "AGENTS.md");
+  const bridged = await sentBy("propose-groups", contextOf({ checkout: CHECKOUT }), { drafter: ON_BRIDGE });
+  assert.ok(bridged.sent[0].startsWith(path), "known positive: the agent on a Bridge is given the path");
+  for (const drafter of [ON_CI, DRAFTER]) {
+    const { sent } = await sentBy("propose-groups", contextOf({ checkout: CHECKOUT }), { drafter });
+    assert.ok(sent[0].startsWith(INSTANCE_RULES), `${drafter.type}: ${sent[0].slice(0, 120)}`);
+    assert.ok(!sent[0].includes(path), `${drafter.type}: no path is named`);
+  }
 });
 
 // TST-1350003 · level: unit · module: MOD-job-runner

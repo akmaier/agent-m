@@ -13,8 +13,13 @@
 // participant differs from the drafter and from every other one, as the catalogue's `reviewers` says, except with `selfReview`.
 //
 // Agent M's own AGENTS.md, at the root of the instance repository, is the job's `rules`: the part every input to a model begins with, whatever
-// repository the job works on — its text, or, where the participant works in a checkout of the instance, its path there —, counted in every
-// destination's size. It carries no source: it is the instance's own file.
+// repository the job works on — its text, or, for a coding agent on a Bridge, the instruction to read it in full at its path in the Bridge's clone
+// of the instance —, counted in every destination's size. It carries no source: it is the instance's own file.
+//
+// A coding agent on a Bridge is a participant of the type `CLI agent` (MOD-participant-list, Connection: a coding agent that a Bridge offers). A
+// job whose participants all are such agents reads the instance through the checkout the context names; for any other — a coding agent on CI, where
+// the context names the job workflow's checkout, or a model endpoint — the rules and the recipes are given the context without the checkout, so
+// that AGENTS.md and the book's chapters reach it as their text, read from the instance's snapshot. The commit of a checkout is checked either way.
 //
 // The job's `form` is the part with which the drafter's input continues after `rules`: what the kind's built-in checks of form judge a draft by,
 // chosen from its `checks` and from nothing else (A DRAFTING JOB RECEIVES THE FORM ITS DRAFT IS CHECKED BY) — for `requirement-form`
@@ -66,14 +71,20 @@ async function partsOf(kind, context, leftOut) {
   return parts;
 }
 
-// rulesOf(context) -> Part | null — Agent M's AGENTS.md, read from the instance's snapshot: its text, or in a checkout of the instance the path of the file
-// there, followed by the sentence that asks the participant to read it; null where the instance has none.
+// onBridge(choice) -> boolean — whether every participant the job sends to, and at least one, is a coding agent on a Bridge.
+const onBridge = ({ drafter, reviewers }) => {
+  const receiving = [drafter, ...reviewers].filter(Boolean);
+  return receiving.length > 0 && receiving.every((participant) => participant.type === "CLI agent");
+};
+
+// rulesOf(context) -> Part | null — Agent M's AGENTS.md, read from the instance's snapshot: its text, or, where the context names a checkout of the instance,
+// the path of the file there followed by the sentence that tells the participant it must read it in full; null where the instance has none.
 async function rulesOf(context) {
   const { snapshot, checkout } = context.instance;
   const text = await snapshot?.read?.(RULES);
   if (typeof text !== "string") return null;
   const given = typeof checkout === "string"
-    ? `${checkout.replace(/[\\/]+$/, "")}/${RULES}\n\nThe file above is Agent M's AGENTS.md: read it in full before anything else.` : text;
+    ? `${checkout.replace(/[\\/]+$/, "")}/${RULES}\n\nThe file above is Agent M's AGENTS.md: you must read it in full before anything else.` : text;
   return { name: RULES, text: given, size: estimate(given), sources: [], required: true, recipe: null, artifacts: [] };
 }
 
@@ -166,12 +177,14 @@ export async function prepareJob(name, context, choice) {
     const found = await strategyOf("preconditions", precondition)(context);
     if (found) blocking.push(found);
   }
-  const rules = await rulesOf(context);
+  // Only a coding agent on a Bridge reads the instance's files in the checkout; any other participant is given their text.
+  const reading = onBridge(choice) ? context : { ...context, instance: { ...context.instance, checkout: undefined } };
+  const rules = await rulesOf(reading);
   const { form, lacking: formLacking } = await formOf(kind, context);
   if (formLacking) blocking.push(formLacking);
   const leftOut = [];
-  const parts = await partsOf(kind, context, leftOut);
-  const reviewerParts = reviewing && choice.reviewers.length ? await partsOf(reviewing, context, leftOut) : [];
+  const parts = await partsOf(kind, reading, leftOut);
+  const reviewerParts = reviewing && choice.reviewers.length ? await partsOf(reviewing, reading, leftOut) : [];
   const shared = (part, among) => among.some((other) => other.recipe === part.recipe && other.name === part.name);
 
   const destinations = [];

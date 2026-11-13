@@ -153,7 +153,9 @@ test("prepareJob — FormMissing blocks a job whose instance's SPEC.md lacks a p
 // expect: the form is given as its text, the same as in the browser, while AGENTS.md is given by its path
 test("prepareJob — in a checkout of the instance, the form is given as its text too", async () => {
   const context = contextOf(undefined, "/tmp/agent-m-instance-checkout");
-  const prepared = await prepareJob("change-requirements", context, { drafter: DRAFTER, reviewers: [] });
+  // Only a coding agent on a Bridge is given AGENTS.md by its path (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST).
+  const onBridge = { ...DRAFTER, type: "CLI agent", route: "bridge lab-pc agent claude" };
+  const prepared = await prepareJob("change-requirements", context, { drafter: onBridge, reviewers: [] });
   assert.equal(prepared.form.text, formText([REQUIREMENT_PIECE]));
   const [sent] = await sentBy(prepared, context);
   assert.ok(sent.startsWith("/tmp/agent-m-instance-checkout/AGENTS.md"), "known positive: AGENTS.md by its path");

@@ -240,6 +240,30 @@ test("TST-954009 mail-drafts names a mail that cannot be answered", async () => 
   assert.ok(outcome.notes.some((note) => note.includes(A.id) && note.includes("not sendable")));
 });
 
+// TST-954012
+// level: unit
+// module: MOD-mail-handling
+// guards: A REPLY DRAFTED BY A MODEL SAYS SO; UC-039
+// given: a result with drafted texts for mails A and B of the issue, which say nothing of how they were drafted
+// input: mailStrategies.writers["mail-drafts"](result, context)
+// expect: each draft stored in the mailbox holds its drafted text and states, in its own text above the quoted mail, that it was drafted by AI; counter-proof: the
+// statement this test looks for is in neither drafted text, so a draft stored as the participant wrote it fails
+test("TST-954012 mail-drafts stores each reply a model drafted with the statement that it was drafted by AI", async () => {
+  const says = (text) => /drafted by AI/.test(text);
+  const texts = ["Fixed in 2026.10.1.", "The import works again."];
+  assert.ok(texts.every((text) => !says(text)), "counter-proof: the drafted texts do not say how they were drafted");
+  const mailbox = fakeMailbox();
+  const due = dueOf([{ id: A.id, mail: mail(A), draft: null, noted: false }, { id: B.id, mail: mail(B, { from: MAX }), draft: null, noted: false }]);
+  await strategies().writers["mail-drafts"](resultOf([{ mail: A.id, text: texts[0] }, { mail: B.id, text: texts[1] }]), contextOf({ due, mailbox }));
+  const stored = mailbox.calls.filter((call) => call[0] === "mailbox.storeDraft").map((call) => call[1]);
+  assert.equal(stored.length, 2);
+  stored.forEach((draft, index) => {
+    const own = draft.body.split(/\n\n> /)[0];
+    assert.ok(own.startsWith(texts[index]), "the drafted text is kept");
+    assert.ok(says(own), `the draft for ${draft.replyTo.id} states that it was drafted by AI: ${own}`);
+  });
+});
+
 // The real check of MOD-personal-data, as the job runner calls it: (draft, context).
 const peopleSearch = privacyStrategies.checks["people-search"];
 // The hits of the real check for a draft text, after a recipe has prepared a context for the two mails.

@@ -60,8 +60,12 @@ function checkedPath(checkout, version, file) {
   })();
 }
 
-// The parts of the chapters `numbers`, read from the newest version of the instance's entry SRC-vibe-coding: each the chapter's whole text, or — for a job in a
-// checkout of the instance — the path of its file there and none of its text.
+// The instruction to read a chapter's file in full, naming its path in the checkout of the instance: the path, then one sentence.
+const readThere = (path, chapter) =>
+  `${path}\n\nThe file above is chapter ${chapter} of the book Vibe Coding: you must read it in full before you begin the work.`;
+
+// The parts of the chapters `numbers`, read from the newest version of the instance's entry SRC-vibe-coding: each the chapter's whole text, or — for a job whose
+// context names a checkout of the instance, a coding agent's on a Bridge — the instruction to read its file there in full, and none of its text.
 async function chapters(numbers, context, entrySchema) {
   const snapshot = context.instance.snapshot;
   const text = await snapshot.read(ENTRY_PATH);
@@ -81,7 +85,8 @@ async function chapters(numbers, context, entrySchema) {
     if (!file) {
       throw failure("ChapterMissing", `the version ${version.version} of ${BOOK} holds no file for chapter ${chapter}`, { chapter, version: version.version });
     }
-    parts.push({ name: pinned(file), text: inCheckout ? await checkedPath(checkout, version, file) : decoder.decode(file.bytes), size: 0, sources: [BOOK], required: true });
+    const text = inCheckout ? readThere(await checkedPath(checkout, version, file), chapter) : decoder.decode(file.bytes);
+    parts.push({ name: pinned(file), text, size: 0, sources: [BOOK], required: true });
   }
   return parts;
 }
@@ -137,8 +142,9 @@ async function excerpt(context, params, module) {
  *   architecture` and `chapters-for-implementation`: each reads the instance's register entry SRC-vibe-coding, takes its
  *   newest version, reads that version's files through readContent, and returns one part per chapter of its row, in the
  *   order of their numbers: the whole file, naming SRC-vibe-coding as its source and, in its name, the file, the version
- *   and the version's hash as its pin; for a job whose context names `instance.checkout`, the path of the file in that
- *   checkout instead, and none of its text, once the file read there has the SHA-256 the version records (HashMismatch
+ *   and the version's hash as its pin; for a job whose context names `instance.checkout` — the job runner names it only for a coding agent on a Bridge,
+ *   its clone of the instance —, the instruction to read the file in full instead, naming its path in that checkout, and none of its text, once the
+ *   file read there has the SHA-256 the version records (HashMismatch
  *   { file, expected, actual } if not, ContentUnreadable if the checkout lacks it). Throws as readContent throws, NotRegistered { source } when the instance has no
  *   entry SRC-vibe-coding, and ChapterMissing { chapter, version } when the version holds no file for a chapter.
  */

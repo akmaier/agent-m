@@ -99,3 +99,28 @@ test("prepareJob — a checkout at another commit than the job's record names is
     assert.equal(seen.length, 0, "no recipe ran");
   }
 });
+
+// TST-472324 · level: unit · module: MOD-job-runner
+// guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; UC-011
+// given: a context whose instance holds a checkout at the record's commit — on CI, the job workflow's checkout —, for a coding agent on CI (type `CI agent`)
+// and for a model endpoint; known positive: the same context for the coding agent on a Bridge
+// input: prepareJob of the kind whose recipe shows what it reads; then the same for the coding agent on CI with the checkout at another commit
+// expect: the agent on a Bridge's recipe is given the checkout; the others' recipe is given none, so that it gives the text read from the snapshot; a checkout
+// at another commit is refused as CheckoutAtOtherCommit for the agent on CI too
+test("prepareJob — on CI and for a model endpoint the recipes are given no checkout, and the commit is still checked", async () => {
+  const onCi = { ...DRAFTER, name: "drafter-ci", type: "CI agent", route: "ci hosted agent claude secret ANTHROPIC_API_KEY" };
+  const endpoint = { ...DRAFTER, name: "drafter-endpoint", type: "model endpoint", route: "endpoint e1" };
+  const prepareFor = (drafter, instance) => prepareJob("propose-groups", contextOf(instance), { drafter, reviewers: [] });
+  seen.length = 0;
+  await prepareFor(DRAFTER, { checkout: CHECKOUT, snapshot: snapshotAt(RECORD_COMMIT) });
+  assert.ok(same(seen[0].checkout, CHECKOUT), "known positive: the agent on a Bridge reads the checkout");
+  for (const drafter of [onCi, endpoint]) {
+    seen.length = 0;
+    const prepared = await prepareFor(drafter, { checkout: CHECKOUT, snapshot: snapshotAt(RECORD_COMMIT) });
+    assert.equal(seen.length, 1);
+    assert.ok(seen[0].checkout === null || seen[0].checkout === undefined, `${drafter.type}: the recipe is given no checkout`);
+    assert.equal(seen[0].commit, RECORD_COMMIT);
+    assert.match(prepared.parts[0].text, /^checkout none at /);
+  }
+  await assert.rejects(prepareFor(onCi, { checkout: CHECKOUT, snapshot: snapshotAt(OTHER_COMMIT) }), (error) => error.name === "CheckoutAtOtherCommit");
+});
