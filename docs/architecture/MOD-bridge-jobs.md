@@ -137,7 +137,7 @@ one folder of the Bridge's settings (MOD-desktop-shell) —, laid out as a local
 
 **The clones at the session's start.** Before every CLI session starts, the Bridge fetches its clone of the product and
 its clone of the instance from their origins, checks the instance's clone out at the commit the job's record names
-(`agent_m`, MOD-job-ledger) — for a session of the prompt bar, the commit of the instance the ask that starts it names — and removes
+(`agent_m`, MOD-job-ledger) — for a session of the prompt bar, at the head of the instance's default branch as just fetched — and removes
 every file of it that git neither tracks nor ignores, so that nothing an earlier session left there is read as the
 present state; the agent's home and `products/`, which git ignores there, stay. The session's checkout is made
 anew for every session, at the head of the product's default branch the fetch brought.
@@ -243,7 +243,7 @@ settings (MOD-desktop-shell).
     (UC-049 5a, 6d).
   - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page: to one agent it offers, started with the model the
     request names (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), answered with its text and the
-    usage it reported. A request that names a `product` — a served product's address — and an `instance` commit is a
+    usage it reported. A request that names a `product` — a served product's address — is a
     message of the prompt bar to a CLI session (UC-049 step 4, ARC-055). Without a `session`, the Bridge starts one as
     it starts a job's — *The clones at the session's start*, *The session's checkout*, *The token file* —, with
     MOD-agent-processes' `startSession` in the agent's enclosure, lists it as a job of the kind `converse` under a new

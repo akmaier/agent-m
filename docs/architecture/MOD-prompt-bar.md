@@ -265,8 +265,7 @@ and sends nothing while the job does not
   read them again while they are still in its context (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`, `A CLI SESSION IS
   TOLD AGAIN EVERY FIFTH MESSAGE TO READ AGENTS.MD`). With any other message, that place is empty. The conversation
   counts the messages it has sent to the session it keeps. The input is sent with MOD-bridge-client's `ask` to the session's agent on its Bridge, with the session's
-  model, the address of the message's page's repository as `product`, the commit of the instance the bar read as
-  `instance`, and the session the conversation keeps as `session`, none where it keeps none. The conversation keeps the
+  model, the address of the message's page's repository as `product`, and the session the conversation keeps as `session`, none where it keeps none. The conversation keeps the
   session `onSession` names, with its Bridge. While the message runs, the bar shows the session's console under it,
   followed with `bridgeJobLog` — its lines as they come and the part its screen shows. No tool, no answer schema, no
   correction loop, no plan and no hand-over apply to it: the text the session answers is shown in the conversation as
