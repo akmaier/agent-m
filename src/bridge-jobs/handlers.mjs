@@ -1,4 +1,4 @@
-import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
+import { agentDriver, agentModels, installedAgents, testAgent } from "../agent-processes/index.mjs";
 import { endpointDriver, endpointExchange, listModels as nodeListModels, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 import { listPartitions } from "./probes.mjs";
 import { enclosureOf } from "./enclosures.mjs";
@@ -105,6 +105,21 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
       }
       const found = (await installedAgents({ enclosure, workdir: wanted.folder })).find((agent) => agent.name === wanted.name);
       return { answer: await testAgent(found, { enclosure, workdir: wanted.folder }) };
+    },
+    // The models an offered agent reports (UC-044 step 5): agentModels in its enclosure, in its working folder, unchanged; else why nothing was read.
+    "POST /v1/probes/agent-models": async ({ body }) => {
+      const wanted = offered(body?.args?.agent);
+      if (!wanted) throw failure("invalid-request", "This Bridge does not offer that agent.");
+      if (!wanted.folder) return { answer: { reason: `${wanted.name} has no working folder on this Bridge` } };
+      let enclosure;
+      try {
+        enclosure = await enclosureOf(enclosures, wanted.folder);
+        await enclosure.prepare({ writable: [], readable: [] });
+      } catch (error) {
+        return { answer: { reason: error.message } };
+      }
+      const found = (await installedAgents({ enclosure, workdir: wanted.folder })).find((agent) => agent.name === wanted.name);
+      return { answer: await agentModels(found, { enclosure, workdir: wanted.folder }) };
     },
     "POST /v1/ask": async ({ body }) => {
       // Every answer names its calls: those an exchange of a tool loop made, [] for any other request (MOD-bridge-http's route table).

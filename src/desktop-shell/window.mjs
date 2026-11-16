@@ -114,8 +114,18 @@ async function agents(target, context) {
     }
     const models = area("Models ", (kept?.models ?? []).map((each) => `${each.model} ${each.context ?? ""}`.trim()).join("\n"));
     models.input.rows = 3; models.input.cols = 48;
-    panel.append(made("p", "", where.caption), capabilities, made("p", "", models.caption),
-      made("p", "muted small", "One model per line: its name and its context in tokens, for example claude-opus-5-5 200000."));
+    // Read models (UC-044 step 5): the models the agent reports in its enclosure replace the field's lines, the context left out where it reports none; nothing is
+    // saved. Where nothing is read, the panel says why and the field stays (5a).
+    const told = made("p", "muted small");
+    const readModels = button("Read models", async () => {
+      let answer;
+      try { answer = await window.bridge.state("agent-models", { name: agent.name }); } catch (failure) { answer = { reason: failure?.message ?? String(failure) }; }
+      if (!Array.isArray(answer?.models)) { told.textContent = `Nothing could be read: ${answer?.reason ?? "the Bridge gave no reason"}.`; return; }
+      models.input.value = answer.models.map((each) => `${each.model} ${each.context ?? ""}`.trim()).join("\n");
+      told.textContent = `Read ${answer.models.length} model(s) of ${agent.name}. Add a context where one is missing, then Save agents to keep them.`;
+    }, "small");
+    panel.append(made("p", "", where.caption), capabilities, made("p", "", models.caption, " ", readModels),
+      made("p", "muted small", "One model per line: its name and its context in tokens, for example claude-opus-5-5 200000."), told);
     // For an agent with a Chrome integration, a tick Chrome: every session of the agent is then started with it, so that it can use the person's Chrome;
     // off until ticked (UC-044 step 3).
     let chrome = null;

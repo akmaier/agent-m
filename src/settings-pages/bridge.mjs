@@ -1,7 +1,7 @@
 // MOD-settings-pages' Bridge configuration route (UC-044).  Pairing is the only operation here that contacts a
 // Bridge; the jump-host record is browser configuration and its Save button deliberately makes no request.
 
-import { allocatePort, bridgeAt, declareAgent, pair, proxyConfiguration, settingsOf, testBridge, tunnelCommands } from "../bridge-client/index.mjs";
+import { allocatePort, bridgeAt, declareAgent, pair, probe, proxyConfiguration, settingsOf, testBridge, tunnelCommands } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { endpointLacks } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -146,6 +146,21 @@ function sessionForm(entry, agent, reached) {
   const addModel = el("button", "bridge-session-add-model btn small", "+ Add model");
   addModel.type = "button";
   addModel.addEventListener("click", () => modelsBox.append(modelRow()));
+  // Read models (UC-044 step 5): the models the agent reports on the Bridge's computer replace the rows not yet saved; nothing is saved. Where nothing is read, the
+  // form says why and the rows stay (5a).
+  const readModels = el("button", "bridge-session-read-models btn small", "Read models");
+  readModels.type = "button";
+  const readResult = el("p", "bridge-session-read-result");
+  readModels.addEventListener("click", async () => {
+    let answer;
+    try { answer = await probe(reached, "agent-models", { agent: agent.name }); } catch (error) {
+      readResult.textContent = `Nothing could be read: the Bridge was not reached: ${error?.message ?? error}.`;
+      return;
+    }
+    if (!Array.isArray(answer?.models)) { readResult.textContent = `Nothing could be read: ${answer?.reason ?? "the Bridge gave no reason"}.`; return; }
+    modelsBox.replaceChildren(...answer.models.map(modelRow));
+    readResult.textContent = `Read ${answer.models.length} model(s) of ${agent.name}. Add a context where one is missing, then save the session to keep them.`;
+  });
   const lacks = el("div", "bridge-session-lacks-slot");
   const save = el("button", "bridge-session-save btn primary", "Save session");
   const result = el("p", "bridge-session-result");
@@ -176,7 +191,7 @@ function sessionForm(entry, agent, reached) {
     el("h4", null, "CLI session: ", el("span", "bridge-session-agent", agent.name)), lacks,
     el("p", null, el("label", null, "Processing place ", place)),
     el("p", null, "Capabilities ", ...capabilities.flatMap((box) => [el("label", null, box, ` ${box.value}`), " "])),
-    modelsBox, el("p", null, addModel),
+    modelsBox, el("p", null, addModel, " ", readModels), readResult,
     el("p", null, save), result);
 }
 

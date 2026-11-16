@@ -1,8 +1,10 @@
 // MOD-agent-processes — the supported coding-agent CLIs on this machine. Command options, login interpretation,
 // installation guidance and credential-variable names are rows of agents.md; this module only reads and executes them.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { homedir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { documentFindings, loadSchema, readRegister } from "../documents/index.mjs";
 import { processDriver } from "./processes.mjs";
 import { sessionOf } from "./sessions.mjs";
@@ -40,6 +42,7 @@ function rowOf(cells) {
     model: cells.Model == null || cells.Model === "—" ? null : json(cells.Model, "Model"),
     login: json(cells["Login check"], "Login check"),
     chrome: cells.Chrome == null || cells.Chrome === "—" ? null : json(cells.Chrome, "Chrome"),
+    models: cells.Models == null || cells.Models === "—" ? null : json(cells.Models, "Models"),
     keyVariable: cells["Key variable"] ?? null,
     endpoint: cells.Endpoint == null ? null : json(cells.Endpoint, "Endpoint"),
     keyHolder: cells["Key holder"] == null || cells["Key holder"] === "—" ? null : json(cells["Key holder"], "Key holder"),
@@ -182,4 +185,52 @@ export async function testAgent(agent, { enclosure = null, workdir = null } = {}
   }
   if (row.task.finalAnswer.oneWord && !/^\S+$/.test(answer)) return { answered: false, reason: "agent did not answer with one word" };
   return { answered: true, version: agent.version };
+}
+
+// The newest file a Models pattern names under the person's own home: `~/` its start, a `*` within its last part only; null where none is there.
+function newestFile(pattern) {
+  const path = pattern.replace(/^~(?=\/)/, homedir()), folder = dirname(path);
+  const wanted = new RegExp(`^${basename(path).split("*").map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`);
+  const found = readdirSync(folder).filter((name) => wanted.test(name)).map((name) => join(folder, name))
+    .map((file) => ({ file, written: statSync(file).mtimeMs })).sort((a, b) => b.written - a.written);
+  return found[0]?.file ?? null;
+}
+// The models a Models column's text holds, in the order it holds them: one per line, or the entries of a JSON list that carry the column's `take`.
+function modelsIn(read, text) {
+  if (read.format === "lines") return text.split("\n").map((line) => line.trim()).filter(Boolean).map((model) => ({ model, context: null }));
+  const list = valueAt(JSON.parse(text), read.list);
+  if (!Array.isArray(list)) throw new Error(`it holds no list at ${read.list.join(".")}`);
+  return list.filter((entry) => Object.entries(read.take ?? {}).every(([field, value]) => entry?.[field] === value))
+    .map((entry) => ({ model: valueAt(entry, read.model), context: read.context ? valueAt(entry, read.context) : null }))
+    .filter(({ model }) => typeof model === "string" && model)
+    .map(({ model, context }) => ({ model, context: Number.isInteger(context) && context > 0 ? context : null }));
+}
+
+/**
+ * agentModels(agent, { enclosure?, workdir? }) -> Promise<{ models: { model, context }[] } | { reason }> — the models the agent reports on this machine, as its row's
+ * Models column says (UC-044 step 5): its command run inside the enclosure where one is given, in `workdir`; its file read by this process itself, outside every
+ * enclosure, the newest the pattern matches. Changes nothing and throws nothing. @param {Agent} agent
+ */
+export async function agentModels(agent, { enclosure = null, workdir = null } = {}) {
+  const row = rows.find((candidate) => candidate.name === agent?.name);
+  if (!row?.models) return { reason: `${agent?.name ?? "this agent"} reports no models Agent M can read` };
+  if (!agent.installed) return { reason: `${agent.name} is not installed` };
+  const read = row.models;
+  let text, source;
+  if (read.file) {
+    source = read.file;
+    let file;
+    try { file = newestFile(read.file); } catch (error) { return { reason: `${source} cannot be read: ${error.message}` }; }
+    if (!file) return { reason: `${source} is missing` };
+    try { text = readFileSync(file, "utf8"); } catch (error) { return { reason: `${file} cannot be read: ${error.message}` }; }
+  } else {
+    source = [row.command, ...read.args].join(" ");
+    const enclosed = enclosure ? { enclosure, workdir: workdir ?? enclosure.home ?? process.cwd() } : null;
+    const result = await invoke(row.command, read.args, undefined, null, enclosed);
+    if (!result.ok) return { reason: `${source} failed: ${(result.stderr || result.error?.message || `exit ${result.status}`).trim()}` };
+    text = result.stdout;
+  }
+  let models;
+  try { models = modelsIn(read, text); } catch (error) { return { reason: `${source} gave what Agent M cannot read as ${read.format}: ${error.message}` }; }
+  return models.length ? { models } : { reason: `${source} names no model` };
 }
