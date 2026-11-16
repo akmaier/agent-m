@@ -361,13 +361,13 @@ test("1b: on an iPhone or iPad not opened from the Home Screen, the line says so
 
 // TST-476043 · level: system · module: MOD-notifications
 // guards: UC-047
-// given: notifications on, last check one minute old — not yet five minutes (MOD-notifications, Interfaces: due())
+// given: notifications on, last check half a minute old — not yet a minute (MOD-notifications, Interfaces: due())
 // input: opening a review page (#uc)
 // expect: (2a/2b: "nothing is checked"; "the check runs when it runs the page again" — here too, a check only ever runs when this page's own code runs it, never on its own) the stored check time is left exactly as it was; no check ran
 test("2a/2b: while not due, opening the page makes no check — the last check time is left exactly as it was", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
-  const recent = minutesAgo(1);
+  const recent = minutesAgo(0.5);
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: recent }) } });
     const after = JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notifications`));

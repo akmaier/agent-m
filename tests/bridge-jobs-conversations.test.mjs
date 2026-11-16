@@ -19,7 +19,7 @@
 // The world: bare repositories that git reaches through insteadOf, the fixture agent claude of tests/agent-processes.d/terminal-agent.mjs in a real
 // pseudo-terminal, the fixture enclosures of tests/enclosure-fixture.mjs, and the Bridge's data folder with keepJobLogs. Where the module file leaves a reading
 // open, the test states the one it takes:
-//   - The checkout `jobs/<id>/` is removed at the Bridge's next start: by checkOut, which the Bridge runs at every start, for the sessions its kept listings
+//   - The checkout `products/<name>-<id>/` is removed at the Bridge's next start: by checkOut, which the Bridge runs at every start, for the sessions its kept listings
 //     name that run no longer.
 // Each test states its input and its expected result before it runs (given / input / expect).
 
@@ -96,7 +96,7 @@ async function world(t, { chrome = true } = {}) {
   }, `the ask ${ask}`);
   const listed = (id) => listJobs().find((job) => job.id === id);
   const read = (file) => (existsSync(files[file]) ? readFileSync(files[file], "utf8") : null);
-  return { root, folder, data, asked, call, message, answered, listed, read, checkout: (id) => join(folder, "jobs", id) };
+  return { root, folder, data, asked, call, message, answered, listed, read, checkout: (id) => join(folder, "products", `widget-${id}`) };
 }
 const errorOf = async (promise) => { try { await promise; return null; } catch (error) { return error.code ?? error.name; } };
 
@@ -133,7 +133,7 @@ test("TST-20261112571: a conversation's first message starts its CLI session, li
 // guards: A CANCELLED JOB WRITES NOTHING MORE; THE BRIDGE KEEPS EACH JOB'S LOG FOR SIX WEEKS; UC-049
 // given: a session of the fixture claude started by a first message and answered
 // input: POST /v1/jobs/{session}/cancel; then GET /v1/jobs, the log from 0, and POST /v1/ask naming the session
-// expect: the cancel is confirmed; the session is listed cancelled with usage null; its checkout jobs/<session>/ is removed; its log has ended and holds the lines its screen showed, the banner and the waiting line among them, and so does its file job-logs/<session>.log; the message naming it is refused not-found
+// expect: the cancel is confirmed; the session is listed cancelled with usage null; its checkout products/widget-<session>/ is removed; its log has ended and holds the lines its screen showed, the banner and the waiting line among them, and so does its file job-logs/<session>.log; the message naming it is refused not-found
 test("TST-20261112572: a cancelled session ends with its agent, its checkout is removed and its log kept, and a message to it is not-found", async (t) => {
   const it = await world(t);
   const { ask, session } = await it.message("split the requirement");

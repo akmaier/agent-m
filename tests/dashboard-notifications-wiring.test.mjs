@@ -122,7 +122,7 @@ test("the settings page's line Notifications reaches MOD-notifications: off, the
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: an empty fixture repository (nothing waits for acceptance); "notifications" already switched on in this browser, its last check six minutes old — due for a new one (MOD-notifications, Interfaces: watchForAcceptance)
 // input: opening the review pages (openDashboard), with the browser installed above
-// expect: watchForAcceptance registered its one check interval (the only call anywhere in this codebase that passes 60000 to setInterval — src/notifications/checks.mjs's CHECK_EVERY_MS); its immediate first run (before any interval tick) read MOD-browser-store's store of the instance, checked this empty repository through MOD-repository-hosts' real connect() against this fixture, found nothing waiting, and wrote the check's own time back under the very key it was given — proof that the store watchForAcceptance ran with is the instance's, not some other
+// expect: watchForAcceptance registered its one check interval (the only call anywhere in this codebase that passes 15000 to setInterval — src/notifications/checks.mjs's CHECK_EVERY_MS); its immediate first run (before any interval tick) read MOD-browser-store's store of the instance, checked this empty repository through MOD-repository-hosts' real connect() against this fixture, found nothing waiting, and wrote the check's own time back under the very key it was given — proof that the store watchForAcceptance ran with is the instance's, not some other
 test("the review pages start MOD-notifications' watchForAcceptance with MOD-browser-store's store of the instance", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -131,7 +131,7 @@ test("the review pages start MOD-notifications' watchForAcceptance with MOD-brow
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: stale }) } });
 
     assert.equal(browser.calls.setInterval.length, 1, "watchForAcceptance registered its one check interval");
-    assert.equal(browser.calls.setInterval[0].ms, 60000);
+    assert.equal(browser.calls.setInterval[0].ms, 15000);
 
     const after = JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notifications`));
     assert.notEqual(after.checked, stale,
@@ -186,7 +186,7 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
     page = await openNativeMainPage({ server, keepOpen: true, entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: stale }) } });
 
     assert.equal(browser.calls.setInterval.length, 1, "watchForAcceptance registered its one check interval");
-    assert.equal(browser.calls.setInterval[0].ms, 60000);
+    assert.equal(browser.calls.setInterval[0].ms, 15000);
 
     const after = JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notifications`));
     assert.notEqual(after.checked, stale,
@@ -286,7 +286,7 @@ test("the main page's checks reach a kept product through its host, and a token 
     globalThis.localStorage.removeItem(`${PREFIX}github-token:alice/thesis`);
     globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) }));
     sent.length = 0;
-    browser.calls.setInterval.find((each) => each.ms === 60000).fn();
+    browser.calls.setInterval.find((each) => each.ms === 15000).fn();
     await settle(server);
     assert.deepEqual(sent.map((auth) => auth), sent.map(() => null), JSON.stringify(sent));
     assert.equal(sent.length > 0, true, "the second check reached the product");

@@ -194,7 +194,7 @@ async function startChecking({ token = PRODUCT_TOKEN } = {}) {
   await until(() => asked.some(toProduct));
   const tick = async () => {
     writeSetting(page.store, "notifications", { checked: minutesAgo(6) });
-    const interval = intervals.find((each) => each.ms === 60000);
+    const interval = intervals.find((each) => each.ms === 15000);
     assert.ok(interval, "the frame started the checks of the page, which register their one interval");
     asked.length = 0;
     interval.fn();

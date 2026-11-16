@@ -19,7 +19,7 @@
 //   - The list names each issue's state in <span class="issue-state">: open or closed. The issue page lists its mails in <ul class="issue-mails"> of <a class="mail-link"> named by the identifier, whose href
 //     is #mail/id=<id>/product=<the product>; a click goes to the route mail with { id }.
 //   - On `mail`, a line to answer carries <span class="mail-to-answer">to answer</span>; its details hold its reply under the mail (<div class="reply-under-mail">) and no Answer; the page
-//     holds <a class="replies-link"> Replies, whose click goes to replies. A mail not in the list but found is shown as a mail clicked: its details with its text; a mail not found is <p class="mail-not-found">.
+//     holds no link Replies. A mail not in the list but found is shown as a mail clicked: its details with its text; a mail not found is <p class="mail-not-found">.
 // The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
@@ -133,8 +133,8 @@ test("TST-20261112004 an issue from mail names each of its mails as a link to th
 // TST-20261112005 · level: component · module: MOD-maintenance-pages
 // guards: CLOSING AN ISSUE PREPARES ITS REPLIES; UC-038; UC-039
 // given: the closed issue 4 listing plain, without a reply note; the closed issue 7 listing answered, with one; the open issue 6 listing open; all three mails in the reading
-// input: the route mail drawn and read; plain and answered opened; Replies clicked
-// expect: only plain's line is marked to answer; its details show its reply under the mail and offer no Answer; answered's details show no reply; the link Replies goes to replies
+// input: the route mail drawn and read; plain and answered opened
+// expect: only plain's line is marked to answer; its details show its reply under the mail and offer no Answer; answered's details show no reply; the page holds no link Replies
 test("TST-20261112005 a decided mail of a closed issue without a reply note is marked to answer, and its reply is written under it", async () => {
   const [plain, answered, open] = [await mailOf("plain"), await mailOf("answered"), await mailOf("open")];
   const date = new Date().toISOString().slice(0, 10);
@@ -152,11 +152,7 @@ test("TST-20261112005 a decided mail of a closed issue without a reply note is m
   await waitFor(() => byClass(one(target, "mail-details"), "reply-under-mail").length > 0);
   assert.equal(byClass(one(target, "mail-details"), "reply-under-mail").length, 1);
   assert.equal(byClass(one(target, "mail-details"), "answer-mail").length, 0, "no Answer");
-  const replies = one(target, "replies-link");
-  assert.equal(textOf(replies), "Replies");
-  replies.dispatchEvent(new Event("click"));
-  await flush();
-  assert.deepEqual(w.context.went.at(-1), ["replies", {}]);
+  assert.equal(byClass(target, "replies-link").length, 0, "no link Replies above the mails");
 });
 
 // TST-20261112006 · level: component · module: MOD-maintenance-pages

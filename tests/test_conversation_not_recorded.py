@@ -49,6 +49,14 @@ class Element extends EventTarget {
   set innerHTML(value) { this.html = String(value); }
   get innerHTML() { return this.html; }
   get textContent() { return this.html + this.childNodes.map((child) => child.textContent).join(""); }
+  set textContent(value) { this.html = ""; this.replaceChildren(String(value)); }
+  // A classList over className, as a browser's DOMTokenList (tests/dom-class-list.mjs, which this script cannot import).
+  get classList() {
+    const names = () => this.className.split(/\s+/).filter(Boolean), write = (list) => { this.className = list.join(" "); };
+    return { contains: (name) => names().includes(name), add: (...added) => write([...new Set([...names(), ...added])]),
+      remove: (...removed) => write(names().filter((name) => !removed.includes(name))),
+      toggle: (name, force) => { const on = force === undefined ? !names().includes(name) : Boolean(force); write(on ? [...new Set([...names(), name])] : names().filter((each) => each !== name)); return on; } };
+  }
   focus() {}
 }
 globalThis.document = { createElement: (name) => new Element(name) };

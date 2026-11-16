@@ -458,17 +458,17 @@ test("no text, sender or address of a mail reaches a repository request", async 
 // guards: EVERY STEP EXPLAINS ITSELF; UC-038
 // given: the page after its reading, with one mail opened
 // input: the folded explanations
-// expect: the reading step, the list of mails, the review of a mail and the decisions each carry a folded <details class="explain">, and every <details> of the page is such an explanation
-test("every step of the route carries its folded explanation", async () => {
+// expect: the reading step and the list of mails each carry a folded <details class="explain">; the review of a mail and the decisions carry none; and every <details> of the page is such an explanation
+test("the reading and the list carry their folded explanation, the review and the decisions none", async () => {
   const mail = await mailOf("explained");
   const w = world({ mails: [mail] });
   const target = await open(w);
   assert.ok(byClass(byClass(target, "mail-step-read")[0] ?? target, "explain").length >= 1, "the reading step");
   await openMail(target, mail.id);
-  for (const step of ["mail-step-list", "mail-step-review", "mail-step-decide"]) {
+  for (const [step, explained] of [["mail-step-list", true], ["mail-step-review", false], ["mail-step-decide", false]]) {
     const sections = byClass(target, step);
     assert.ok(sections.length >= 1, `${step} is drawn`);
-    assert.ok(byClass(sections[0], "explain").length >= 1, `${step} has its explanation`);
+    assert.equal(byClass(sections[0], "explain").length >= 1, explained, `${step} ${explained ? "has" : "has no"} explanation`);
   }
   assert.equal(byTag(target, "details").every((node) => (node.className ?? "").includes("explain")), true);
 });

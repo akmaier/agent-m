@@ -139,7 +139,7 @@ printf '%s\\n' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}
 // guards: UC-011; THE LOCAL BRIDGE REQUIRES A TOKEN; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: the started source-folder Bridge named lab-pc, offering opencode with a working folder and serving one product, whose repository holds a queued job record of the kind close-sprint for the participant drafter (route: this Bridge's opencode); the fixture opencode, which answers with a close of the sprint and the folder it was started in
 // input: POST /v1/jobs with the pairing token, the product, the record and the commit that holds it; wait until the served repository's record ends; GET /v1/jobs until the Bridge lists the job as no longer running
-// expect: 200 with the job's identifier; the record is taken once by lab-pc and ends `done`, its results the writer's commit and the sprint's file; that commit is on the served repository's default branch and the sprint's file holds the review naming <working folder>/jobs/<id> as its source and the agent's retrospective, with no approval record in the repository; opencode was started once, in that folder, whose working clone is removed; GET /v1/jobs lists the job `done` and its log has ended
+// expect: 200 with the job's identifier; the record is taken once by lab-pc and ends `done`, its results the writer's commit and the sprint's file; that commit is on the served repository's default branch and the sprint's file holds the review naming the working folder, where opencode is started, as its source and the agent's retrospective, with no approval record in the repository; opencode was started once, in that folder, whose working clone is removed; GET /v1/jobs lists the job `done` and its log has ended
 test("TST-367004: a job handed over with the pairing token runs in the agent's working folder, and its results and end record land on the served repository", { timeout: 90000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const w = await theBridge();
   const startsBefore = w.starts().length;
@@ -150,7 +150,7 @@ test("TST-367004: a job handed over with the pairing token runs in the agent's w
   assert.deepEqual(await handed.json(), { accepted: job.id });
   await wait("the served repository's record ends", () => /^## End$/m.test(w.originText(job.path)), w.app.alive, 60000);
 
-  const record = w.originText(job.path), folder = join(w.work, "jobs", job.id);
+  const record = w.originText(job.path), folder = w.work;
   assert.equal((record.match(/^## Taken$/gm) ?? []).length, 1);
   assert.match(record, /^by: lab-pc$/m);
   assert.match(record, /^state: done$/m);
@@ -161,8 +161,8 @@ test("TST-367004: a job handed over with the pairing token runs in the agent's w
   assert.ok(sprint.includes(`Sources of the feedback: ${folder}.`), `the sprint's review names the agent's working folder ${folder}`);
   assert.match(sprint, /^- went well: Closed by the fixture agent of sprint 1$/m);
   assert.deepEqual(w.originFiles().filter((path) => path.startsWith("docs/approvals/")), [], "the results land open: no approval record");
-  assert.deepEqual(w.starts().slice(startsBefore), [folder], "opencode was started once, in the job's folder of its working folder");
-  assert.equal(existsSync(folder), false, "the working clone is removed");
+  assert.deepEqual(w.starts().slice(startsBefore), [folder], "opencode was started once, in its working folder");
+  assert.equal(existsSync(join(w.work, "products", `product-a-${job.id}`)), false, "the working clone is removed");
   // The Bridge lists the job's end once the commit of that end has returned to it, a moment after the end has landed on the served repository: the case waits for the listing to leave `running`.
   const listed = await wait("the Bridge lists the job as no longer running", async () => {
     const { jobs } = await (await w.request("GET", "/v1/jobs")).json();
@@ -193,7 +193,7 @@ test("TST-367005: a job for an agent the Bridge does not offer is refused, and i
   assert.equal(w.starts().length, startsBefore, "opencode was not started for it");
   const codex = w.codexCalls();
   assert.ok(codex.length >= 1 && codex.every((line) => line === "--version" || line === "login status"), `codex was only probed: ${codex.join("; ")}`);
-  assert.equal(existsSync(join(w.work, "jobs", job.id)), false);
+  assert.equal(existsSync(join(w.work, "products", `product-a-${job.id}`)), false);
   assert.equal((await (await w.request("GET", "/v1/jobs")).json()).jobs.some(({ id }) => id === job.id), false);
 });
 
@@ -220,11 +220,11 @@ test("TST-367006: without the pairing token nothing reaches the agent, and the s
   }
   assert.equal(w.originText(job.path), job.text, "the record is as committed");
   assert.equal(w.starts().length, startsBefore, "opencode was not started");
-  assert.equal(existsSync(join(w.work, "jobs", job.id)), false);
+  assert.equal(existsSync(join(w.work, "products", `product-a-${job.id}`)), false);
 
   const handed = await w.request("POST", "/v1/jobs", { body: handOver });
   assert.equal(handed.status, 200, `with the token the hand-over is accepted (app output: ${w.app.output()})`);
   await wait("the served repository's record ends", () => /^## End$/m.test(w.originText(job.path)), w.app.alive, 60000);
   assert.match(w.originText(job.path), /^state: done$/m);
-  assert.deepEqual(w.starts().slice(startsBefore), [join(w.work, "jobs", job.id)], "opencode was started once, for the job");
+  assert.deepEqual(w.starts().slice(startsBefore), [w.work], "opencode was started once, for the job");
 });

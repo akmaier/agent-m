@@ -5,6 +5,9 @@
 // Module: MOD-site-frame
 // Level: unit
 
+import { selectorMatcher } from "../dom-selector.mjs";
+import { classListOf } from "../dom-class-list.mjs";
+
 export class FixtureElement extends EventTarget {
   constructor(document, localName) {
     super();
@@ -23,6 +26,7 @@ export class FixtureElement extends EventTarget {
   remove() { if (this._parent) { this._parent.children = this._parent.children.filter((child) => child !== this); this._parent = null; } }
   setAttribute(name, value) { this.attributes.set(name, String(value)); if (name === "class") this.className = String(value); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
+  get classList() { return classListOf(this); }
   focus() {} // a page puts the focus in its first field; this stand-in has no focus to move
   getElementsByTagName(name) {
     const found = [];
@@ -31,6 +35,23 @@ export class FixtureElement extends EventTarget {
       found.push(...child.getElementsByTagName(name));
     }
     return found;
+  }
+  // The first element below this one, in tree order, that a simple selector matches (tests/dom-selector.mjs).
+  querySelector(selector) {
+    const matches = selectorMatcher(selector);
+    for (const child of this.children) if (typeof child !== "string") {
+      if (matches(child)) return child;
+      const found = child.querySelector(selector);
+      if (found) return found;
+    }
+    return null;
+  }
+  // Puts nodes after this one in its parent, as a browser's after does.
+  after(...nodes) {
+    for (const node of nodes) if (typeof node !== "string") node.remove();
+    const siblings = this._parent.children, at = siblings.indexOf(this) + 1;
+    siblings.splice(at, 0, ...nodes);
+    for (const node of nodes) if (typeof node !== "string") node._parent = this._parent;
   }
 }
 

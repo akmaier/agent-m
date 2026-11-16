@@ -181,8 +181,8 @@ async function jobs(target, context, params = {}) {
     const rows = table(["Job", "Kind", "Agent", "Product", "State", "Taken", ""], [...taken].reverse().map((each) => [each.id, each.kind, each.agent, each.product,
       made("span", `badge ${STATE_BADGES[each.state] ?? "b-open"}`, each.state), new Date(each.started).toLocaleString(),
       each.id === job?.id ? made("span", "muted small", "shown below") : button("Show console", () => context.go("jobs", { job: each.id }), "small")]));
-    const box = made("div", "", rows);
-    Object.assign(box.style, { position: "relative", overflowY: "auto" });
+    // The box scrolls in the look's class `list-scroll`; only its height, measured from the rows drawn, is the box's own.
+    const box = made("div", "list-scroll", rows);
     list.replaceChildren(box);
     const sixth = rows.querySelectorAll("tbody tr")[SHOWN_JOBS];
     if (sixth) box.style.maxHeight = `${sixth.offsetTop}px`;

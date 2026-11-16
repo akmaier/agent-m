@@ -519,8 +519,7 @@ class AgentsFirst(unittest.TestCase):
     # TST-1350024 · level: component · module: MOD-job-runner
     # guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST
     # given: the input implement sent in the browser, and in a checkout
-    # input: the check over the input as sent; over it with the file left out, with the file put after the rest, and with the product's file in its place; and over the
-    # Bridge's input with the path left out, and with the file's text given to the coding agent on a Bridge in the place of the instruction
+    # input: the check over the input as sent; over it with the file left out, with the file put after the rest, and with the product's file in its place; and over the Bridge's input with the path left out, and with the file's text given to the coding agent on a Bridge in the place of the instruction
     # expect: the first passes; each of the others fails
     def test_counter_proof_an_input_without_the_file_with_it_later_or_with_the_products_fails(self):
         sent = self.browser["implement"][0]

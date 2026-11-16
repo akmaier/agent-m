@@ -13,7 +13,7 @@
 //
 // Each test names its input and states its expected values in its own text; none reads an expected result from the SPEC, a use
 // case or an architecture file. The page is a small fixture DOM (tests/site-frame-start.d/dom.mjs) with a fixture location and
-// local storage; the page is given an offline fetch (tests/site-frame-start.d/dom.mjs), so nothing reaches the network, and the one timer the frame may start — MOD-notifications' minute check — is
+// local storage; the page is given an offline fetch (tests/site-frame-start.d/dom.mjs), so nothing reaches the network, and the one timer the frame may start — MOD-notifications' check every fifteen seconds — is
 // counted instead of started. The tests of a route's `reads` (TST-709001 to TST-709009) give the repository of the page a counting
 // fake GitHub of tests/app-harness.mjs and state the requests of the route's load in its words (`repository`, `commit`, `tree`,
 // `batch <n>`, `file <path>`). The counter-proofs (a planted fault in src/site-frame/ and the test's failing result) are recorded
@@ -127,16 +127,16 @@ test("TST-531003 an empty fragment shows the first loaded route, an entry no loa
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // given: a fixture whose setInterval counts the delays it is given, and the review page, the main page and the Bridge page
 // input: startPage on the review page, then two changes of the fragment; startPage on the main page; startPage on the bridge page
-// expect: MOD-notifications' check is started by one interval of 60000 ms on the review page, still one after two changes of the fragment, one on the main page and none on the Bridge page
+// expect: MOD-notifications' check is started by one interval of 15000 ms on the review page, still one after two changes of the fragment, one on the main page and none on the Bridge page
 test("TST-531004 watchForAcceptance is started once on the review and the main page, never again on a change of the fragment, and not in the Bridge's window", async () => {
   const review = await start({ fragment: "#alpha" });
-  assert.deepEqual(review.timers, [60000], "one minute check on the review page");
+  assert.deepEqual(review.timers, [15000], "one check due every fifteen seconds on the review page");
   changeFragment(review, "#beta");
   changeFragment(review, "#alpha");
   await settle();
-  assert.deepEqual(review.timers, [60000], "a change of the fragment starts none");
+  assert.deepEqual(review.timers, [15000], "a change of the fragment starts none");
   const main = await start({ page: "main", views: [] });
-  assert.deepEqual(main.timers, [60000], "one minute check on the main page");
+  assert.deepEqual(main.timers, [15000], "one check due every fifteen seconds on the main page");
   const bridge = await start({ page: "bridge", views: [VIEW] });
   assert.deepEqual(bridge.timers, [], "none in the Bridge's window");
 });

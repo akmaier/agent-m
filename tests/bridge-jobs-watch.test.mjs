@@ -126,11 +126,12 @@ async function world(run, { gated = false, fails = false, branch = null, undraft
   // With `undrafted`, the agent answers JSON whose envelope has no draft.
   const event = JSON.stringify({ type: "text", part: { text: JSON.stringify(undrafted ? { answers: [] } : { draft: { decision: "passed", reason: "@PWD@" }, answers: [] }) } })
     .replace("@PWD@", `'"$PWD"'`);
-  // With `branch`, the agent commits a file on that branch of its checkout and pushes it to its origin, whose address, as its configuration names it, it records.
-  const commits = branch ? `git checkout -q -b ${branch} && printf 'change\\n' > change.txt && git add change.txt && git commit -q -m change && git push -q origin ${branch} && printf 'pushed to %s\\n' "$(git config --get remote.origin.url)" >> ${calls}; ` : "";
-  // With `probe`, the agent records what it finds when it starts: its checkout's commit, the commit of the instance's clone in its working folder, whether the
+  // With `branch`, the agent commits a file on that branch of its checkout, products/<name>-<id>/ of the folder it starts in, and pushes it to its origin, whose
+  // address, as its configuration names it, it records.
+  const commits = branch ? `(cd products/*-JOB-* && git checkout -q -b ${branch} && printf 'change\\n' > change.txt && git add change.txt && git commit -q -m change && git push -q origin ${branch} && printf 'pushed to %s\\n' "$(git config --get remote.origin.url)" >> ${calls}); ` : "";
+  // With `probe`, the agent records what it finds when it starts, from its checkout: its checkout's commit, the commit of the instance's clone in its working folder, whether the
   // leftover draft_response.json of an earlier session lies there, whether its home's file is kept, and whether its checkout holds NEW.md.
-  const probes = probe ? `printf 'probe %s %s %s %s %s\\n' "$(git rev-parse HEAD)" "$(git -C ../.. rev-parse HEAD)" "$([ -e ../../draft_response.json ] && echo left || echo gone)" "$([ -e ../../home/tmp/opencode/final_answer.json ] && echo home || echo no-home)" "$([ -e NEW.md ] && echo new || echo old)" >> ${calls}; ` : "";
+  const probes = probe ? `(cd products/*-JOB-* && printf 'probe %s %s %s %s %s\\n' "$(git rev-parse HEAD)" "$(git -C ../.. rev-parse HEAD)" "$([ -e ../../draft_response.json ] && echo left || echo gone)" "$([ -e ../../home/tmp/opencode/final_answer.json ] && echo home || echo no-home)" "$([ -e NEW.md ] && echo new || echo old)" >> ${calls}); ` : "";
   script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
 run) printf '%s\\n' "$PWD $*" >> ${calls}; ${probes}${commits}${gated ? `while [ ! -e ${gate} ]; do sleep 0.02; done; ` : ""}${fails ? "echo boom >&2; exit 3; " : ""}printf '%s\\n' ok >> ${finished}
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
@@ -182,7 +183,7 @@ const runs = (w) => w.calls().filter((line) => / run /.test(line));
 // guards: UC-011; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: a product with one queued job of the participant `drafter`, whose record's route names this Bridge and opencode; the instance, whose marker file reads v2 at its head and v1 at the commit the record names; opencode offered with a working folder
 // input: startWatching with an interval of 100 ms; wait for the record's end
-// expect: the record is taken by `lab-pc` once and ends `done`, its results the writer's commit and file and its usage the agent's 11 and 7 tokens; the writer's commit is on the origin's main and its file shows the agent worked in <folder>/jobs/<id> and the instance's checkout held the marker v1 at the record's commit; the agent was started once, in that folder; the working clone is removed
+// expect: the record is taken by `lab-pc` once and ends `done`, its results the writer's commit and file and its usage the agent's 11 and 7 tokens; the writer's commit is on the origin's main and its file shows the agent was started in <folder> and the instance's checkout held the marker v1 at the record's commit; the agent was started once, in that folder; the working clone is removed
 test("a queued job of this Bridge is taken, run in the agent's working folder with the instance at the record's commit, and ended with its results", async () => {
   await world(async (w) => {
     const job = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));
@@ -195,12 +196,12 @@ test("a queued job of this Bridge is taken, run in the agent's working folder wi
     assert.match(record, /^by: lab-pc$/m);
     assert.match(record, /^state: done$/m);
     const written = w.originText(PRODUCT_A, `docs/gates/${job.id}.md`);
-    assert.equal(written, `working folder: ${join(folder, "jobs", job.id)}\ninstance marker: v1\ninstance at: ${w.first}\n`);
+    assert.equal(written, `working folder: ${folder}\ninstance marker: v1\ninstance at: ${w.first}\n`);
     const commit = git(w.root, "--git-dir", w.products[PRODUCT_A].origin, "log", "--format=%H", "-1", "--", `docs/gates/${job.id}.md`);
     assert.match(record, new RegExp(`^results: ${commit}, docs/gates/${job.id}\\.md$`, "m"));
     assert.match(record, /^usage: \{"inputTokens":11,"outputTokens":7,"minutes":null,"cost":null\}$/m);
-    assert.deepEqual(runs(w).map((line) => line.split(" ")[0]), [join(folder, "jobs", job.id)]);
-    assert.equal(existsSync(join(folder, "jobs", job.id)), false, "the working clone is removed");
+    assert.deepEqual(runs(w).map((line) => line.split(" ")[0]), [folder]);
+    assert.equal(existsSync(join(folder, "products", `product-a-${job.id}`)), false, "the working clone is removed");
   });
 });
 
@@ -351,7 +352,7 @@ test("a job whose agent fails ends failed with the failure's words", async () =>
     assert.match(record, /^state: failed$/m);
     assert.match(record, /^reason: the agent process failed: boom$/m);
     assert.equal(w.originText(PRODUCT_A, `docs/gates/${job.id}.md`), "");
-    assert.equal(existsSync(join(folder, "jobs", job.id)), false);
+    assert.equal(existsSync(join(folder, "products", `product-a-${job.id}`)), false);
   }, { fails: true });
 });
 
@@ -437,14 +438,14 @@ test("TST-1381001: the CLI session pushes its branch to the product itself, from
     watch(w, [{ name: "opencode", folder }], { enclosures: openEnclosures({ asked }) });
     await w.ended(job);
 
-    const working = join(folder, "jobs", job.id);
+    const working = join(folder, "products", `product-a-${job.id}`);
     assert.ok(w.calls().includes(`pushed to ${PRODUCT_A}`), `the agent's origin is the product: ${w.calls().join(" | ")}`);
     assert.notEqual(branchOnOrigin(), "", "the agent's branch is on the origin");
     assert.equal(spawnSync(REAL_GIT, ["--git-dir", w.products[PRODUCT_A].origin, "show", "agent/work:change.txt"], { encoding: "utf8" }).stdout, "change\n");
     assert.equal(w.originText(PRODUCT_A, "change.txt"), "", "main is not changed");
     const wraps = asked.filter((entry) => entry.call === "wrap" && entry.args[0] === "run");
     assert.equal(wraps.length, 1, JSON.stringify(asked));
-    assert.deepEqual(wraps[0].at, { workdir: working, writable: [working] });
+    assert.deepEqual(wraps[0].at, { workdir: working, writable: [working], cwd: folder });
     assert.equal(wraps[0].folder, folder);
     const order = asked.map((entry) => entry.call);
     assert.ok(order.indexOf("works") < order.indexOf("prepare") && order.indexOf("prepare") < order.lastIndexOf("wrap"), order.join(", "));

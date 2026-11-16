@@ -393,8 +393,8 @@ test("TST-803012: UC-032 5 the backlog lists beside it every item that another t
 // TST-803013 · level: system · module: MOD-implementation-pages
 // guards: UC-032; EVERY TEAM RUNS SPRINTS OF ITS OWN; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
 // given: the product of TST-803011 whose model has a time box of two weeks; team2 has no sprint; ITM-004 builds on ITM-003, which is ready; ITM-006 waits for acceptance
-// input: the Product Owner of team2 presses Plan sprint, selects ITM-004 alone, sets the goal "Mail" and the start 2026-11-02, presses Start sprint; then selects ITM-003 with it and presses Start sprint again; the backlog and the route implement are read afterwards
-// expect: ITM-006 is shown and cannot be selected, and the closer stands preset to team2's Owner, bob; the first press is refused naming ITM-004, ITM-003 and that it is not done, and writes nothing and creates no branch; the second makes one commit of the one file docs/backlog/sprints/team2/01.md — sprint 1, the goal, the start, the end 2026-11-15 that the time box gives, the closer bob, the branch sprint/team2/01 and the selection ITM-003 and ITM-004 — after creating that branch from the head; the page says the sprint is started; the backlog then shows ITM-003 held by team2/01; the route implement says of ITM-005, in no sprint, that it is not selected for a sprint, and of ITM-003, selected, nothing of the kind
+// input: the Product Owner of team2 presses Plan sprint, selects ITM-004 alone, sets the goal "Mail" and the start today, presses Start sprint; then selects ITM-003 with it and presses Start sprint again; the backlog and the route implement are read afterwards
+// expect: ITM-006 is shown and cannot be selected, and the closer stands preset to team2's Owner, bob; the first press is refused naming ITM-004, ITM-003 and that it is not done, and writes nothing and creates no branch; the second makes one commit of the one file docs/backlog/sprints/team2/01.md — sprint 1, the goal, the start, the end 13 days after it that the time box gives, the closer bob, the branch sprint/team2/01 and the selection ITM-003 and ITM-004 — after creating that branch from the head; the page says the sprint is started; the backlog then shows ITM-003 held by team2/01; the route implement says of ITM-005, in no sprint, that it is not selected for a sprint, and of ITM-003, selected, nothing of the kind
 test("TST-803013: UC-032 6 the Product Owner plans a team's sprint and starts it in one click: the selection, the dates, the closer and the branch", async () => {
   const page = await open("backlog", {}, { files: await product({ model: MODELS.timeBox }) });
   try {
@@ -402,7 +402,10 @@ test("TST-803013: UC-032 6 the Product Owner plans a team's sprint and starts it
     assert.equal(disabledOf(tickOf(page, "ITM-006")), true, "waiting for acceptance: shown, not selectable");
     assert.match(page.html(), /<input data-sprint-closer(?:="")? value="bob">/, "the closer is preset to the team's Owner");
     typeValue(page, "[data-sprint-goal]", "Mail");
-    typeValue(page, "[data-sprint-start]", "2026-11-02");
+    // The sprint starts today, so that it is the current sprint of team2 whenever the test runs; its time box of two weeks ends 13 days later.
+    const day = (date) => date.toISOString().slice(0, 10);
+    const start = day(new Date()), end = day(new Date(Date.parse(start) + 13 * 24 * 60 * 60 * 1000));
+    typeValue(page, "[data-sprint-start]", start);
     typeValue(page, "[data-sprint-closer]", "bob");
     tickOf(page, "ITM-004").checked = true;
     const writes = page.srv.writes.length;
@@ -415,7 +418,7 @@ test("TST-803013: UC-032 6 the Product Owner plans a team's sprint and starts it
     assert.equal(page.srv.writes.length, writes + 1, "one click, one commit");
     assert.deepEqual(Object.keys(page.srv.writes.at(-1).files), ["docs/backlog/sprints/team2/01.md"]);
     const record = page.srv.writes.at(-1).files["docs/backlog/sprints/team2/01.md"];
-    assert.deepEqual(["sprint", "goal", "start", "end", "closer", "branch"].map((key) => fieldOf(record, key)), ["1", "Mail", "2026-11-02", "2026-11-15", "bob", "sprint/team2/01"]);
+    assert.deepEqual(["sprint", "goal", "start", "end", "closer", "branch"].map((key) => fieldOf(record, key)), ["1", "Mail", start, end, "bob", "sprint/team2/01"]);
     assert.deepEqual(listOf(record, "selection"), ["ITM-003", "ITM-004"]);
     assert.deepEqual(page.created.map((made) => made.ref), ["refs/heads/sprint/team2/01"]);
     assert.match(flash(page), /docs\/backlog\/sprints\/team2\/01\.md is started/);
