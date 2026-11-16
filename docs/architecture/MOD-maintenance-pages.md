@@ -132,17 +132,18 @@ It keeps nothing but the screen and a mail's text only while it is shown. Its fo
     the proposable mails in bold, the attached and decided ones not, each of these with its issue or its mark *not an
     issue*; each mail that `repliesDue`, read with each reading, gives under `toAnswer` with `noted` false marked *to
     answer*, its details showing under the mail its reply as `replies/<issue>` shows the reply to that one mail — its
-    draft, or the text boxes of a reply without one —, with *Draft replies* and its run panel over that mail, *Save
-    draft*, *Send* with its confirmation and *No reply*; and a link *Replies* to
-    `replies`. With `<id>`, a `MAIL-` identifier, the mail of that identifier is opened — the one of the list, or else
+    draft, or the text boxes of a reply without one —, with the participant and *Draft reply* in one row right above
+    the reply — *Draft again* where it has a draft, which replaces it; what blocks drafting in one line —, *Save
+    draft*, *Send* with its confirmation and *No reply*. With `<id>`, a `MAIL-` identifier, the mail of that identifier is opened — the one of the list, or else
     the one the mailbox's `find` gives, a mail older than 30 days among them — as a mail clicked; one the mailbox does
     not hold is shown as *not found in the mailbox*. The mail clicked shows its details beside the list on a wide screen, and in place of the list, with a way
     back to it, on a narrow one: the mail in full and, for a proposable mail, its proposal, its text editable, every hit
     of the mail's people marked, *Create issue* — only without a hit —, *Add to #n*, *Not an issue*; after an issue of the kind *change* is created,
     *Propose SPEC change*, which puts the request to change the requirements as that issue asks into the prompt bar
-    (MOD-prompt-bar's event `agent-m:prompt`). On the right, above the
-    mail opened, the participant for the proposals, one select among those at places the mailbox allows, the first
-    chosen, a place outside the EU named as not compliant; the run panel and *Propose*, for the mail opened while it is proposable — the mail and the product chosen for it,
+    (MOD-prompt-bar's event `agent-m:prompt`). Right under the
+    text of the mail opened, in one row, the participant for the proposals, one select among those at places the mailbox
+    allows, the first chosen, each named with its place, a place outside the EU named as not compliant, and *Propose* —
+    what blocks it in one line —, for the mail opened while it is proposable — the mail and the product chosen for it,
     proposed in the name of the account of the instance's token. The author checks every text before it is written: the
     proposal's, and an attachment's, which *Add to the issue* puts into the text box — rewritten without persons where
     the product's pseudonymisation is on. Where this browser manages no product,
