@@ -26,6 +26,7 @@ uses:
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-agent-processes.installedAgents
+  - MOD-agent-processes.agentModels
   - MOD-agent-processes.agentDriver
   - MOD-agent-processes.testAgent
   - MOD-agent-processes.startSession
@@ -247,7 +248,11 @@ settings (MOD-desktop-shell).
     MOD-endpoint-calls' `endpointDriver` in Node and answered the same way (`A RUNTIME IS INTERCHANGEABLE`) — or, where
     the request carries one exchange of a tool loop, with `endpointExchange`, answered with the endpoint's text, its tool
     calls and the usage. The correction loop and the tool loop stay in the page, which carries every tool call out.
-  - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` receives the
+  - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `agent-models` receives
+    `{ agent }`, an agent it offers, and returns MOD-agent-processes' `agentModels` for it, asked in its enclosure in its
+    working folder, unchanged — `{ models }` or `{ reason }` (UC-044 step 5) —, or `{ reason }` naming that the agent has no
+    working folder, or the enclosure's reason and its one-time step where its enclosure does not work; `invalid-request`
+    for an agent it does not offer; `endpoint-models` receives the
     endpoint configuration as `endpoint-test` does, calls MOD-endpoint-calls' `listModels` in Node once, and returns its
     `{ models }` or `{ diagnosis }` unchanged; `endpoint-test` receives the valid endpoint configuration of an endpoint
     whose configuration in the page names this Bridge, maps its fields to MOD-endpoint-calls' `EndpointConfig`,
@@ -369,6 +374,7 @@ nor ignores, and of each running session its checkout with the token file, made 
   `MOD-participant-list.participantsOf`, `MOD-product-process.declarationSchema` — the instance's participants, joined
   with the one connection a job's record gives, or with this Bridge's agents for the closers of sprints, and the product's declaration.
 - `MOD-agent-processes.installedAgents`, `agentDriver`, `testAgent` — the agents of this computer and their driver;
+  `MOD-agent-processes.agentModels` — the models an agent it offers reports, for the probe `agent-models`;
   `MOD-agent-processes.startSession` — the CLI session of a conversation of the prompt bar.
 - `MOD-endpoint-calls.EndpointConfig`, `testEndpoint`, `listModels`, `endpointDriver` — an endpoint's test, its models'
   listing and the requests of a job of the page to a model endpoint.

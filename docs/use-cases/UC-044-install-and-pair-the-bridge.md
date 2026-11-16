@@ -103,10 +103,13 @@ double-clicking it, and copying one token. Nobody types a command.
    requests on GitLab — through the server's API.
 5. Each agent the Bridge offers becomes a connection once the person declares, in the Bridge's window or on the settings
    page, where it processes data — *this computer* preset —, its capabilities — every one preset — and each model it can
-   run, with that model's context in tokens. The Bridge keeps the declaration, and its list of agents gives it to the
-   dashboard. Its models are then among those an agent of the instance's list may be given (UC-017), it is offered in the
-   prompt bar (UC-049), and the Bridge runs the jobs of its agents with it, a sprint's close by an agent among them
-   (UC-041).
+   run, with that model's context in tokens. Beside an agent's models, **Read models** asks the Bridge for the models the
+   agent's CLI itself reports on this computer and puts them in place of what the agent's models field holds, each with its
+   context in tokens where the CLI reports one; the person reviews and edits them and saves as before — reading saves
+   nothing. A model read without its context stays without one until the person adds it. The Bridge keeps the
+   declaration, and its list of agents gives it to the dashboard. Its models are then among those an agent of the
+   instance's list may be given (UC-017), it is offered in the prompt bar (UC-049), and the Bridge runs the jobs of its
+   agents with it, a sprint's close by an agent among them (UC-041).
 6. **Jobs.** The Bridge keeps what the agent of each job it took writes, the whole of it, for six weeks, across its
    restarts. Its window lists under **Jobs** each job it took in that time — its identifier, kind, agent, product, state
    and when it was taken — and shows the console of the one the person chooses, by default the one running: what its
@@ -162,6 +165,9 @@ sequenceDiagram
   explains before it appears. The dashboard names the reason and offers the route over HTTPS through the
   jump host (6a, 5): the bridge on this computer opens its reverse tunnel to the jump host, and the
   dashboard reaches it at the jump host's HTTPS address.
+- **5a. No models can be read.** For an agent whose CLI reports no models, or whose report cannot be read, **Read
+  models** says that nothing could be read, and why; the agent's models field stays as it was, and the person enters the
+  models by hand.
 - **6a. This computer is behind NAT and is to be reached from elsewhere** (a lab machine, a GPU box).
   1. In the bridge's window the person enters the jump host — hostname, SSH user —, or imports the
      dashboard's settings export that names it and this Bridge, with its name and its port on the jump host.

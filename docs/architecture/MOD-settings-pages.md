@@ -292,7 +292,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     browser does not trust named as a possible cause; for each CLI session a Bridge offers (MOD-bridge-client's
     `testBridge`), the place where it processes data, preset to *this machine* for a Bridge on this computer, its
     capabilities, preset to every capability, and each model it can run, with its context in tokens (UC-044 step 5), as the
-    Bridge keeps them, saved to the Bridge with MOD-bridge-client's `declareAgent`, and one lacking a place, a model or a
+    Bridge keeps them, saved to the Bridge with MOD-bridge-client's `declareAgent`; beside its models *Read models*,
+    MOD-bridge-client's `probe` of the kind `agent-models` for that agent, whose models replace the session's model rows not
+    yet saved, one row each with its context where the agent reports one, and which saves nothing; where the Bridge
+    answers a `reason` or cannot be reached, the page says that nothing could be read and why, and the rows stay as they
+    were (UC-044 5a); and one lacking a place, a model or a
     model's context named as not offered (UC-049 1b); and, beside *Pair*, the line that this browser's repository tokens
     go to every Bridge it keeps, which clones, pushes and opens pull and merge requests with them.
   - **The repository tokens a Bridge holds** (UC-044, step 4; `A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). While a
@@ -344,7 +348,8 @@ reaches.
   `get-your-own` (UC-014 step 4), and the return address of a mailbox's app registration.
 - MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt, MOD-bridge-client.pair, MOD-bridge-client.testBridge,
   MOD-bridge-client.probe, MOD-bridge-client.declareAgent, MOD-bridge-client.handTokens — each Bridge's address, pairing,
-  tests, the agents a Bridge offers and their declarations, a resource's check, the repository tokens each Bridge holds;
+  tests, the agents a Bridge offers and their declarations, the models an agent reports, a resource's check, the
+  repository tokens each Bridge holds;
   MOD-bridge-client.allocatePort, MOD-bridge-client.tunnelCommands, MOD-bridge-client.proxyConfiguration — the Bridges
   reached through the jump host, and the jump host.
 - MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an endpoint's test and why a browser may not

@@ -18,6 +18,7 @@ provides:
   - Agent
   - Enclosure
   - installedAgents
+  - agentModels
   - agentDriver
   - keyProvider
   - testAgent
@@ -30,9 +31,9 @@ provides:
 
 It belongs to Participants and jobs (ARC-046). It knows the coding-agent CLIs Agent M supports — Claude Code, Codex and
 opencode —: which of them are installed on the machine it runs on, with their versions (`THE BRIDGE FINDS THE INSTALLED
-AGENTS`), and how to run one as a participant: the driver that starts an agent with its participant's model (`A JOB RUNS
-ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), gives it its task in a working folder, streams its output, and
-stops it on a cancel; and how to keep one running interactively in a terminal, into which messages are typed (ARC-055).
+AGENTS`), and the models each of them reports there (UC-044 step 5); how to run one as a participant: the driver that
+starts an agent with its participant's model (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), gives
+it its task in a working folder, streams its output, and stops it on a cancel; and how to keep one running interactively in a terminal, into which messages are typed (ARC-055).
 The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
 PERSON'S OWN LOGIN`); in CI it reads its key from the environment variable the CI fills from the secret its connection
 names (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`), or, where CI runs it as the model's own user, reaches
@@ -44,7 +45,7 @@ Workflows — and keeps nothing but the processes it started.
 - `index.mjs` — the interface.
 - `agents.md` — the supported agents, as a register.
 - `agents.schema.md` — the register's schema, in the schema language of MOD-documents.
-- `discovery.mjs` — finding the installed agents and their versions.
+- `discovery.mjs` — finding the installed agents, their versions and the models each reports.
 - `processes.mjs` — starting an agent, streaming its output, stopping it.
 - `sessions.mjs` — an agent kept running in a pseudo-terminal, its screen kept as text, messages typed into it, and its
   answer to each (ARC-055).
@@ -63,6 +64,7 @@ Workflows — and keeps nothing but the processes it started.
 | Model | the arguments that start it with a named model, as its vendor documents them, with a placeholder `{model}` — Claude Code's `--model {model}`, which its Endpoint column already gives —, or `—` where it cannot be told one |
 | Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in; under a platform's name (`macos`), where the agent cannot keep its login in the enclosure there, the login step on that platform and what of its output the enclosure keeps for it (`keeps`: the environment variable the agent reads its login from, and the pattern of the value) — Claude Code's `claude setup-token` and `CLAUDE_CODE_OAUTH_TOKEN` on macOS, whose keychain the enclosure closes (ARC-054) |
 | Chrome | the arguments that start it with its Chrome integration, or `—` for an agent that has none |
+| Models | how the models the agent itself reports on the machine are read, each with its context in tokens where it reports one: the command that prints them, or the file that holds them — a pattern under the home the agent runs with —; their format, JSON or one model per line; and, for JSON, where the list of models stands, which of its entries are taken, and the field of an entry that names the model and the one that names its context — Codex's `codex debug models`, the list `models`, the entries whose `visibility` is `list`, `slug` and `context_window`; Claude Code's catalogue `~/.claude/cache/model-catalog/*.json`, the list `catalog.config.models`, `id` and `runtime.max_input_tokens`; opencode's `opencode models`, one model per line, no context —; `—` for an agent that reports none |
 | Key variable | the environment variable from which it reads a key, used only in CI |
 | Endpoint | how it is made to work with a model endpoint of the kind OpenAI-compatible or Anthropic — the options or settings that name the endpoint's address and model —, or `—` where it cannot |
 | Key holder | the provider a key in its Key variable is for — its kind and address — and the options or settings that send its requests to a key holder in its place, `{keyHolder}`, with a placeholder, `{placeholder}`, as its key (`NO MODEL READS A CREDENTIAL`): Claude Code's `ANTHROPIC_BASE_URL`, Codex's `openai_base_url` given with `-c`; `—` where it cannot be, as opencode, which names no key variable of its own and whose provider Agent M does not know without an endpoint |
@@ -93,6 +95,14 @@ never an argument: it is written to the agent's standard input, so no size of a 
   for a password (UC-044). With an enclosure, both commands run inside it, in `workdir`, so that *installed* and *logged
   in* are said of the agent as it will run. Starts only the commands of the register's Version and Login check columns;
   changes nothing.
+- `agentModels(agent: Agent, options?: { enclosure?: Enclosure, workdir?: string }) -> Promise<{ models: { model: string,
+  context: number | null }[] } | { reason: string }>` — the models the agent reports on the machine, read as its row's
+  Models column says (UC-044 step 5), in the order it reports them, each with its context, `null` where the row names
+  none. With an enclosure, the command runs inside it, in `workdir`, and the file is read under the home the enclosure
+  gives the agent, so that the models are those of the agent as it will run. Of several files the pattern matches, the
+  newest is read. `reason` names why nothing was read: the row's Models is `—`, the agent is not installed, its command
+  fails or prints what its format does not hold, its file is missing or cannot be read, or no model is found. Starts only
+  the command of the register's Models column and reads only its file; changes nothing and throws nothing.
 - `keyProvider(keyVariable: string | null) -> { kind: "openai-compatible" | "anthropic", baseUrl: string } | null` — the
   provider a key in that variable is for, from the Key holder of the agent whose Key variable it is; `null` where no agent
   reads its key from it or that agent's Key holder is `—`. A key holder for that provider stands in for it (MOD-workflow-entries,
@@ -141,7 +151,7 @@ never an argument: it is written to the agent's standard input, so no size of a 
 
 ## Files
 
-It reads its own data files. The agent it starts reads and writes the working folder it is given — the checkout of a
+It reads its own data files, and the file an agent's Models column names. The agent it starts reads and writes the working folder it is given — the checkout of a
 product's branch, which on a Bridge lies in the agent's own working folder beside the Bridge's clone of the instance
 (MOD-bridge-jobs) — and nothing else of Agent M's.
 

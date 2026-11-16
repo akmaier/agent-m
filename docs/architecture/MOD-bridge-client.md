@@ -173,12 +173,15 @@ uses; the key itself stays on its computer.
   `bridgeApi` defines them. Crosses the network;
   fails with every `BridgeError` but `AskFailed`, among them `BridgeFailed` with `confirmation-refused`, `no-encryption`,
   `login-refused`, `upstream-failed` — the mail server's own message — or `paused`.
-- `probe(bridge: Bridge, kind: "agent", args: unknown) -> Promise<unknown>`, `probe(bridge: Bridge, kind: "endpoint-models",
+- `probe(bridge: Bridge, kind: "agent", args: unknown) -> Promise<unknown>`, `probe(bridge: Bridge, kind: "agent-models",
+  args: { agent: string }) -> Promise<{ models: { model: string, context: number | null }[] } | { reason: string }>`,
+  `probe(bridge: Bridge, kind: "endpoint-models",
   args: bridgeApi's endpoint configuration) -> Promise<{ models: string[] } | { diagnosis }>` (the diagnosis as bridgeApi carries it), `probe(bridge:
   Bridge, kind: "partitions", args: {}) -> Promise<{ partitions: { name: string, state: string }[] }>` and
   `probe(bridge: Bridge, kind: "endpoint-test", args: bridgeApi's endpoint-test configuration) -> Promise<bridgeApi's
   endpoint-test answer>` — `POST /v1/probes/{kind}` with `{ args }`, resolving with the answer's
-  `answer`: an agent answers a harmless request, an endpoint lists its served models, the explicitly chosen local
+  `answer`: an agent answers a harmless request, an agent the Bridge offers names the models its CLI reports on the
+  Bridge's computer, or why none could be read (UC-044 step 5), an endpoint lists its served models, the explicitly chosen local
   endpoint configuration receives UC-003's short test on the Bridge, or a cluster lists its partitions. The endpoints
   page maps its saved `{ url, kind, model, key?, bridge }` record to the Bridge API endpoint configuration only for the
   Bridge its `bridge` names: its selected name and kind, `url` as `baseUrl`, optional `key` as `key ?? null`, and

@@ -33,6 +33,7 @@ uses:
   - MOD-browser-store.readExport
   - MOD-agent-processes.Agent
   - MOD-agent-processes.installedAgents
+  - MOD-agent-processes.agentModels
   - MOD-agent-enclosure.AgentEnclosure
   - MOD-agent-enclosure.agentEnclosure
   - MOD-job-runner.registerStrategies
@@ -203,7 +204,12 @@ The rest of its surface faces the person, not another module:
     logged in there, else *Log in*, which opens a terminal in the enclosure running the agent's own login step, with
     what of its output the enclosure keeps (`Agent.keeps`). An installed agent's panel heads its tick with the agent's
     name, its version and its state — *ready*, *not logged in* or *not enclosed* — beside its *Log in* or *Set up*, and
-    lays its declaration out as a small form: the place, the capabilities as a group of ticks, the models one per line;
+    lays its declaration out as a small form: the place, the capabilities as a group of ticks, the models one per line,
+    each `<model> <context>`, with *Read models* beside them (UC-044 step 5): for an agent the Bridge offers, MOD-agent-processes'
+    `agentModels` in the agent's enclosure, in its working folder, whose models replace what the field holds, one line each,
+    the context left out where the agent reports none; it saves nothing — *Save agents* does. Where it reads nothing — the
+    agent not offered with a working folder, its enclosure not working, or the `reason` `agentModels` gives —, the panel
+    says that nothing could be read and why, and the field stays as it was (UC-044 5a);
     for an agent whose `Agent.chrome` holds, a tick *Chrome* beside them, saved with *Save agents* (UC-044 step 3).
   - *Jobs* — the jobs the Bridge took in the last six weeks, MOD-bridge-jobs' `listJobs`, as a table — identifier,
     kind, agent, product, state, when taken —, and the console of the one chosen, by default the one running, else the
@@ -266,7 +272,8 @@ signature does not hold. Writes no repository file; the jobs it composes write t
   commands.
 - `MOD-browser-store.readExport` — reading the dashboard's export with the code that writes it.
 - `MOD-agent-processes.Agent`, `installedAgents` — the agents of this computer, with their vendors' installation pages,
-  and, in each offered agent's enclosure, whether it is logged in there.
+  and, in each offered agent's enclosure, whether it is logged in there; `agentModels` — *Read models*, the models an
+  offered agent reports in its enclosure.
 - `MOD-agent-enclosure.agentEnclosure`, `AgentEnclosure` — the enclosure of each offered agent, made for its working
   folder and the Bridge's data folder and handed to MOD-bridge-jobs; its state, its *Set up* and its *Log in* in the
   window.
