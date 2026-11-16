@@ -146,8 +146,9 @@ async function propose(p) {
   const select = one(p.main(), "participant");
   select.value = "local-llm";
   select.dispatchEvent(new Event("change"));
-  await waitFor(() => byClass(p.main(), "run-panel").length > 0);
-  assert.match(textOf(one(p.main(), "run-panel")), /this machine/, "the panel names where local-llm processes data");
+  await waitFor(() => buttonsOf(one(p.main(), "mail-stage"), "Propose").length > 0);
+  const chosen = select.children.find((option) => option.getAttribute?.("data-participant") === "local-llm");
+  assert.match(textOf(chosen), /this machine/, "the participant's line names where local-llm processes data");
   await click(buttonsOf(one(p.main(), "mail-stage"), "Propose")[0]);
   await waitFor(() => byClass(p.main(), "mail-proposed").length > 0 || byClass(p.main(), "mail-propose-problem").length > 0);
 }
@@ -205,7 +206,7 @@ test("TST-965203: a whole session leaves the mails in the mailbox, writes only n
 // guards: UC-038; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
 // given: a register with participants at this machine and one in the USA (outside the EU), and a mailbox that allows this machine only
 // input: Mail opened, which reads the mailbox; the first mail's line clicked; the participants offered; local-llm chosen; Propose
-// expect: before its line is clicked the mail's details are not shown, after the click they show the mail in full; the participant in the USA is not offered; the panel names where local-llm processes data; every request a model endpoint received went to the endpoint of the participants at this machine and none to the one in the USA; the details show its proposal (steps 4 and 7)
+// expect: before its line is clicked the mail's details are not shown, after the click they show the mail in full; the participant in the USA is not offered; the participant's line names where local-llm processes data; every request a model endpoint received went to the endpoint of the participants at this machine and none to the one in the USA; the details show its proposal (steps 4 and 7)
 test("TST-965204: with a mailbox that allows this machine only, nothing is sent to a participant elsewhere, and a clicked mail shows its proposal", async () => {
   const { p, A } = await session();
   await lastly(p, async () => {

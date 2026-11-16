@@ -302,7 +302,7 @@ test("TST-280 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a product's own
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: the settings page, notifications off
 // input: reading the folded "What is this?" under Notifications
-// expect: it names what is checked and how often (every five minutes while a page is open), that the checks go with this browser's own tokens and nowhere else, and that nothing is checked while no page is open
+// expect: it names what is checked and how often (every minute while a page is open), that the checks go with this browser's own tokens and nowhere else, and that nothing is checked while no page is open
 test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how often, whose tokens, and when not", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
@@ -317,7 +317,7 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
     assert.equal(details.children[0].localName, "summary", "the public explanation keeps its What is this? summary");
     assert.equal(details.children[0].textContent, "What is this?");
     const explanation = details.textContent;
-    assert.match(explanation, /While a dashboard page is open, it checks every five minutes/, "how often, and while what");
+    assert.match(explanation, /While a dashboard page is open, it checks every minute/, "how often, and while what");
     assert.match(explanation, /repository servers with the tokens of this browser and nowhere else/, "whose tokens, and nowhere else");
     assert.match(explanation, /Nothing is checked while no dashboard page is open/, "nothing while no dashboard page is open");
   } finally { browser.restore(); }

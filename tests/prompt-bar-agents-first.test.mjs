@@ -87,7 +87,7 @@ test("a message on the instance's page reaches the endpoint with the instance's 
 // guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; A CLI SESSION IS TOLD AGAIN EVERY FIFTH MESSAGE TO READ AGENTS.MD; UC-049
 // given: a message to the CLI session mac:opencode on a page of the instance, whose chapters for the page are the part "09_system-modeling.md — SRC-vibe-coding 2026-10-05, version hash abc123" with the chapter's text CHAPTER-TEXT; this browser keeps the Bridge mac, behind a fake fetch that answers every message done with "ok", the first starting the session JOB-1
 // input: runSession eleven times, each with the session the previous one kept
-// expect: the first, the sixth and the eleventh input begin with the instruction that the agent must read, in full, `../../AGENTS.md` and `../../docs/sources/SRC-vibe-coding/2026-10-05/09_system-modeling.md` — the instance's AGENTS.md and the chapter in the Bridge's clone of the instance, from the session's checkout —; the sixth and the eleventh also say that they need not be read again while still in the agent's context, the first does not; the others carry no instruction and name neither file; no input gives the AGENTS.md's text or the chapter's; the first gives the conversation so far, the others do not; the session kept counts the messages sent to it; counter-proof: a sixth message without the instruction fails this test
+// expect: the first, the sixth and the eleventh input begin with the instruction that the agent must read, in full, `AGENTS.md` and `docs/sources/SRC-vibe-coding/2026-10-05/09_system-modeling.md` — the instance's AGENTS.md and the chapter in the Bridge's clone of the instance, from the session's checkout —; the sixth and the eleventh also say that they need not be read again while still in the agent's context, the first does not; the others carry no instruction and name neither file; no input gives the AGENTS.md's text or the chapter's; the first gives the conversation so far, the others do not; the session kept counts the messages sent to it; counter-proof: a sixth message without the instruction fails this test
 test("TST-20261112611: the message that starts a CLI session and every fifth after it tell the agent to read AGENTS.md and the chapters by their paths", async () => {
   const store = freshStore("acme/instance");
   writeSetting(store, "bridge:mac", { address: "http://127.0.0.1:7777", token: "token-mac" });
@@ -111,7 +111,7 @@ test("TST-20261112611: the message that starts a CLI session and every fifth aft
     assert.deepEqual(kept, { bridge: "mac", agent: "opencode", id: "JOB-1", sent: 11 });
   } finally { globalThis.fetch = prior; }
   const instruction = "Before anything else, you must read these files of Agent M in full";
-  const files = ["- `../../AGENTS.md`", "- `../../docs/sources/SRC-vibe-coding/2026-10-05/09_system-modeling.md`"];
+  const files = ["- `AGENTS.md`", "- `docs/sources/SRC-vibe-coding/2026-10-05/09_system-modeling.md`"];
   inputs.forEach((input, at) => {
     const told = [0, 5, 10].includes(at);
     assert.equal(input.startsWith(instruction), told, `message ${at + 1}: ${input.slice(0, 80)}`);

@@ -99,7 +99,7 @@ async function livePage({ token }) {
     },
     async tick() {
       globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) }));
-      const interval = browser.intervals.find((each) => each.ms === 60000);
+      const interval = browser.intervals.find((each) => each.ms === 15000);
       assert.ok(interval, "the frame started the checks of the page, which register their one interval");
       const from = sent.length;
       interval.fn();

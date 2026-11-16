@@ -41,22 +41,7 @@ import { tick, until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used
 
-class Text { constructor(data) { this.data = String(data); this.parentNode = null; } get textContent() { return this.data; } }
-class Element extends EventTarget {
-  constructor(name) {
-    super();
-    Object.assign(this, { localName: name, childNodes: [], className: "", value: "", type: "", hidden: false, disabled: false, parentNode: null, attrs: {}, html: "" });
-  }
-  append(...nodes) { for (const node of nodes.flat()) { const child = typeof node === "string" ? new Text(node) : node; this.childNodes.push(child); child.parentNode = this; } }
-  replaceChildren(...nodes) { this.childNodes = []; this.append(...nodes); }
-  setAttribute(name, value) { this.attrs[name] = String(value); }
-  getAttribute(name) { return this.attrs[name] ?? null; }
-  set innerHTML(value) { this.html = String(value); }
-  get innerHTML() { return this.html; }
-  get textContent() { return this.html + this.childNodes.map((child) => child.textContent).join(""); }
-  focus() {}
-}
-globalThis.document = { createElement: (name) => new Element(name) };
+import { Element } from "./prompt-bar.d/dom.mjs";
 
 const all = (root, check) => { const found = []; (function visit(node) { for (const child of node.childNodes ?? []) if (child instanceof Element) { if (check(child)) found.push(child); visit(child); } })(root); return found; };
 const byClass = (root, name) => all(root, (node) => node.className.split(" ").includes(name));

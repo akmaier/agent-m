@@ -122,7 +122,7 @@ const PARTICIPANTS = "# Participants of this instance\n\n**REGISTER**\n\nThe par
 
 // TST-1112101 · level: release · module: MOD-bridge-jobs · MOD-runtimes
 // guards: UC-011; A CLI SESSION FINDS ITS REPOSITORY'S TOKEN IN AN IGNORED FILE; A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: behind the fixture server the instance group/agent-m, answering only Basic oauth2:glpat-INSTANCE…, and the product group/widget, answering only Basic oauth2:glpat-WIDGET…, holding a queued fix-bug job of the participant fixer on the route `bridge lab-pc agent opencode`; the Bridge lab-pc keeping both tokens and offering opencode with a working folder; the fixture session, which records its input and its checkout's `git status`, commits on the branch named by the job, pushes it with its own git, opens its merge request with glab given "$(cat <token file>)", and answers its branch and commit; the server's API, which lists the merge request once glab has opened it
+// given: behind the fixture server the instance group/agent-m, answering only Basic oauth2:glpat-INSTANCE…, and the product group/widget, answering only Basic oauth2:glpat-WIDGET…, holding a queued fix-bug job of the participant fixer on the route `bridge lab-pc agent opencode`; the Bridge lab-pc keeping both tokens and offering opencode with a working folder; the fixture session, started in its working folder, which records its input, goes into its checkout products/widget-<job>/, records its `git status` there, commits on the branch named by the job, pushes it with its own git, opens its merge request with glab given "$(cat <token file>)", and answers its branch and commit; the server's API, which lists the merge request once glab has opened it
 // input: startWatching of lab-pc serving widget; the test waits until the job's record has its end
 // expect: step 3 — the session's input names <checkout>/.agent-m-token and says to use the token without reading the file, and the file was in the checkout while it worked, listed by `git status` among the ignored files only; step 4 — the session's branch is on widget at its commit, pushed with widget's token, and its merge request was opened by the session's glab with widget's token; the record ends done with the session's commit and the merge request's address; known positive — the Bridge's process listed widget's merge requests through the API;
 //   counter-proof — no token stands in the input; no commit of widget holds the token file; widget was never sent the instance's token; the Bridge's process opened no merge request (no POST …/merge_requests); no outbox and no relay folder (`<job>.out.git`, `<job>.requests`, `<job>.answers`) was made beside the checkout; the checkout is removed after the job
@@ -167,7 +167,8 @@ echo '${mergeRequest}'
   writeFileSync(join(bin, "opencode"), `#!/bin/sh
 case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
 run) cat > '${kept}/input'
-  job="\${PWD##*/}"
+  cd products/*-'${ID}' || exit 3
+  job='${ID}'
   ls -a "$PWD" "$PWD/.." > '${kept}/listed'
   git status --porcelain > '${kept}/status'
   git status --porcelain --ignored > '${kept}/ignored'
@@ -215,7 +216,7 @@ esac
   }
 
   // Step 3: "leaves the token of the job's repository in a file of the checkout that git ignores … the input names that file and says to use the token without reading it."
-  const working = join(folder, "jobs", ID), file = join(working, ".agent-m-token");
+  const working = join(folder, "products", `widget-${ID}`), file = join(working, ".agent-m-token");
   assert.ok(existsSync(join(kept, "input")), `known positive: the session was started: ${record()}`);
   const input = readFileSync(join(kept, "input"), "utf8");
   assert.ok(input.includes(file), `the input names the token file ${file}`);

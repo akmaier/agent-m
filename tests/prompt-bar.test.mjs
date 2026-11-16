@@ -31,22 +31,7 @@ import { tick, until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used
 
-class Text { constructor(data) { this.data = String(data); this.parentNode = null; } get textContent() { return this.data; } }
-class Element extends EventTarget {
-  constructor(name) {
-    super();
-    Object.assign(this, { localName: name, childNodes: [], className: "", value: "", type: "", hidden: false, disabled: false, parentNode: null, attrs: {}, html: "" });
-  }
-  append(...nodes) { for (const node of nodes.flat()) { const child = typeof node === "string" ? new Text(node) : node; this.childNodes.push(child); child.parentNode = this; } }
-  replaceChildren(...nodes) { this.childNodes = []; this.append(...nodes); }
-  setAttribute(name, value) { this.attrs[name] = String(value); }
-  getAttribute(name) { return this.attrs[name] ?? null; }
-  set innerHTML(value) { this.html = String(value); }
-  get innerHTML() { return this.html; }
-  get textContent() { return this.html + this.childNodes.map((child) => child.textContent).join(""); }
-  focus() {}
-}
-globalThis.document = { createElement: (name) => new Element(name) };
+import { Element } from "./prompt-bar.d/dom.mjs";
 
 const all = (root, test) => { const found = []; (function visit(node) { for (const child of node.childNodes ?? []) if (child instanceof Element) { if (test(child)) found.push(child); visit(child); } })(root); return found; };
 const byClass = (root, name) => all(root, (node) => node.className.split(" ").includes(name));
@@ -728,7 +713,7 @@ test("grip — the person sets the bar's height, and the tab keeps it", async ()
 // guards: UC-049; EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; THE PAGE NAMES WHERE IT SENDS
 // given: the one CLI session mac:opencode, which the Bridge mac lists ready, declaring draft text at "this machine"; the instance's AGENTS.md "# The rules of the instance"; the session answers first, as plain text, "I split the requirement, committed it and opened its pull request.", then the envelope of a converse answer whose plan hands a piece on
 // input: Send "split this requirement"; then Send "and the next one"
-// expect: before the first ask the page names "mac:opencode — this machine" under "Sent to"; each message is one POST /v1/ask to the Bridge with the agent opencode, its model model-opencode, the instance's address as product and the instance's commit the bar read as instance; the first names no session, the second the session JOB-20261112-1200-s001 the Bridge answered the first with; the first input begins with the instruction that the agent must read Agent M's files, naming ../../AGENTS.md — the instance's AGENTS.md in the Bridge's clone of the instance from the session's checkout —, and gives none of its text, and holds the page and the person's words; the second begins with no such instruction; and none of the endpoint's prompt — no plan to hand on, no form of an answer, no tool —; the second input holds nothing of the conversation so far, which the running session has seen (ARC-055); the plain answer is shown in the conversation as the session's message, its cost as unknown; the second answer is shown as it came, and no piece of a plan is shown or handed over, nothing is committed, and no Review the draft is offered; counter-proof: the endpoint drafter-a given the same plain answer says it could not be read
+// expect: before the first ask the page names "mac:opencode — this machine" under "Sent to"; each message is one POST /v1/ask to the Bridge with the agent opencode, its model model-opencode, the instance's address as product and no instance commit (the Bridge starts the session on the instance's latest default branch); the first names no session, the second the session JOB-20261112-1200-s001 the Bridge answered the first with; the first input begins with the instruction that the agent must read Agent M's files, naming AGENTS.md — the instance's AGENTS.md in Agent M's clone, the folder the session is started in —, and gives none of its text, and holds the page and the person's words; the second begins with no such instruction; and none of the endpoint's prompt — no plan to hand on, no form of an answer, no tool —; the second input holds nothing of the conversation so far, which the running session has seen (ARC-055); the plain answer is shown in the conversation as the session's message, its cost as unknown; the second answer is shown as it came, and no piece of a plan is shown or handed over, nothing is committed, and no Review the draft is offered; counter-proof: the endpoint drafter-a given the same plain answer says it could not be read
 test("TST-1112005: a message to a CLI session goes to its Bridge with the page and AGENTS.md first, into the session the conversation keeps, and its answer is shown as it gives it", async () => {
   const plan = JSON.stringify({ draft: { answer: "I hand it on.", handOver: [{ kind: "change-requirements", works_on: [], task: "split it", after: [] }] }, answers: [] });
   endpointAnswers("I split the requirement, committed it and opened its pull request.", plan);
@@ -740,9 +725,9 @@ test("TST-1112005: a message to a CLI session goes to its Bridge with the page a
   assert.ok(asks[0].page.includes("Sent to:") && asks[0].page.includes("mac:opencode — this machine"), asks[0].page);
   const body = JSON.parse(asks[0].body);
   assert.deepEqual({ agent: body.agent, model: body.model, product: body.product, instance: body.instance },
-    { agent: "opencode", model: "model-opencode", product: INSTANCE_WEB, instance: it.instance.head() });
+    { agent: "opencode", model: "model-opencode", product: INSTANCE_WEB, instance: undefined });
   assert.ok(body.input.startsWith("Before anything else, you must read these files of Agent M in full"), body.input.slice(0, 120));
-  assert.ok(body.input.includes("- `../../AGENTS.md`"), body.input.slice(0, 400));
+  assert.ok(body.input.includes("- `AGENTS.md`"), body.input.slice(0, 400));
   assert.equal(body.input.includes("# The rules of the instance"), false, "the file is named by its path, not given as text");
   assert.ok(body.input.includes("split this requirement") && body.input.includes("The page shows UC-007, drafted for mac:opencode."), body.input);
   for (const endpointOnly of ["hand-over", "handOver", "The form of your answer", "\"draft\""]) assert.equal(body.input.includes(endpointOnly), false, `no ${endpointOnly} in a session's input`);

@@ -59,9 +59,11 @@ async function prepare(kindName) {
     const job = await jobRunner.prepareJob(kindName, context, { drafter: kind.participant === "one" ? drafter : null, reviewers: [] });
     const parts = [];
     for (const part of job.parts.filter((each) => each.sources.includes("SRC-vibe-coding"))) {
-      const bytes = fs.readFileSync(part.text);
-      parts.push({ recipe: part.recipe, name: part.name, text: part.text,
-        sha256: await textTools.sha256(bytes), isFile: fs.statSync(part.text).isFile() });
+      // The part names the chapter's path on its first line; the instruction to read it follows.
+      const [path, ...rest] = part.text.split("\\n");
+      const bytes = fs.readFileSync(path);
+      parts.push({ recipe: part.recipe, name: part.name, text: path, instruction: rest.join("\\n").trim(),
+        sha256: await textTools.sha256(bytes), isFile: fs.statSync(path).isFile() });
     }
     return { ok: true, parts };
   } catch (error) {
@@ -129,12 +131,12 @@ class TestJobReadingCheckout(unittest.TestCase):
     # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
     # given: Markdown fixture cases, a temporary checkout of the instance with SRC-vibe-coding's register entry and chapter files, and real MOD-source-register chapter recipes
     # input: prepareJob for every listed job kind with context.instance.checkout naming the checkout
-    # expect: each SRC-vibe-coding part is the path of its chapter file in the checkout, and that file's SHA-256 equals the source register's recorded hash
+    # expect: each SRC-vibe-coding part is the path of its chapter file in the checkout, followed by the instruction to read that chapter in full, and that file's SHA-256 equals the source register's recorded hash
     # TST-584024 · level: release · module: MOD-source-register
     # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
     # given: Markdown fixture cases, a temporary checkout of the instance with SRC-vibe-coding's register entry and chapter files, and real MOD-source-register chapter recipes
     # input: prepareJob for every listed job kind with context.instance.checkout naming the checkout
-    # expect: each SRC-vibe-coding part is the path of its chapter file in the checkout, and that file's SHA-256 equals the source register's recorded hash
+    # expect: each SRC-vibe-coding part is the path of its chapter file in the checkout, followed by the instruction to read that chapter in full, and that file's SHA-256 equals the source register's recorded hash
     def test_jobs_in_a_checkout_receive_chapter_paths_with_recorded_hashes(self):
         case = next(item["case"] for item in cases() if item["case"]["expected"]["ok"])
         chapters = registered_chapters()
@@ -154,6 +156,7 @@ class TestJobReadingCheckout(unittest.TestCase):
                             number = numbers[0]
                             wanted_path = checkout_path / "docs" / "sources" / SOURCE / version_name / expected[number]["name"]
                             self.assertEqual(Path(part["text"]), wanted_path)
+                            self.assertRegex(part["instruction"], rf"^The file above is chapter {int(number)} of the book Vibe Coding: you must read it in full")
                             self.assertTrue(part["isFile"])
                             self.assertEqual(part["sha256"], expected[number]["sha256"])
                             by_chapter[number] = part["sha256"]

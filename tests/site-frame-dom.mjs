@@ -8,6 +8,8 @@
 // Level: unit
 
 import { installDocument as installBase } from "./markdown-render-dom.mjs";
+import { selectorMatcher } from "./dom-selector.mjs";
+import { classListOf } from "./dom-class-list.mjs";
 
 const FOCUSABLE = new Set(["input", "textarea", "select", "button"]);
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
@@ -28,6 +30,21 @@ function addBrowserBehaviour(document) {
     });
   } });
   Object.defineProperty(Object.getPrototypeOf(document), "activeElement", { configurable: true, get() { return this._focused?.isConnected ? this._focused : this.body; } });
+  // querySelector finds the first element below this one, in tree order, that a simple selector matches (tests/dom-selector.mjs); after inserts nodes
+  // after this one, as a browser's does.
+  Element.prototype.querySelector = function querySelector(selector) {
+    const matches = selectorMatcher(selector);
+    const walk = (node) => { for (const kid of node.children) { if (matches(kid)) return kid; const found = walk(kid); if (found) return found; } return null; };
+    return walk(this);
+  };
+  Object.defineProperty(Element.prototype, "classList", { configurable: true, get() { return classListOf(this); } });
+  Element.prototype.after = function after(...nodes) {
+    const parent = this._parent;
+    // The DOM's viable next sibling: the first sibling after this one that is not itself put after it.
+    let next = this.nextSibling;
+    while (next && nodes.includes(next)) next = next.nextSibling;
+    for (const n of nodes) parent.insertBefore(typeof n === "string" ? this._doc.createTextNode(n) : n, next);
+  };
 }
 
 // Installs a fresh document as the globals `document` and `window`, as a browser has them; the body is empty.

@@ -378,7 +378,7 @@ test("TST-20261112202: the input of a CLI session names its token file and says 
   terminalAgent(bin, "opencode");
   const prior = { PATH: process.env.PATH, HOME: process.env.HOME };
   Object.assign(process.env, { PATH: `${bin}:/bin:/usr/bin`, HOME: root, GIT_AUTHOR_NAME: "Agent", GIT_COMMITTER_NAME: "Agent", FIXTURE_TOLD: told,
-    FIXTURE_ACTION: "printf 'change\\n' > change.md && git checkout -q -b JOB-ask && git add -A && git commit -q -m change && git push -q origin JOB-ask" });
+    FIXTURE_ACTION: "cd products/widget-* && printf 'change\\n' > change.md && git checkout -q -b JOB-ask && git add -A && git commit -q -m change && git push -q origin JOB-ask" });
   t.after(() => { Object.assign(process.env, prior); delete process.env.FIXTURE_TOLD; delete process.env.FIXTURE_ACTION; });
 
   const folder = join(root, "work");
@@ -399,7 +399,7 @@ test("TST-20261112202: the input of a CLI session names its token file and says 
   assert.equal(answer.state, "done", JSON.stringify(answer));
   assert.match(answer.text, /^answer to .+\.$/);
   const input = readFileSync(told, "utf8");
-  const file = join(folder, "jobs", session, ".agent-m-token");
+  const file = join(folder, "products", `widget-${session}`, ".agent-m-token");
   assert.ok(input.startsWith("INPUT-MARKER: split the requirement"), input.slice(0, 200));
   assert.ok(input.includes(file), `the input names the file ${file}`);
   assert.match(input, /without reading the file/, "the input says to use the token without reading the file");
@@ -407,7 +407,7 @@ test("TST-20261112202: the input of a CLI session names its token file and says 
   assert.equal(git(root, "--git-dir", widget.origin, "show", "JOB-ask:change.md"), "change", "the session pushed with the token from the file");
   assert.equal(existsSync(file), true, "the checkout with its token file lives while the session runs");
   assert.deepEqual(await handlers["POST /v1/jobs/{id}/cancel"]({ params: { id: session }, query: {}, body: null }), { confirmed: true });
-  assert.equal(existsSync(join(folder, "jobs", session)), false, "the checkout and its token file are removed once the session has ended");
+  assert.equal(existsSync(join(folder, "products", `widget-${session}`)), false, "the checkout and its token file are removed once the session has ended");
   await assert.rejects(asked({ agent: "opencode", input: "x", product: "https://github.com/acme/elsewhere", instance: commit }), (error) => error?.code === "invalid-request",
     "counter-proof: a product the Bridge does not serve is refused");
 });

@@ -87,7 +87,8 @@ test("TST-1112004: a job that delivers a branch is pushed, fetched and followed 
   writeFileSync(join(bin, "opencode"), `#!/bin/sh
 case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
 run) cat > '${kept}/prompt'
-  job="\${PWD##*/}"
+  cd products/*-'${ID}' || exit 3
+  job='${ID}'
   ls -a "$PWD" "$PWD/.." > '${kept}/listed'
   git checkout -q -b "$job" && printf 'the regression test\\n' > regression.test && git add regression.test && git commit -q -m 'the regression test' && git push -q origin "$job" || exit 4
   git config --get remote.origin.url > '${kept}/origin'
@@ -135,7 +136,7 @@ esac
   startWatching({ bridgeName: "lab-pc", agents: [{ name: "opencode", folder }], products: [{ address: PRODUCT }], every: 100, instance: INSTANCE, enclosures: openEnclosures({ asked }) });
 
   await until(() => existsSync(join(kept, "pushed")), "the agent's push");
-  const working = join(folder, "jobs", ID);
+  const working = join(folder, "products", `widget-${ID}`);
   const commit = git(working, "rev-parse", "HEAD");
   assert.equal(originRef(`refs/heads/${ID}`), commit, "the push reached the origin while the agent still works");
   assert.equal(readFileSync(join(kept, "origin"), "utf8").trim(), PRODUCT, "the agent's origin is the product's address");
