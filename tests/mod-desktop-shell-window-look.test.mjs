@@ -31,8 +31,9 @@ const classes = (element) => String(element.className ?? "").split(/\s+/).filter
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-044
 // given: the production Bridge window entry, src/desktop-shell/window.html, and constructed preload states that make each route draw every button it can: a Bridge that could not start (port in use), one paired, an installed agent whose enclosure needs its setup, one whose enclosure needs a login, a missing agent, the settings, a jump host with a tunnel, and a release offered, before and after its download
 // input: the routes pairing, agents, settings, tunnels and updates are drawn in turn; then Pair anew opens its decision
-// expect: window.html links no style sheet and holds no <style>; the window's head links exactly one style sheet, src/site-frame/look.css; every button each route draws carries the class btn, and every table the class list; no element a route draws has a style attribute, and none is a <style> or <link>; the known positive — the decision's buttons, MOD-site-frame's — carries btn
-// Planted fault: a route's button drawn without btn, a <link rel="stylesheet"> put into window.html, or a style attribute on a route's element fails it.
+// expect: window.html links no style sheet and holds no <style>; the window's head links exactly one style sheet, src/site-frame/look.css; every button each route draws carries the class btn, and every table the class list; no element a route draws has a style attribute, but for the Jobs list's box in the look's class list-scroll, which may carry its measured max-height alone; the known positive — the decision's buttons, MOD-site-frame's — carries btn
+// Planted fault: a route's button drawn without btn, a <link rel="stylesheet"> put into window.html, a style attribute on a route's element, or the Jobs list's
+// position or overflow set on its box instead of in list-scroll fails it.
 test("TST-1105202 the Bridge window's routes use only the site's style sheet, and their buttons carry btn", async () => {
   const html = readFileSync(new URL("../src/desktop-shell/window.html", import.meta.url), "utf8");
   assert.doesNotMatch(html, /<link\b[^>]*rel=["']?stylesheet/i, "window.html links no style sheet");
@@ -100,6 +101,8 @@ test("TST-1105202 the Bridge window's routes use only the site's style sheet, an
   failure = { failure: { name: "PortInUse", message: "occupied" } }; await show("#pairing"); inspect("pairing, not started"); failure = null;
   await show("#agents"); inspect("agents");
   await show("#jobs"); inspect("jobs");
+  assert.ok(descendants(route(), (node) => node.localName === "div" && classes(node).includes("list-scroll")).some((box) => box.childNodes[0]?.localName === "table"),
+    "jobs: the jobs list scrolls in the look's class list-scroll");
   assert.ok(descendants(route(), (node) => node.localName === "pre" && classes(node).includes("console")).length === 1, "jobs: the console is drawn in the look's class console");
   await show("#settings"); inspect("settings");
   await show("#tunnels"); inspect("tunnels");
