@@ -60,7 +60,7 @@ async function chooseParticipant(p, name) {
   const select = one(p.main(), "participant");
   select.value = name;
   select.dispatchEvent(new Event("change"));
-  await waitFor(() => byClass(p.main(), "run-panel").length > 0 || byClass(p.main(), "mail-missing-checkers").length > 0);
+  await waitFor(() => byClass(p.main(), "mail-propose").length > 0 || byClass(p.main(), "mail-missing-checkers").length > 0);
 }
 // Propose for each mail still to decide, one after the other: the mail opened, the person's click on Propose (a click a script makes first, which sends nothing).
 async function propose(p, clicks) {
@@ -117,14 +117,14 @@ test("main flow, steps 1 to 3: the mailbox is read, decided mails are left out, 
 // guards: UC-038; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; ONE CLICK PER DECISION; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS
 // given: two new mails a and b; the participants local-llm and three checkers at this machine; the answer of local-llm: a neutral defect for a, a neutral change for b
 // input: Mail opened, which reads the mailbox; local-llm chosen and a name typed; a click a script makes on Propose, then the person's click; a click a script makes on Create issue, then the person's click, for a and for b
-// expect: the panel names where local-llm processes data; the script's clicks send and write nothing; one Propose per mail opened sends one request for that mail; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Propose and one decision per mail (flow: UC-038 main flow, steps 4, 5, 7 and 8, and the postcondition)
+// expect: the participant's line names where local-llm processes data; the script's clicks send and write nothing; one Propose per mail opened sends one request for that mail; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Propose and one decision per mail (flow: UC-038 main flow, steps 4, 5, 7 and 8, and the postcondition)
 test("main flow, steps 4 to 10: one Propose per mail opened, one decision per mail, neutral issues with the label and the identifier, the mailbox untouched", async () => {
   const p = await open();
   await lastly(p, async () => {
     const clicks = [];
     await mailboxRead(p);
     await chooseParticipant(p, "local-llm");
-    assert.match(textOf(one(p.main(), "run-panel")), /this machine/);
+    assert.match(textOf(one(p.main(), "participant").children.find((option) => option.getAttribute?.("data-participant") === "local-llm")), /this machine/);
     assert.equal(await propose(p, clicks), 0, "a click a script makes sends nothing");
     const asked = p.w.kept.endpoint.filter((request) => JSON.stringify(request.body).includes("You turn mails into proposals"));
     assert.equal(asked.length, 2, "one request per mail opened");
