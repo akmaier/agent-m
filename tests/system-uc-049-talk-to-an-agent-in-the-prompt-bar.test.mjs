@@ -147,7 +147,7 @@ test("main flow (4): a CLI agent receives the message through its Bridge", async
 // guards: UC-049; UC-011; THE PAGE NAMES WHERE IT SENDS
 // given: release-bridge:claude, a CLI session of the paired Bridge release-bridge at "this machine"; the session answers in plain text, in no envelope, "I split it and opened pull request #4."; in a second scenario the endpoint drafter, which answers the same plain text
 // input: a message "Split this requirement." sent to release-bridge:claude; in the second scenario the same message sent to drafter
-// expect: the Bridge receives one ask of the agent claude with its model agent-cli-model, naming the product's address https://github.com/akmaier/lending-tool as its product and a commit of the instance as its instance, whose input holds the person's words and the page and nothing of an endpoint's answer form; the plain answer appears in the conversation, and nothing says it could not be read; no job record and nothing else is written of it; counter-proof: the endpoint's plain answer is named as one that could not be read (flow: UC-049 main flow (4, CLI session); UC-011 step 3)
+// expect: the Bridge receives one ask of the agent claude with its model agent-cli-model, naming the product's address https://github.com/akmaier/lending-tool as its product and no commit of the instance, whose input holds the person's words and the page and nothing of an endpoint's answer form; the plain answer appears in the conversation, and nothing says it could not be read; no job record and nothing else is written of it; counter-proof: the endpoint's plain answer is named as one that could not be read (flow: UC-049 main flow (4, CLI session); UC-011 step 3)
 test("TST-1112006: main flow (4): a CLI session is given the message in one ask naming its product, does the work itself, and its plain answer is shown", async () => {
   const s = await scenario({ ...register(AGENT), answers: [{ answer: "x" }] });
   const w = watch(s, { script: [said("I split it and opened pull request #4.")] });
@@ -156,7 +156,7 @@ test("TST-1112006: main flow (4): a CLI session is given the message in one ask 
   assert.equal(w.asks.length, 1);
   const [asked] = w.asks;
   assert.deepEqual([asked.agent, asked.model, asked.product], ["claude", "agent-cli-model", "https://github.com/akmaier/lending-tool"]);
-  assert.match(String(asked.instance), /^[0-9a-f]{40}$/, "the commit of the instance the bar read");
+  assert.equal(asked.instance, undefined, "no commit of the instance: the Bridge starts the session on its latest default branch");
   assert.ok(asked.input.includes("Split this requirement.") && asked.input.includes("A LOAN HAS A DUE DATE"), "the ask holds the person's words and the page");
   assert.equal(asked.input.includes("The form of your answer"), false, "no answer form of an endpoint");
   assert.ok(conversationOf(s).some((line) => line.includes("I split it and opened pull request #4.")), conversationOf(s).join(" | "));
