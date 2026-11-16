@@ -9,6 +9,7 @@
 
 import { installDocument as installBase } from "./markdown-render-dom.mjs";
 import { selectorMatcher } from "./dom-selector.mjs";
+import { classListOf } from "./dom-class-list.mjs";
 
 const FOCUSABLE = new Set(["input", "textarea", "select", "button"]);
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
@@ -36,6 +37,7 @@ function addBrowserBehaviour(document) {
     const walk = (node) => { for (const kid of node.children) { if (matches(kid)) return kid; const found = walk(kid); if (found) return found; } return null; };
     return walk(this);
   };
+  Object.defineProperty(Element.prototype, "classList", { configurable: true, get() { return classListOf(this); } });
   Element.prototype.after = function after(...nodes) {
     const parent = this._parent, next = this.nextSibling;
     for (const n of nodes) parent.insertBefore(typeof n === "string" ? this._doc.createTextNode(n) : n, next);

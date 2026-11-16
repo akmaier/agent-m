@@ -6,6 +6,7 @@
 // Level: unit
 
 import { selectorMatcher } from "../dom-selector.mjs";
+import { classListOf } from "../dom-class-list.mjs";
 
 export class FixtureElement extends EventTarget {
   constructor(document, localName) {
@@ -25,6 +26,7 @@ export class FixtureElement extends EventTarget {
   remove() { if (this._parent) { this._parent.children = this._parent.children.filter((child) => child !== this); this._parent = null; } }
   setAttribute(name, value) { this.attributes.set(name, String(value)); if (name === "class") this.className = String(value); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
+  get classList() { return classListOf(this); }
   focus() {} // a page puts the focus in its first field; this stand-in has no focus to move
   getElementsByTagName(name) {
     const found = [];
