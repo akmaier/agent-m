@@ -3,8 +3,8 @@
 // guidance: Codex and opencode read `AGENTS.md`, Claude Code reads `CLAUDE.md`, which in Agent M's repository only imports it (`@AGENTS.md`).
 // What the folder already holds stays; git refuses the first checkout where a file of the folder would be overwritten. A folder that holds a
 // clone of another repository is refused, naming it"; "one clone per served product in `products/<name>/`, `<name>` the repository's name, the
-// folder `git clone` gives it"; "one working clone per running job of that agent in `jobs/<id>/`"; "the agent's home `home/`"; and "`home/` and
-// `jobs/` are excluded from the instance's clone in its `.git/info/exclude`".
+// folder `git clone` gives it"; "the agent's home `home/`"; and "`home/` is excluded from the instance's clone in its `.git/info/exclude`"; a job's
+// checkout is `products/<name>-<id>/`, which Agent M's `.gitignore` ignores.
 // Run: node --test tests/bridge-jobs-workfolders.test.mjs
 //
 // Module: MOD-bridge-jobs
@@ -55,25 +55,25 @@ const INSTANCE_FILES = { "AGENTS.md": "# AGENTS.md of the instance\n", "CLAUDE.m
 
 // TST-5401001 · level: unit · module: MOD-bridge-jobs
 // guards: UC-049; EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; NO SECRET IN THE REPOSITORY
-// given: the instance, a bare repository holding AGENTS.md, CLAUDE.md, products/README.md and Agent M's .gitignore; an agent's working folder that already holds its home with a kept login (home/.agent-m/kept.json) and a job's folder
+// given: the instance, a bare repository holding AGENTS.md, CLAUDE.md, products/README.md and Agent M's .gitignore; an agent's working folder that already holds its home with a kept login (home/.agent-m/kept.json) and a job's checkout products/widget-JOB-1/
 // input: instanceClone(instance, folder); then a commit on the instance's main and instanceClone again
-// expect: the working folder itself is the clone — AGENTS.md and CLAUDE.md at its root, HEAD the instance's main —, the kept login is still there, git status in the folder reports nothing, its .git/info/exclude names /home/ and /jobs/, and the second call brings origin/main to the new commit; counter-proof: a working folder that holds an AGENTS.md of its own is refused and its file is unchanged
-test("TST-5401001: the working folder becomes a clone of the instance in place, its home and jobs out of git's sight", async (t) => {
+// expect: the working folder itself is the clone — AGENTS.md and CLAUDE.md at its root, HEAD the instance's main —, the kept login is still there, git status in the folder reports nothing, its .git/info/exclude names /home/ alone, and the second call brings origin/main to the new commit; counter-proof: a working folder that holds an AGENTS.md of its own is refused and its file is unchanged
+test("TST-5401001: the working folder becomes a clone of the instance in place, its home and a job's checkout out of git's sight", async (t) => {
   const root = world(t);
   const instance = repository(root, "instance", INSTANCE_FILES);
   const folder = join(root, "work");
   mkdirSync(join(folder, "home", ".agent-m"), { recursive: true });
   writeFileSync(join(folder, "home", ".agent-m", "kept.json"), '{"CLAUDE_CODE_OAUTH_TOKEN":"sk-ant-oat01-fixture"}');
-  mkdirSync(join(folder, "jobs", "JOB-1"), { recursive: true });
-  writeFileSync(join(folder, "jobs", "JOB-1", "README.md"), "a job's checkout\n");
+  mkdirSync(join(folder, "products", "widget-JOB-1"), { recursive: true });
+  writeFileSync(join(folder, "products", "widget-JOB-1", "README.md"), "a job's checkout\n");
 
   assert.equal(await instanceClone(instance.origin, folder), folder);
   assert.equal(readFileSync(join(folder, "AGENTS.md"), "utf8"), INSTANCE_FILES["AGENTS.md"]);
   assert.equal(readFileSync(join(folder, "CLAUDE.md"), "utf8"), "@AGENTS.md\n");
   assert.equal(git(folder, "rev-parse", "HEAD"), git(instance.seed, "rev-parse", "HEAD"));
   assert.equal(readFileSync(join(folder, "home", ".agent-m", "kept.json"), "utf8"), '{"CLAUDE_CODE_OAUTH_TOKEN":"sk-ant-oat01-fixture"}', "what the folder held stays");
-  assert.equal(git(folder, "status", "--porcelain", "--untracked-files=all"), "", "neither home/ nor jobs/ is seen by git");
-  assert.deepEqual(readFileSync(join(folder, ".git", "info", "exclude"), "utf8").split("\n").filter((line) => line.startsWith("/")).sort(), ["/home/", "/jobs/"]);
+  assert.equal(git(folder, "status", "--porcelain", "--untracked-files=all"), "", "neither home/ nor the job's checkout is seen by git");
+  assert.deepEqual(readFileSync(join(folder, ".git", "info", "exclude"), "utf8").split("\n").filter((line) => line.startsWith("/")).sort(), ["/home/"]);
   assert.equal(git(folder, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"), "origin/main");
 
   const next = push(instance.seed, { "marker.md": "v2\n" });
@@ -91,13 +91,13 @@ test("TST-5401001: the working folder becomes a clone of the instance in place, 
 // guards: UC-011; A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER
 // given: an agent's working folder /w and the product addresses https://github.com/acme/product-a, https://github.com/acme/product-b.git/ and git@github.com:acme/product-c.git
 // input: foldersOf("/w"); and, in a working folder, cloneOrFetch of a product into the folder foldersOf names, then cloneOrFetch of another repository of the same name into it
-// expect: the instance's folder is /w itself, the products' folders /w/products/product-a, /w/products/product-b and /w/products/product-c, and a job's /w/jobs/JOB-1; the product's clone holds its file; counter-proof: the other repository of the same name is refused, the refusal naming both, and the clone still holds the first product
+// expect: the instance's folder is /w itself, the products' folders /w/products/product-a, /w/products/product-b and /w/products/product-c, and a job's of product-a /w/products/product-a-JOB-1; the product's clone holds its file; counter-proof: the other repository of the same name is refused, the refusal naming both, and the clone still holds the first product
 test("TST-5401002: each product is cloned under products/ by its repository's name, and a second repository of that name is refused", async (t) => {
   const folders = foldersOf("/w");
   assert.equal(folders.instance, "/w");
   assert.deepEqual(["https://github.com/acme/product-a", "https://github.com/acme/product-b.git/", "git@github.com:acme/product-c.git"].map(folders.product),
     ["/w/products/product-a", "/w/products/product-b", "/w/products/product-c"]);
-  assert.equal(folders.job("JOB-1"), "/w/jobs/JOB-1");
+  assert.equal(folders.job("JOB-1", "https://github.com/acme/product-a"), "/w/products/product-a-JOB-1");
 
   const root = world(t);
   mkdirSync(join(root, "acme"));
