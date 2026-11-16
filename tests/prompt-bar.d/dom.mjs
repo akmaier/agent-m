@@ -1,5 +1,5 @@
 // The part of a browser's DOM that the prompt bar uses, which its tests share (tests/prompt-bar.test.mjs, tests/prompt-bar-fixed.test.mjs,
-// tests/prompt-bar-one-kind.test.mjs): text nodes and elements with children, attributes, an innerHTML kept as text, textContent, a classList
+// tests/prompt-bar-one-kind.test.mjs, tests/prompt-bar-endpoints.test.mjs): text nodes and elements with children, attributes, an innerHTML kept as text, textContent, a classList
 // (tests/dom-class-list.mjs) and events; no `style` object, only the attribute. Importing it installs `document` as a global that creates such
 // elements. It is test code; it holds no expected result.
 //

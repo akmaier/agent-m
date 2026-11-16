@@ -12,6 +12,7 @@
 
 import { blobSha } from "../src/text-tools/index.mjs";
 import { storedGraphBytes } from "./stored-graph-fake.mjs";
+import { classListOf } from "./dom-class-list.mjs";
 
 const HEAD = "c0ffee".padEnd(40, "0");
 export const REPO = "akmaier/agent-m";
@@ -294,6 +295,7 @@ function domElement(localName) {
     localName, nodeType: 1, parentNode: null, children, controls, className: "", value: "", checked: false, disabled: false, hidden: false,
     type: "", placeholder: "", autocomplete: "", spellcheck: true, href: "", target: "", rel: "", dataset: {}, style: {},
     get childNodes() { return children; },
+    get classList() { return classListOf(node); },
     append(...items) {
       for (const item of items) {
         if (typeof item === "object" && item) {
@@ -324,6 +326,12 @@ function domElement(localName) {
         if (at >= 0) siblings.splice(at, 1);
       }
       node.parentNode = null;
+    },
+    // Puts elements after this node in its parent, as a browser's after does.
+    after(...items) {
+      const parent = node.parentNode;
+      const next = parent.children[parent.children.indexOf(node) + 1] ?? null;
+      for (const item of items) parent.insertBefore(item, next);
     },
     addEventListener(type, listener) { listeners.push([type, listener]); },
     fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
