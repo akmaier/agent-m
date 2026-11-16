@@ -23,20 +23,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-class Text { constructor(value) { this.value = String(value); } get textContent() { return this.value; } }
-class Element extends EventTarget {
-  constructor(name) { super(); this.localName = name; this.childNodes = []; this.attributes = new Map(); this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.innerHTML = ""; this.parentNode = null; }
-  append(...nodes) { for (const node of nodes.flat()) { const child = typeof node === "string" ? new Text(node) : node; this.childNodes.push(child); child.parentNode = this; } }
-  replaceChildren(...nodes) { this.childNodes = []; this.append(...nodes); }
-  remove() { if (this.parentNode) this.parentNode.childNodes.splice(this.parentNode.childNodes.indexOf(this), 1); }
-  get textContent() { return this.childNodes.map((child) => child.textContent).join(""); }
-  set textContent(value) { this.replaceChildren(String(value)); }
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
-  getAttribute(name) { return this.attributes.get(name) ?? null; }
-  getElementsByTagName(name) { return descendants(this, (node) => node.localName === name); }
-}
-class Storage { constructor() { this.values = new Map(); } getItem(key) { return this.values.get(key) ?? null; } setItem(key, value) { this.values.set(key, String(value)); } removeItem(key) { this.values.delete(key); } get length() { return this.values.size; } key(index) { return [...this.values.keys()][index] ?? null; } }
-const descendants = (root, predicate) => { const found = []; const visit = (node) => { for (const child of node.childNodes ?? []) { if (child instanceof Element) { if (predicate(child)) found.push(child); visit(child); } } }; visit(root); return found; };
+import { Element, Storage, Text, descendants } from "./desktop-shell.d/dom.mjs";
 const classes = (element) => String(element.className ?? "").split(/\s+/).filter(Boolean);
 
 // TST-1105202 · level: unit · module: MOD-desktop-shell
