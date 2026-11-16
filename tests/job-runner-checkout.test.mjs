@@ -100,13 +100,11 @@ test("prepareJob — a checkout at another commit than the job's record names is
   }
 });
 
-// TST-472324 · level: unit · module: MOD-job-runner
+// TST-472317 · level: unit · module: MOD-job-runner
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; UC-011
-// given: a context whose instance holds a checkout at the record's commit — on CI, the job workflow's checkout —, for a coding agent on CI (type `CI agent`)
-// and for a model endpoint; known positive: the same context for the coding agent on a Bridge
+// given: a context whose instance holds a checkout at the record's commit — on CI, the job workflow's checkout —, for a coding agent on CI (type `CI agent`) and for a model endpoint; known positive: the same context for the coding agent on a Bridge
 // input: prepareJob of the kind whose recipe shows what it reads; then the same for the coding agent on CI with the checkout at another commit
-// expect: the agent on a Bridge's recipe is given the checkout; the others' recipe is given none, so that it gives the text read from the snapshot; a checkout
-// at another commit is refused as CheckoutAtOtherCommit for the agent on CI too
+// expect: the agent on a Bridge's recipe is given the checkout; the others' recipe is given none, so that it gives the text read from the snapshot; a checkout at another commit is refused as CheckoutAtOtherCommit for the agent on CI too
 test("prepareJob — on CI and for a model endpoint the recipes are given no checkout, and the commit is still checked", async () => {
   const onCi = { ...DRAFTER, name: "drafter-ci", type: "CI agent", route: "ci hosted agent claude secret ANTHROPIC_API_KEY" };
   const endpoint = { ...DRAFTER, name: "drafter-endpoint", type: "model endpoint", route: "endpoint e1" };
