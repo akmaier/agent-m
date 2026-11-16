@@ -96,7 +96,8 @@ hidden from the sign-in screen.
   - `openTerminal(command: string, args: string[], keeps?: { variable: string, pattern: string } | null) ->
     Promise<void>` — the system's terminal opened with the command running in the enclosure, its home and its
     environment, so that the person runs the agent's own login step there (UC-044 3b): on macOS a `.command` file in the
-    home opened with `open`; on Linux `x-terminal-emulator -e`; on Windows a console started as the account. With
+    home opened with `open`, whose window Terminal is asked to close once the step has ended well — a step that failed
+    leaves its window open with its error —; on Linux `x-terminal-emulator -e`; on Windows a console started as the account. With
     `keeps`, MOD-agent-processes' `Agent.keeps`, the terminal records what the step prints into `login.log` with
     `/usr/bin/script`, at a width that wraps none of its lines, and `login.json` names what to take; only macOS records,
     and elsewhere `keeps` throws `NotEnclosed` before anything is opened.
