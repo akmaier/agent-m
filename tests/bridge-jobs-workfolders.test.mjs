@@ -112,6 +112,30 @@ test("TST-5401002: each product is cloned under products/ by its repository's na
   assert.equal(git(folder, "config", "--get", "remote.origin.url"), first.origin, "counter-proof: the clone stays the first product's");
 });
 
+// TST-5401004 · level: unit · module: MOD-bridge-jobs
+// guards: UC-044; UC-049
+// given: the instance, a bare repository; an agent's working folder holding its home and a .git whose making stopped part way — config, description, hooks/ and info/, no HEAD —, which git does not take for a repository
+// input: instanceClone(instance, folder)
+// expect: the working folder becomes the instance's clone — AGENTS.md at its root, HEAD the instance's main, origin the instance — and the home stays; counter-proof: before the call, git in the folder fails with "not a git repository"
+test("TST-5401004: a working folder whose .git holds no repository becomes the instance's clone", async (t) => {
+  const root = world(t);
+  const instance = repository(root, "instance", INSTANCE_FILES);
+  const folder = join(root, "work");
+  mkdirSync(join(folder, "home"), { recursive: true });
+  writeFileSync(join(folder, "home", "kept.txt"), "the agent's home\n");
+  for (const below of ["hooks", "info"]) mkdirSync(join(folder, ".git", below), { recursive: true });
+  writeFileSync(join(folder, ".git", "config"), "[core]\n\trepositoryformatversion = 0\n");
+  writeFileSync(join(folder, ".git", "description"), "Unnamed repository\n");
+  const before = spawnSync("git", ["rev-parse", "--git-dir"], { cwd: folder, encoding: "utf8", env: { ...process.env, GIT_CEILING_DIRECTORIES: root } });
+  assert.match(before.stderr, /not a git repository/, "counter-proof: the folder's .git is no repository");
+
+  assert.equal(await instanceClone(instance.origin, folder), folder);
+  assert.equal(readFileSync(join(folder, "AGENTS.md"), "utf8"), INSTANCE_FILES["AGENTS.md"]);
+  assert.equal(git(folder, "rev-parse", "HEAD"), git(instance.seed, "rev-parse", "HEAD"));
+  assert.equal(git(folder, "config", "--get", "remote.origin.url"), instance.origin);
+  assert.equal(readFileSync(join(folder, "home", "kept.txt"), "utf8"), "the agent's home\n", "what the folder held stays");
+});
+
 // TST-5401003 · level: unit · module: MOD-bridge-jobs
 // guards: EVERY MODEL READS AGENT M'S AGENTS.MD FIRST; UC-049
 // given: the root of Agent M's own repository

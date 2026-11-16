@@ -60,6 +60,8 @@ function ran(command, args, options = {}) {
 
 // A word of the shell, quoted.
 const sh = (word) => `'${String(word).replace(/'/g, "'\\''")}'`;
+// The last line of a login step's .command file: Terminal is asked, in the background, to close the window whose tab runs on this terminal; the shell has ended by then.
+const CLOSE_WINDOW = 't=$(tty) && /usr/bin/nohup /usr/bin/osascript -e "tell application \\"Terminal\\" to close (every window whose tty of tab 1 is \\"$t\\")" >/dev/null 2>&1 &';
 const notEnclosed = (message) => Object.assign(new Error(message), { name: "NotEnclosed" });
 
 /**
@@ -171,8 +173,9 @@ export function agentEnclosure({ dataFolder, folder, platform = process.platform
     if (platform === "darwin") {
       const file = join(home, "agent-login.command");
       // A step whose login is kept runs inside `script`, which records what it prints, at a width that wraps none of its lines.
-      const line = keeps ? `exec /usr/bin/script -q ${sh(awaitLogin(home, keeps))} /bin/sh -c ${sh('stty cols 1000 2>/dev/null; exec "$@"')} sh ${words}` : `exec ${words}`;
-      writeFileSync(file, `#!/bin/sh\ncd ${sh(home)} || exit 1\n${line}\n`, { mode: 0o700 });
+      const line = keeps ? `/usr/bin/script -q ${sh(awaitLogin(home, keeps))} /bin/sh -c ${sh('stty cols 1000 2>/dev/null; exec "$@"')} sh ${words}` : words;
+      // A step that ends well closes its window, which Terminal itself is asked for; one that fails leaves its window open with its error.
+      writeFileSync(file, `#!/bin/sh\ncd ${sh(home)} || exit 1\n${line} || exit\n${CLOSE_WINDOW}\n`, { mode: 0o700 });
       terminal("/usr/bin/open", [file]);
       return;
     }

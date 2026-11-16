@@ -64,7 +64,8 @@ const exists = (path) => stat(path).then(() => true, () => false);
  */
 export function cloneOrFetch(address, folder, exclude = []) {
   return exclusively(folder, async () => {
-    if (await exists(join(folder, ".git"))) {
+    // A `.git` that git does not take for a repository — one whose making stopped part way — holds no clone: git init makes it one.
+    if (await exists(join(folder, ".git")) && await git(folder, ["rev-parse", "--git-dir"]).then(() => true, () => false)) {
       const origin = await git(folder, ["config", "--get", "remote.origin.url"]).catch(() => null);
       if (origin !== address) throw new Error(`${folder} holds a clone of ${origin ?? "no repository"}, not of ${address}`);
     } else {
