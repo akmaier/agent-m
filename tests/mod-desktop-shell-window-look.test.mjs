@@ -15,7 +15,8 @@
 //     shown in its console and one with its Show console.
 //   - "The look's classes" for a button are `btn`, with `primary` or `small` beside it (MOD-site-frame, look.css): every button a route draws carries `btn`.
 //     A table is drawn in the look's class `list`.
-//   - "No style of their own" is no `style` attribute and no <style> or <link> element in what a route draws.
+//   - "No style of their own" is no `style` attribute and no <style> or <link> element in what a route draws — but for a height a route measures from
+//     what it drew, which no style sheet can know: a box in the look's class `list-scroll` may carry its `max-height` alone (Jobs, five rows shown).
 //   - "The site's style sheet" is src/site-frame/look.css: the window's head links it, and no other.
 //   - The known positive of the button check is the decision's Cancel and Accept, which MOD-site-frame draws with `btn`.
 
@@ -80,7 +81,8 @@ test("TST-1105202 the Bridge window's routes use only the site's style sheet, an
     for (const button of buttons) assert.ok(classes(button).includes("btn"), `${name}: the button "${button.textContent}" carries btn, not "${button.className}"`);
     for (const table of descendants(target, (node) => node.localName === "table")) assert.ok(classes(table).includes("list"), `${name}: a table carries list`);
     for (const element of descendants(target, () => true)) {
-      assert.equal(element.getAttribute("style"), null, `${name}: the ${element.localName} "${element.textContent.slice(0, 40)}" has no style of its own`);
+      const measured = classes(element).includes("list-scroll") && /^max-height: [0-9.]+px;$/.test(element.getAttribute("style") ?? "");
+      if (!measured) assert.equal(element.getAttribute("style"), null, `${name}: the ${element.localName} "${element.textContent.slice(0, 40)}" has no style of its own`);
       assert.ok(!["style", "link"].includes(element.localName), `${name}: no <${element.localName}> in the route`);
     }
   };
