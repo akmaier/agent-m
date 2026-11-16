@@ -5,6 +5,8 @@
 // Module: MOD-site-frame
 // Level: unit
 
+import { selectorMatcher } from "../dom-selector.mjs";
+
 export class FixtureElement extends EventTarget {
   constructor(document, localName) {
     super();
@@ -31,6 +33,22 @@ export class FixtureElement extends EventTarget {
       found.push(...child.getElementsByTagName(name));
     }
     return found;
+  }
+  // The first element below this one, in tree order, that a simple selector matches (tests/dom-selector.mjs).
+  querySelector(selector) {
+    const matches = selectorMatcher(selector);
+    for (const child of this.children) if (typeof child !== "string") {
+      if (matches(child)) return child;
+      const found = child.querySelector(selector);
+      if (found) return found;
+    }
+    return null;
+  }
+  // Puts nodes after this one in its parent, as a browser's after does.
+  after(...nodes) {
+    const siblings = this._parent.children, at = siblings.indexOf(this) + 1;
+    siblings.splice(at, 0, ...nodes);
+    for (const node of nodes) if (typeof node !== "string") node._parent = this._parent;
   }
 }
 

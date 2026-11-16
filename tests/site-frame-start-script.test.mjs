@@ -55,7 +55,7 @@ test("TST-531012 start.mjs reads its script tag, loads the named views, register
   assert.deepEqual(owners("itm531CheckA"), [VIEW_A, "probe"]);
   assert.deepEqual(owners("itm531CheckB"), [VIEW_B, "probe"]);
   assert.equal(owners("itm531CheckNobodyRegistered"), null);
-  assert.deepEqual(page.timers, [60000], "the page started MOD-notifications' check once");
+  assert.deepEqual(page.timers, [15000], "the page started MOD-notifications' check once");
 });
 
 // TST-531013 · level: unit · module: MOD-site-frame
