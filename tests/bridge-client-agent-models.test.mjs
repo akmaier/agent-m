@@ -18,11 +18,9 @@ const json = (body) => new Response(JSON.stringify(body), { status: 200, headers
 
 // TST-20261116131 · level: unit · module: MOD-bridge-client
 // guards: A CONNECTION NAMES THE MODELS IT OFFERS; UC-044
-// given: a Bridge at http://127.0.0.1:4711 with the token bridge-token, which answers the first probe { answer: { models: [gpt-6 400000, opencode/big-pickle null] } } and the second
-//        { answer: { reason: "codex is not installed" } }
+// given: a Bridge at http://127.0.0.1:4711 with the token bridge-token, which answers the first probe { answer: { models: [gpt-6 400000, opencode/big-pickle null] } } and the second { answer: { reason: "codex is not installed" } }
 // input: probe(bridge, "agent-models", { agent: "codex" }), twice
-// expect: each is one POST to http://127.0.0.1:4711/v1/probes/agent-models with the token and the body { args: { agent: "codex" } }; the first resolves with { models: [...] } and the second with
-//         { reason: "codex is not installed" }, each unchanged
+// expect: each is one POST to http://127.0.0.1:4711/v1/probes/agent-models with the token and the body { args: { agent: "codex" } }; the first resolves with { models: [...] } and the second with { reason: "codex is not installed" }, each unchanged
 test("TST-20261116131: probe agent-models posts the agent to the Bridge and resolves with its models or its reason", async (t) => {
   const calls = [], answers = [{ models: [{ model: "gpt-6", context: 400000 }, { model: "opencode/big-pickle", context: null }] }, { reason: "codex is not installed" }];
   const prior = globalThis.fetch;

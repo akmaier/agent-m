@@ -71,8 +71,7 @@ const readButton = (form) => byClass(form, "bridge-session-read-models")[0];
 // guards: A CONNECTION NAMES THE MODELS IT OFFERS; UC-044
 // given: the tested Bridge laptop with the form of claude, its model rows [old-model, 1000]; the Bridge reads claude-opus-5-5 with context 1000000 and claude-haiku-5 with none
 // input: Read models in claude's form pressed
-// expect: Read models stands in the form, labelled "Read models"; one POST to http://127.0.0.1:4711/v1/probes/agent-models with the token and { args: { agent: "claude" } }; the model rows then are
-//         [claude-opus-5-5, 1000000] and [claude-haiku-5, ""] — in place of the row held before, the context empty where none was read —; no PUT was sent (reading saves nothing)
+// expect: Read models stands in the form, labelled "Read models"; one POST to http://127.0.0.1:4711/v1/probes/agent-models with the token and { args: { agent: "claude" } }; the model rows then are [claude-opus-5-5, 1000000] and [claude-haiku-5, ""] — in place of the row held before, the context empty where none was read —; no PUT was sent (reading saves nothing)
 test("TST-20261116161: Read models puts the models the Bridge reads in place of the session's model rows and saves nothing", async (t) => {
   const calls = stand(t, { models: [{ model: "claude-opus-5-5", context: 1000000 }, { model: "claude-haiku-5", context: null }] });
   const form = await sessionForm();
@@ -91,11 +90,9 @@ test("TST-20261116161: Read models puts the models the Bridge reads in place of 
 
 // TST-20261116162 · level: unit · module: MOD-settings-pages
 // guards: A CONNECTION NAMES THE MODELS IT OFFERS; UC-044
-// given: the same form, its model rows [old-model, 1000]; in turn a Bridge that answers agent-models with { reason: "claude's catalogue is missing" }, and one whose probe cannot be reached
-//        (fetch fails with "connection reset")
+// given: the same form, its model rows [old-model, 1000]; in turn a Bridge that answers agent-models with { reason: "claude's catalogue is missing" }, and one whose probe cannot be reached (fetch fails with "connection reset")
 // input: Read models pressed, on each
-// expect: the form says that nothing could be read, naming "claude's catalogue is missing", then naming that the Bridge was not reached; the model rows stay [old-model, 1000] each time; no PUT was sent;
-//         counter-proof: TST-20261116161, with models read, replaces the rows
+// expect: the form says that nothing could be read, naming "claude's catalogue is missing", then naming that the Bridge was not reached; the model rows stay [old-model, 1000] each time; no PUT was sent; counter-proof: TST-20261116161, with models read, replaces the rows
 test("TST-20261116162: where the Bridge answers a reason or cannot be reached, the form says so and why, and the rows stay", async (t) => {
   const reasons = stand(t, { reason: "claude's catalogue is missing" });
   const answered = await sessionForm();

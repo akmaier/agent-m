@@ -43,8 +43,7 @@ async function rejection(promise) {
 // guards: A CONNECTION NAMES THE MODELS IT OFFERS; UC-044
 // given: codex offered by the Bridge with its working folder, its enclosure working and recording each call
 // input: POST /v1/probes/agent-models with { agent: "codex" }
-// expect: { answer: { models: [{ model: "gpt-6", context: 400000 }, { model: "gpt-6-mini", context: 272000 }] } } — agentModels' answer unchanged; `codex debug models` was started through the enclosure of
-//         codex's working folder, with that folder as its working folder
+// expect: { answer: { models: [{ model: "gpt-6", context: 400000 }, { model: "gpt-6-mini", context: 272000 }] } } — agentModels' answer unchanged; `codex debug models` was started through the enclosure of codex's working folder, with that folder as its working folder
 test("TST-20261116111: agent-models answers agentModels for an offered agent, asked in its enclosure in its working folder", async () => {
   await computer(async ({ folder }) => {
     const asked = [];
@@ -59,11 +58,9 @@ test("TST-20261116111: agent-models answers agentModels for an offered agent, as
 
 // TST-20261116112 · level: unit · module: MOD-bridge-jobs
 // guards: A CONNECTION NAMES THE MODELS IT OFFERS; UC-044
-// given: codex installed; in turn a Bridge that offers it without a working folder, and one that offers it with a folder whose enclosure answers that it does not work, with the reason
-//        "bwrap: not found" and the one-time step "an administrator installs the package bubblewrap"
+// given: codex installed; in turn a Bridge that offers it without a working folder, and one that offers it with a folder whose enclosure answers that it does not work, with the reason "bwrap: not found" and the one-time step "an administrator installs the package bubblewrap"
 // input: POST /v1/probes/agent-models with { agent: "codex" } on each
-// expect: { answer: { reason } }, no models: the first reason names the working folder; the second names "bwrap: not found" and "an administrator installs the package bubblewrap";
-//         `codex debug models` was never started; counter-proof: TST-20261116111, with a folder and a working enclosure, reads the models
+// expect: { answer: { reason } }, no models: the first reason names the working folder; the second names "bwrap: not found" and "an administrator installs the package bubblewrap"; `codex debug models` was never started; counter-proof: TST-20261116111, with a folder and a working enclosure, reads the models
 test("TST-20261116112: agent-models names why nothing was read where the agent has no working folder or its enclosure does not work", async () => {
   await computer(async ({ folder, calls }) => {
     const unplaced = await probe(jobHandlers({ enclosures: openEnclosures(), agents: [{ name: "codex", folder: "" }] }), { agent: "codex" });
