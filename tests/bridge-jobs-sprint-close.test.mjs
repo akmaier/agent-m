@@ -203,7 +203,7 @@ test("a sprint whose time box ended and whose closer is an agent of a model this
     assert.match(record.text, /^declares: \{"context":200000,"capabilities":\["draft text","read the repository","write to the repository","run code and tests","use tools"\]\}$/m);
     assert.match(record.text, /^state: done$/m);
     const id = /(JOB-[^/]+)\.md$/.exec(record.path)[1];
-    assert.equal(w.originText(PRODUCT_A, `docs/closes/${id}.md`), `sprint: team1/01\nworking folder: ${join(folder, "jobs", id)}\n`);
+    assert.equal(w.originText(PRODUCT_A, `docs/closes/${id}.md`), `sprint: team1/01\nworking folder: ${folder}\n`);
     assert.equal(runs(w).length, 1, "the agent was started once");
   }, { productFiles: files({ "01": { end: PAST, closer: "drafter" } }) });
 });
