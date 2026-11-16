@@ -179,10 +179,10 @@ code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-si
 code { background: var(--code); padding: .1em .35em; border-radius: 4px; }
 pre { background: var(--code); padding: .8em 1em; border-radius: 6px; overflow-x: auto; }
 pre code { background: none; padding: 0; }
-/* A job's console in the Bridge's window (desktop-shell/window.mjs, Jobs): a pane of fixed height that scrolls, dark in light and dark mode as a terminal is,
-   in the code font, its long lines wrapped. */
 /* A list that shows its first rows and scrolls for the others (desktop-shell/window.mjs, Jobs: five jobs, the height measured from the rows it draws). */
 .list-scroll { position: relative; overflow-y: auto; }
+/* A job's console in the Bridge's window (desktop-shell/window.mjs, Jobs): a pane of fixed height that scrolls, dark in light and dark mode as a terminal is,
+   in the code font, its long lines wrapped. */
 pre.console { height: 24rem; margin: .5rem 0 1rem; overflow: auto; background: #0b1420; color: #d6e2ee; border: 1px solid var(--line); padding: .6rem .8rem;
   font-size: .78rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 

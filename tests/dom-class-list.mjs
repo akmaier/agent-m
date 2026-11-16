@@ -1,5 +1,5 @@
-// The classList of the fixture DOMs (tests/site-frame-dom.mjs, tests/site-frame-start.d/dom.mjs): add, remove, toggle and contains over the
-// element's className, as a browser's DOMTokenList does. It is code only; it holds no expected result and no test.
+// The classList of the fixture DOMs (tests/site-frame-dom.mjs, tests/site-frame-start.d/dom.mjs, tests/app-harness.mjs, tests/prompt-bar.d/dom.mjs):
+// add, remove, toggle and contains over the element's className, as a browser's DOMTokenList does. It is code only; it holds no expected result and no test.
 //
 // Module: MOD-site-frame
 // Level: unit
