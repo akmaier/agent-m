@@ -39,7 +39,10 @@ function addBrowserBehaviour(document) {
   };
   Object.defineProperty(Element.prototype, "classList", { configurable: true, get() { return classListOf(this); } });
   Element.prototype.after = function after(...nodes) {
-    const parent = this._parent, next = this.nextSibling;
+    const parent = this._parent;
+    // The DOM's viable next sibling: the first sibling after this one that is not itself put after it.
+    let next = this.nextSibling;
+    while (next && nodes.includes(next)) next = next.nextSibling;
     for (const n of nodes) parent.insertBefore(typeof n === "string" ? this._doc.createTextNode(n) : n, next);
   };
 }

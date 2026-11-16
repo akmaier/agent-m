@@ -330,7 +330,9 @@ function domElement(localName) {
     // Puts elements after this node in its parent, as a browser's after does.
     after(...items) {
       const parent = node.parentNode;
-      const next = parent.children[parent.children.indexOf(node) + 1] ?? null;
+      // The DOM's viable next sibling: the first sibling after this node that is not itself put after it.
+      let next = parent.children[parent.children.indexOf(node) + 1] ?? null;
+      while (next && items.includes(next)) next = parent.children[parent.children.indexOf(next) + 1] ?? null;
       for (const item of items) parent.insertBefore(item, next);
     },
     addEventListener(type, listener) { listeners.push([type, listener]); },

@@ -48,6 +48,7 @@ export class FixtureElement extends EventTarget {
   }
   // Puts nodes after this one in its parent, as a browser's after does.
   after(...nodes) {
+    for (const node of nodes) if (typeof node !== "string") node.remove();
     const siblings = this._parent.children, at = siblings.indexOf(this) + 1;
     siblings.splice(at, 0, ...nodes);
     for (const node of nodes) if (typeof node !== "string") node._parent = this._parent;

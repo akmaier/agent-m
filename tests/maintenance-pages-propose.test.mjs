@@ -1,6 +1,6 @@
 // The route `mail` proposes issues through a participant at an allowed place (ITM-964) — MOD-maintenance-pages, UC-038 steps 4 to 6 and the alternative flows 4a, 4c, 5a, 5b, 6b and 6c, as the accepted text of
 // docs/architecture/MOD-maintenance-pages.md states it (blob 636f31b11b56): "`mail` — the mailbox read when the page is drawn, and *Read again*, which reads it anew; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in this browser only; the participant for the proposals
-// among those at places the mailbox allows, a place outside the EU named as not compliant, and the three checkers; the run panel and *Propose*; per mail, the mail in full beside the proposal, its text editable, every hit of the mail's people marked;
+// among those at places the mailbox allows, a place outside the EU named as not compliant, and the three checkers; *Propose* beside the participant; per mail, the mail in full beside the proposal, its text editable, every hit of the mail's people marked;
 // *Create issue* — only without a hit —, *Add to #n*, *Not an issue*." (MOD-maintenance-pages.md, Interfaces, `mail`).
 // Run: node --test tests/maintenance-pages-propose.test.mjs
 //
@@ -20,7 +20,7 @@
 //     <a class="places-link" href="#mailbox"> to the mailbox's processing places, and nothing is sent (UC-038 4c).
 //   - The person who presses Propose is the account of the instance's token; no name is typed. Once a participant is chosen, <ul class="mail-checkers"> lists the three checkers as <li class="mail-checker"> with their <span class="place">
 //     and the sentence that each receives only the rewritten texts; with fewer than three, <p class="mail-missing-checkers"> gives the sentence checkersFor gives and links <a class="participants-link" href="#participants"> and the places link, no run panel
-//     is drawn and nothing is sent (UC-038 6c). Otherwise <div class="mail-stage"> holds MOD-site-frame's run panel of the kind propose-issues, whose Run is *Propose* — one click for all listed mails —, as the page replies has it (ITM-966).
+//     is drawn and nothing is sent (UC-038 6c). Otherwise <div class="mail-stage"> holds <button class="mail-propose"> *Propose*, in one row with the participant, right under the mail opened.
 //   - The run is the person's click (isTrusted) and runs in this tab. Each mail with attachments has, per attachment with a text, <input class="attachment-tick" data-attachment="<name>"> (a checkbox, not ticked): the attachment's text is a part of the job only
 //     when it is ticked (UC-038 5a). The proposal of a mail fills its product, kind, title and text and lists its possible duplicates in <ul class="mail-duplicates">; a kind `no issue` says so in <p class="mail-no-issue">; a product the proposal does not
 //     name among the managed ones is said in <p class="mail-no-product"> and Create issue stays disabled until the person picks one (UC-038 5b). A hit of the mail's people in the proposal is marked as in the page without a proposal.
@@ -78,14 +78,16 @@ const choose = async (target, name, person = "Anna Author") => {
   const select = one(target, "participant");
   select.value = name;
   select.dispatchEvent(new Event("change"));
-  await waitFor(() => byClass(target, "run-panel").length > 0 || byClass(target, "mail-missing-checkers").length > 0);
+  await waitFor(() => byClass(target, "mail-propose").length > 0 || byClass(target, "mail-missing-checkers").length > 0);
 };
+// The line of a participant in the select, which names where it processes data.
+const lineOf = (target, name) => textOf(walk(target, (node) => node.getAttribute?.("data-participant") === name)[0]);
 // Propose for each of the two mails: the first is opened already; then the second is opened and proposed too (Propose works on the mail opened).
 const proposeBoth = async (f) => {
   await propose(f.target);
   const before = requestsOf(f.w, PROPOSE).length + f.w.kept.ask.length;
   f.item(f.two);
-  await waitFor(() => byClass(one(f.target, "mail-stage"), "run-panel").length > 0 && byClass(f.target, "mail-proposed").length === 0);
+  await waitFor(() => byClass(one(f.target, "mail-stage"), "mail-propose").length > 0 && byClass(f.target, "mail-proposed").length === 0);
   await trusted(buttonsOf(one(f.target, "mail-stage"), "Propose")[0]);
   await waitFor(() => requestsOf(f.w, PROPOSE).length + f.w.kept.ask.length > before && byClass(f.target, "mail-proposed").length > 0);
 };
@@ -116,15 +118,11 @@ test("Only participants at a place the mailbox allows are offered, and a place o
 // guards: THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-038
 // given: two mails listed, the first opened; the participant local-llm chosen
 // input: nothing more
-// expect: the run panel names local-llm, where it processes data (this machine) and the parts it receives — the mail opened by its identifier and not the other, the product chosen for it with its open issues and its SPEC —; no checker is listed for Propose, whose neutral texts the author checks; Propose is offered once; nothing was sent to any endpoint and nothing was written
-test("The run panel names the participant's place and what it receives; Propose lists no checker", async () => {
+// expect: the participant's line names local-llm and where it processes data (this machine); no checker is listed for Propose, whose neutral texts the author checks; Propose is offered once; nothing was sent to any endpoint and nothing was written
+test("The participant's line names its place; Propose lists no checker", async () => {
   const f = await setup();
   await choose(f.target, "local-llm");
-  const panel = textOf(one(f.target, "run-panel"));
-  assert.match(panel, /local-llm/);
-  assert.match(panel, /this machine/);
-  assert.ok(panel.includes(`mail ${f.one.id}`) && !panel.includes(`mail ${f.two.id}`), "only the mail opened is a part");
-  assert.ok(panel.includes("products") && panel.includes("open issues") && panel.includes(`SPEC of ${PRODUCT_URL}`));
+  assert.match(lineOf(f.target, "local-llm"), /^local-llm — this machine/);
   assert.equal(byClass(f.target, "mail-checker").length, 0, "the author checks the proposals' neutral texts");
   assert.equal(buttonsOf(one(f.target, "mail-stage"), "Propose").length, 1);
   assert.deepEqual(nothingSent(f.w), [0, 0, 0], "nothing is sent before the click");
@@ -176,7 +174,7 @@ test("A proposal whose text names a person of the mail is marked and cannot be c
 // guards: MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS; UC-038
 // given: the first mail has an attachment log.txt with a text and one without a text
 // input: Propose without ticking; then Propose with log.txt ticked (in a fresh page)
-// expect: only the attachment with a text has a tick, and it is not ticked; the first job receives no word of the log; the second does, and its run panel names the part
+// expect: only the attachment with a text has a tick, and it is not ticked; the first job receives no word of the log; the second does
 test("An attachment reaches the participant only when ticked", async () => {
   const f = await setup();
   assert.deepEqual(byClass(f.item(f.one), "attachment-tick").map((node) => node.getAttribute("data-attachment")), ["log.txt"]);
@@ -190,7 +188,6 @@ test("An attachment reaches the participant only when ticked", async () => {
   tick.checked = true;
   tick.dispatchEvent(new Event("change"));
   await choose(g.target, "local-llm");
-  assert.match(textOf(one(g.target, "run-panel")), /Attachment 1 of|mail /);
   await propose(g.target);
   assert.ok(promptOf(requestsOf(g.w, PROPOSE)[0]).includes("LOGLINE"), "a ticked attachment is sent");
 });
@@ -268,7 +265,7 @@ test("With no participant at an allowed place nothing is sent and the mailbox's 
   const none = one(f.target, "mail-no-participant");
   assert.match(textOf(none), /this machine/);
   assert.equal(byClass(none, "places-link")[0].getAttribute("href"), "#mailbox");
-  assert.equal(byClass(f.target, "run-panel").length, 0);
+  assert.equal(byClass(f.target, "mail-propose").length, 0);
   assert.equal(byClass(f.item(f.one), "create-issue").length, 1);
   assert.deepEqual(nothingSent(f.w), [0, 0, 0]);
 });
@@ -277,11 +274,11 @@ test("With no participant at an allowed place nothing is sent and the mailbox's 
 // guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-038
 // given: the participant cli-agent, whose model the CLI session claude of the Bridge lab-pc-4 offers, at this machine
 // input: the agent chosen; Propose
-// expect: the run panel names the agent and this machine; the Bridge receives one ask for the agent claude holding the mail opened; no model endpoint is called for the proposals; the proposals are shown
+// expect: the agent's line names this machine; the Bridge receives one ask for the agent claude holding the mail opened; no model endpoint is called for the proposals; the proposals are shown
 test("A CLI agent receives the job through the Bridge it names", async () => {
   const f = await setup({ rows: [AGENT, ...CHECKS], sessions: AGENT_SESSIONS });
   await choose(f.target, "cli-agent");
-  assert.match(textOf(one(f.target, "run-panel")), /cli-agent.*this machine/);
+  assert.match(lineOf(f.target, "cli-agent"), /^cli-agent — this machine/);
   await propose(f.target);
   assert.equal(f.w.kept.ask.length, 1);
   assert.equal(f.w.kept.ask[0].body.agent, "claude");
@@ -295,7 +292,7 @@ test("A CLI agent receives the job through the Bridge it names", async () => {
 // given: a mail in the mailbox, the participants of the register, and no product in this browser (the setting `products` empty)
 // input: the mail route drawn and the mailbox read; then the link Add product clicked
 // expect: the place of Propose (<div class="mail-propose-slot">) holds <p class="mail-no-products">, which says that this browser manages no product and nothing can be proposed, with <a class="add-product-link" href="#add-product">
-//         "Add product"; no participant and no run panel are offered; the link's click goes to the route add-product; nothing is sent
+//         "Add product"; no participant and no Propose are offered; the link's click goes to the route add-product; nothing is sent
 test("Where this browser manages no product, the place of Propose says that nothing can be proposed and links Add product", async () => {
   const one_ = await mailOf("one", { subject: "Export fails", text: "The export fails with error E42." });
   const w = world({ mails: [one_], reading: [one_], issues: [], rows: ROWS });
@@ -310,7 +307,7 @@ test("Where this browser manages no product, the place of Propose says that noth
   assert.equal(add.getAttribute("href"), "#add-product");
   assert.equal(add.textContent, "Add product");
   assert.deepEqual(participants(target), []);
-  assert.equal(byClass(target, "run-panel").length, 0);
+  assert.equal(byClass(target, "mail-propose").length, 0);
   add.dispatchEvent(new Event("click"));
   await flush();
   assert.deepEqual(w.context.went.map(([name]) => name), ["add-product"]);
