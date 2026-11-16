@@ -44,7 +44,7 @@ async function request(server, path, { method = "POST", origin = ORIGIN, token =
 test("TST-261001: bridgeApi defines the typed endpoint-test probe", () => {
   const probe = bridgeApi.routes.find((route) => route.method === "POST" && route.path === "/v1/probes/{kind}");
   assert.ok(probe);
-  assert.deepEqual(probe.kinds, ["agent", "endpoint-models", "endpoint-test", "partitions"]);
+  assert.deepEqual(probe.kinds, ["agent", "agent-models", "endpoint-models", "endpoint-test", "partitions"]);
   assert.deepEqual(probe.endpointTest.args, { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] });
   assert.deepEqual(probe.endpointTest.answer, { works: [true, false], model: "string", diagnosis: { reason: ["cross-origin refused", "opt-in header missing", "blocked by the browser", "not reachable", "key refused", "model unknown", "too long", "rate limited", "endpoint error"], message: "string", routes: ["ci", "bridge"] } });
   assert.deepEqual(bridgeApi.errors, { "token-refused": 401, "origin-refused": 403, "not-found": 404, "invalid-request": 422, "upstream-failed": 502, paused: 503 });

@@ -26,7 +26,7 @@ export const bridgeApi = {
     { method: "POST", path: "/v1/jobs/{id}/cancel", answer: { confirmed: "boolean" } },
     { method: "POST", path: "/v1/ask", request: [{ agent: "string", model: "string?", input: "string", product: "string?", instance: "string?", session: "string?" }, { endpoint: endpointConfiguration, input: "string" }, { endpoint: endpointConfiguration, exchange: { messages: ["object"], tools: ["object"] } }], answer: { ask: "string", session: "string?" } },
     { method: "GET", path: "/v1/ask/{ask}", answer: { state: ["running", "done", "failed"], text: ["string", "null"], calls: [{ id: "string", name: "string", args: "object" }], usage: ["object", "null"], error: ["string", "null"] } },
-    { method: "POST", path: "/v1/probes/{kind}", kinds: ["agent", "endpoint-models", "endpoint-test", "partitions"], endpointTest: {
+    { method: "POST", path: "/v1/probes/{kind}", kinds: ["agent", "agent-models", "endpoint-models", "endpoint-test", "partitions"], endpointTest: {
       args: endpointConfiguration,
       answer: { works: [true, false], model: "string", diagnosis: { reason: endpointDiagnosisReasons, message: "string", routes: ["ci", "bridge"] } },
     } },

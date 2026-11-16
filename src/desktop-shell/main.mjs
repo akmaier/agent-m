@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
-import { installedAgents } from "../agent-processes/index.mjs";
+import { agentModels, installedAgents } from "../agent-processes/index.mjs";
 import { jobLog, listJobs } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
@@ -130,6 +130,16 @@ export async function start(electron, supplied = {}) {
       const [command, ...args] = agent.login.split(" ");
       await enclosureFor(agent.name).openTerminal(command, args, agent.keeps);
       return { opened: true };
+    }
+    // Read models (UC-044 step 5): the models an offered agent reports, asked in its enclosure in its working folder; else why nothing could be read (5a).
+    if (action === "agent-models") {
+      const offered = (bridge.settings.agents ?? []).find((agent) => agent.name === value?.name && agent.folder);
+      if (!offered) return { reason: "this Bridge does not offer the agent with a working folder: tick it, choose the folder and save the agents" };
+      const enclosure = bridge.enclosures(offered.folder), state = await enclosure.works();
+      if (!state.works) return { reason: `its enclosure does not work on this computer: ${state.reason} — the one-time step: ${state.setup}` };
+      await enclosure.prepare({ writable: [], readable: [] });
+      const agent = (await installedAgents({ enclosure, workdir: offered.folder })).find((each) => each.name === offered.name);
+      return agentModels(agent, { enclosure, workdir: offered.folder });
     }
     // Saving the agents and the one folder checks them out at once (UC-044 step 3).
     if (action === "save-agents") {
