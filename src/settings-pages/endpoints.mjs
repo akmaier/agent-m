@@ -349,6 +349,11 @@ export const route = {
         result.textContent = "Enter an endpoint name, URL and model first.";
         return;
       }
+      // The name is one word of the endpoint's route, `endpoint <name>` (MOD-participant-list, Connection), which a space would split.
+      if (/\s/.test(chosenName)) {
+        result.textContent = `An endpoint's name is one word: write it without spaces, for example ${chosenName.split(/\s+/).join("-")}.`;
+        return;
+      }
       if (awaitingChoice) {
         const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
         setup.addEventListener("click", () => context.go("bridge", {}));
