@@ -707,6 +707,34 @@ test("grip — the person sets the bar's height, and the tab keeps it", async ()
   assert.match(one(again.target, "prompt-bar").getAttribute("style"), /height: 720px;/);
 });
 
+// TST-560010 · level: component · module: MOD-prompt-bar
+// guards: UC-049
+// given: the bar drawn, 280 px high in a window 800 px high; its conversation 60 px and its console 140 px high, so that they share 200 px, the conversation three tenths
+// input: the bar's grip pressed at y 500 and moved without moving the pointer, three times, then moved 50 px up; the split pressed at y 600 and moved without moving the pointer, three times, then moved 20 px up
+// expect: pressing a grip where it stands moves nothing — the bar stays 280 px, the conversation keeps three tenths —; moved, the bar's top follows the pointer by 50 px to 330 px and the conversation's share by 20 of 200 px to one tenth;
+//         counter-proof: the pointer's place alone, as the grip had it, would have made the bar 800 − 500 = 300 px at the first press
+test("grip — pressing a grip where it stands moves nothing, and a drag moves it by as much as the pointer", async () => {
+  endpointAnswers(answer("unused"));
+  const it = page();
+  await drawn(it);
+  const bar = one(it.target, "prompt-bar"), grip = one(it.target, "bar-grip"), splitGrip = one(it.target, "split-grip");
+  const conversation = one(it.target, "conversation"), status = one(it.target, "status");
+  Object.assign(bar, { offsetHeight: 280 });
+  Object.assign(conversation, { offsetHeight: 60, style: {} });
+  Object.assign(status, { offsetHeight: 140, style: {} });
+  const pointer = (target, type, clientY) => target.dispatchEvent(Object.assign(new Event(type), { clientY, pointerId: 1 }));
+  for (let i = 0; i < 3; i += 1) { pointer(grip, "pointerdown", 500); pointer(grip, "pointermove", 500); pointer(grip, "pointerup", 500); }
+  assert.match(bar.getAttribute("style"), /height: 280px;/, "pressed where it stands, the bar keeps its height");
+  pointer(grip, "pointerdown", 500); pointer(grip, "pointermove", 450); pointer(grip, "pointerup", 450);
+  assert.match(bar.getAttribute("style"), /height: 330px;/, "dragged 50 px up, the bar is 50 px higher");
+  for (let i = 0; i < 3; i += 1) { pointer(splitGrip, "pointerdown", 600); pointer(splitGrip, "pointermove", 600); pointer(splitGrip, "pointerup", 600); }
+  const grows = (element) => Math.round(Number(element.style.flex.split(" ")[0]) * 100) / 100;
+  assert.equal(grows(conversation), 0.3, "pressed where it stands, the split keeps the conversation's share");
+  pointer(splitGrip, "pointerdown", 600); pointer(splitGrip, "pointermove", 580); pointer(splitGrip, "pointerup", 580);
+  assert.equal(grows(conversation), 0.2, "dragged 20 of 200 px up, the conversation's share is a tenth less");
+  assert.equal(grows(status), 0.8);
+});
+
 // ---------------------------------------------------------------- a CLI session, unfiltered (UC-049 step 4)
 
 // TST-1112005 · level: component · module: MOD-prompt-bar

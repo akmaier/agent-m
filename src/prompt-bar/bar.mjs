@@ -942,10 +942,11 @@ export function startPromptBar(target, setup) {
       if (status.hidden) return;
       event.preventDefault?.();
       splitGrip.setPointerCapture?.(event.pointerId);
-      // The free height is what the conversation and the console share; the field, the buttons and the split between them keep their size.
+      // The free height is what the conversation and the console share; the field, the buttons and the split between them keep their size. The split
+      // moves by as much as the pointer has moved since it was pressed, so that pressing it where it stands does not move it.
       const free = Math.max(1, conversation.offsetHeight + status.offsetHeight);
-      const top = conversation.getBoundingClientRect().top, between = input.offsetHeight + foot.offsetHeight + split.offsetHeight;
-      const move = (moved) => shared((moved.clientY - top - between) / free);
+      const from = event.clientY, share = conversation.offsetHeight / free;
+      const move = (moved) => shared(share + (moved.clientY - from) / free);
       const end = () => { splitGrip.removeEventListener("pointermove", move); splitGrip.removeEventListener("pointerup", end); splitGrip.removeEventListener("pointercancel", end); };
       splitGrip.addEventListener("pointermove", move);
       splitGrip.addEventListener("pointerup", end);
@@ -979,7 +980,9 @@ export function startPromptBar(target, setup) {
     grip.addEventListener("pointerdown", (event) => {
       event.preventDefault?.();
       grip.setPointerCapture?.(event.pointerId);
-      const move = (moved) => { held = sized((globalThis.innerHeight ?? 800) - moved.clientY); };
+      // The bar's top edge moves by as much as the pointer has moved since it was pressed, so that pressing the grip where it stands does not move it.
+      const from = event.clientY, height = current();
+      const move = (moved) => { held = sized(height - (moved.clientY - from)); };
       const end = () => { grip.removeEventListener("pointermove", move); grip.removeEventListener("pointerup", end); grip.removeEventListener("pointercancel", end); };
       grip.addEventListener("pointermove", move);
       grip.addEventListener("pointerup", end);
