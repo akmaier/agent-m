@@ -3,14 +3,15 @@
 // Module: MOD-agent-enclosure
 //
 // NO MODEL READS A CREDENTIAL. Every process of a coding agent the Bridge starts runs inside what this module builds: on macOS a Seatbelt profile, on
-// Linux bubblewrap, on Windows the Bridge's own account. Inside, the agent reads everything but the places that hold credentials, writes only its own
-// home, the folders the Bridge names and temporary files, and receives an environment chosen for it. Where the enclosure does not work, `works()`
+// Linux bubblewrap, on Windows the Bridge's own account. Inside, the agent lives in its working folder: it reads and writes that folder, reads the
+// system, reads and writes nothing else of the person's home, writes temporary files, uses the person's SSH agent, and receives an environment chosen
+// for it. Where the enclosure does not work, `works()`
 // says why and names the one-time step; the Bridge then starts no agent. Node only, in the Bridge's main process.
 
 import { execFileSync, spawn } from "node:child_process";
-import { mkdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { accountFile, accountHome, accountName, grantCommands, keepAccount, launchCommand, readAccount, setUpCommand } from "./account.mjs";
 import { bubblewrapArgs } from "./bubblewrap.mjs";
 import { agentEnvironment, hiddenPaths } from "./holders.mjs";
@@ -36,6 +37,8 @@ function resolved(path) {
   }
   return path;
 }
+// Whether `path` is `folder` or lies below it.
+const below = (path, folder) => path === folder || path.startsWith(folder.endsWith(sep) ? folder : folder + sep);
 // "directory", "file" — or null for a path that does not exist.
 const kind = (path) => { try { return statSync(path).isDirectory() ? "directory" : "file"; } catch { return null; } };
 
@@ -80,21 +83,24 @@ export function agentEnclosure({ dataFolder, folder, platform = process.platform
   const chosenEnvironment = () => agentEnvironment({ platform, env, home, identity: (known ??= gitIdentity(env)), kept: keptLogins(home) });
   // The SSH agent's socket the Bridge's environment names, resolved; null where it names none.
   const agentSocket = () => (typeof env.SSH_AUTH_SOCK === "string" && env.SSH_AUTH_SOCK ? resolved(env.SSH_AUTH_SOCK) : null);
-  // The places to hide that exist now, resolved, each with whether it is a folder.
-  const hidden = () => hiddenPaths({ platform, dataFolder, personHome }).map((path) => ({ path: resolved(path), type: kind(path) })).filter(({ type }) => type);
+  // The places to hide that exist now, resolved, each with whether it is a folder; one below the person's home is hidden with the home.
+  const hidden = () => hiddenPaths({ platform, dataFolder, personHome }).map((path) => ({ path: resolved(path), type: kind(path) }))
+    .filter(({ path, type }) => type && !below(path, resolved(personHome)));
 
   function wrap(command, args, { workdir, writable = [], cwd = workdir }) {
     const chosen = chosenEnvironment();
+    // The agent's folders: its working folder, with its home, and the folders the Bridge names.
+    const folders = [...new Set([folder, home, workdir, ...writable].map(resolved))];
     if (platform === "darwin") {
-      const socket = agentSocket();
-      const profile = seatbeltProfile({ writable: [...new Set([home, workdir, ...writable].map(resolved))], hidden: hidden().map(({ path }) => path), sockets: socket ? [socket] : [] });
+      const profile = seatbeltProfile({ personHome: resolved(personHome), folders, hidden: hidden().map(({ path }) => path) });
       return { command: SANDBOX_EXEC, args: ["-p", profile, command, ...args], env: chosen, input: null };
     }
     if (platform === "linux") {
       const socket = agentSocket();
-      const masks = [...hidden().map(({ path, type }) => ({ path, directory: type === "directory" })), ...(socket && kind(socket) ? [{ path: socket, directory: false }] : [])];
+      const masks = hidden().map(({ path, type }) => ({ path, directory: type === "directory" }));
       const runtimeDir = typeof env.XDG_RUNTIME_DIR === "string" && env.XDG_RUNTIME_DIR ? env.XDG_RUNTIME_DIR : null;
-      const around = bubblewrapArgs({ writable: [...new Set([home, workdir, ...writable].map(resolved))], hidden: masks, runtimeDir, workdir: resolved(cwd) });
+      const around = bubblewrapArgs({ personHome: resolved(personHome), writable: folders, hidden: masks, runtimeDir, socket: socket && kind(socket) ? socket : null,
+        workdir: resolved(cwd) });
       return { command: "bwrap", args: [...around, "--", command, ...args], env: chosen, input: null };
     }
     if (windows) {
@@ -139,7 +145,9 @@ export function agentEnclosure({ dataFolder, folder, platform = process.platform
       }
       return;
     }
-    for (const below of ["", "tmp", ".config", join(".local", "share"), join(".local", "state"), ".cache"]) mkdirSync(join(home, below), { recursive: true, mode: 0o700 });
+    for (const inside of ["", "tmp", ".config", join(".local", "share"), join(".local", "state"), ".cache", ".ssh"]) mkdirSync(join(home, inside), { recursive: true, mode: 0o700 });
+    // The hosts the person's ssh knows, which git's ssh in the enclosure is told (holders.mjs): the person's ~/.ssh is hidden there.
+    if (kind(join(personHome, ".ssh", "known_hosts")) === "file") copyFileSync(join(personHome, ".ssh", "known_hosts"), join(home, ".ssh", "known_hosts"));
   }
 
   async function setUp() {
