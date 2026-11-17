@@ -29,5 +29,9 @@ the host keys of `github.com` (`ssh-keygen -F github.com`) in a temporary file. 
 | `ssh -T git@github.com` | `Host key verification failed`: `hostkeys_foreach failed for ~/.ssh/known_hosts: Operation not permitted` — ssh reads its files from the user's own `~/.ssh`, not from `HOME` | — |
 | `ssh -v -o UserKnownHostsFile=<copy> -T git@github.com` | host key found; `get_agent_identities: agent returned 1 keys` | with the socket refused as before, `(deny network-outbound (remote unix-socket (path-regex #"^/private/tmp/com\.apple\.launchd\.[^/]+/Listeners$")))`: `ssh_get_authentication_socket: Operation not permitted` |
 
-GitHub refused the one key the SSH agent held (`Permission denied (publickey)`) under the profile and as a plain child
-alike: that key is not one of the account's on GitHub.
+GitHub refused the one key the SSH agent held at first (`Permission denied (publickey)`): that key is not one of the
+account's on GitHub (`https://github.com/akmaier.keys`), and the account's key, `~/.ssh/id_rsa`, was not in the agent.
+Outside the profile ssh reads `~/.ssh/id_rsa` itself, which the profile hides. Once a plain `ssh -T git@github.com` had
+added `~/.ssh/id_rsa` to the agent (`AddKeysToAgent yes` in `~/.ssh/config`), `ssh -o UserKnownHostsFile=<copy> -T
+git@github.com` under the profile was answered `Hi akmaier! You've successfully authenticated`, while `ls ~/.ssh` under
+the same profile stayed `Operation not permitted`.
