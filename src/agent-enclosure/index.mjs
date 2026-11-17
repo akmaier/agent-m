@@ -60,7 +60,7 @@ function ran(command, args, options = {}) {
 
 // A word of the shell, quoted.
 const sh = (word) => `'${String(word).replace(/'/g, "'\\''")}'`;
-// The last line of a login step's .command file: Terminal is asked, in the background, to close the window whose tab runs on this terminal; the shell has ended by then.
+// The last line of a login step's .command file: Terminal is asked, in the background, to close the window whose tab runs on this terminal once the shell has ended.
 const CLOSE_WINDOW = 't=$(tty) && /usr/bin/nohup /usr/bin/osascript -e "tell application \\"Terminal\\" to close (every window whose tty of tab 1 is \\"$t\\")" >/dev/null 2>&1 &';
 const notEnclosed = (message) => Object.assign(new Error(message), { name: "NotEnclosed" });
 
