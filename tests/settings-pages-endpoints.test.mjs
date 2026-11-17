@@ -381,6 +381,29 @@ async function testedDirect(answer) {
 const resultOf = (target) => byClass(target, "endpoint-result")[0].textContent;
 const foldedMessages = (target) => byClass(target, "endpoint-tool-message");
 
+// TST-265017 · level: unit · module: MOD-settings-pages
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
+// given: an empty browser store
+// input: the author fills the public endpoints Route with the name "Blablador Kimi K3.1", a URL and a model, and presses Test; then the name "Blablador-Kimi-K3.1" and Test
+// expect: the name with spaces is refused before anything is stored or sent, the page saying the name is one word and offering Blablador-Kimi-K3.1; counter-proof: the name without spaces is stored as endpoint:Blablador-Kimi-K3.1 and tested
+test("TST-265017: an endpoint's name with spaces is refused before it is stored", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => { calls.push({ url: String(url), init }); return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 }); };
+  try {
+    const target = await render(store);
+    type(byClass(target, "endpoint-name")[0], "Blablador Kimi K3.1"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
+    type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(readSetting(store, "endpoint:Blablador Kimi K3.1"), null, "nothing is stored");
+    assert.deepEqual(calls, [], "nothing is sent");
+    assert.match(target.textContent, /one word: write it without spaces, for example Blablador-Kimi-K3\.1\./);
+    type(byClass(target, "endpoint-name")[0], "Blablador-Kimi-K3.1");
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(readSetting(store, "endpoint:Blablador-Kimi-K3.1")?.model, ENDPOINT.model, "counter-proof: the name without spaces is stored");
+    assert.equal(calls[0]?.url, `${ENDPOINT.url}/chat/completions`, "counter-proof: and tested");
+  } finally { globalThis.fetch = oldFetch; }
+});
+
 // TST-512001 · level: unit · module: MOD-settings-pages
 // guards: UC-003
 // given: a constructed answer in which the model calls the probe tool
