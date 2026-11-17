@@ -17,9 +17,9 @@ provides:
 ## Responsibility
 
 It belongs to the Bridge (ARC-040), as ARC-054 decides. It states, for the platform the Bridge runs on, what a coding
-agent's processes may read, write and reach: nothing that holds a credential of the Bridge or of the computer's git
-login, nothing to write but the agent's own home, the folders of the job the Bridge names and temporary files, and the network
-(`NO MODEL READS A CREDENTIAL`). It builds the command that starts a CLI inside the enclosure — a Seatbelt profile on
+agent's processes may read, write and reach: its working folder to read and write, the system to read, nothing else of
+the person's home and nothing that holds a credential of the Bridge or of the computer's git login, temporary files, the
+person's SSH agent, and the network (`NO MODEL READS A CREDENTIAL`). It builds the command that starts a CLI inside the enclosure — a Seatbelt profile on
 macOS, bubblewrap's arguments on Linux, the Bridge's own account on Windows — and the environment the CLI receives; it
 says whether the enclosure works on this computer and, where it does not, names the one-time step that makes it work;
 it opens a terminal in the enclosure for the agent's own login step, and keeps in the agent's home the login that step
@@ -48,13 +48,15 @@ It runs in Node, in the Bridge's main process, and keeps nothing but what it wri
 | | macOS | Linux | Windows |
 |---|---|---|---|
 | the system's credential store | the keychain: `~/Library/Keychains/` hidden, and its services `com.apple.SecurityServer`, `com.apple.securityd.xpc` and `com.apple.secd` refused | the user's runtime folder (`XDG_RUNTIME_DIR`, else `/run/user/<uid>`), where the session bus with the secret service and the SSH and GPG agents listen, replaced by an empty folder | the account's own Credential Manager; the person's is another user's |
-| the SSH agent | a connection to the socket the Bridge's `SSH_AUTH_SOCK` names, and to launchd's `/private/tmp/com.apple.launchd.*/Listeners`, refused | in the runtime folder, or the socket `SSH_AUTH_SOCK` names, hidden | the person's agent is another user's |
+| the SSH agent | the socket the Bridge's `SSH_AUTH_SOCK` names, open | the socket `SSH_AUTH_SOCK` names, bound in | the person's agent is another user's |
 | the Bridge's process | its memory is refused by macOS to every other process; its environment is not, so the Bridge puts no credential into one (ARC-054) | not seen: a PID namespace of its own | another user's |
-| what may be written | everything its user may write, except the places that hold credentials | the same, with a private `/tmp` | the account's own profile and the agent's working folder, granted to the account |
+| what may be read | everything outside the person's home, and the agent's working folder | the same | what the account may read, and the agent's working folder, granted to the account |
+| what may be written | the agent's working folder, `/private/tmp`, `/private/var/folders` and `/dev` | the agent's working folder and a private `/tmp` | the account's own profile and the agent's working folder, granted to the account |
 
 **The agent's home**: `home/` in the agent's working folder, with `tmp/`, `.config/`, `.local/share/`, `.cache/` and
 `.local/state/` below it; on Windows the account's own profile, `C:\Users\<account>`. The agent keeps its configuration
-and its login there. Where its login step prints a login the agent cannot keep itself, `.agent-m/` in the home, readable
+and its login there. On macOS and Linux `.ssh/known_hosts` in the home is a copy of the person's `~/.ssh/known_hosts`,
+written before every start where the person's exists. Where its login step prints a login the agent cannot keep itself, `.agent-m/` in the home, readable
 by its owner only, holds the record of that step's terminal until the login is taken from it (`login.log`), what to take
 (`login.json`: the variable and the pattern of its value), and the logins taken (`kept.json`: each variable with its
 value).
@@ -64,7 +66,8 @@ value).
 `SystemDrive`, `windir`, `ComSpec`, `PATHEXT`, `OS`, `PROCESSOR_ARCHITECTURE`, `NUMBER_OF_PROCESSORS`, `ProgramFiles`,
 `ProgramFiles(x86)`, `ProgramW6432`, `ProgramData`, `CommonProgramFiles`; set: `HOME` and the XDG folders below the home
 (on Windows `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `HOMEDRIVE`, `HOMEPATH`), `TMPDIR` (on Windows `TEMP` and `TMP`) in
-the home, `GIT_TERMINAL_PROMPT=0`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
+the home, `GIT_TERMINAL_PROMPT=0`, on macOS and Linux `SSH_AUTH_SOCK` as the Bridge's environment names it and `GIT_SSH_COMMAND`
+naming the home's `.ssh/known_hosts` as ssh's `UserKnownHostsFile`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
 from the computer's git configuration (`user.name`, `user.email`), where it names them, on macOS `SSL_CERT_FILE` naming
 the system's certificate bundle `/etc/ssl/cert.pem` — the keychain's services are refused, and a program that asks them for
 the trusted roots, as Codex does, then trusts no server; the bundle holds the same roots without the keychain —, and every
@@ -86,7 +89,8 @@ hidden from the sign-in screen.
     "an administrator installs the package bubblewrap", or, where it is installed and refused its namespaces, "an
     administrator allows bubblewrap to make user namespaces"; on Windows "an administrator confirms that the Bridge makes
     the account <name>, with the Bridge's *Set up*". Starts the probe's program; changes nothing.
-  - `prepare(at: { writable: string[], readable: string[] }) -> Promise<void>` — makes the home and its folders; on
+  - `prepare(at: { writable: string[], readable: string[] }) -> Promise<void>` — makes the home and its folders, and on
+    macOS and Linux copies the person's `~/.ssh/known_hosts` into the home's `.ssh/`; on
     Windows grants the account the folders of `writable` for changing and those of `readable` for reading, below
     them too. Called before every start.
   - `setUp() -> Promise<{ done: boolean, reason: string | null }>` — the one-time step where the Bridge can take it: on
@@ -125,7 +129,7 @@ existing paths only; one made later is hidden from the next start on.
 
 ## Files
 
-Reads the computer's git configuration for the identity. Writes the agent's home and its folders, on macOS a `.command`
+Reads the computer's git configuration for the identity and the person's `~/.ssh/known_hosts`. Writes the agent's home and its folders, on macOS a `.command`
 file there for the login step and the files of `.agent-m/`, and on Windows `agent-account.json` in the Bridge's data folder and the grants of the
 folders it is given. Reads its own `launcher.ps1` and `setup.ps1`.
 

@@ -72,9 +72,10 @@ TOKEN IN AN IGNORED FILE`, `A CLI SESSION IS TOLD NOT TO READ ITS TOKEN FILE`, U
 ## Decision
 
 **Every process of a coding agent that the Bridge starts runs in an enclosure the operating system enforces; the Bridge
-itself does not.** Inside the enclosure the agent reads everything except the places that hold a credential of the
-Bridge or of the computer's git login, writes as its user may, and reaches
-the network. The enclosure is the new module MOD-agent-enclosure of the Bridge (ARC-040); MOD-agent-processes starts a CLI
+itself does not.** The agent lives in its working folder: inside the enclosure it reads and writes that folder, reads
+the system — its programs and libraries, outside the person's home —, reads and writes nothing else of the person's home
+and nothing of the Bridge's data folder, writes temporary files, runs as the person's own user with the person's SSH
+agent, and reaches the network. The enclosure is the new module MOD-agent-enclosure of the Bridge (ARC-040); MOD-agent-processes starts a CLI
 through the enclosure it is given, and MOD-bridge-jobs gives every agent process one — a job, an ask, the check whether
 the agent is logged in and the harmless probe.
 
@@ -84,12 +85,15 @@ the agent is logged in and the harmless probe.
   sandbox-runtime uses for coding agents: "`sandbox-exec` on macOS, `bubblewrap` on Linux", and on Windows "a dedicated
   `srt-sandbox` local user account" (its README, [3] below).
   - **macOS — a Seatbelt profile**, applied by `/usr/bin/sandbox-exec`, which every macOS has: no installation and no
-    administrator. The profile allows by default, denies reading and writing the places that hold credentials, denies the
-    keychain's services and denies connecting to the SSH agent's socket. Measured: each of these rules holds for the
-    child and what it starts, and HTTPS still works.
-  - **Linux — bubblewrap** (`bwrap`), a program of the system: the whole file system bound, a private `/tmp`, an empty folder over each place that holds credentials and over
-    the user's runtime folder — the session bus with its secret service, the SSH and GPG agents —, `/dev/null` over each
-    such file, a PID namespace of its own, so that no process of the person is seen, a new session, and an end with the
+    administrator. The profile allows by default, denies reading and writing the person's home, allows reading and
+    writing the agent's working folder, denies every other write but temporary files and `/dev`, and denies the
+    keychain's services; the SSH agent's socket stays open. Measured: the agents start and Codex reports its login,
+    `~/.ssh` and the person's other files are refused, and ssh receives the SSH agent's keys
+    (`docs/measurements/2026-11-17_an-agent-reads-only-its-working-folder.md`).
+  - **Linux — bubblewrap** (`bwrap`), a program of the system: the whole file system bound read-only, an empty folder
+    over the person's home and over the user's runtime folder — the session bus with its secret service, the GPG agent —,
+    the agent's working folder bound writable over it, the socket `SSH_AUTH_SOCK` names bound in, a private `/tmp`, a PID
+    namespace of its own, so that no process of the person is seen, a new session, and an end with the
     Bridge. bubblewrap needs no privilege where the kernel lets a user make namespaces.
   - **Windows — a local account of the Bridge's own**, without administrator rights. Windows offers no enclosure that a
     user without administrator rights can put around a child of their own and that hides the Credential Manager — where
@@ -97,7 +101,7 @@ the agent is logged in and the harmless probe.
     user. The account has its own profile, its own Credential Manager, and no access to the person's profile or processes.
     The Bridge starts the agent as that account with the account's password, which only the Bridge keeps, in its data
     folder; the agent's working folder is granted to the account.
-- **The enclosed agent has a home of its own** — `home/` in the agent's working folder, on Windows the account's profile —,
+- **The enclosed agent has a home of its own** — `home/` in its working folder, on Windows the account's profile —,
   with its own configuration and its own login (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`, read as: the agent's own
   login on this computer, made by the person with the agent's own login step; Agent M asks for no key). On macOS the keychain, where Claude Code keeps
   its login, is closed, and Claude Code inside the profile reports no login (measured).
@@ -113,8 +117,11 @@ the agent is logged in and the harmless probe.
   `claude auth login`.
 - **The environment is chosen, not inherited** — the same rule as on the server's runners (MOD-workflow-entries, *The
   model's user*): the agent receives the variables a program needs to run — the path, the language, the terminal, its
-  home and the folders below it —, the git identity the computer's configuration names for its commits, and the login
-  its home keeps for it, and nothing else: no key variable, no SSH agent, no session bus.
+  home and the folders below it —, the git identity the computer's configuration names for its commits, the login its
+  home keeps for it, the person's SSH agent (`SSH_AUTH_SOCK`), and git's ssh told the hosts it knows (`GIT_SSH_COMMAND`
+  naming `known_hosts` in the agent's home, which the Bridge copies from the person's `~/.ssh/known_hosts` before every
+  start: ssh reads its files from the person's `~/.ssh`, which the enclosure hides), and nothing else: no key variable,
+  no session bus.
 - **The session pushes, opens its pull request, follows its CI and merges itself** (UC-011 step 4; `KEEP IT SIMPLE`: no
   relay between the agent and its server). Before the session starts, the Bridge pulls its clone of the product from
   the origin with its credentials; the session works in that clone, whose origin is the product's repository, so that
@@ -195,6 +202,10 @@ to the lower layer, never the other way.
   installed by an administrator; its versions are `0.0.x`. The enclosure the Bridge needs is a profile, a list of
   arguments and an account. Rejected (`KEEP IT SIMPLE`, `YOU AREN'T GONNA NEED IT`); its choices are the evidence for
   this decision's.
+- **Hiding only the places that hold credentials, the rest of the person's home readable.** Rejected: every file of the
+  person's home that holds a credential among no listed place — a package registry's token in `~/.npmrc`, a cloud's in
+  its own folder — reached the model; the agent works in its working folder and needs nothing else of the home.
+- **No SSH agent.** Rejected: the agent works with ssh as the person does; the SSH agent signs and gives no key.
 - **Hiding only the Bridge's data folder.** Rejected: the git login the Bridge pushes with is a credential the Bridge uses
   as much as the ones it keeps.
 - **The outbox and the relay**: the session pushing into an outbox the Bridge forwards from, and asking the Bridge, by
@@ -260,9 +271,11 @@ No candidate is marked: every licence is known to be compatible with MIT for the
 
 ## Consequences
 
-- A model working through an agent on a Bridge cannot read the Bridge's data folder, the computer's git login, its SSH
-  keys and agent, or the keychain (macOS), the session bus and the user's runtime folder (Linux), or the person's profile
-  and Credential Manager (Windows).
+- A model working through an agent on a Bridge reads and writes its working folder and reads the system; it cannot read
+  the rest of the person's home — the Bridge's data folder, the computer's git login, the SSH keys among it —, the
+  keychain (macOS), the session bus and the user's runtime folder (Linux), or the person's profile and Credential Manager
+  (Windows). On macOS and Linux it uses the person's SSH agent: the keys the agent holds sign for it, and none is read.
+  On Windows the account has no SSH agent of the person's.
 - Every agent a Bridge offers needs one login of its own, in its enclosure; a Windows computer needs an administrator
   once, a Linux computer without bubblewrap too. Until then the Bridge offers the agent as not ready and says why.
 - A CLI session reaches its product's server itself, with the token file of its checkout: its pushes start the
@@ -278,8 +291,7 @@ No candidate is marked: every licence is known to be compatible with MIT for the
   it receives its pairing token.
 - What remains within an enclosed agent's reach, stated rather than closed: on macOS the environment the Bridge was
   started with (measured), so the Bridge puts no credential into an environment; on Linux a session bus that listens
-  on an abstract socket instead of in the runtime folder; on every platform the person's other files that are not among
-  the Bridge's or git's credential holders — a package registry's token in `~/.npmrc`, a cloud's in its own folder —, and
-  the agent's own login in its own home.
+  on an abstract socket instead of in the runtime folder; on macOS and Linux the files outside the person's home and the
+  SSH agent's signatures; and the agent's own login in its own home.
 - The macOS profile and the Linux arguments are tested by construction on every platform and run on macOS; the Linux
   enclosure and the Windows account are tested by construction only until they run on such a computer.
