@@ -61,10 +61,11 @@ function checkedOut(result, checkout, saved = null) {
   const rows = checkout.map((entry) => [entry.agent, entry.repository, entry.commit ? `checked out at ${entry.commit.slice(0, 12)}` : `not reached: ${entry.reason}`]);
   result.replaceChildren(...said, made("h2", "", "Checked out"), table(["Agent", "Repository", "Commit or reason"], rows));
 }
-// An installed agent's state, as its panel's badge says it: not enclosed where its enclosure does not work (ARC-054), not logged in where it is not, there or on this computer, else ready.
+// An installed agent's state, as its panel's badge says it: not enclosed where its enclosure does not work (ARC-054), not logged in where it is not — in its
+// enclosure for an agent the Bridge offers, whose login lives in the enclosure's home, else on this computer —, else ready.
 function agentState(agent, enclosed) {
   if (enclosed && !enclosed.works) return { text: "not enclosed", badge: "b-stale" };
-  if (agent.loggedIn === false || (enclosed && !enclosed.loggedIn)) return { text: "not logged in", badge: "b-changed" };
+  if (enclosed ? !enclosed.loggedIn : agent.loggedIn === false) return { text: "not logged in", badge: "b-changed" };
   return { text: "ready", badge: "b-applied" };
 }
 async function agents(target, context) {
