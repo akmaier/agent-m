@@ -83,3 +83,34 @@ test("the Agents view offers Check result beside Log in and reads the agents ane
   assert.equal(buttons(document.body, "Log in").length, 0, "codex is logged in now, so its login step is not offered");
   assert.match(document.body.textContent, /Enclosed and logged in\./);
 });
+
+// TST-1810002 · level: unit · module: MOD-desktop-shell
+// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; UC-044
+// given: a Bridge computer with the installed agent codex 0.169.0, offered, not logged in on this computer but logged in in its enclosure, whose enclosure works; the window opened on Agents
+// input: the Agents view is drawn
+// expect: the badge of codex says ready, and the panel says that it is enclosed and logged in; counter-proof: the same agent not logged in in its enclosure is badged not logged in
+for (const [enclosedLogin, badge] of [[true, "ready"], [false, "not logged in"]]) {
+  test(`TST-1810002: an offered agent's badge follows its login in its enclosure (${enclosedLogin ? "logged in there" : "counter-proof: not logged in there"})`, async () => {
+    const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
+    document.head = document.createElement("head"); document.body = document.createElement("body");
+    globalThis.document = document;
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+    const browser = new EventTarget();
+    Object.defineProperty(globalThis, "location", { configurable: true, value: { hash: "#agents" } });
+    Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+    browser.bridge = {
+      async state(action) {
+        if (action !== "agents") return {};
+        return { platform: "darwin", selected: [{ name: "codex", folder: "/work/codex" }], agents: [{ name: "codex", installed: true, version: "codex 0.169.0", loggedIn: false }],
+          enclosures: { codex: { works: true, loggedIn: enclosedLogin } } };
+      },
+      async copy() {}, async quit() {},
+    };
+    await import(`../src/desktop-shell/window.mjs?badge=${enclosedLogin}-${Date.now()}`);
+    await until(() => descendants(document.body, (node) => node.localName === "span" && /badge/.test(node.className)).length === 1);
+    const shown = descendants(document.body, (node) => node.localName === "span" && /badge/.test(node.className));
+    assert.equal(shown.length, 1, "codex has one badge");
+    assert.equal(shown[0].textContent, badge);
+    if (enclosedLogin) assert.match(document.body.textContent, /Enclosed and logged in\./);
+  });
+}
