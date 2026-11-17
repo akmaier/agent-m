@@ -3,14 +3,14 @@
 **MEASUREMENT** — 2026-11-17, macOS 15.8.1 (build 24H32), as the computer's ordinary user, `main` at commit `02b0fa124`.
 Method: each probe runs under `/usr/bin/sandbox-exec -f <profile>` with the environment `env -i PATH=/usr/local/bin:/usr/bin:/bin
 HOME=<working folder>/home SSH_AUTH_SOCK=<the person's> TMPDIR=/private/tmp LANG=en_US.UTF-8`, in the working folder
-`/Users/maier/Documents/code/scratch/codex` of the Bridge's agent codex; the CLIs are installed below `/usr/local`. Each
+`<working folder>` of the Bridge's agent codex, inside the person's home `<home>`; the CLIs are installed below `/usr/local`. Each
 negative is shown beside a known positive of the same probe. No key was read: ssh's probe used the SSH agent and a copy of
 the host keys of `github.com` (`ssh-keygen -F github.com`) in a temporary file. The profile was a temporary file:
 
 ```
 (version 1)
 (allow default)
-(deny file-read* file-write* (subpath "/Users/maier"))
+(deny file-read* file-write* (subpath "<home>"))
 (allow file-read* file-write* (subpath "<working folder>"))
 (deny file-write*)
 (allow file-write* (subpath "<working folder>") (subpath "/private/tmp") (subpath "/private/var/folders") (subpath "/dev"))
@@ -30,8 +30,7 @@ the host keys of `github.com` (`ssh-keygen -F github.com`) in a temporary file. 
 | `ssh -v -o UserKnownHostsFile=<copy> -T git@github.com` | host key found; `get_agent_identities: agent returned 1 keys` | with the socket refused as before, `(deny network-outbound (remote unix-socket (path-regex #"^/private/tmp/com\.apple\.launchd\.[^/]+/Listeners$")))`: `ssh_get_authentication_socket: Operation not permitted` |
 
 GitHub refused the one key the SSH agent held at first (`Permission denied (publickey)`): that key is not one of the
-account's on GitHub (`https://github.com/akmaier.keys`), and the account's key, `~/.ssh/id_rsa`, was not in the agent.
-Outside the profile ssh reads `~/.ssh/id_rsa` itself, which the profile hides. Once a plain `ssh -T git@github.com` had
-added `~/.ssh/id_rsa` to the agent (`AddKeysToAgent yes` in `~/.ssh/config`), `ssh -o UserKnownHostsFile=<copy> -T
-git@github.com` under the profile was answered `Hi akmaier! You've successfully authenticated`, while `ls ~/.ssh` under
-the same profile stayed `Operation not permitted`.
+account's on GitHub, and the account's key was not in the agent. Outside the profile ssh reads the key from `~/.ssh`
+itself, which the profile hides. Once the account's key was in the agent, `ssh -o UserKnownHostsFile=<copy> -T
+git@github.com` under the profile was answered that it had successfully authenticated, while `ls ~/.ssh` under the same
+profile stayed `Operation not permitted`.
