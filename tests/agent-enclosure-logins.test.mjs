@@ -95,7 +95,7 @@ test("TST-1380009: wrap takes a recorded login into the home and gives it to the
 // guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
 // given: an enclosure on macOS whose terminal is a recorder, and enclosures on Linux and Windows with recorders
 // input: openTerminal("claude", ["setup-token"], { variable: "CLAUDE_CODE_OAUTH_TOKEN", pattern }) on each, and openTerminal("codex", ["login"]) on macOS
-// expect: on macOS the terminal is opened once with /usr/bin/open and the home's agent-login.command, which records with /usr/bin/script -q into the home's .agent-m/login.log, sets the terminal's width with stty cols 1000 and starts sandbox-exec with claude setup-token; .agent-m/login.json names the variable and the pattern; on Linux and Windows the call is refused with NotEnclosed and no terminal is opened; counter-proof: codex's login step, which keeps nothing, writes a .command without /usr/bin/script and no login.json
+// expect: on macOS the terminal is opened once with /usr/bin/open and the home's agent-login.command, which records with /usr/bin/script -q into the home's .agent-m/login.log, sets the terminal's width with stty cols 1000 and starts sandbox-exec with claude setup-token; .agent-m/login.json names the variable and the pattern; on Linux and Windows the call is refused with NotEnclosed and no terminal is opened; each .command leaves at the step's failure and otherwise ends asking Terminal, through osascript, to close the window on its terminal; counter-proof: codex's login step, which keeps nothing, writes a .command without /usr/bin/script and no login.json
 test("TST-1380010: a login step whose output is kept is recorded by its terminal, on macOS only", async (t) => {
   const m = machine(t);
   const opened = [];
@@ -104,6 +104,12 @@ test("TST-1380010: a login step whose output is kept is recorded by its terminal
   const file = join(enclosure.home, "agent-login.command");
   assert.doesNotMatch(readFileSync(file, "utf8"), /\/usr\/bin\/script/, "counter-proof: a step that keeps nothing is not recorded");
   assert.equal(existsSync(join(enclosure.home, ".agent-m", "login.json")), false);
+  const closes = (text) => {
+    const lines = text.trimEnd().split("\n");
+    assert.match(lines.at(-2), / \|\| exit$/, "a step that fails leaves its window open");
+    assert.match(lines.at(-1), /^t=\$\(tty\) && .*\/usr\/bin\/osascript -e .*close \(every window whose tty of tab 1 is \\"\$t\\"\)/, "a step that ends well closes its window");
+  };
+  closes(readFileSync(file, "utf8"));
   opened.length = 0;
   await enclosure.openTerminal("claude", ["setup-token"], KEEPS);
   assert.deepEqual(opened, [["/usr/bin/open", [file]]]);
@@ -112,6 +118,7 @@ test("TST-1380010: a login step whose output is kept is recorded by its terminal
   assert.match(text, /stty cols 1000/);
   assert.match(text, /'\/usr\/bin\/sandbox-exec' '-p' .*'claude' 'setup-token'/s);
   assert.deepEqual(JSON.parse(readFileSync(join(enclosure.home, ".agent-m", "login.json"), "utf8")), KEEPS);
+  closes(text);
   for (const platform of ["linux", "win32"]) {
     const refused = [];
     const elsewhere = enclosureOf(m, platform, { terminal: (command, args) => refused.push([command, args]) });
