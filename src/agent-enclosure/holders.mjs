@@ -24,7 +24,8 @@ const PASSED_WINDOWS = ["SystemRoot", "SystemDrive", "windir", "ComSpec", "PATHE
 
 /**
  * agentEnvironment({ platform, env, home, identity, kept }) -> Record<string, string> — the environment an agent receives: the passed variables of `env`,
- * its home and the folders below it, on macOS SSL_CERT_FILE naming the system's certificate bundle, git's prompt switched off, the git identity where
+ * its home and the folders below it, on macOS SSL_CERT_FILE naming the system's certificate bundle, on macOS and Linux the SSH agent `env` names and git's
+ * ssh told the hosts it knows by the home's `.ssh/known_hosts`, git's prompt switched off, the git identity where
  * `identity` names one, and the logins its home keeps (`kept`, each variable with its value; logins.mjs). On Windows the account's own folders of programs come before the PATH. Pure.
  */
 export function agentEnvironment({ platform, env, home, identity, kept = {} }) {
@@ -42,6 +43,9 @@ export function agentEnvironment({ platform, env, home, identity, kept = {} }) {
       XDG_CACHE_HOME: posix.join(home, ".cache"), XDG_STATE_HOME: posix.join(home, ".local", "state"), TMPDIR: posix.join(home, "tmp") });
     // The keychain's services are refused on macOS: a program that asks them for the trusted roots, as Codex does, finds them in the system's bundle.
     if (platform === "darwin") chosen.SSL_CERT_FILE = "/etc/ssl/cert.pem";
+    // ssh reads its files from the person's ~/.ssh, which the enclosure hides: the SSH agent signs, and the home's copy names the hosts it knows.
+    if (typeof env.SSH_AUTH_SOCK === "string" && env.SSH_AUTH_SOCK) chosen.SSH_AUTH_SOCK = env.SSH_AUTH_SOCK;
+    chosen.GIT_SSH_COMMAND = `ssh -o UserKnownHostsFile='${posix.join(home, ".ssh", "known_hosts").replace(/'/g, "'\\''")}'`;
   }
   chosen.GIT_TERMINAL_PROMPT = "0";
   if (identity?.name) Object.assign(chosen, { GIT_AUTHOR_NAME: identity.name, GIT_COMMITTER_NAME: identity.name });

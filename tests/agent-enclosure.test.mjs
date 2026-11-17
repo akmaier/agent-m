@@ -1,5 +1,6 @@
 // MOD-agent-enclosure — the enclosure every coding agent a Bridge starts runs in (ARC-054), as docs/architecture/MOD-agent-enclosure.md
-// states it: the places that hold credentials hidden, nothing writable but the agent's home and the folders the Bridge names, an
+// states it: the agent's working folder read and written, nothing else of the person's home, the places that hold credentials hidden, the
+// person's SSH agent open, an
 // environment chosen rather than inherited, and per platform a Seatbelt profile (macOS), bubblewrap's arguments (Linux) or the Bridge's own
 // account (Windows); whether it works, and the one-time step where it does not.
 // Run: node --test tests/agent-enclosure.test.mjs
@@ -30,17 +31,18 @@ import { accountName } from "../src/agent-enclosure/account.mjs";
 
 const SECRET = "ghp_FIXTUREnotArealToken0123456789abcd";
 
-// A computer in a temporary folder: the person's home with the git login's places, the Bridge's data folder with its pairing token, and an
-// agent's working folder with the Bridge's clones and one job's checkout.
+// A computer in a temporary folder: the person's home with the git login's places and the hosts its ssh knows, the Bridge's data folder with its
+// pairing token, and, in the person's home, an agent's working folder with the Bridge's clones and one job's checkout.
 function computer(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "am-enc-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const person = join(root, "person"), data = join(root, "data"), folder = join(root, "work");
+  const person = join(root, "person"), data = join(root, "data"), folder = join(person, "work");
   for (const dir of [join(person, ".ssh"), join(person, ".config", "gh"), data, join(folder, "instance"), join(folder, "products", "p"), join(folder, "jobs", "J")]) mkdirSync(dir, { recursive: true });
   writeFileSync(join(person, ".ssh", "id_fixture"), `${SECRET}\n`);
   writeFileSync(join(person, ".git-credentials"), `https://x:${SECRET}@github.com\n`);
   writeFileSync(join(person, ".config", "gh", "hosts.yml"), `oauth_token: ${SECRET}\n`);
   writeFileSync(join(person, ".gitconfig"), "[user]\n\tname = Fixture\n");
+  writeFileSync(join(person, ".ssh", "known_hosts"), "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n");
   writeFileSync(join(data, "pairing-token"), `${SECRET}\n`);
   writeFileSync(join(folder, "instance", "AGENTS.md"), "the instance\n");
   writeFileSync(join(folder, "jobs", "J", "README.md"), "the checkout\n");
@@ -51,7 +53,7 @@ function computer(t) {
 // guards: NO MODEL READS A CREDENTIAL; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: the Bridge's environment with PATH, LANG and TERM, a token in GH_TOKEN, a key in ANTHROPIC_API_KEY, an SSH agent, a session bus and the person's HOME
 // input: agentEnvironment for macOS and for Windows, with the agent's home and the identity { name: "Fixture Person", email: "fixture@example.org" }
-// expect: on macOS PATH, LANG and TERM are kept; HOME is the agent's home, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_CACHE_HOME, XDG_STATE_HOME and TMPDIR lie in it; GIT_TERMINAL_PROMPT is 0 and the four git identity variables name the identity; GH_TOKEN, ANTHROPIC_API_KEY, SSH_AUTH_SOCK and DBUS_SESSION_BUS_ADDRESS are absent and no value holds the token; on Windows USERPROFILE, APPDATA, LOCALAPPDATA, TEMP and TMP lie in the account's home and PATH begins with its own folders of programs; counter-proof: PATH, the one variable passed as it is, is there
+// expect: on macOS PATH, LANG and TERM are kept; HOME is the agent's home, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_CACHE_HOME, XDG_STATE_HOME and TMPDIR lie in it; GIT_TERMINAL_PROMPT is 0 and the four git identity variables name the identity; SSH_AUTH_SOCK names the SSH agent and GIT_SSH_COMMAND names the home's .ssh/known_hosts as ssh's UserKnownHostsFile; GH_TOKEN, ANTHROPIC_API_KEY and DBUS_SESSION_BUS_ADDRESS are absent and no value holds the token; on Windows USERPROFILE, APPDATA, LOCALAPPDATA, TEMP and TMP lie in the account's home and PATH begins with its own folders of programs, and SSH_AUTH_SOCK is absent — the person's agent is another user's; counter-proof: PATH, the one variable passed as it is, is there
 test("TST-1380001: the agent's environment is chosen, not inherited", () => {
   const env = { PATH: "/usr/bin:/bin", LANG: "de_DE.UTF-8", TERM: "xterm", GH_TOKEN: SECRET, ANTHROPIC_API_KEY: "sk-ant-fixture", SSH_AUTH_SOCK: "/tmp/agent.sock",
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/501/bus", HOME: "/Users/person", SystemRoot: "C:\\Windows" };
@@ -64,7 +66,9 @@ test("TST-1380001: the agent's environment is chosen, not inherited", () => {
   for (const name of ["XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME", "TMPDIR"]) assert.ok(mac[name].startsWith("/work/home/"), `${name} lies in the home: ${mac[name]}`);
   assert.equal(mac.GIT_TERMINAL_PROMPT, "0");
   assert.deepEqual([mac.GIT_AUTHOR_NAME, mac.GIT_COMMITTER_NAME, mac.GIT_AUTHOR_EMAIL, mac.GIT_COMMITTER_EMAIL], ["Fixture Person", "Fixture Person", "fixture@example.org", "fixture@example.org"]);
-  for (const name of ["GH_TOKEN", "ANTHROPIC_API_KEY", "SSH_AUTH_SOCK", "DBUS_SESSION_BUS_ADDRESS"]) assert.equal(name in mac, false, `${name} is not passed`);
+  assert.equal(mac.SSH_AUTH_SOCK, "/tmp/agent.sock", "the person's SSH agent signs for the agent");
+  assert.equal(mac.GIT_SSH_COMMAND, "ssh -o UserKnownHostsFile='/work/home/.ssh/known_hosts'");
+  for (const name of ["GH_TOKEN", "ANTHROPIC_API_KEY", "DBUS_SESSION_BUS_ADDRESS"]) assert.equal(name in mac, false, `${name} is not passed`);
   assert.equal(Object.values(mac).some((value) => value.includes(SECRET)), false, "no value holds the token");
 
   const win = agentEnvironment({ platform: "win32", env, home: "C:\\Users\\agentm-0123456789ab", identity });
@@ -73,6 +77,7 @@ test("TST-1380001: the agent's environment is chosen, not inherited", () => {
   assert.equal(win.SystemRoot, "C:\\Windows");
   assert.ok(win.PATH.startsWith("C:\\Users\\agentm-0123456789ab\\"), `the account's own programs come first: ${win.PATH}`);
   assert.equal("GH_TOKEN" in win, false);
+  assert.equal("SSH_AUTH_SOCK" in win, false);
 });
 
 // TST-1380002 · level: unit · module: MOD-agent-enclosure
@@ -95,40 +100,40 @@ test("TST-1380002: the places that hold the Bridge's and the git login's credent
 
 // TST-1380003 · level: unit · module: MOD-agent-enclosure
 // guards: NO MODEL READS A CREDENTIAL
-// given: the writable folders /w/home and /w/jobs/J, the hidden places /d and /h/.ssh, the SSH agent's socket /s/agent "1".sock
+// given: the person's home /h, the agent's folders /h/work and /w/"jobs", the hidden place /d
 // input: seatbeltProfile
-// expect: the profile allows by default, then denies every write, then allows writing the two folders, /private/tmp and /dev, and only then denies reading and writing /d and /h/.ssh — a later rule overrides an earlier one —; it refuses the keychain's three services, connections to the socket and to launchd's SSH agent; the quote in the socket's path is escaped; counter-proof: no rule allows writing the home of the person
-test("TST-1380003: the Seatbelt profile allows writing only where the agent works and hides the credential holders", () => {
-  const profile = seatbeltProfile({ writable: ["/w/home", "/w/jobs/J"], hidden: ["/d", "/h/.ssh"], sockets: ['/s/agent "1".sock'] });
-  const at = (text) => { const index = profile.indexOf(text); assert.notEqual(index, -1, `the profile holds ${text}:\n${profile}`); return index; };
+// expect: the profile allows by default, denies every write, allows writing /private/tmp, /private/var/folders and /dev, then denies reading and writing /h, then allows reading and writing the two folders, and only then denies reading and writing /d — a later rule overrides an earlier one —; it refuses the keychain's three services; the quote in a path is escaped; counter-proof: no rule refuses a Unix socket, so the SSH agent's stays open
+test("TST-1380003: the Seatbelt profile lets the agent read and write its folders, and nothing else of the person's home", () => {
+  const profile = seatbeltProfile({ personHome: "/h", folders: ["/h/work", '/w/"jobs"'], hidden: ["/d"] });
+  const at = (text, from = 0) => { const index = profile.indexOf(text, from); assert.notEqual(index, -1, `the profile holds ${text}:\n${profile}`); return index; };
   const allowDefault = at("(allow default)"), denyWrite = at("(deny file-write*)"), allowWrite = at("(allow file-write*");
-  const hide = at("(deny file-read* file-write*");
-  assert.ok(allowDefault < denyWrite && denyWrite < allowWrite && allowWrite < hide, "default, then no write, then the writable folders, then the hidden places");
-  for (const path of ['(subpath "/w/home")', '(subpath "/w/jobs/J")', '(subpath "/private/tmp")', '(subpath "/dev")']) assert.ok(profile.indexOf(path, allowWrite) > allowWrite && profile.indexOf(path, allowWrite) < hide, `writable: ${path}`);
-  for (const path of ['(subpath "/d")', '(subpath "/h/.ssh")']) assert.ok(profile.indexOf(path, hide) > hide, `hidden: ${path}`);
+  const denyHome = at("(deny file-read* file-write*"), allowFolders = at("(allow file-read* file-write*"), hide = at("(deny file-read* file-write*", allowFolders);
+  assert.ok(allowDefault < denyWrite && denyWrite < allowWrite && allowWrite < denyHome && denyHome < allowFolders && allowFolders < hide, profile);
+  for (const path of ['(subpath "/private/tmp")', '(subpath "/private/var/folders")', '(subpath "/dev")']) { const index = at(path, allowWrite); assert.ok(index < denyHome, `temporary: ${path}`); }
+  assert.ok(at('(subpath "/h")', denyHome) < allowFolders, "the person's home is refused");
+  for (const path of ['(subpath "/h/work")', '(subpath "/w/\\"jobs\\"")']) { const index = at(path, allowFolders); assert.ok(index < hide, `the agent's folder: ${path}`); }
+  assert.ok(at('(subpath "/d")', hide) > hide, "hidden after the folders");
   for (const service of ["com.apple.SecurityServer", "com.apple.securityd.xpc", "com.apple.secd"]) at(`(global-name "${service}")`);
-  at("(deny network-outbound");
-  at('agent \\"1\\"');
-  at("com\\.apple\\.launchd");
-  assert.equal(/allow file-write\*[^)]*"\/h"\)/.test(profile), false, "counter-proof: the person's home is not writable");
+  assert.equal(/unix-socket|network-outbound/.test(profile), false, "counter-proof: the SSH agent's socket is not refused");
 });
 
 // TST-1380004 · level: unit · module: MOD-agent-enclosure
 // guards: NO MODEL READS A CREDENTIAL
-// given: the writable folders /w/home and /w/jobs/J, the hidden folder /d, the hidden file /h/.netrc, the runtime folder /run/user/1000, the working folder /w/jobs/J
+// given: the person's home /h, the writable folders /h/work and /h/work/jobs/J, the hidden folder /d, the hidden file /e/.netrc, the runtime folder /run/user/1000, the SSH agent's socket /tmp/ssh-x/agent.1, the working folder /h/work/jobs/J
 // input: bubblewrapArgs
-// expect: in this order: --die-with-parent, --new-session, --unshare-pid, the whole file system read-only (--ro-bind / /), a new /dev and /proc, a private /tmp; the two folders bound writable; the runtime folder and /d replaced by an empty tmpfs and /h/.netrc by /dev/null — each after the binds, so that a hidden place inside a writable folder stays hidden —; --chdir /w/jobs/J last; counter-proof: no argument binds the person's home writable
-test("TST-1380004: bubblewrap's arguments bind everything read-only, the work writable, and hide the credential holders after it", () => {
-  const args = bubblewrapArgs({ writable: ["/w/home", "/w/jobs/J"], hidden: [{ path: "/d", directory: true }, { path: "/h/.netrc", directory: false }], runtimeDir: "/run/user/1000", workdir: "/w/jobs/J" });
+// expect: in this order: --die-with-parent, --new-session, --unshare-pid, the whole file system read-only (--ro-bind / /), a new /dev and /proc, a private /tmp; an empty tmpfs over /h and over the runtime folder; the two folders bound writable; the socket bound in; /d replaced by an empty tmpfs and /e/.netrc by /dev/null — each after the binds, so that a hidden place inside a writable folder stays hidden —; --chdir /h/work/jobs/J last; counter-proof: without a socket nothing is bound in for it
+test("TST-1380004: bubblewrap's arguments hide the person's home, bind the agent's folders and the SSH agent in, and hide the credential holders after them", () => {
+  const given = { personHome: "/h", writable: ["/h/work", "/h/work/jobs/J"], hidden: [{ path: "/d", directory: true }, { path: "/e/.netrc", directory: false }], runtimeDir: "/run/user/1000", workdir: "/h/work/jobs/J" };
+  const args = bubblewrapArgs({ ...given, socket: "/tmp/ssh-x/agent.1" });
   const joined = args.join(" ");
   const at = (text) => { const index = joined.indexOf(text); assert.notEqual(index, -1, `the arguments hold ${text}: ${joined}`); return index; };
   assert.deepEqual(args.slice(0, 3), ["--die-with-parent", "--new-session", "--unshare-pid"]);
-  const ro = at("--ro-bind / /"), dev = at("--dev /dev"), proc = at("--proc /proc"), tmp = at("--tmpfs /tmp");
-  const home = at("--bind /w/home /w/home"), job = at("--bind /w/jobs/J /w/jobs/J");
-  const runtime = at("--tmpfs /run/user/1000"), data = at("--tmpfs /d"), netrc = at("--ro-bind /dev/null /h/.netrc");
-  assert.ok(ro < dev && dev < proc && proc < tmp && tmp < home && home < job && job < runtime && job < data && job < netrc, joined);
-  assert.deepEqual(args.slice(-2), ["--chdir", "/w/jobs/J"]);
-  assert.equal(/--bind \/h /.test(joined), false, "counter-proof: the person's home is not bound writable");
+  const ro = at("--ro-bind / /"), dev = at("--dev /dev"), proc = at("--proc /proc"), tmp = at("--tmpfs /tmp "), home = at("--tmpfs /h "), runtime = at("--tmpfs /run/user/1000");
+  const work = at("--bind /h/work /h/work"), job = at("--bind /h/work/jobs/J /h/work/jobs/J"), socket = at("--bind /tmp/ssh-x/agent.1 /tmp/ssh-x/agent.1");
+  const data = at("--tmpfs /d"), netrc = at("--ro-bind /dev/null /e/.netrc");
+  assert.ok(ro < dev && dev < proc && proc < tmp && tmp < home && home < runtime && runtime < work && work < job && job < socket && socket < data && socket < netrc, joined);
+  assert.deepEqual(args.slice(-2), ["--chdir", "/h/work/jobs/J"]);
+  assert.equal(bubblewrapArgs({ ...given, socket: null }).join(" ").includes("ssh-x"), false, "counter-proof: no socket, no bind");
 });
 
 // TST-1380005 · level: unit · module: MOD-agent-enclosure
@@ -193,7 +198,8 @@ const write = (path) => { try { fs.writeFileSync(path, "x"); return "written"; }
 const keychain = spawnSync("/usr/bin/security", ["find-certificate", "-c", "Apple Root CA", "/System/Library/Keychains/SystemRootCertificates.keychain"]).status;
 const found = { data: read(data + "/pairing-token"), ssh: read(person + "/.ssh/id_fixture"), credentials: read(person + "/.git-credentials"), gh: read(person + "/.config/gh/hosts.yml"),
   gitconfig: write(person + "/.gitconfig"), instance: write(instance + "/planted"), checkout: write(checkout + "/new.txt"), home: write(process.env.HOME + "/new.txt"),
-  readme: read(checkout + "/README.md"), env: Object.values(process.env).some((value) => value.includes(${JSON.stringify(SECRET)})), sshAuthSock: process.env.SSH_AUTH_SOCK ?? null,
+  readme: read(checkout + "/README.md"), personFile: read(person + "/.gitconfig"), knownHosts: read(process.env.HOME + "/.ssh/known_hosts"),
+  gitSsh: process.env.GIT_SSH_COMMAND ?? null, env: Object.values(process.env).some((value) => value.includes(${JSON.stringify(SECRET)})), sshAuthSock: process.env.SSH_AUTH_SOCK ?? null,
   homeVar: process.env.HOME, keychain };
 const c = net.connect(socket);
 c.on("data", (d) => { found.socket = String(d); console.log(JSON.stringify(found)); process.exit(0); });
@@ -211,10 +217,10 @@ const ran = (command, args, options) => new Promise((resolve, reject) => {
 
 // TST-1380007 · level: unit · module: MOD-agent-enclosure
 // guards: NO MODEL READS A CREDENTIAL
-// given: on macOS, a fixture computer — the person's home with .ssh/id_fixture, .git-credentials, .config/gh/hosts.yml and .gitconfig, the Bridge's data folder with its pairing token, an agent's working folder with the clone of the instance and the job's checkout —, a fixture SSH agent socket that answers "hello", and a Bridge whose environment holds a token in GH_TOKEN and the socket in SSH_AUTH_SOCK
+// given: on macOS, a fixture computer — the person's home with .ssh/id_fixture, .ssh/known_hosts, .git-credentials, .config/gh/hosts.yml and .gitconfig, the Bridge's data folder with its pairing token, in the person's home an agent's working folder with the clone of the instance and the job's checkout —, a fixture SSH agent socket that answers "hello", and a Bridge whose environment holds a token in GH_TOKEN and the socket in SSH_AUTH_SOCK
 // input: the probe run in the agent's enclosure — wrap(node, [probe, …], { workdir: the checkout, writable: [the checkout] }) after prepare —, and the same probe run as a plain child with the Bridge's environment
-// expect: in the enclosure, the pairing token, the SSH key, git's credentials and gh's token cannot be read (EPERM), the person's .gitconfig and the clone of the instance cannot be written (EPERM), the checkout and the agent's home can, the checkout's README is read, no variable holds the token, SSH_AUTH_SOCK is not set, HOME is the agent's home, the keychain does not find the public root certificate (44) and the socket refuses (EPERM); counter-proof: as a plain child each of them is read or written, the variable holds the token, the keychain finds the certificate (0) and the socket answers
-test("TST-1380007: on macOS an enclosed agent reaches no credential, and the same probe outside it reaches each", async (t) => {
+// expect: in the enclosure, the pairing token, the SSH key, git's credentials, gh's token and the person's .gitconfig cannot be read (EPERM), the person's .gitconfig cannot be written (EPERM), the clone of the instance, the checkout and the agent's home — all in the working folder — can, the checkout's README is read, the home's .ssh/known_hosts is the person's copy and GIT_SSH_COMMAND names it, no variable holds the token, SSH_AUTH_SOCK names the socket, HOME is the agent's home, the keychain does not find the public root certificate (44) and the SSH agent's socket answers; counter-proof: as a plain child each holder is read and the .gitconfig written, the variable holds the token and the keychain finds the certificate (0)
+test("TST-1380007: on macOS an enclosed agent lives in its working folder with the person's SSH agent, and reaches no credential", async (t) => {
   if (process.platform !== "darwin") { t.skip("Seatbelt runs on macOS only"); return; }
   const machine = computer(t);
   const probe = join(machine.root, "probe.cjs");
@@ -226,7 +232,7 @@ test("TST-1380007: on macOS an enclosed agent reaches no credential, and the sam
   const args = [probe, machine.data, machine.person, machine.checkout, join(machine.folder, "instance"), machine.socket];
 
   const plain = JSON.parse((await ran(process.execPath, args, { env: bridgeEnv })).out);
-  assert.deepEqual([plain.data, plain.ssh, plain.credentials, plain.gh], ["secret", "secret", "secret", "secret"], "known positive: a plain child reads every holder");
+  assert.deepEqual([plain.data, plain.ssh, plain.credentials, plain.gh, plain.personFile], ["secret", "secret", "secret", "secret", "read"], "known positive: a plain child reads every holder and the person's files");
   assert.deepEqual([plain.gitconfig, plain.instance, plain.env, plain.keychain, plain.socket], ["written", "written", true, 0, "hello"], "known positive: and writes, sees, finds and connects");
 
   const enclosure = agentEnclosure({ dataFolder: machine.data, folder: machine.folder, platform: "darwin", env: bridgeEnv, personHome: machine.person, identity: { name: "Fixture", email: "f@example.org" } });
@@ -235,14 +241,17 @@ test("TST-1380007: on macOS an enclosed agent reaches no credential, and the sam
   const done = await ran(wrapped.command, wrapped.args, { cwd: machine.checkout, env: wrapped.env });
   assert.equal(done.status, 0, done.err);
   const inside = JSON.parse(done.out);
-  assert.deepEqual([inside.data, inside.ssh, inside.credentials, inside.gh], ["EPERM", "EPERM", "EPERM", "EPERM"], JSON.stringify(inside));
-  assert.deepEqual([inside.gitconfig, inside.instance], ["EPERM", "EPERM"], "neither the person's git configuration nor the Bridge's clone is written");
-  assert.deepEqual([inside.checkout, inside.home, inside.readme], ["written", "written", "read"], "the agent works in its checkout and its home");
+  assert.deepEqual([inside.data, inside.ssh, inside.credentials, inside.gh, inside.personFile], ["EPERM", "EPERM", "EPERM", "EPERM", "EPERM"], JSON.stringify(inside));
+  assert.equal(inside.gitconfig, "EPERM", "the person's git configuration is not written");
+  assert.deepEqual([inside.instance, inside.checkout, inside.home, inside.readme], ["written", "written", "written", "read"], "the agent works in its working folder");
+  assert.equal(inside.knownHosts, "read", "the home holds the copy of the hosts the person's ssh knows");
+  assert.equal(readFileSync(join(enclosure.home, ".ssh", "known_hosts"), "utf8"), readFileSync(join(machine.person, ".ssh", "known_hosts"), "utf8"));
+  assert.equal(inside.gitSsh, `ssh -o UserKnownHostsFile='${join(enclosure.home, ".ssh", "known_hosts")}'`);
   assert.equal(inside.env, false);
-  assert.equal(inside.sshAuthSock, null);
+  assert.equal(inside.sshAuthSock, machine.socket);
   assert.equal(inside.homeVar, enclosure.home);
   assert.equal(inside.keychain, 44, "the keychain finds nothing");
-  assert.equal(inside.socket, "EPERM", "the SSH agent's socket refuses");
+  assert.equal(inside.socket, "hello", "the SSH agent's socket answers");
   assert.equal(readFileSync(join(machine.person, ".gitconfig"), "utf8"), "x", "the plain child's write stands, the enclosed one's did not happen");
   assert.equal(existsSync(join(enclosure.home, "new.txt")), true);
 });
