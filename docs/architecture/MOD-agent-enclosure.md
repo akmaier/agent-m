@@ -50,7 +50,7 @@ It runs in Node, in the Bridge's main process, and keeps nothing but what it wri
 | the system's credential store | the keychain: `~/Library/Keychains/` hidden, and its services `com.apple.SecurityServer`, `com.apple.securityd.xpc` and `com.apple.secd` refused | the user's runtime folder (`XDG_RUNTIME_DIR`, else `/run/user/<uid>`), where the session bus with the secret service and the SSH and GPG agents listen, replaced by an empty folder | the account's own Credential Manager; the person's is another user's |
 | the SSH agent | the socket the Bridge's `SSH_AUTH_SOCK` names, open | the socket `SSH_AUTH_SOCK` names, bound in | the person's agent is another user's |
 | the Bridge's process | its memory is refused by macOS to every other process; its environment is not, so the Bridge puts no credential into one (ARC-054) | not seen: a PID namespace of its own | another user's |
-| what may be read | everything outside the person's home, and the agent's working folder | the same | what the account may read, and the agent's working folder, granted to the account |
+| what may be read | everything outside the person's home, the agent's working folder, and of each folder of the home on the way to it its metadata, not what it holds | the same: those folders are empty in the enclosure | what the account may read, and the agent's working folder, granted to the account |
 | what may be written | the agent's working folder, `/private/tmp`, `/private/var/folders` and `/dev` | the agent's working folder and a private `/tmp` | the account's own profile and the agent's working folder, granted to the account |
 
 **The agent's home**: `home/` in the agent's working folder, with `tmp/`, `.config/`, `.local/share/`, `.cache/` and
