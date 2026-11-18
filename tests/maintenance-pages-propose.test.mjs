@@ -32,7 +32,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { writeSetting } from "../src/browser-store/index.mjs";
-import { PRODUCT_URL, buttonsOf, byClass, flush, mailOf, mailRead, one, openMail, opened, restoreWorld, textOf, trusted, waitFor, walk, world, issueRecord } from "./maintenance-pages-world.mjs";
+import { PRODUCT_URL, buttonsOf, optionsOf, byClass, flush, mailOf, mailRead, one, openMail, opened, restoreWorld, textOf, trusted, waitFor, walk, world, issueRecord } from "./maintenance-pages-world.mjs";
 
 afterEach(restoreWorld);
 
@@ -268,6 +268,31 @@ test("With no participant at an allowed place nothing is sent and the mailbox's 
   assert.equal(byClass(f.target, "mail-propose").length, 0);
   assert.equal(byClass(f.item(f.one), "create-issue").length, 1);
   assert.deepEqual(nothingSent(f.w), [0, 0, 0]);
+});
+
+// TST-1822001 · level: component · module: MOD-maintenance-pages
+// guards: UC-038
+// given: the mail one in the mailbox, the participant cli-agent whose model the CLI session claude of the Bridge lab-pc-4 offers, and a Bridge that holds its list of agents back
+// input: the route mail drawn; the mail opened while the Bridge's agents are held; then the agents answered
+// expect: while the agents are held, the mail is listed and the status says that the participants are being asked; the mail opened says that it opens with them; once the agents answer, the mail opens with its review (its title field) and cli-agent is offered; counter-proof: the list waited for the agents before
+test("TST-1822001: Mail lists the mails at once, before the Bridges have named the participants that propose issues", async () => {
+  const one_ = await mailOf("one", { subject: "Export fails", text: "The export fails with error E42." });
+  let release;
+  const agentsHeld = new Promise((resolve) => { release = resolve; });
+  const w = world({ mails: [one_], reading: [one_], issues: [issueRecord(3, "open", [])], rows: [AGENT, ...CHECKS], sessions: AGENT_SESSIONS, agentsHeld });
+  const drawing = opened(w, {}, "mail");
+  const target = [...document.body.children].at(-1);
+  await waitFor(() => walk(target, (node) => node.getAttribute?.("data-line") === one_.id).length === 1);
+  assert.equal(walk(target, (node) => node.getAttribute?.("data-line") === one_.id).length, 1, "failure node: the mail is listed while the Bridge's agents are held");
+  assert.match(textOf(one(target, "mail-status")), /participants who can propose issues are being asked/);
+  openMail(target, one_.id);
+  assert.equal(byClass(target, "mail-waiting").length, 1, "the mail opened says that it opens with the participants");
+  release();
+  await drawing;
+  await waitFor(() => byClass(target, "mail-title").length > 0);
+  openMail(target, one_.id);
+  assert.equal(byClass(target, "mail-title").length, 1, "the mail opens with its review once the agents answered");
+  assert.ok(optionsOf(target).includes("cli-agent"), `cli-agent is offered: ${optionsOf(target)}`);
 });
 
 // TST-964011 · level: component · module: MOD-maintenance-pages

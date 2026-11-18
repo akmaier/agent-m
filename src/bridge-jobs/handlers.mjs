@@ -63,12 +63,15 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
   };
   return {
     "GET /v1/agents": async () => {
+      // The agents on this computer and the login of each offered agent in its enclosure, all asked at the same time: each is a few CLI calls of its own,
+      // and one after the other they took the page's every drawing of the prompt bar and of Mail several seconds.
+      const enclosed = new Map(agents.filter((each) => each?.folder).map((each) => [each.name, loggedInEnclosed(each)]));
       const found = await installedAgents();
       const listed = [];
       for (const agent of found.filter((each) => each.installed && offered(each.name))) {
         const { folder } = offered(agent.name);
         // An agent with a working folder is asked in its enclosure, where it will run; one without is not offered for work, and is said of as it is.
-        const loggedIn = folder ? await loggedInEnclosed(offered(agent.name)) : agent.loggedIn;
+        const loggedIn = folder ? await enclosed.get(agent.name) : agent.loggedIn;
         // Each with its declaration as the Bridge's settings keep it: place, capabilities, models with their context.
         const { place = null, capabilities = [], models = [] } = offered(agent.name);
         listed.push({ name: agent.name, version: agent.version, ready: loggedIn === true && Boolean(folder), loggedIn, place, capabilities, models });

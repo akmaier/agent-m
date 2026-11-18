@@ -82,9 +82,10 @@ const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) 
  * The world: the mails of the mailbox (`mails`, found by `find`), the drafts in Drafts (`drafts`: { ref, inReplyTo, mail }), GitHub's issues of alice/product, the participants' register and the places the mailbox allows.
  * Returns what the fakes kept: the operations the Bridge received, the requests GitHub received, the texts the endpoint returned.
  * `sessions` ({ agent: declaration }) are the CLI sessions of the Bridge lab-pc-4, which its /v1/pair and /v1/agents then list ready, each with the declaration the Bridge keeps; none by default.
+ * `agentsHeld`, a promise, holds the answer of /v1/agents until it settles, as a Bridge does while it asks its agents; none by default.
  * For the route `mail` (ITM-964): `reading` is what the Bridge's operation `read` returns; `answer(request)` is the answer of a model endpoint or of an agent on the Bridge to a request ({ origin, body }), a draft object that is wrapped as the endpoint answers; `product` adds files to the product's repository, `instance` to the instance's.
  */
-function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, createStatus = null, reading = null, stateDelay = 0, answer = null, product = {}, instance = {}, sessions = {} }) {
+function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, createStatus = null, reading = null, stateDelay = 0, answer = null, product = {}, instance = {}, sessions = {}, agentsHeld = null }) {
   const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows), ...instance };
   const productFiles = { ...smallProduct(), ...product };
   let pending = {};
@@ -139,7 +140,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
     }
     // testBridge's two requests, which sessionsOffered sends: the Bridge names itself and lists the agents of `sessions` ready.
     if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/pair" && method === "GET") return json({ bridge: { name: "lab-pc-4", version: "1.0.0", platform: "linux" }, origin: "https://alice.github.io" });
-    if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/agents" && method === "GET") return json({ agents: Object.entries(sessions).map(([name, declared]) => ({ name, version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] });
+    if (Object.keys(sessions).length && url.origin === BRIDGE && url.pathname === "/v1/agents" && method === "GET") return (await agentsHeld, json({ agents: Object.entries(sessions).map(([name, declared]) => ({ name, version: "1.0.0", ready: true, loggedIn: true, ...declared })), missing: [] }));
     if (url.origin === BRIDGE && url.pathname === "/v1/ask" && method === "POST") {
       const request = { origin: url.origin, body: JSON.parse(init.body) };
       kept.ask.push(request);
