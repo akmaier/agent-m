@@ -240,7 +240,7 @@ test("MOD-repository-hosts issueCounts — the search limit is named when it is 
 
 // TST-472551 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
-// given: servers that answer every request with a refused token (401), a server that knows no such repository or project — GitHub's search answers 422, as it does for a repository it does not hold or the client may not see; GitLab 404 —, a GitLab server that answers a used-up limit (429), servers that answer 502, and a fetch that fails as a browser's does
+// given: servers that answer every request with a refused token (401), a server that knows no such repository or project — GitHub's search answers 422, as it does for a repository it does not hold or the client may not see; GitLab 404 —, a GitLab server that answers a used-up limit (429 with Retry-After 3600, a wait longer than the read takes, so that the limit is named at once; the brief wait is TST-2026111150), servers that answer 502, and a fetch that fails as a browser's does
 // input: issueCounts() on each
 // expect: HostError TokenRefused naming the token and the page where it is renewed; NotFound naming the repository; on GitLab RateLimited naming the account's limit; Unreachable with the server's status or the browser's reason
 test("MOD-repository-hosts issueCounts — a refused token, a missing repository, a used-up limit and an unreachable server are the module's named failures (GitHub, GitLab)", async () => {
@@ -260,7 +260,7 @@ test("MOD-repository-hosts issueCounts — a refused token, a missing repository
   assert.equal(glMissing?.name, "NotFound", "GitLab");
   assert.ok(/release-tool/.test(String(glMissing?.what)), `GitLab: the project is named: ${glMissing?.what}`);
 
-  const glLimited = await using(fakeGitLab({ answer: () => json(429, { message: "Retry later" }, { "Retry-After": "60" }) }).fetch, () => failure(glHost().issueCounts()));
+  const glLimited = await using(fakeGitLab({ answer: () => json(429, { message: "Retry later" }, { "Retry-After": "3600" }) }).fetch, () => failure(glHost().issueCounts()));
   assert.deepEqual([glLimited?.name, glLimited?.limit], ["RateLimited", "account"], "GitLab");
 
   const ghBad = await using(fakeGitHub({ answer: () => json(502, { message: "Bad Gateway" }) }).fetch, () => failure(ghHost().issueCounts()));

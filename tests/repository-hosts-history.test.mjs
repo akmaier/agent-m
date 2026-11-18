@@ -478,7 +478,7 @@ test("MOD-repository-hosts readHistory — a path no commit touched gives an emp
 
 // TST-472546 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
-// given: servers that answer every request with a refused token (401), with no such repository (404), with a used-up rate limit (GitHub: 403 with X-RateLimit-Remaining 0; GitLab: 429), with a 502 or with no answer at all — a fetch that fails as a browser's does —; and servers that list the commits well and then use up the limit on the first commit's changes
+// given: servers that answer every request with a refused token (401), with no such repository (404), with a used-up rate limit (GitHub: 403 with X-RateLimit-Remaining 0; GitLab: 429 with Retry-After 3600, a wait longer than the read takes, so that the limit is named at once; the brief wait is TST-2026111150), with a 502 or with no answer at all — a fetch that fails as a browser's does —; and servers that list the commits well and then use up the limit on the first commit's changes
 // input: readHistory("SPEC.md", {}) on each; readHistory(null, { ref: "no-such-branch" }) on the missing repository
 // expect: HostError TokenRefused naming the token and the page where it is renewed; NotFound naming the repository and the branch; RateLimited naming the account's limit and, on GitHub, when it resets; Unreachable with the server's status or the browser's reason; and RateLimited, not a list of the commits read so far, for the limit used up on the changes
 test("MOD-repository-hosts readHistory — a refused token, a missing repository, a used-up rate limit and an unreachable server are the module's named failures (GitHub, GitLab)", async () => {
@@ -508,7 +508,7 @@ test("MOD-repository-hosts readHistory — a refused token, a missing repository
   const ghLimited = await using(fakeGitHub({ answer: () => json(403, { message: "API rate limit exceeded for user ID 1." }, limited) }).fetch,
     () => failure(ghHost().readHistory("SPEC.md", {})));
   assert.deepEqual([ghLimited?.name, ghLimited?.limit, ghLimited?.resetsAt?.getTime()], ["RateLimited", "account", RESET * 1000], "GitHub");
-  const glLimited = await using(fakeGitLab({ answer: () => json(429, { message: "Retry later" }, { "Retry-After": "60" }) }).fetch,
+  const glLimited = await using(fakeGitLab({ answer: () => json(429, { message: "Retry later" }, { "Retry-After": "3600" }) }).fetch,
     () => failure(glHost().readHistory("SPEC.md", {})));
   assert.deepEqual([glLimited?.name, glLimited?.limit], ["RateLimited", "account"], "GitLab");
 
