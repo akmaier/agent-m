@@ -102,7 +102,7 @@ test("TST-1380002: the places that hold the Bridge's and the git login's credent
 // guards: NO MODEL READS A CREDENTIAL
 // given: the person's home /h, the agent's folders /h/work and /w/"jobs", the hidden place /d
 // input: seatbeltProfile
-// expect: the profile allows by default, denies every write, allows writing /private/tmp, /private/var/folders and /dev, then denies reading and writing /h, then allows reading and writing the two folders, and only then denies reading and writing /d — a later rule overrides an earlier one —; it refuses the keychain's three services; the quote in a path is escaped; counter-proof: no rule refuses a Unix socket, so the SSH agent's stays open
+// expect: the profile allows by default, denies every write, allows writing /private/tmp, /private/var/folders and /dev, then denies reading and writing /h, then allows reading the metadata of /h — the folder on the way to /h/work — and of no folder outside /h, then allows reading and writing the two folders, and only then denies reading and writing /d — a later rule overrides an earlier one —; it refuses the keychain's three services; the quote in a path is escaped; counter-proof: no rule refuses a Unix socket, so the SSH agent's stays open
 test("TST-1380003: the Seatbelt profile lets the agent read and write its folders, and nothing else of the person's home", () => {
   const profile = seatbeltProfile({ personHome: "/h", folders: ["/h/work", '/w/"jobs"'], hidden: ["/d"] });
   const at = (text, from = 0) => { const index = profile.indexOf(text, from); assert.notEqual(index, -1, `the profile holds ${text}:\n${profile}`); return index; };
@@ -111,6 +111,9 @@ test("TST-1380003: the Seatbelt profile lets the agent read and write its folder
   assert.ok(allowDefault < denyWrite && denyWrite < allowWrite && allowWrite < denyHome && denyHome < allowFolders && allowFolders < hide, profile);
   for (const path of ['(subpath "/private/tmp")', '(subpath "/private/var/folders")', '(subpath "/dev")']) { const index = at(path, allowWrite); assert.ok(index < denyHome, `temporary: ${path}`); }
   assert.ok(at('(subpath "/h")', denyHome) < allowFolders, "the person's home is refused");
+  const metadata = at("(allow file-read-metadata");
+  assert.ok(denyHome < metadata && metadata < allowFolders, "the folders on the way are allowed after the home is refused");
+  assert.equal(profile.slice(metadata, allowFolders).trim(), '(allow file-read-metadata\n  (literal "/h"))', "only the metadata of the folders on the way, as literals: /h, none for /w");
   for (const path of ['(subpath "/h/work")', '(subpath "/w/\\"jobs\\"")']) { const index = at(path, allowFolders); assert.ok(index < hide, `the agent's folder: ${path}`); }
   assert.ok(at('(subpath "/d")', hide) > hide, "hidden after the folders");
   for (const service of ["com.apple.SecurityServer", "com.apple.securityd.xpc", "com.apple.secd"]) at(`(global-name "${service}")`);
@@ -195,12 +198,14 @@ const fs = require("node:fs"), net = require("node:net"), { spawnSync } = requir
 const [data, person, checkout, instance, socket] = process.argv.slice(2);
 const read = (path) => { try { return fs.readFileSync(path, "utf8").includes(${JSON.stringify(SECRET)}) ? "secret" : "read"; } catch (error) { return error.code; } };
 const write = (path) => { try { fs.writeFileSync(path, "x"); return "written"; } catch (error) { return error.code; } };
+const tried = (act) => { try { return act(); } catch (error) { return error.code; } };
 const keychain = spawnSync("/usr/bin/security", ["find-certificate", "-c", "Apple Root CA", "/System/Library/Keychains/SystemRootCertificates.keychain"]).status;
 const found = { data: read(data + "/pairing-token"), ssh: read(person + "/.ssh/id_fixture"), credentials: read(person + "/.git-credentials"), gh: read(person + "/.config/gh/hosts.yml"),
   gitconfig: write(person + "/.gitconfig"), instance: write(instance + "/planted"), checkout: write(checkout + "/new.txt"), home: write(process.env.HOME + "/new.txt"),
   readme: read(checkout + "/README.md"), personFile: read(person + "/.gitconfig"), knownHosts: read(process.env.HOME + "/.ssh/known_hosts"),
   gitSsh: process.env.GIT_SSH_COMMAND ?? null, env: Object.values(process.env).some((value) => value.includes(${JSON.stringify(SECRET)})), sshAuthSock: process.env.SSH_AUTH_SOCK ?? null,
-  homeVar: process.env.HOME, keychain };
+  homeVar: process.env.HOME, keychain, ancestor: tried(() => fs.statSync(person).isDirectory()), listing: tried(() => fs.readdirSync(person).length),
+  resolved: tried(() => fs.realpathSync(checkout)) };
 const c = net.connect(socket);
 c.on("data", (d) => { found.socket = String(d); console.log(JSON.stringify(found)); process.exit(0); });
 c.on("error", (error) => { found.socket = error.code; console.log(JSON.stringify(found)); process.exit(0); });
@@ -219,7 +224,7 @@ const ran = (command, args, options) => new Promise((resolve, reject) => {
 // guards: NO MODEL READS A CREDENTIAL
 // given: on macOS, a fixture computer — the person's home with .ssh/id_fixture, .ssh/known_hosts, .git-credentials, .config/gh/hosts.yml and .gitconfig, the Bridge's data folder with its pairing token, in the person's home an agent's working folder with the clone of the instance and the job's checkout —, a fixture SSH agent socket that answers "hello", and a Bridge whose environment holds a token in GH_TOKEN and the socket in SSH_AUTH_SOCK
 // input: the probe run in the agent's enclosure — wrap(node, [probe, …], { workdir: the checkout, writable: [the checkout] }) after prepare —, and the same probe run as a plain child with the Bridge's environment
-// expect: in the enclosure, the pairing token, the SSH key, git's credentials, gh's token and the person's .gitconfig cannot be read (EPERM), the person's .gitconfig cannot be written (EPERM), the clone of the instance, the checkout and the agent's home — all in the working folder — can, the checkout's README is read, the home's .ssh/known_hosts is the person's copy and GIT_SSH_COMMAND names it, no variable holds the token, SSH_AUTH_SOCK names the socket, HOME is the agent's home, the keychain does not find the public root certificate (44) and the SSH agent's socket answers; counter-proof: as a plain child each holder is read and the .gitconfig written, the variable holds the token and the keychain finds the certificate (0)
+// expect: in the enclosure, the person's home — the folder on the way to the working folder — can be stat'ed and the checkout's path resolved, but the home cannot be listed (EPERM); the pairing token, the SSH key, git's credentials, gh's token and the person's .gitconfig cannot be read (EPERM), the person's .gitconfig cannot be written (EPERM), the clone of the instance, the checkout and the agent's home — all in the working folder — can, the checkout's README is read, the home's .ssh/known_hosts is the person's copy and GIT_SSH_COMMAND names it, no variable holds the token, SSH_AUTH_SOCK names the socket, HOME is the agent's home, the keychain does not find the public root certificate (44) and the SSH agent's socket answers; counter-proof: as a plain child each holder is read and the .gitconfig written, the variable holds the token and the keychain finds the certificate (0)
 test("TST-1380007: on macOS an enclosed agent lives in its working folder with the person's SSH agent, and reaches no credential", async (t) => {
   if (process.platform !== "darwin") { t.skip("Seatbelt runs on macOS only"); return; }
   const machine = computer(t);
@@ -251,6 +256,9 @@ test("TST-1380007: on macOS an enclosed agent lives in its working folder with t
   assert.equal(inside.sshAuthSock, machine.socket);
   assert.equal(inside.homeVar, enclosure.home);
   assert.equal(inside.keychain, 44, "the keychain finds nothing");
+  assert.deepEqual([inside.ancestor, inside.resolved], [true, machine.checkout], "failure node: the folder of the home on the way to the working folder can be stat'ed, so the checkout's path resolves");
+  assert.equal(inside.listing, "EPERM", "but the person's home cannot be listed");
+  assert.deepEqual([plain.ancestor, typeof plain.listing], [true, "number"], "known positive: a plain child stats and lists it");
   assert.equal(inside.socket, "hello", "the SSH agent's socket answers");
   assert.equal(readFileSync(join(machine.person, ".gitconfig"), "utf8"), "x", "the plain child's write stands, the enclosed one's did not happen");
   assert.equal(existsSync(join(enclosure.home, "new.txt")), true);
