@@ -84,18 +84,18 @@ test("TST-1238001: MOD-desktop-shell makes an existing data folder its user's al
 // guards: UC-044; THE BRIDGE OPENS ITS TUNNELS ITSELF
 // given: a matching plain canonical export with one named bridge through the jump host and browser-only secrets
 // input: takeExport selects that named Bridge for this desktop Bridge
-// expect: the reverse plan keeps remote port 4111 and loopback bridge port 4711 while secrets stay out of settings
+// expect: the reverse plan keeps remote port 4111 and loopback bridge port 4711 while secrets stay out of settings; the served products stay those the paired browser handed, not the export's
 // Planted fault: reading remote-session instead of bridge:<name> makes this import report MissingTunnelSettings.
 test("TST-291002: MOD-desktop-shell imports a named Bridge-through-jump-host entry as one reverse plan", async () => {
   const dataFolder = folder();
   try {
-    saveSettings(dataFolder, { name: "manual", port: 5511, products: [], every: 123, paused: true, jumpHost: null, tunnels: [] });
+    saveSettings(dataFolder, { name: "manual", port: 5511, products: ["https://github.com/example/handed"], every: 123, paused: true, jumpHost: null, tunnels: [] });
     const text = plainExport({
       products: ["https://github.com/example/product"], "jump-host": jumpHost, "bridge:lab": bridge, "bridge:direct": { address: "http://127.0.0.1:4711", token: "direct-token" },
       "github-token": { token: "must-not-persist" }, "endpoint:openai": { key: "must-not-persist" }, "mailbox": { imap: { password: "must-not-persist" } },
     });
     const taken = await takeExport(dataFolder, { instance: "example/agent-m", ownComputer: false, bridge: "lab" }, text);
-    assert.deepEqual(taken.products, ["https://github.com/example/product"]);
+    assert.deepEqual(taken.products, ["https://github.com/example/handed"], "failure node: the served products are those the paired browser handed, not the export's");
     assert.equal(taken.name, "lab");
     assert.equal(taken.port, 5511, "failure node: import preserves the existing local Bridge API port");
     assert.equal(taken.paused, true, "failure node: import preserves the current explicit pause state");

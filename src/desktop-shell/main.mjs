@@ -104,7 +104,7 @@ export async function start(electron, supplied = {}) {
     startupFailure = null;
     return bridgeState();
   };
-  // A save of the agents, the folder or the served products restarts the Bridge, whose start checks every working folder out in the background
+  // A save of the agents or the folder restarts the Bridge, whose start checks every working folder out in the background
   // (compose's checkingOut), which the window's "checkout" waits for.
   electron.ipcMain.handle("bridge-state", async (_event, action, value) => {
     if (!action) return bridgeState();
@@ -171,7 +171,7 @@ export async function start(electron, supplied = {}) {
       }, value?.text ?? "");
       if (taken.pairingToken) await bridge.pairAnew(taken.pairingToken);
       paused = taken.paused;
-      return { ...(await restart()), taken: { products: taken.products, jumpHost: taken.jumpHost, tunnels: taken.tunnels } };
+      return { ...(await restart()), taken: { jumpHost: taken.jumpHost, tunnels: taken.tunnels } };
     }
     throw new TypeError("Unknown Bridge window request.");
   });

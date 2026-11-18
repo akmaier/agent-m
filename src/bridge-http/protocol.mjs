@@ -20,6 +20,7 @@ export const bridgeApi = {
       models: [{ model: "string", context: ["number", "null"] }] }], missing: [{ name: "string" }] } },
     { method: "PUT", path: "/v1/agents/{agent}", request: { place: "string", capabilities: ["string"], models: [{ model: "string", context: "number" }] }, answer: { declared: "boolean" } },
     { method: "PUT", path: "/v1/repository-tokens", request: { tokens: [{ repository: "string", token: "string" }] }, answer: { kept: "number" } },
+    { method: "PUT", path: "/v1/products", request: { products: ["string"] }, answer: { served: "number" } },
     { method: "POST", path: "/v1/jobs", request: { product: "string", record: "string", commit: "string", task: "string?" }, answer: { accepted: "string" } },
     { method: "GET", path: "/v1/jobs", answer: { jobs: [{ id: "string", product: "string", kind: "string", agent: "string", state: "string", started: "string", usage: "object" }] } },
     { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", partial: "string", ended: "boolean" } },

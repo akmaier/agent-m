@@ -226,9 +226,14 @@ async function jobs(target, context, params = {}) {
 let taken = null;
 async function settings(target, context) {
   const state = await window.bridge.state("settings"), value = state.settings;
-  const name = field("Name", value.name), port = field("Port", value.port, "number"), products = area("Products", value.products.join("\n")), every = field("Interval seconds", value.every, "number");
+  const name = field("Name", value.name), port = field("Port", value.port, "number"), every = field("Interval seconds", value.every, "number");
+  // The served products are those the paired browser handed the Bridge (UC-044 step 4): listed, never entered here.
+  const products = document.createElement("section"), list = document.createElement("ul");
+  list.append(...value.products.map((address) => Object.assign(document.createElement("li"), { textContent: address })));
+  products.append(Object.assign(document.createElement("h2"), { textContent: "Served products" }),
+    value.products.length ? list : Object.assign(document.createElement("p"), { className: "muted small", textContent: "None yet: the paired dashboard hands this Bridge its products." }));
   const save = button("Save settings", async () => {
-    await window.bridge.state("save-settings", { name: name.input.value, port: Number(port.input.value), products: products.input.value.split("\n").filter(Boolean), every: Number(every.input.value) });
+    await window.bridge.state("save-settings", { name: name.input.value, port: Number(port.input.value), every: Number(every.input.value) });
     await settings(target, context);
   }, "primary");
   const exportText = area("Settings export", ""), passphrase = field("Passphrase", "", "password"), bridge = field("Bridge name", ""), own = field("This is my own computer", "", "checkbox");
@@ -243,8 +248,8 @@ async function settings(target, context) {
       notice("unreachable", { text: result.textContent });
     }
   });
-  if (taken) result.textContent = `Taken over: ${taken.products.length} product address(es), jump host ${taken.jumpHost.hostname}, ${taken.tunnels.length} tunnel plan(s).`;
-  target.replaceChildren(Object.assign(document.createElement("h1"), { textContent: "Bridge settings" }), navigation(context), explain("bridge-import-export"), name.caption, port.caption, products.caption, every.caption, save, exportText.caption, passphrase.caption, bridge.caption, own.caption, imported, result);
+  if (taken) result.textContent = `Taken over: jump host ${taken.jumpHost.hostname}, ${taken.tunnels.length} tunnel plan(s).`;
+  target.replaceChildren(Object.assign(document.createElement("h1"), { textContent: "Bridge settings" }), navigation(context), explain("bridge-import-export"), name.caption, port.caption, every.caption, save, products, exportText.caption, passphrase.caption, bridge.caption, own.caption, imported, result);
 }
 async function tunnels(target, context) {
   const state = await window.bridge.state("tunnels"), heading = document.createElement("h1"), key = document.createElement("code"), list = document.createElement("ul");
