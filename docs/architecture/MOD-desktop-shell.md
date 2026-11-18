@@ -121,7 +121,9 @@ Bridge's per-user data folder, written only by this module.
   the API (MOD-bridge-http, `PUT /v1/agents/{agent}`); and `chrome`, whether the Bridge starts every session of that
   agent with its Chrome integration (UC-044 step 3), `false` until the person ticks it in the window, which
   `PUT /v1/agents/{agent}` leaves as it is; an agent no longer installed stays listed and is shown as missing.
-- `products` — the addresses of the product repositories whose queued jobs and runs this Bridge serves.
+- `products` — the addresses of the product repositories whose queued jobs and runs this Bridge serves: those saved in the
+  window or taken over from an export, and each that a message of the prompt bar to a CLI session names first
+  (MOD-bridge-jobs, `POST /v1/ask`), which the shell adds and saves as the window saves it.
 - `every` — the seconds between two readings of the served products; by default 300.
 - `paused` — whether the Bridge was paused when it last ran; it starts paused again.
 - `jumpHost` — the jump host's `hostname`, `user` and `sshPort`, the fields of MOD-bridge-client's `JumpHost` a Bridge
@@ -228,7 +230,7 @@ The rest of its surface faces the person, not another module:
     passphrase when the export is locked; what was taken over.
   - *Updates* — the running version, and a newer release when there is one.
 - **The checkout** (UC-044, step 3). At start, and at once whenever the agents, the folder or the served products are saved
-  in the window, an export is taken over, or the paired browser hands it its repository tokens, the shell has
+  in the window or a message adds a served product, an export is taken over, or the paired browser hands it its repository tokens, the shell has
   MOD-bridge-jobs' `checkOut` bring every offered agent's working folder to the instance and the served products, in the
   background, and keeps its result in memory for the *Agents* view, which shows it once it is there; a checkout asked for
   while one runs follows it.
