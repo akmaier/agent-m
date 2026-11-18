@@ -59,7 +59,7 @@ const RETURN_CONTROLS = `[...document.querySelectorAll("main a[href]")].map((anc
 const READ_FIRST = { "#uc": "#review/uc", "#arc": "#review/arc", "#module": "#review/arc" };
 const found = new Map(); // "<address> <width name>" -> { violations: [{ id, impact, nodes, first }], text, ticks, returnControls }
 const planted = {};
-let site = null, browser = null;
+let site = null, browser = null, other = null;
 const started = Date.now();
 const progress = (step) => console.log(`site-accessibility ${((Date.now() - started) / 1000).toFixed(1)} s: ${step}`);
 
@@ -69,15 +69,19 @@ const setUp = async () => {
   progress(`axe-core ${AXE_VERSION} is staged`);
   site = await serveSite({ files: await files(), history: await history(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
   const executable = await stageElectron();
+  // One window for each width, drawn at the same time: the two widths are independent of each other, and one after the other they took most of a CI job's
+  // two minutes (A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES). Each window has its own data folder, as openWindow makes it. They are opened one after the
+  // other: on Linux each runs behind an xvfb-run of its own, whose --auto-servernum picks a free display only once the other's display is taken.
   browser = await openWindow(executable, `${site.address}/__blank`);
-  const page = browser.page;
-  await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
+  other = await openWindow(executable, `${site.address}/__blank`);
+  for (const each of [browser, other]) await configure(each.page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
   // axe-core is added to the document after the page has drawn, so that its script is no part of what is checked.
-  const check = async () => {
+  const checkOn = (page) => async () => {
     await page.evaluate(`typeof axe === "undefined" ? (0, eval)(${JSON.stringify(axe)}) : 0`);
     return await page.evaluate(RUN_AXE);
   };
-  for (const [kind, width] of WIDTHS) {
+  await Promise.all(WIDTHS.map(async ([kind, width], at) => {
+    const page = [browser, other][at].page, check = checkOn(page);
     await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
     for (const route of ROUTES) {
       // A list offers a tick for a file its page has shown: the lists with ticks are drawn after the review page that shows their files.
@@ -90,7 +94,8 @@ const setUp = async () => {
         returnControls: await page.evaluate(RETURN_CONTROLS) });
     }
     progress(`every route is checked at a ${kind}'s width`);
-  }
+  }));
+  const page = browser.page, check = checkOn(page);
   // The counter-proofs: a page as it is, then the same page with a button without a name and an image without a text alternative planted.
   await configure(page, "Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await show(page, site, "#how");
@@ -121,10 +126,11 @@ const setUp = async () => {
   progress("the counter-proofs are checked");
   for (const [key, value] of found) console.log(`site-accessibility ${key}: ${value.violations.map((each) => `${each.id}/${each.impact}/${each.nodes}[${each.first.slice(0, 70)}]`).join(" ")}`);
 };
-before(async () => { try { await setUp(); } catch (failure) { throw browser ? withStderr(failure, browser.stderr()) : failure; } }, { timeout: 110000 });
+before(async () => { try { await setUp(); } catch (failure) { throw browser ? withStderr(failure, `${browser.stderr()}${other ? `\n${other.stderr()}` : ""}`) : failure; } }, { timeout: 110000 });
 
 after(async () => {
   browser?.close();
+  other?.close();
   await site?.close();
 });
 
