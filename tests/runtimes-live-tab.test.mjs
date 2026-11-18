@@ -81,11 +81,12 @@ test("liveState and jobLog — the tab holds a job while its runOnTab is pending
 
 // TST-535012 · level: unit · module: MOD-runtimes
 // guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049
-// given: a job in the tab that ends normally (the endpoint answers a draft); and one that fails (the endpoint answers 500)
+// given: a job in the tab that ends normally (the endpoint answers a draft); and one that fails (the endpoint answers 400, which MOD-endpoint-calls does not
+// retry, so that the failure settles at once rather than after its backoff)
 // input: runOnTab to its end; liveState after it
 // expect: while the call is pending liveState is held (known true, running true) — the known positive —; after the call settled, for the job that ended and for the one that failed, the live state of a job the tab does not hold: known false, running false
 test("runOnTab — the tab holds a job until the call ends, whether it ends or fails", async () => {
-  for (const status of [200, 500]) {
+  for (const status of [200, 400]) {
     const { fake, record, loose } = await queued();
     globalThis.fetch = async (url, init) => {
       arrive();
