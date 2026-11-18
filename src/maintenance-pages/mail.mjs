@@ -563,6 +563,7 @@ async function render(target, context, params = {}) {
     }
     if (!row) { details.replaceChildren(el("p", "muted mail-none", "Choose a mail in the list to read it here.")); return; }
     // A mail to decide: Propose stands right under its text, as a mail program's action row, above the fields it fills.
+    if (row.kind === "proposable" && !state.reviews.has(row.id)) { details.replaceChildren(back, el("p", "mail-waiting", "The participants who can propose issues are being asked; the mail opens with them.")); return; }
     if (row.kind === "proposable") { details.replaceChildren(back, state.reviews.get(row.id).item); details.querySelector(".mail-text")?.after(proposeSlot); return; }
     const shown = el("div", "mail mail-decided-details");
     shown.setAttribute("data-mail", row.id);
@@ -637,18 +638,25 @@ async function render(target, context, params = {}) {
       return;
     }
     problemSlot.replaceChildren();
-    if (!state.session) { try { state.session = await sessionOf(context, have, products); } catch (failure) { problemSlot.append(el("p", "mail-propose-problem", `No participant can be offered, since the instance's participants could not be read: ${failed(failure)}`)); } }
     const before = new Map(state.rows.map((row) => [row.id, row]));
     const rows = [
       ...found.proposable.map(({ mail, people }) => ({ id: mail.id, mail, people, kind: "proposable", decisions: before.get(mail.id)?.kind === "proposable" ? before.get(mail.id).decisions : [] })),
       ...found.decided.map(({ mail, product, issue }) => ({ id: mail.id, mail, kind: "decided", decisions: issue === null ? [] : [{ product, issue }] })),
       ...found.attached.map(({ id, mail, product, issue }) => ({ id, mail, kind: "attached", decisions: [{ product, issue }] })),
     ].sort(NEWEST_FIRST);
+    state.rows = rows;
+    // The first reading lists the mails at once: the participants a proposal is offered to are asked of every Bridge this browser keeps (sessionOf), which
+    // takes the Bridges seconds, and no line of the list needs them; a mail opened meanwhile says that they are being asked.
+    if (inbox.parentNode !== page) {
+      drawList();
+      page.replaceChildren(problemSlot, inbox, readStep);
+      status.textContent = "The mails are listed; the participants who can propose issues are being asked.";
+    }
+    if (!state.session) { try { state.session = await sessionOf(context, have, products); } catch (failure) { problemSlot.append(el("p", "mail-propose-problem", `No participant can be offered, since the instance's participants could not be read: ${failed(failure)}`)); } }
     for (const id of [...state.reviews.keys()]) if (!found.proposable.some((entry) => entry.mail.id === id)) state.reviews.delete(id);
     for (const entry of found.proposable) {
       if (!state.reviews.has(entry.mail.id)) state.reviews.set(entry.mail.id, reviewOf(entry, { products, store, context, onMarked, onDecided, session: state.session, choice, hooks }));
     }
-    state.rows = rows;
     // The mails to answer, and the issue of every listed mail, as repliesDue gives them with this reading (UC-038 step 7).
     // The mails of this reading, in which repliesDue finds the listed mails it holds (withReading).
     state.mailbox = { connection: have.connection, box: have.box, products, reading: [...found.proposable, ...found.decided, ...found.attached].map(({ mail }) => mail) };
@@ -664,7 +672,8 @@ async function render(target, context, params = {}) {
       if (!rows.some((row) => row.id === wanted)) {
         try { state.found = { id: wanted, mail: (await have.box.find([wanted]))[wanted] ?? null }; } catch (failure) { state.found = { id: wanted, mail: null, problem: failed(failure) }; }
       }
-      state.open = wanted;
+      // A mail the author opened from the list meanwhile, which the first reading lists before it ends, stays open.
+      if (state.open === null) state.open = wanted;
     }
     if (!rows.some((row) => row.id === state.open) && state.found?.id !== state.open) state.open = null;
     listed = proposable();
