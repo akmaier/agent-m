@@ -21,6 +21,7 @@ provides:
   - testBridge
   - declareAgent
   - handTokens
+  - handProducts
   - handOver
   - ask
   - bridgeJobs
@@ -135,6 +136,10 @@ uses; the key itself stays on its computer.
   travel only in that request's body (`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). Crosses the network; fails with
   every `BridgeError` but `AskFailed`, among them `BridgeFailed` with `invalid-request` naming a repository whose token
   the Bridge refuses.
+- `handProducts(bridge: Bridge, products: string[]) -> Promise<{ served: number }>` — `PUT /v1/products`: the address of
+  every product this browser manages, which replace those the Bridge served before (UC-044, step 4); an empty list makes it
+  serve none. Crosses the network; fails with every `BridgeError` but `AskFailed`, among them `BridgeFailed` with
+  `invalid-request` for a list that is not one of repository addresses.
 - `handOver(bridge: Bridge, job: { product: string, record: string, commit: string, task?: string }) -> Promise<{
   accepted: string }>` — `POST /v1/jobs`: hands over a job whose start record is committed — the product's address, the
   path of its start record, and the commit that holds it. The Bridge runs the job from that record, so nothing else

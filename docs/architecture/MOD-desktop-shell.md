@@ -121,7 +121,8 @@ Bridge's per-user data folder, written only by this module.
   the API (MOD-bridge-http, `PUT /v1/agents/{agent}`); and `chrome`, whether the Bridge starts every session of that
   agent with its Chrome integration (UC-044 step 3), `false` until the person ticks it in the window, which
   `PUT /v1/agents/{agent}` leaves as it is; an agent no longer installed stays listed and is shown as missing.
-- `products` — the addresses of the product repositories whose queued jobs and runs this Bridge serves.
+- `products` — the addresses of the product repositories whose queued jobs and runs this Bridge serves: those the paired
+  browser handed it last (`PUT /v1/products`); none is entered in the window.
 - `every` — the seconds between two readings of the served products; by default 300.
 - `paused` — whether the Bridge was paused when it last ran; it starts paused again.
 - `jumpHost` — the jump host's `hostname`, `user` and `sshPort`, the fields of MOD-bridge-client's `JumpHost` a Bridge
@@ -130,7 +131,7 @@ Bridge's per-user data folder, written only by this module.
   always the Bridge's own key.
 
 **Taking over an export** (`THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`). Of the settings Access's
-`readExport` returns, the Bridge takes `products`, `jump-host` and the `bridge:<name>` entries reached through the jump
+`readExport` returns, the Bridge takes `jump-host` and the `bridge:<name>` entries reached through the jump
 host. The person says in the window whether this computer is their own — then each of those Bridges becomes a forward —
 or which of them it is — then that entry's name becomes the Bridge's name, its port that of the reverse tunnel, and its
 token the pairing token, so that the dashboard reaches this Bridge with the token it already holds. The plans are made by MOD-bridge-client's
@@ -178,8 +179,10 @@ The rest of its surface faces the person, not another module:
   every kind a Bridge may run; starts the server on `127.0.0.1` at the settings' port, for the instance's origin, with
   the name of the settings in force and the version of `build.json`, `null` for a start without it, and with the
   handlers of MOD-bridge-jobs, MOD-mail-protocols and MOD-tunnels, and its own for `PUT /v1/agents/{agent}`, which keeps
-  an agent's declaration in the settings, and for `PUT /v1/repository-tokens`, which keeps the tokens the paired browser
-  hands it through MOD-bridge-jobs' `keepRepositoryTokens` and then checks out again (`THE LOCAL BRIDGE BINDS TO LOOPBACK
+  an agent's declaration in the settings, for `PUT /v1/repository-tokens`, which keeps the tokens the paired browser
+  hands it through MOD-bridge-jobs' `keepRepositoryTokens` and then checks out again, and for `PUT /v1/products`, which
+  keeps the products the paired browser hands it in the settings and in the products the running Bridge serves and then
+  checks out again (`THE LOCAL BRIDGE BINDS TO LOOPBACK
   ONLY`); checks out every working folder (*The checkout*, below); opens
   the tunnels (`THE BRIDGE OPENS ITS TUNNELS ITSELF`); and, unless paused, starts watching the served products, so that
   their runs go on while no tab is open (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). A port in use is shown with
@@ -224,11 +227,11 @@ The rest of its surface faces the person, not another module:
     ONCE`).
   - *Tunnels* — the jump host; the Bridge's public key with *Copy* and where to add it on the jump host; each tunnel's
     state with its reason.
-  - *Settings* — the name, the port, the served products and the interval; *Import a settings export*, with its
+  - *Settings* — the name, the port and the interval, and the served products, which it lists; *Import a settings export*, with its
     passphrase when the export is locked; what was taken over.
   - *Updates* — the running version, and a newer release when there is one.
-- **The checkout** (UC-044, step 3). At start, and at once whenever the agents, the folder or the served products are saved
-  in the window, an export is taken over, or the paired browser hands it its repository tokens, the shell has
+- **The checkout** (UC-044, step 3). At start, and at once whenever the agents or the folder are saved
+  in the window, an export is taken over, or the paired browser hands it its repository tokens or its products, the shell has
   MOD-bridge-jobs' `checkOut` bring every offered agent's working folder to the instance and the served products, in the
   background, and keeps its result in memory for the *Agents* view, which shows it once it is there; a checkout asked for
   while one runs follows it.

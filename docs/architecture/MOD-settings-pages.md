@@ -46,6 +46,7 @@ uses:
   - MOD-bridge-client.probe
   - MOD-bridge-client.declareAgent
   - MOD-bridge-client.handTokens
+  - MOD-bridge-client.handProducts
   - MOD-bridge-client.allocatePort
   - MOD-bridge-client.tunnelCommands
   - MOD-bridge-client.proxyConfiguration
@@ -139,7 +140,7 @@ resource on its runner, queued to that runner's route; for its run panel it hand
 - `setup.mjs` — getting one's own Agent M and finishing its setup.
 - `products.mjs` — adding a product.
 - `endpoints.mjs`, `participants.mjs`, `library.mjs`, `resources.mjs`, `mailbox.mjs`, `bridge.mjs` — the guided pages.
-- `bridge-tokens.mjs` — the repository tokens handed to the Bridges this browser keeps.
+- `bridge-tokens.mjs` — what this browser hands the Bridges it keeps: its repository tokens and its products.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `tests/test_settings_page.py`, `tests/test_token_scope_documented.py`, `tests/settings-pages-export-import.test.mjs`, `tests/settings-pages-settings-regressions.test.mjs`: their headers name this module.
 
@@ -298,13 +299,15 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     answers a `reason` or cannot be reached, the page says that nothing could be read and why, and the rows stay as they
     were (UC-044 5a); and one lacking a place, a model or a
     model's context named as not offered (UC-049 1b); and, beside *Pair*, the line that this browser's repository tokens
-    go to every Bridge it keeps, which clones, pushes and opens pull and merge requests with them.
-  - **The repository tokens a Bridge holds** (UC-044, step 4; `A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). While a
+    and its products go to every Bridge it keeps, which serves those products and clones, pushes and opens pull and merge
+    requests with the tokens.
+  - **The repository tokens and the products a Bridge holds** (UC-044, step 4; `A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`). While a
     route of the view is shown, each write or clear of a repository token — `github-token`, `github-token:<repository>`,
-    `gitlab-token:<project>` — or of a Bridge — `bridge`, `bridge:<name>` —, the import and *Clear everything* included,
+    `gitlab-token:<project>` —, of `products`, or of a Bridge — `bridge`, `bridge:<name>` —, the import and *Clear everything* included,
     hands every Bridge this browser keeps, with MOD-bridge-client's `handTokens`, every repository token it keeps, each
-    with the address of the repository its key names, as `tokenKeyAddress` reads it; the writes of one click hand them
-    once. A Bridge that does not take them is named with the reason in a notice, and keeps what it held.
+    with the address of the repository its key names, as `tokenKeyAddress` reads it, and, with `handProducts`, the address of every product
+    `products` lists; the writes of one click hand them once. A Bridge that does not take them is named with the reason in
+    a notice, and keeps what it held.
   - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
     with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key
     `github-token`, the product for its own key, and for *Change* the repository its setting's key names. A refusal of
