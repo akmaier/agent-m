@@ -82,7 +82,8 @@ double-clicking it, and copying one token. Nobody types a command.
    **Check again**. A folded explanation says that the agent will use its own login on this computer, so no
    key is needed and the person's subscription pays. The person ticks the installed agents this Bridge is to offer, and
    chooses one **folder**; the Bridge makes in it the working folder of each ticked agent, `<folder>/<agent>`, in which
-   it keeps that agent's clones of the instance and of the products it serves. For an agent that has a Chrome
+   it keeps that agent's clones of the instance and of the products it serves — those saved in its settings, and each
+   that a conversation's first message to one of its agents names (UC-049, step 4). For an agent that has a Chrome
    integration — Claude Code and Codex —, the person may also tick **Chrome**: the Bridge then starts every session of
    that agent with its Chrome integration, so that the agent can use the person's Chrome; it is off until ticked. When
    the person saves, the Bridge at once
