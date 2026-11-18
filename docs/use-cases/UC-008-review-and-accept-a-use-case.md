@@ -79,19 +79,15 @@ sequenceDiagram
   to the step that stores the project's token instead.
 - **4a. The reviewer has no write access.** The commit is refused; the dashboard says so and offers
   the GitHub path, where the commit becomes a pull request that counts once a maintainer merges it.
-- **4b. A file shown changed before the click.** No record names it, since the text shown is no longer its newest. The
-  dashboard names it, reads it again at once and shows its new text as its difference to the text shown, so that the
-  reviewer accepts it, after reading it, with the next click; no reload is needed. The other files of the click are
-  recorded as before.
 - **3d. The reviewer wants to accept several use cases at once.** Each use case not accepted has an
   empty tick box on the list, read or not; the reviewer ticks the ones to accept. **Accept ticked**
   writes one commit with one record per ticked file, each naming the text the page read of it. A file
-  that changed after the page read it is left out and named (4b).
+  that changed after the page read it is left out and named.
 - **3e. The reviewer wants to accept every open use case at once.** **Review all** opens one page with
   every open or changed use case in sequence — a changed one as its difference to the last accepted text
   (2a), a new one in full. Below them, **Accept all N shown** — one click — writes one commit with one
   record per use case on the page, each naming the text shown there. A use case that changed after the
-  page was built is left out and named (4b).
+  page was built is left out and named.
 - **2a. The use case changed since it was last accepted.** Above the text, the dashboard shows the
   difference to the text the most recent approval record for this identifier names — also when the file
   was renamed since. The reviewer reads only what changed and accepts as in step 3.
