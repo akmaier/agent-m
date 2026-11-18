@@ -650,7 +650,7 @@ async function render(target, context, params = {}) {
     if (inbox.parentNode !== page) {
       drawList();
       page.replaceChildren(problemSlot, inbox, readStep);
-      status.textContent = "Read. The participants who can propose issues are being asked.";
+      status.textContent = "The mails are listed; the participants who can propose issues are being asked.";
     }
     if (!state.session) { try { state.session = await sessionOf(context, have, products); } catch (failure) { problemSlot.append(el("p", "mail-propose-problem", `No participant can be offered, since the instance's participants could not be read: ${failed(failure)}`)); } }
     for (const id of [...state.reviews.keys()]) if (!found.proposable.some((entry) => entry.mail.id === id)) state.reviews.delete(id);
@@ -672,7 +672,8 @@ async function render(target, context, params = {}) {
       if (!rows.some((row) => row.id === wanted)) {
         try { state.found = { id: wanted, mail: (await have.box.find([wanted]))[wanted] ?? null }; } catch (failure) { state.found = { id: wanted, mail: null, problem: failed(failure) }; }
       }
-      state.open = wanted;
+      // A mail the author opened from the list meanwhile, which the first reading lists before it ends, stays open.
+      if (state.open === null) state.open = wanted;
     }
     if (!rows.some((row) => row.id === state.open) && state.found?.id !== state.open) state.open = null;
     listed = proposable();
