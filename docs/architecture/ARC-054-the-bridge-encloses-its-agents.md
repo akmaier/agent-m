@@ -85,8 +85,9 @@ the agent is logged in and the harmless probe.
   sandbox-runtime uses for coding agents: "`sandbox-exec` on macOS, `bubblewrap` on Linux", and on Windows "a dedicated
   `srt-sandbox` local user account" (its README, [3] below).
   - **macOS — a Seatbelt profile**, applied by `/usr/bin/sandbox-exec`, which every macOS has: no installation and no
-    administrator. The profile allows by default, denies reading and writing the person's home, allows reading and
-    writing the agent's working folder, denies every other write but temporary files and `/dev`, and denies the
+    administrator. The profile allows by default, denies reading and writing the person's home, allows reading the
+    metadata of each folder of the home on the way to the agent's working folder — so that a program can resolve its own
+    path, though it cannot list those folders —, allows reading and writing the agent's working folder, denies every other write but temporary files and `/dev`, and denies the
     keychain's services; the SSH agent's socket stays open. Measured: the agents start and Codex reports its login,
     `~/.ssh` and the person's other files are refused, and ssh receives the SSH agent's keys
     (`docs/measurements/2026-11-17_an-agent-reads-only-its-working-folder.md`).
