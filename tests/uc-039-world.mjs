@@ -67,14 +67,15 @@ const addressOf = (value) => {
 };
 const envelope = (message) => `ENVELOPE (${nstring(headerOf_(message, "Date"))} ${nstring(headerOf_(message, "Subject"))} ${addressOf(headerOf_(message, "From"))} ${addressOf(headerOf_(message, "From"))} ${addressOf(headerOf_(message, "Reply-To") ?? headerOf_(message, "From"))} ${addressOf(headerOf_(message, "To"))} ${addressOf(headerOf_(message, "Cc"))} NIL ${nstring(headerOf_(message, "In-Reply-To"))} ${nstring(headerOf_(message, "Message-ID"))})`;
 
-// The IMAP server. `folders` maps a folder to its messages as raw texts; the folders Drafts and Sent are there as well, announced with their special use. The server keeps what a test needs to look at: `folders`
+// The IMAP server. `folders` maps a folder to its messages as raw texts, or { raw, received } where a test names when the server received it (an ISO
+// time), as on the Graph fixture; the folders Drafts and Sent are there as well, announced with their special use. The server keeps what a test needs to look at: `folders`
 // ({ uid, raw, deleted }), every command with whether the connection was encrypted, every login.
 async function imapServer(seed) {
   const logs = { commands: [], logins: [] };
   const folders = { INBOX: [], Drafts: [], Sent: [] };
   const nextUid = {};
   for (const [name, raws] of Object.entries({ ...folders, ...seed })) {
-    folders[name] = raws.map((raw, at) => ({ uid: at + 1, raw: Buffer.from(raw) }));
+    folders[name] = raws.map((each, at) => ({ uid: at + 1, ...(typeof each === "string" ? { raw: Buffer.from(each), received: null } : { raw: Buffer.from(each.raw), received: each.received ?? null }) }));
     nextUid[name] = raws.length + 1;
   }
   const server = net.createServer((socket) => {
@@ -138,11 +139,12 @@ async function imapServer(seed) {
         if (!line.endsWith("+}")) write("+ Ready for literal data");
         return;
       }
-      // SEARCH SINCE selects by the day a message was received, its internal date, which is here the day of its Date header.
+      // SEARCH SINCE selects by the day a message was received, its internal date: the day of its `received`; a message without one — and one appended —
+      // counts as received today, as on the Graph fixture, so that a mail whose Date header a test does not tie to today stays listed.
       if (command === "UID" && rest[0].toUpperCase() === "SEARCH") {
         const since = /\bSINCE (\d+)-(\w{3})-(\d{4})\b/i.exec(line);
         const from = since ? Date.UTC(Number(since[3]), MONTHS.indexOf(since[2].toUpperCase()), Number(since[1])) : -Infinity;
-        const day = (message) => { const at = new Date(Date.parse(headerOf_(message.raw.toString("utf8"), "Date"))); return Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()); };
+        const day = (message) => { const at = message.received ? new Date(Date.parse(message.received)) : new Date(); return Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()); };
         write(`* SEARCH${folders[folder].filter((message) => day(message) >= from).map((message) => ` ${message.uid}`).join("")}`);
         ok("UID SEARCH completed"); return;
       }
@@ -314,7 +316,7 @@ function bridgeOver(inner, state, mailHandlers) {
 
 /**
  * Starts the page of the route `replies` as a person opens it: the frame's startPage on the main page over the view of MOD-maintenance-pages, at the fragment of the route, over the mailbox of `route` ("imap": the
- * Bridge lab-pc-4 with the local IMAP and SMTP servers; "graph": the fixture of Microsoft Graph). `inbox` and `reports` name the mails the mailbox holds (raw texts; on "graph" also { raw, received }, see graphFixture), `drafts` and `sent` the folders of the same names;
+ * Bridge lab-pc-4 with the local IMAP and SMTP servers; "graph": the fixture of Microsoft Graph). `inbox` and `reports` name the mails the mailbox holds (raw texts, or { raw, received }: see imapServer and graphFixture), `drafts` and `sent` the folders of the same names;
  * `issues`, `places`, `rows` and `texts` are those of tests/maintenance-pages-world.mjs. `settings` are further settings the browser's store holds — the endpoints the prompt bar offers (UC-049 1) — and `agents`
  * the agents the Bridge lab-pc-4 lists ready, each a name — listed without a declaration — or { name, place, capabilities, models } — listed with the declaration the Bridge keeps
  * for it, which makes it a CLI session the prompt bar offers (MOD-bridge-http, GET /v1/agents). `folders` is the connection's list of folders to search. `down` pauses the Bridge's mail operations from the start. Returns the page's main element and what the fixtures kept;
