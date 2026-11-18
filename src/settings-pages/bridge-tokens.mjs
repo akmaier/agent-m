@@ -1,6 +1,6 @@
-// bridge-tokens.mjs — the repository tokens handed to the Bridges this browser keeps (MOD-settings-pages, Interfaces: The repository tokens a Bridge holds;
-// UC-044 step 4). A token's write or clear hands the tokens; a Bridge's write does so only as a pairing (pairedNow), so that saving the HTTPS address or
-// naming a Bridge through the jump host still contacts nothing.
+// bridge-tokens.mjs — what this browser hands the Bridges it keeps: its repository tokens and its products (MOD-settings-pages, Interfaces: The repository tokens
+// and the products a Bridge holds; UC-044 step 4). A token's or the products' write or clear hands both; a Bridge's write does so only as a pairing
+// (pairedNow), so that saving the HTTPS address or naming a Bridge through the jump host still contacts nothing.
 //
 // Module: MOD-settings-pages
 //
@@ -8,7 +8,7 @@
 // pairing token, and the Bridge sends it on only to the token's server. Each write or clear of a repository token, or of a Bridge, hands every Bridge the whole
 // set, so that a Bridge forgets a token the browser no longer keeps (A CLEAR IS A REAL CLEAR); a pairing hands them too, where the browser keeps any.
 
-import { bridgeAt, handTokens, settingsOf } from "../bridge-client/index.mjs";
+import { bridgeAt, handProducts, handTokens, settingsOf } from "../bridge-client/index.mjs";
 import { listSettings, readSetting, watchSettings } from "../browser-store/index.mjs";
 import { notice } from "../site-frame/index.mjs";
 import { tokenKeyAddress } from "./products.mjs";
@@ -35,28 +35,34 @@ function keptBridges(store) {
   return [...named, ...(last && typeof last.address === "string" && !lastIsNamed ? [{ ...last, name: "paired last" }] : [])];
 }
 
+// The address of every product this browser manages, as `products` lists them.
+const productsOf = (store) => (readSetting(store, "products") ?? []).filter((address) => typeof address === "string" && address);
+
 /**
- * handToBridges(store, instance) -> Promise<{ name, kept } | { name, error }[]> — hands every Bridge this browser keeps every repository token it keeps
- * (MOD-bridge-client's handTokens). A Bridge that does not take them is named with the reason in a notice of the frame, and keeps what it held.
+ * handToBridges(store, instance) -> Promise<{ name, kept, served } | { name, error }[]> — hands every Bridge this browser keeps every repository token it keeps
+ * (MOD-bridge-client's handTokens) and the address of every product it manages (handProducts). A Bridge that does not take them is named with the reason in a
+ * notice of the frame, and keeps what it held.
  */
 export async function handToBridges(store, instance) {
-  const tokens = repositoryTokens(store, instance);
+  const tokens = repositoryTokens(store, instance), products = productsOf(store);
   const jumpHost = readSetting(store, "jump-host");
   return Promise.all(keptBridges(store).map(async (entry) => {
     try {
-      return { name: entry.name, kept: (await handTokens(bridgeAt(settingsOf(entry, jumpHost)), tokens)).kept };
+      const bridge = bridgeAt(settingsOf(entry, jumpHost));
+      const { kept } = await handTokens(bridge, tokens);
+      return { name: entry.name, kept, served: (await handProducts(bridge, products)).served };
     } catch (error) {
       // A page without a frame — no place for notices — has no one to tell.
-      try { notice("unreachable", { text: `The Bridge ${entry.name} did not take this browser's repository tokens: ${error?.message ?? error}` }); } catch { /* no notice place */ }
+      try { notice("unreachable", { text: `The Bridge ${entry.name} did not take this browser's repository tokens and products: ${error?.message ?? error}` }); } catch { /* no notice place */ }
       return { name: entry.name, error };
     }
   }));
 }
 
 /**
- * keepBridgesInformed(store, instance) -> void — from now on, each write or clear of a repository token in the store hands the Bridges the tokens
- * (handToBridges), once for the writes of one turn of the page. A Bridge's own write hands nothing by itself: a Bridge stored without a pairing — the HTTPS
- * address saved, a Bridge through the jump host named — is not contacted (`pairedNow` hands the tokens after a pairing).
+ * keepBridgesInformed(store, instance) -> void — from now on, each write or clear of a repository token or of `products` in the store hands the Bridges the
+ * tokens and the products (handToBridges), once for the writes of one turn of the page. A Bridge's own write hands nothing by itself: a Bridge stored
+ * without a pairing — the HTTPS address saved, a Bridge through the jump host named — is not contacted (`pairedNow` hands them after a pairing).
  */
 export function keepBridgesInformed(store, instance) {
   const prefixes = informed.get(store.storage) ?? new Set();
@@ -65,13 +71,13 @@ export function keepBridgesInformed(store, instance) {
   prefixes.add(store.prefix);
   let pending = false;
   watchSettings(store, (key) => {
-    if (!TOKEN.test(key) || pending) return;
+    if ((!TOKEN.test(key) && key !== "products") || pending) return;
     pending = true;
     queueMicrotask(() => { pending = false; handToBridges(store, instance); });
   });
 }
 
-/** pairedNow(store, instance) -> Promise — after a pairing: the Bridges are handed the tokens, where this browser keeps any (UC-044 step 4). */
+/** pairedNow(store, instance) -> Promise — after a pairing: the Bridges are handed the tokens and the products, where this browser keeps any (UC-044 step 4). */
 export async function pairedNow(store, instance) {
-  return repositoryTokens(store, instance).length ? handToBridges(store, instance) : [];
+  return repositoryTokens(store, instance).length || productsOf(store).length ? handToBridges(store, instance) : [];
 }

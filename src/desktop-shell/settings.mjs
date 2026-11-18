@@ -139,10 +139,30 @@ export function saveSettings(dataFolder, value) {
   return settings;
 }
 
+// The products the running Bridge serves, one list per settings in force: its handlers and its watching hold this one, which `PUT /v1/products` changes in place.
+const served = new WeakMap();
+export function servedProducts(settings) {
+  if (!served.has(settings)) served.set(settings, (settings.products ?? []).map((address) => ({ address })));
+  return served.get(settings);
+}
+
 // The shell's own handlers: `PUT /v1/agents/{agent}` keeps an agent's declaration in the settings, and in the agents the Bridge's handlers and its watching hold;
-// `PUT /v1/repository-tokens` keeps the tokens the paired browser hands the Bridge (MOD-bridge-jobs' keepRepositoryTokens), then has `checkOutAgain` check out.
+// `PUT /v1/repository-tokens` keeps the tokens the paired browser hands the Bridge (MOD-bridge-jobs' keepRepositoryTokens), then has `checkOutAgain` check out;
+// `PUT /v1/products` keeps the products the paired browser hands it in the settings and in the products the running Bridge serves, then has it check out.
 export function composeSettingsHandlers(settings, dataFolder, { checkOutAgain = () => {} } = {}) {
   return {
+    "PUT /v1/products": async ({ body }) => {
+      const products = body?.products;
+      if (!Array.isArray(products) || !products.every((address) => typeof address === "string" && address.trim())) {
+        throw Object.assign(new Error("The products are a list of repository addresses."), { code: "invalid-request" });
+      }
+      const next = [...new Set(products.map((address) => address.trim()))];
+      saveSettings(dataFolder, { ...loadSettings(dataFolder), products: next });
+      settings.products = next;
+      servedProducts(settings).splice(0, Infinity, ...next.map((address) => ({ address })));
+      checkOutAgain();
+      return { served: next.length };
+    },
     "PUT /v1/repository-tokens": async ({ body }) => {
       const kept = await keepRepositoryTokens(dataFolder, body?.tokens);
       checkOutAgain();
@@ -190,7 +210,6 @@ export async function takeExport(dataFolder, choice, text) {
     ...previous,
     name: choice?.ownComputer ? choice?.name ?? previous.name : first.name,
     port: localPort,
-    products: exported.settings.products ?? [],
     jumpHost,
     tunnels,
   });

@@ -12,10 +12,6 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
   "input": {
     "kind": "set-in-the-window",
     "name": "lab-pc",
-    "products": [
-      "https://github.com/alice/product-a",
-      "https://github.com/alice/product-b"
-    ],
     "every": 120,
     "jumpHost": {
       "hostname": "jump.example.org",
@@ -30,10 +26,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
       "name": "lab-pc",
       "port": "the port set",
       "agents": [],
-      "products": [
-        "https://github.com/alice/product-a",
-        "https://github.com/alice/product-b"
-      ],
+      "products": [],
       "every": 120,
       "paused": true,
       "jumpHost": null,
@@ -83,10 +76,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
     "final": {
       "name": "lab-pc",
       "port": "the port set",
-      "products": [
-        "https://github.com/alice/product-a",
-        "https://github.com/alice/product-b"
-      ],
+      "products": [],
       "every": 120,
       "jumpHost": {
         "hostname": "jump.example.org",
@@ -121,7 +111,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
 
 ```json
 {
-  "given": "A Bridge whose name, products and interval were set in the window, and a plain settings export of this instance written by the dashboard's own writer: two products, a jump host with a web login, the Bridges gpu-box (port 40111, token token-of-gpu-box) and lab-pc, and secrets (a repository token, an endpoint key, a mailbox password).",
+  "given": "A Bridge whose name and interval were set in the window, and a plain settings export of this instance written by the dashboard's own writer: two products, a jump host with a web login, the Bridges gpu-box (port 40111, token token-of-gpu-box) and lab-pc, and secrets (a repository token, an endpoint key, a mailbox password).",
   "input": {
     "kind": "imported",
     "export": "plain",
@@ -131,18 +121,13 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
   "expected": {
     "before": {
       "name": "set-in-the-window",
-      "products": [
-        "https://github.com/alice/set-in-the-window"
-      ],
+      "products": [],
       "every": 77
     },
     "refused": null,
     "settings": {
       "name": "gpu-box",
-      "products": [
-        "https://github.com/alice/from-the-export-a",
-        "https://github.com/alice/from-the-export-b"
-      ],
+      "products": [],
       "every": 77,
       "jumpHost": {
         "hostname": "jump.from-export.example",
@@ -199,18 +184,13 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
   "expected": {
     "before": {
       "name": "set-in-the-window",
-      "products": [
-        "https://github.com/alice/set-in-the-window"
-      ],
+      "products": [],
       "every": 77
     },
     "refused": null,
     "settings": {
       "name": "set-in-the-window",
-      "products": [
-        "https://github.com/alice/from-the-export-a",
-        "https://github.com/alice/from-the-export-b"
-      ],
+      "products": [],
       "every": 77,
       "jumpHost": {
         "hostname": "jump.from-export.example",
@@ -276,9 +256,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
   "expected": {
     "before": {
       "name": "set-in-the-window",
-      "products": [
-        "https://github.com/alice/set-in-the-window"
-      ],
+      "products": [],
       "every": 77
     },
     "refused": "Import refused: The passphrase is wrong or this locked export cannot be read.",
@@ -316,9 +294,7 @@ The cases of tests/test_bridge_settings.py: SPEC.md's check of THE BRIDGE IS CON
   "expected": {
     "before": {
       "name": "set-in-the-window",
-      "products": [
-        "https://github.com/alice/set-in-the-window"
-      ],
+      "products": [],
       "every": 77
     },
     "refused": "Import refused: This settings export belongs to another Agent M instance.",

@@ -53,6 +53,7 @@ function recording(t, refusing = null) {
     calls.push({ url: String(url), method: init.method, body: init.body ? JSON.parse(init.body) : null, token: init.headers?.["x-agent-m-bridge-token"] ?? null });
     if (refusing && String(url).startsWith(refusing)) return new Response(JSON.stringify({ error: "token-refused", message: "Bridge token refused." }), { status: 401 });
     if (String(url).endsWith("/v1/repository-tokens")) return new Response(JSON.stringify({ kept: JSON.parse(init.body).tokens.length }), { status: 200 });
+    if (String(url).endsWith("/v1/products")) return new Response(JSON.stringify({ served: JSON.parse(init.body).products.length }), { status: 200 });
     // A pairing: the Bridge names itself by its port, 4712 the Bridge new.
     if (String(url).endsWith("/v1/pair")) return new Response(JSON.stringify({ bridge: { name: String(url).includes(":4712") ? "new" : "lab", version: null, platform: "linux" }, origin: "https://fixture.github.io" }), { status: 200 });
     return new Response("{}", { status: 200 });
@@ -60,12 +61,52 @@ function recording(t, refusing = null) {
   return calls;
 }
 const tokenCalls = (calls) => calls.filter((call) => call.url.endsWith("/v1/repository-tokens"));
+const productCalls = (calls) => calls.filter((call) => call.url.endsWith("/v1/products"));
+
+// TST-1820001 · level: unit · module: MOD-settings-pages
+// guards: UC-044
+// given: a browser that keeps the Bridges bridge:lab (lab-token) and bridge:gpu (gpu-token), github-token, and the products https://github.com/fixture/one; the route bridge shown
+// input: writeSetting of products with https://github.com/fixture/two added; then clearSetting of products; then, in a fresh browser that keeps no repository token but the product https://github.com/fixture/one, Pair Bridge with lab's address and token
+// expect: after the write one PUT /v1/products to each Bridge, with its own pairing token, carrying both addresses; after the clear one to each carrying []; the pairing in the browser without tokens hands the product to the paired Bridge; counter-proof: before any write no PUT /v1/products was sent
+test("TST-1820001: each write and clear of the products, and a pairing, hands every Bridge this browser keeps the address of every product it manages", async (t) => {
+  const store = freshStore();
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  writeSetting(store, "bridge:gpu", { address: "http://localhost:40101", token: "gpu-token" });
+  writeSetting(store, "github-token", { value: "github_pat_I" });
+  writeSetting(store, "products", ["https://github.com/fixture/one"]);
+  const calls = recording(t);
+  await render(store);
+  assert.deepEqual(productCalls(calls), [], "counter-proof: nothing is handed before a write");
+
+  writeSetting(store, "products", ["https://github.com/fixture/one", "https://github.com/fixture/two"]);
+  await settle();
+  assert.deepEqual(productCalls(calls).map(({ url, method, token, body }) => [method, url, token, body]).sort((a, b) => a[1].localeCompare(b[1])), [
+    ["PUT", "http://127.0.0.1:4711/v1/products", "lab-token", { products: ["https://github.com/fixture/one", "https://github.com/fixture/two"] }],
+    ["PUT", "http://localhost:40101/v1/products", "gpu-token", { products: ["https://github.com/fixture/one", "https://github.com/fixture/two"] }]]);
+
+  calls.length = 0;
+  clearSetting(store, "products");
+  await settle();
+  assert.deepEqual(productCalls(calls).map(({ body }) => body), [{ products: [] }, { products: [] }], "a cleared list makes every Bridge serve none");
+
+  const tokenless = freshStore();
+  writeSetting(tokenless, "products", ["https://github.com/fixture/one"]);
+  calls.length = 0;
+  const target = await render(tokenless);
+  const byClass = (root, name) => { const found = []; (function visit(node) { for (const child of node.childNodes ?? []) { if (child instanceof Element) { if (child.className.split(" ").includes(name)) found.push(child); visit(child); } } })(root); return found; };
+  byClass(target, "bridge-address")[0].value = "http://127.0.0.1:4711";
+  byClass(target, "bridge-token")[0].value = "lab-token";
+  byClass(target, "bridge-pair")[0].dispatchEvent(new Event("click"));
+  await settle();
+  assert.deepEqual(productCalls(calls).map(({ url, body }) => [url, body]), [["http://127.0.0.1:4711/v1/products", { products: ["https://github.com/fixture/one"] }]],
+    "a pairing hands the products though the browser keeps no token");
+});
 
 // TST-20261110401 · level: unit · module: MOD-settings-pages
 // guards: UC-044; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CLEAR IS A REAL CLEAR; THE PAGE NAMES WHERE IT SENDS
 // given: a browser that keeps two Bridges, bridge:lab at http://127.0.0.1:4711 with pairing token lab-token and bridge:gpu at http://localhost:40101 with gpu-token, and `bridge` with lab's address; no repository token yet; the route bridge shown
 // input: writeSetting of github-token (github_pat_I); writeSetting of github-token:fixture/product (github_pat_P) and of gitlab-token:gitlab.example.org/g/p (glpat-G) in one turn; clearSetting of github-token:fixture/product; then writeSetting of an endpoint
-// expect: the route says that the repository tokens go to every Bridge this browser keeps; after the first write one PUT /v1/repository-tokens to each Bridge, with its own pairing token, carrying [{ https://github.com/fixture/instance, github_pat_I }]; after the two writes of one turn one PUT to each, carrying all three, each with its repository; after the clear one PUT to each without the product's token; counter-proof: the endpoint's write hands nothing
+// expect: the route says that the repository tokens and the products go to every Bridge this browser keeps; after the first write one PUT /v1/repository-tokens to each Bridge, with its own pairing token, carrying [{ https://github.com/fixture/instance, github_pat_I }]; after the two writes of one turn one PUT to each, carrying all three, each with its repository; after the clear one PUT to each without the product's token; counter-proof: the endpoint's write hands nothing
 test("TST-20261110401: each write and clear of a repository token hands every Bridge this browser keeps every repository token, each with its repository", async (t) => {
   const store = freshStore();
   writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
@@ -73,7 +114,7 @@ test("TST-20261110401: each write and clear of a repository token hands every Br
   writeSetting(store, "bridge", { address: "http://127.0.0.1:4711", token: "lab-token" });
   const calls = recording(t);
   const shown = await render(store);
-  assert.match(shown.textContent, /repository tokens go to every Bridge/i, "the page names where the tokens go");
+  assert.match(shown.textContent, /repository tokens and its products go to every Bridge/i, "the page names where the tokens and the products go");
 
   writeSetting(store, "github-token", { value: "github_pat_I", name: "GitHub token" });
   await settle();

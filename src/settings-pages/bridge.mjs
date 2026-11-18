@@ -507,7 +507,7 @@ export const route = {
       ...(download ? [download.section] : []),
       el("p", "notice bridge-shared-origin", sharedPagesNotice(context)),
       el("p", null, "The copied pairing token is sent only to the Bridge address when you choose Pair Bridge."),
-      el("p", "bridge-repository-tokens", "This browser's repository tokens go to every Bridge it keeps, when it is paired and whenever a token is stored, changed or cleared; the Bridge clones, pushes and opens pull and merge requests with them, and sends each only to its own server."),
+      el("p", "bridge-repository-tokens", "This browser's repository tokens and its products go to every Bridge it keeps, when it is paired and whenever a token or a product is stored, changed or cleared; the Bridge serves those products, clones, pushes and opens pull and merge requests with the tokens, and sends each token only to its own server."),
       el("p", null, el("label", null, "Bridge address ", address)),
       el("p", null, el("label", null, "Pairing token ", token, " ", show)),
       el("p", null, pairButton, " ", clear),

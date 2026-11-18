@@ -120,7 +120,7 @@ async function setInTheWindow(input) {
     const out = {};
     const firstToken = app.token();
     await app.goTo("Settings");
-    app.type("Name", input.name); app.type("Port", app.second); app.type("Products", input.products.join("\n")); app.type("Interval seconds", input.every);
+    app.type("Name", input.name); app.type("Port", app.second); app.type("Interval seconds", input.every);
     // Save settings restarts the Bridge on the port set; the view is drawn anew once it has.
     await app.drawnAnew("Bridge settings", () => app.press("Save settings"));
     const saved = app.settingsFile();
@@ -192,7 +192,7 @@ async function imported(input) {
     const out = {};
     const firstToken = app.token();
     await app.goTo("Settings");
-    app.type("Name", "set-in-the-window"); app.type("Products", "https://github.com/alice/set-in-the-window"); app.type("Interval seconds", 77);
+    app.type("Name", "set-in-the-window"); app.type("Interval seconds", 77);
     await app.drawnAnew("Bridge settings", () => app.press("Save settings"));
     out.before = { name: app.settingsFile().name, products: app.settingsFile().products, every: app.settingsFile().every };
     const text = await exportOf(input.export, input.instance);
@@ -264,8 +264,8 @@ class TestBridgeSettings(unittest.TestCase):
     # TST-1056101 · level: release · module: MOD-desktop-shell
     # guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
     # given: the Bridge's app running with its window, on a computer that has one supported agent installed; the Bridge was paired with a first token
-    # input: in the window, set the name, the port, the served products and the interval and press Save settings; set the jump host and press Save jump host; tick the installed agent, set the one folder of the agents' working folders and press Save agents; press Pair anew and confirm; then tick Chrome of the offered agent and press Save agents again
-    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, the products, the interval, the jump host, the one folder, the ticked agent with no folder of its own), the window shows the agent working in <folder>/claude; the agent's chrome is false until Chrome is ticked and true once it is saved ticked (UC-044 step 3: "the person may also tick Chrome: the Bridge then starts every session of that agent with its Chrome integration …; it is off until ticked"; MOD-desktop-shell, settings: "chrome … false until the person ticks it in the window"), the pairing token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
+    # input: in the window, set the name, the port and the interval and press Save settings; set the jump host and press Save jump host; tick the installed agent, set the one folder of the agents' working folders and press Save agents; press Pair anew and confirm; then tick Chrome of the offered agent and press Save agents again
+    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, no served product — none is entered in the window —, the interval, the jump host, the one folder, the ticked agent with no folder of its own), the window shows the agent working in <folder>/claude; the agent's chrome is false until Chrome is ticked and true once it is saved ticked (UC-044 step 3: "the person may also tick Chrome: the Bridge then starts every session of that agent with its Chrome integration …; it is off until ticked"; MOD-desktop-shell, settings: "chrome … false until the person ticks it in the window"), the pairing token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
     # counter-proof: run against src/ of the commit before the one folder (b254ffa20^), whose window has a Working folder field per agent and no field for the one folder, this case fails: the window has no "Folder of the agents' working folders"; and with src/desktop-shell/window.mjs planted to save chrome true before it is ticked, to save chrome false when it is ticked, or to draw no tick Chrome, this case fails
     def test_every_setting_is_kept_as_it_was_set_in_the_window(self):
         for loaded in of_kind("set-in-the-window"):
@@ -276,7 +276,7 @@ class TestBridgeSettings(unittest.TestCase):
     # guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
     # given: a Bridge whose settings were set in the window, and a fixture settings export written by the dashboard's own writer, plain or locked, with products, the jump host, two Bridges reached through it and secrets (a repository token, an endpoint key, a mailbox password, the jump host's web login)
     # input: in the window, Import settings export for the Bridge named in the export, for the person's own computer, with a wrong passphrase, and for an export of another instance
-    # expect: the part the export holds is taken from the file (the products, the jump host, the named Bridge's name and its token as the pairing token, the reverse tunnel with its port on the jump host; for the own computer a forward for each Bridge and the name and token kept); the Bridge's own port and the interval stay; no secret of the export is written anywhere; an export of another instance and a wrong passphrase are refused and change nothing
+    # expect: the part the export holds is taken from the file (the jump host, the named Bridge's name and its token as the pairing token, the reverse tunnel with its port on the jump host; for the own computer a forward for each Bridge and the name and token kept); the Bridge's own port, the interval and the served products — those the paired browser handed — stay; no secret of the export is written anywhere; an export of another instance and a wrong passphrase are refused and change nothing
     def test_the_part_an_export_holds_is_taken_from_the_file_and_nothing_else(self):
         for loaded in of_kind("imported"):
             with self.subTest(case=loaded["name"]):

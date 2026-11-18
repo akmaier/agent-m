@@ -16,7 +16,7 @@ import * as testSchedule from "../test-schedule/index.mjs";
 import * as resultRecords from "../result-records/index.mjs";
 import * as issueHandling from "../issue-handling/index.mjs";
 import { closeTunnels, ensureKey, openTunnels, tunnelHandlers } from "../tunnels/index.mjs";
-import { composeSettingsHandlers, loadSettings } from "./settings.mjs";
+import { composeSettingsHandlers, loadSettings, servedProducts } from "./settings.mjs";
 import { agentEnclosure } from "../agent-enclosure/index.mjs";
 
 const STRATEGIES = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
@@ -31,7 +31,7 @@ export const bridgeEnclosures = (dataFolder) => (folder) => agentEnclosure({ dat
 
 // The jobs routes for the Bridge's agents and their enclosures, with the instance and the served products a message of the prompt bar to a CLI session names.
 export function composeJobHandlers(settings, enclosures = null, instance = null) {
-  return jobHandlers({ agents: settings.agents ?? [], enclosures, instance, products: (settings.products ?? []).map((address) => ({ address })) });
+  return jobHandlers({ agents: settings.agents ?? [], enclosures, instance, products: servedProducts(settings) });
 }
 
 export function composeBridgeHandlers(settings, enclosures = null, dataFolder = null, { checkOutAgain, instance = null } = {}) {
@@ -62,7 +62,7 @@ export function composeWatchConfig(settings, instance, onSkipped) {
   return {
     bridgeName: settings.name,
     agents: settings.agents ?? [],
-    products: (settings.products ?? []).map((address) => ({ address })),
+    products: servedProducts(settings),
     every: settings.every * 1000,
     instance,
     ...(onSkipped ? { onSkipped } : {}),
