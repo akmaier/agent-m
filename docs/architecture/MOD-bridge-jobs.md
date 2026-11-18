@@ -234,7 +234,7 @@ settings (MOD-desktop-shell).
     (UC-049 5a, 6d).
   - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page: to one agent it offers, started with the model the
     request names (`A JOB RUNS ON A CONNECTION THAT OFFERS ITS PARTICIPANT'S MODEL`), answered with its text and the
-    usage it reported. A request that names a `product` — a product repository's address, or the instance's own — is a
+    usage it reported. A request that names a `product` — a served product's address, or the instance's own — is a
     message of the prompt bar to a CLI session (UC-049 step 4, ARC-055). Without a `session`, the Bridge starts one as
     it starts a job's — *The clones at the session's start*, *The token file* —, with
     MOD-agent-processes' `startSession` in the agent's enclosure, lists it as a job of the kind `converse` under a new
@@ -242,8 +242,7 @@ settings (MOD-desktop-shell).
     holds running, it types the request's `input` into that one. The ask's `session` is the session's identifier; its
     answer is the session's `answer` to that input, with no usage, or `failed` with the agent's exit code where the
     agent exits first. A request that names a session the Bridge holds no running session under is `not-found`;
-    a product the Bridge does not serve yet it serves from then on: the handlers tell its address to `serve`, which the
-    shell gives them (MOD-desktop-shell). A session ends when it is cancelled, when its agent exits, or
+    `invalid-request` for a product it does not serve. A session ends when it is cancelled, when its agent exits, or
     when the Bridge quits; its checkout and its token file are then removed, and its log is kept. A request without a `product` is a draft of the page's job
     runner, asked in the agent's working folder, which the agent may not write; or to a model endpoint, whose configuration the request carries, sent with
     MOD-endpoint-calls' `endpointDriver` in Node and answered the same way (`A RUNTIME IS INTERCHANGEABLE`) — or, where

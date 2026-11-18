@@ -82,8 +82,8 @@ double-clicking it, and copying one token. Nobody types a command.
    **Check again**. A folded explanation says that the agent will use its own login on this computer, so no
    key is needed and the person's subscription pays. The person ticks the installed agents this Bridge is to offer, and
    chooses one **folder**; the Bridge makes in it the working folder of each ticked agent, `<folder>/<agent>`, in which
-   it keeps that agent's clones of the instance and of the products it serves — those saved in its settings, and each
-   that a conversation's first message to one of its agents names (UC-049, step 4). For an agent that has a Chrome
+   it keeps that agent's clones of the instance and of the products it serves — those the dashboard hands it (step 4); no
+   product is entered on the Bridge. For an agent that has a Chrome
    integration — Claude Code and Codex —, the person may also tick **Chrome**: the Bridge then starts every session of
    that agent with its Chrome integration, so that the agent can use the person's Chrome; it is off until ticked. When
    the person saves, the Bridge at once
@@ -98,8 +98,9 @@ double-clicking it, and copying one token. Nobody types a command.
    stores the Bridge under the name it reports — by default its computer's name —, with its address and token
    (UC-042), and tests it; the bridge's window shows *paired with `<owner>.github.io`*. Then, and whenever a repository
    token is stored, changed or cleared in this browser, the dashboard hands every Bridge this browser keeps every
-   repository token it keeps, each with the repository it is for — the instance's and each product's —, as the settings
-   page says beside **Pair**. The Bridge keeps them in its data folder, out of every agent's reach, forgets a token the
+   repository token it keeps, each with the repository it is for — the instance's and each product's —, and every product
+   this browser manages, as the settings page says beside **Pair**; it hands them again whenever a product is added or
+   removed in this browser. The Bridge serves exactly the products handed to it. The Bridge keeps them in its data folder, out of every agent's reach, forgets a token the
    browser no longer holds, and from then on clones, fetches and pushes with them, and opens pull requests — merge
    requests on GitLab — through the server's API.
 5. Each agent the Bridge offers becomes a connection once the person declares, in the Bridge's window or on the settings
