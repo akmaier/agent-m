@@ -273,7 +273,7 @@ test("TST-965206: a reading lists only the mails of the last 30 days, selected b
   const old = rawMail("old", { subject: "Old report", date: daysAgo(40).toUTCString() });
   const recent = rawMail("recent", { subject: "Recent report", date: daysAgo(25).toUTCString() });
   const [OLD, RECENT] = [await mailOf("old"), await mailOf("recent")];
-  const p = await openReplies({ route: "imap", fragment: "#mail", rows: ROWS, inbox: [old, recent], issues: [issueRecord(3, "open", [])] });
+  const p = await openReplies({ route: "imap", fragment: "#mail", rows: ROWS, inbox: [{ raw: old, received: daysAgo(40).toISOString() }, { raw: recent, received: daysAgo(25).toISOString() }], issues: [issueRecord(3, "open", [])] });
   await lastly(p, async () => {
     await listed(p, 1);
     assert.deepEqual(listedIds(p), [RECENT.id], "the mail of twenty-five days ago is listed, the one of forty days ago is not");
