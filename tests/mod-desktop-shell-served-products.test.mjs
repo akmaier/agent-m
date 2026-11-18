@@ -34,7 +34,7 @@ const DECLARED = { place: "this machine", capabilities: ["draft text"], models: 
 // guards: UC-044; UC-049
 // given: a running Bridge served on loopback with the shell's handlers, the instance akmaier/agent-m, the agent claude with a working folder, no served product, and a counted checkOutAgain
 // input: a message of the prompt bar for akmaier/AlienInvasion with session ""; handProducts with akmaier/AlienInvasion; the same message again; handProducts with an empty address; handProducts with []; the message again
-// expect: the first message refused invalid-request for its product; { served: 1 }, the settings file and the watching naming the product, checkOutAgain called once; the second message refused only for its session, past the product; the empty address refused invalid-request with nothing changed and no checkout; [] { served: 0 }, a second checkout; counter-proof: the last message refused for its product again
+// expect: the first message refused invalid-request for its product; { served: 1 }, the settings file, the settings in force and the watching naming the product, checkOutAgain called once; the second message refused only for its session, past the product; the empty address refused invalid-request with nothing changed and no checkout; [] { served: 0 }, a second checkout; counter-proof: the last message refused for its product again
 test("TST-1820002: PUT /v1/products keeps the products the paired browser hands the Bridge, the running Bridge serves them at once, and checks out again", async (t) => {
   const data = await mkdtemp(join(tmpdir(), "agent-m-shell-products-"));
   const settings = saveSettings(data, { ...loadSettings(data), folder: "/work/agents", agents: [{ name: "claude", ...DECLARED }] });
@@ -54,6 +54,7 @@ test("TST-1820002: PUT /v1/products keeps the products the paired browser hands 
   assert.deepEqual(await handProducts(at, [PRODUCT]), { served: 1 });
   assert.deepEqual(JSON.parse(await readFile(join(data, "settings.json"), "utf8")).products, [PRODUCT]);
   assert.deepEqual(composeWatchConfig(settings, INSTANCE).products, [{ address: PRODUCT }], "the watching serves it");
+  assert.deepEqual(settings.products, [PRODUCT], "the settings in force keep it, which the checkout and every later save of the window read");
   assert.equal(checkouts, 1, "the Bridge checks out again with the products");
   await assert.rejects(message(), refusedFor(/running session as text/), "failure node: the running Bridge serves the product at once — the message passes the product");
 
