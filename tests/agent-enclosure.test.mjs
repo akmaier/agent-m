@@ -102,7 +102,7 @@ test("TST-1380002: the places that hold the Bridge's and the git login's credent
 // guards: NO MODEL READS A CREDENTIAL
 // given: the person's home /h, the agent's folders /h/work and /w/"jobs", the hidden place /d
 // input: seatbeltProfile
-// expect: the profile allows by default, denies every write, allows writing /private/tmp, /private/var/folders and /dev, then denies reading and writing /h, then allows reading and writing the two folders, and only then denies reading and writing /d — a later rule overrides an earlier one —; it refuses the keychain's three services; the quote in a path is escaped; counter-proof: no rule refuses a Unix socket, so the SSH agent's stays open
+// expect: the profile allows by default, denies every write, allows writing /private/tmp, /private/var/folders and /dev, then denies reading and writing /h, then allows reading the metadata of /h — the folder on the way to /h/work — and of no folder outside /h, then allows reading and writing the two folders, and only then denies reading and writing /d — a later rule overrides an earlier one —; it refuses the keychain's three services; the quote in a path is escaped; counter-proof: no rule refuses a Unix socket, so the SSH agent's stays open
 test("TST-1380003: the Seatbelt profile lets the agent read and write its folders, and nothing else of the person's home", () => {
   const profile = seatbeltProfile({ personHome: "/h", folders: ["/h/work", '/w/"jobs"'], hidden: ["/d"] });
   const at = (text, from = 0) => { const index = profile.indexOf(text, from); assert.notEqual(index, -1, `the profile holds ${text}:\n${profile}`); return index; };
@@ -111,6 +111,9 @@ test("TST-1380003: the Seatbelt profile lets the agent read and write its folder
   assert.ok(allowDefault < denyWrite && denyWrite < allowWrite && allowWrite < denyHome && denyHome < allowFolders && allowFolders < hide, profile);
   for (const path of ['(subpath "/private/tmp")', '(subpath "/private/var/folders")', '(subpath "/dev")']) { const index = at(path, allowWrite); assert.ok(index < denyHome, `temporary: ${path}`); }
   assert.ok(at('(subpath "/h")', denyHome) < allowFolders, "the person's home is refused");
+  const metadata = at("(allow file-read-metadata");
+  assert.ok(denyHome < metadata && metadata < allowFolders, "the folders on the way are allowed after the home is refused");
+  assert.equal(profile.slice(metadata, allowFolders).trim(), '(allow file-read-metadata\n  (literal "/h"))', "only the metadata of the folders on the way, as literals: /h, none for /w");
   for (const path of ['(subpath "/h/work")', '(subpath "/w/\\"jobs\\"")']) { const index = at(path, allowFolders); assert.ok(index < hide, `the agent's folder: ${path}`); }
   assert.ok(at('(subpath "/d")', hide) > hide, "hidden after the folders");
   for (const service of ["com.apple.SecurityServer", "com.apple.securityd.xpc", "com.apple.secd"]) at(`(global-name "${service}")`);
