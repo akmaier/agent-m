@@ -109,7 +109,8 @@ sequenceDiagram
   instance's workflow then writes the section and the places as the entry holds them, applying the same
   checks. For a product, a token is
   required — no product carries the workflow.
-- **4d. The reviewer accepts several entries of one queue.** They tick the entries they have read;
+- **4d. The reviewer accepts several entries of one queue.** They tick the entries they have read, or
+  every entry the list offers at once with **Tick all** at the head of the ticks' column;
   **Accept ticked** writes them in the order of the queue's index, in one commit, each with its record and its
   places.
   An entry whose heading another entry creates is offered only together with or after that entry, and

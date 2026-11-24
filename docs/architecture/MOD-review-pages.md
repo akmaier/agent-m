@@ -185,8 +185,9 @@ ReviewKind = {
   of its descriptor, are also the addresses by which other pages and the browser's notifications lead to a kind's list
   and to a file (MOD-main-page, MOD-notifications):
   - `<k>` — first *Accept ticked*, above the tables; then, only while a file of the kind is open or changed since acceptance, those files, each with its status
-    and a tick, and no such part where none is; then every file of the kind with its status — open, accepted, changed
-    since acceptance —; and a link to `<k>/history`. A
+    and a tick, and at the head of the ticks' column *Tick all*, which ticks or clears every tick of the part, each as a
+    person's tick of it would, and stands ticked while every tick is; no such part where none is; then every file of the
+    kind with its status — open, accepted, changed since acceptance —; and a link to `<k>/history`. A
     SPEC entry's tick names the blob of its proposal and of its places file, from the tree, and the blob of the section
     that holds now, from the SPEC read once with `sectionText` and `blobSha`; *Accept ticked* writes each entry's places
     as the entry holds them (UC-006 4d); the list builds no impact list, which is built for an entry only

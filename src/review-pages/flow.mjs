@@ -260,6 +260,16 @@ export function reviewRoute(kind) {
     const ticks = new Map();
     const bar = token ? button("btn accept-ticked", "Accept ticked (0)") : null;
     if (bar) bar.disabled = true;
+    // The ticks of the list, and *Tick all* at the head of their column (UC-008 3d, UC-006 4d): it ticks or clears every tick, each through the tick's own change, as a person's
+    // tick would; it stands ticked while every tick is, half-ticked while some are.
+    const boxes = [];
+    const all = el("input", "tick-all");
+    all.type = "checkbox";
+    all.setAttribute("aria-label", "Tick all");
+    all.addEventListener("change", () => {
+      const on = all.checked;
+      for (const box of boxes) if (box.checked !== on) { box.checked = on; box.dispatchEvent(new Event("change")); }
+    });
     const tables = [];
     const rowFor = (file, withTick) => {
       const first = el("td");
@@ -273,7 +283,10 @@ export function reviewRoute(kind) {
           if (box.checked) ticks.set(file.id, shown); else ticks.delete(file.id);
           bar.disabled = ticks.size === 0;
           bar.textContent = `Accept ticked (${ticks.size})`;
+          all.checked = ticks.size === boxes.length;
+          all.indeterminate = ticks.size > 0 && !all.checked;
         });
+        boxes.push(box);
         first.append(box);
       }
       // An approved entry of the instance's own SPEC is written by the instance's workflows: the row says why it is not written, and where they are turned on (UC-014 step 4, 4a).
@@ -284,12 +297,12 @@ export function reviewRoute(kind) {
       row.setAttribute("data-id", file.id);
       return row;
     };
-    const head = () => el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status")));
+    const head = (first = el("th")) => el("thead", null, el("tr", null, first, el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status")));
     const waiting = groups.flatMap((group) => group.entries).filter((file) => file.status !== "accepted" && file.status !== "in-SPEC");
     if (waiting.length) {
       const rows = el("tbody");
       for (const file of waiting) rows.append(rowFor(file, true));
-      tables.push(el("section", "open-changes", el("h3", null, "Open or changed"), el("table", "list", head(), rows)));
+      tables.push(el("section", "open-changes", el("h3", null, "Open or changed"), el("table", "list", head(boxes.length ? el("th", null, all) : undefined), rows)));
     }
     for (const group of groups) {
       const rows = el("tbody");

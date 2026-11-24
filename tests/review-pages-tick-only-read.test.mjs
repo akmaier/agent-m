@@ -1,7 +1,9 @@
 // MOD-review-pages' list gives a tick to every file not accepted, read or not, as UC-008 3d states it — "Each use case not accepted has an empty tick box on the list, read or not;
-// the reviewer ticks the ones to accept. Accept ticked writes one commit with one record per ticked file, each naming the text the page read of it." — and as SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// the reviewer ticks the ones to accept, or all of them at once with Tick all at the head of their column, which clears them all when unticked. Accept ticked writes one
+// commit with one record per ticked file, each naming the text the page read of it." — and as SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // asks of a batch: "ticked on their list, or shown together on one review page", "each naming the text the page read of that file". A file this tab has shown is
-// accepted with the text it showed; a file changed since is left out and named.
+// accepted with the text it showed; a file changed since is left out and named. Tick all ticks and clears the ticks as a person's ticks would, so Accept ticked counts and
+// writes them as it does ticks made one by one.
 // Run: node --test tests/review-pages-tick-only-read.test.mjs
 //
 // Module: MOD-review-pages
@@ -218,4 +220,58 @@ test("TST-1349006 use-case list without a token — a use case shown has no tick
   const target = await show(fake, product, {}, { token: false });
   assert.equal(badgeOf(rowOf(target, "UC-041")), "open", "known positive: the list shows UC-041");
   assert.deepEqual([tickedIn(target), byClass(target, "button", "accept-ticked").length], [[], 0]);
+});
+
+// ---------------------------------------------------------------- Tick all
+
+const tickAllOf = (target) => byClass(target, "input", "tick-all");
+const rowTicks = (target) => ["UC-041", "UC-043", "UC-044"].map((id) => byClass(rowOf(target, id), "input", "tick")[0]);
+// What the list shows of its ticks, as strings and booleans only: each row's tick, Tick all ticked and half-ticked, and Accept ticked with whether it can be pressed.
+const ticksShown = (target) => {
+  const [all] = tickAllOf(target), bar = byClass(target, "button", "accept-ticked")[0];
+  return { rows: rowTicks(target).map((box) => box.checked === true), all: all.checked === true, half: all.indeterminate === true, bar: bar.textContent, pressable: !bar.disabled };
+};
+
+// TST-1349007 · level: unit · module: MOD-review-pages
+// guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// given: the product of TST-1349001, a token
+// input: the list drawn; Tick all ticked; then UC-043's tick cleared; then Tick all ticked again; then Tick all cleared
+// expect: known positive — one Tick all, named "Tick all", in the head of the open or changed files, not ticked, and the three ticks of UC-041, UC-043 and UC-044 not ticked; Tick all ticked: all three ticks ticked and Accept ticked (3), which can be pressed; counter-proof — with UC-043's tick cleared, Tick all is not ticked but half-ticked and Accept ticked (2); ticked again, all three and Accept ticked (3); cleared, none ticked, Accept ticked (0), which cannot be pressed, and Tick all neither ticked nor half-ticked; nothing written
+test("TST-1349007 use-case list — Tick all ticks and clears every tick of the list, and Accept ticked counts them as ticked one by one", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const product = productOf(8), fake = fakeHost(product);
+  const target = await show(fake, product);
+  const [all, ...more] = tickAllOf(target);
+  assert.equal(more.length, 0, "known positive: one Tick all");
+  assert.equal(all.getAttribute("aria-label"), "Tick all", "known positive: named Tick all");
+  assert.ok(find(byClass(target, "section", "open-changes")[0], (node) => node.localName === "th").includes(all.parentNode), "known positive: in the head of the open or changed files");
+  const none = { rows: [false, false, false], all: false, half: false, bar: "Accept ticked (0)", pressable: false };
+  assert.deepEqual(ticksShown(target), none, "known positive: nothing ticked");
+  tick(all);
+  assert.deepEqual(ticksShown(target), { rows: [true, true, true], all: true, half: false, bar: "Accept ticked (3)", pressable: true }, "Tick all ticks every tick");
+  tick(rowTicks(target)[1], false);
+  assert.deepEqual(ticksShown(target), { rows: [true, false, true], all: false, half: true, bar: "Accept ticked (2)", pressable: true }, "counter-proof: one tick cleared, Tick all is not ticked");
+  tick(all);
+  assert.deepEqual(ticksShown(target), { rows: [true, true, true], all: true, half: false, bar: "Accept ticked (3)", pressable: true }, "Tick all ticks the one cleared");
+  tick(all, false);
+  assert.deepEqual(ticksShown(target), none, "Tick all cleared clears every tick");
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-1349008 · level: unit · module: MOD-review-pages
+// guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT
+// given: the product of TST-1349001, a token
+// input: the list drawn; Tick all ticked; a click on Accept ticked
+// expect: one commit holding three records, one each for UC-041, UC-043 and UC-044, each naming the blob of the text the list was drawn from, and none for UC-042, which is accepted; afterwards UC-041, UC-043 and UC-044 are accepted
+test("TST-1349008 use-case list — Accept ticked after Tick all writes one record per file of the list", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const product = productOf(9), fake = fakeHost(product);
+  const target = await show(fake, product);
+  tick(tickAllOf(target)[0]);
+  click(byClass(target, "button", "accept-ticked")[0]);
+  await until(target, () => fake.writes().length === 1, "the commit");
+  const byPath = (a, b) => a.path.localeCompare(b.path);
+  const records = [recordOf("UC-041", P41, UC41), recordOf("UC-043", P43, UC43), recordOf("UC-044", P44, UC44)].map(([path, body]) => ({ path, text: body }));
+  assert.deepEqual([...fake.writes()[0].change.files].sort(byPath), records.sort(byPath), "one record per file, each naming the blob of its text");
+  await until(target, () => ["UC-041", "UC-043", "UC-044"].every((id) => badgeOf(rowOf(target, id)) === "accepted"), "the three accepted");
 });

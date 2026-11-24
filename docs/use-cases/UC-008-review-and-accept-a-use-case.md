@@ -80,7 +80,8 @@ sequenceDiagram
 - **4a. The reviewer has no write access.** The commit is refused; the dashboard says so and offers
   the GitHub path, where the commit becomes a pull request that counts once a maintainer merges it.
 - **3d. The reviewer wants to accept several use cases at once.** Each use case not accepted has an
-  empty tick box on the list, read or not; the reviewer ticks the ones to accept. **Accept ticked**
+  empty tick box on the list, read or not; the reviewer ticks the ones to accept, or all of them at once
+  with **Tick all** at the head of their column, which clears them all when unticked. **Accept ticked**
   writes one commit with one record per ticked file, each naming the text the page read of it. A file
   that changed after the page read it is left out and named.
 - **3e. The reviewer wants to accept every open use case at once.** **Review all** opens one page with
